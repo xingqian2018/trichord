@@ -35,6 +35,40 @@
 
 ---
 
+## Second Run — 2026-04-10 (updated picks based on afternoon data)
+
+### Updated Market Context
+- March CPI confirmed: 3.3% YoY (energy-driven), core CPI 2.6% (below forecast) — stagflation light
+- AMZN shareholder letter: $15B+ annualized GenAI AWS revenue disclosed for first time → AMZN up 5%
+- Iran ceasefire durability doubts: Israel-Lebanon strikes, Strait re-closed, oil rebounding toward $100
+- VIX: ~19.33 (down from 24.54 earlier in week; still elevated)
+
+### Updated Big Tech Picks (3)
+
+| # | Ticker | Company                               | Price at call | Thesis (brief)                                                  | Hold horizon | Change trigger                                                   |
+|---|--------|---------------------------------------|---------------|-----------------------------------------------------------------|--------------|------------------------------------------------------------------|
+| 1 | TSM    | Taiwan Semiconductor Mfg (ADR)        | ~$372         | Q1 beat ($35.71B, +35%); Apr 16 call to deliver Q2 guide; Goldman $550 target | 2–4 wks | 2026 revenue guide <25% YoY growth |
+| 2 | AMZN   | Amazon.com Inc.                        | ~$240 est.    | Shareholder letter today: $15B GenAI ARR first disclosed; Q1 late Apr confirming catalyst | 3–5 wks | Q1 AWS growth <20% YoY; GenAI ARR not reiterated |
+| 3 | MSFT   | Microsoft Corporation                 | ~$373         | Down 23% YTD, P/E 23x (5yr low), Azure +40%, Apr 29 earnings   | 3–5 wks | Azure <35% growth 2 consecutive qtrs |
+
+### Updated Free-style Picks (5)
+
+| Rank | Ticker | Company                    | Price at call | Thesis (brief)                                                   | Hold horizon | Change trigger                                               |
+|------|--------|----------------------------|---------------|------------------------------------------------------------------|--------------|--------------------------------------------------------------|
+| #1   | AMZN   | Amazon.com Inc.             | ~$240 est.    | Two-catalyst: letter today + Q1 earnings late Apr; AWS re-acceleration | 3–5 wks | Q1 AWS below 20% YoY; GenAI ARR not confirmed |
+| #2   | RTX    | RTX Corporation             | ~$196         | Q1 Apr 21; 4 consec. beats; $268B backlog immune to 2-wk ceasefire | 2–3 wks | Book-to-bill <1.0x; P&W charges >$3B total |
+| #3   | GOOGL  | Alphabet Inc.               | ~$315         | Q1 Apr 29; GCP +48% (Q4); $240B backlog; 19-20x P/E (cheap) | 3–5 wks | GCP <20% YoY 2 qtrs; Search revenue negative YoY |
+| #4   | NOW    | ServiceNow, Inc.            | ~$1,050       | Q1 Apr 22; Now Assist >$700M ACV; tariff-immune; 20% sub growth | 2–4 wks | Sub rev guide <18% YoY; NRR <115% |
+| #5   | LLY    | Eli Lilly and Company       | ~$906         | Foundayo FDA approved + shipping; Q1 Apr 30; US-made tariff exempt | 3–6 wks | Q1 GLP-1 rev <$7B; compounding access restored |
+
+### Changes from first run
+- **AMZN added** (replaces LMT in free-style #1 slot; also replaces GOOGL in Big Tech)
+  - Reason: AMZN shareholder letter today disclosed $15B GenAI ARR — first-time disclosure, two-catalyst structure
+- **LMT dropped** from free-style: ceasefire creates temporary sentiment headwind; EPS guided -7.6% YoY in Q1; up 26-30% YTD (war premium partly deflating). Thesis still valid but risk/reward inferior to AMZN/GOOGL
+- **GOOGL moved** from Big Tech to Free-style #3: still a strong pick but AMZN's two-catalyst structure is more compelling for today's rotation
+
+---
+
 ## Self-evaluation of previous call (same-day re-run)
 This is a second run on April 10, 2026. The prior action file (also April 10) was produced earlier today. Key observations within-day:
 - **LLY**: Prior call ~$870 → current ~$962 (+10.6%). The FDA approval of oral GLP-1 "Foundayo" announced today was a major intraday catalyst. This confirms the thesis and adds a new forward catalyst. Strong vindication.

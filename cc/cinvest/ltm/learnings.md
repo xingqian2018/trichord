@@ -44,6 +44,16 @@ _Distilled, reusable lessons from past runs. Apply these in Step 4 before finali
 
 ---
 
+## Lesson 6 — CEO annual shareholder letters with first-time revenue disclosures are mini-earnings announcements
+
+**Pattern**: When a major technology company's CEO annual letter contains a *first-time explicit quantification* of a new revenue metric (e.g., "$15B annualized GenAI revenue" for AMZN AWS in April 2026), this functions as a fundamental de-risking event — not a news headline. The market reprices fast (+5% on the day) but institutional consensus revisions take 2-3 weeks, and the confirming Q1 earnings print 3-4 weeks later is the second catalyst that drives sustained institutional buying. The two-catalyst structure (letter today → earnings confirmation) is more reliable than a single-catalyst setup.
+
+**When it applies**: Any time a mega-cap tech CEO letter contains a first-ever explicit dollar amount for an AI or emerging-product revenue stream where the prior concern was "we don't know if the ROI is real." The moment management voluntarily quantifies that ROI with specificity, the bear thesis is addressed.
+
+**How to apply**: If a shareholder letter from a quality tech company discloses first-time quantitative AI revenue metrics, position immediately for the 3-5 week window leading to earnings confirmation. Do not wait for the earnings date — the institutional repositioning process begins the day of the disclosure and takes weeks, not hours. The easy same-day trade (+5%) is only the beginning; the earnings print is the second leg.
+
+---
+
 ## Lesson 5 — Defense stocks hold up during ceasefire better than energy
 
 **Pattern**: When a ceasefire is announced, energy stocks dump immediately (oil-price premium deflates). But defense stocks typically hold flat or sell off only modestly, because the defense *spending* cycle is driven by multi-year budgets and backlogs — not by the spot price of conflict. RTX's $268B backlog doesn't disappear when Trump tweets a ceasefire.

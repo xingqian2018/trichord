@@ -8,7 +8,7 @@ All S&P 500 constituents are in scope by default. This file tracks the **additio
 
 ## Big Tech Pool
 
-→ Maintained in `~/.claude/ltm/bigtech_pool.md`
+→ Maintained in `~/.claude/skills/cinvest/ltm/bigtech_pool.md`
 
 The ~30-name curated Big Tech rotation pool lives in ltm as persistent reference knowledge. Read it there before selecting the 3 daily Big Tech picks. When a company is added or removed from the pool, log the change in the removal/addition log at the bottom of that file.
 

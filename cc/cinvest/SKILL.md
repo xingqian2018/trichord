@@ -20,8 +20,32 @@ allowed-tools:
 |--------|---------|----------|
 | `ltm/` | **Long-term memory** — durable knowledge, distilled lessons, curated consensus, stable reference lists (universe, pool definitions). Written rarely, survives indefinitely. | Persistent but editable |
 | `stm/` | **Short-term memory** — state that must be refreshed every run. Current positions, today's plan, live context. Treat as stale after each session until updated. | Per-run |
-| `action/` | **Live log** — append-only record of what happened: trades executed, watchlists produced, self-evaluations. Source material for future analysis; distill valuable patterns into `ltm/` or `stm/` over time. | Append-only |
-| `scratch/` | **Ephemeral workspace** — divide-and-conquer plans, in-flight action items, rough notes. Assume everything here is gone the next day. Never rely on scratch content surviving between runs. | Disposable |
+| `log/` | **Daily log** — one file per day combining portfolio diagnosing, today's plan, and execution record. Source material for future analysis; distill valuable patterns into `ltm/` or `stm/` over time. | Append-only |
+| `tmp/` | **Thinking workspace** — use freely and often. Write down sub-problems, intermediate research, chain-of-thought breakdowns, candidate comparisons, anything. Externalizing reasoning here beats holding it all in memory. Assume contents are gone after the run — never rely on them surviving. | Disposable |
+
+## Expected Files
+
+**`ltm/`** — standard files below, but the skill is free to create additional files here whenever something genuinely warrants it: a notable macro regime shift, a sector thesis worth preserving, a pattern that keeps recurring, anything the skill judges important enough to remember across runs. Name the file descriptively. No permission needed — just write it.
+| File | Content |
+|------|---------|
+| `learnings.md` | Distilled lessons from past runs — what mistakes revealed about how to think and act differently |
+| `universe.md` | The full stock universe cinvest draws picks from (S&P 500 + extended watchlist) |
+| `bigtech_pool.md` | The ~30-name Big Tech pool cinvest selects its 3 daily big tech picks from |
+
+**`stm/`** — each file starts with `_Last updated: YYYYMMDD-HHMM_` so the skill can immediately see how fresh the data is.
+| File | Content |
+|------|---------|
+| `market_knowledge.md` | Latest market snapshot — rates, indices, macro, and current portfolio summary. Overwritten each run. |
+| `watchlist.md` | Stocks cinvest is monitoring but not yet acting on. Overwritten each run. |
+| `portfolio.md` | Cinvest's last-confirmed position state — ticker, shares, and last action timestamp. Overwritten each run. |
+
+**`log/`**
+| File | Content |
+|------|---------|
+| `<YYYYMMDD-HHMM>_log.md` | Daily log with three sections: Portfolio Diagnosing, Plan, and Execution. One file per run, never overwritten. |
+
+**Missing files:** A missing `ltm/` or `stm/` file simply means it hasn't been created yet — treat as blank and continue. If a specific log file referenced by a `portfolio.md` position's last action date cannot be found, raise it: *"Cannot find the log for TICKER's last action on <date> — original thesis and entry context will be unavailable when diagnosing this position."*
+
 
 ---
 
@@ -73,10 +97,10 @@ Read all long-term memory files simultaneously:
 - `~/.claude/skills/cinvest/stm/market_knowledge.md` — prior market snapshot and portfolio summary
 - `~/.claude/skills/cinvest/stm/watchlist.md` — running list of stocks cinvest is keeping an eye on (found interesting, may not be action ready yet); use as a candidate pool for Step 5
 - `~/.claude/skills/cinvest/ltm/learnings.md` — distilled understanding from past runs: not a mistake log, but what those mistakes revealed about how to think and act differently going forward
-- **All files** in `~/.claude/skills/cinvest/action/` — two file types per day:
-  - `_action_plan.md` — cinvest's pre-execution judgment (picks, avoids, self-eval). Scan for thesis patterns and recent recommendations.
-  - `_execution.md` — ground truth of what was actually filled. This is what Step 0B uses to classify positions as cinvest-initiated. Read carefully.
-  This is for **learning/context only** — portfolio reconstruction is handled in Step 0B, not by replaying action files.
+- **Selected log files** in `~/.claude/skills/cinvest/log/` — read only:
+  1. The log file for each date appearing in the `last_action_ts` column of `portfolio.md` (one per open position — may be older than 14 days)
+  2. The last 14 days of logs for general context and learning
+  Each file has three sections: Portfolio Diagnosing, Plan, and Execution. The Execution section is what Step 0B uses to classify positions as cinvest-initiated; if it says "None", no positions changed that run. This is for **learning/context only** — portfolio reconstruction is handled in Step 0B, not by replaying log files.
 
 ---
 
@@ -84,44 +108,25 @@ Read all long-term memory files simultaneously:
 
 **0B-1 — Read expected state**
 
-Read `/home/xingqianx/Project/trichord/cc/cinvest/stm/portfolio.md`. This is cinvest's **last-confirmed portfolio state** — what cinvest expected the account to hold after its previous run.
-
-Build: `cinvest_expected = { TICKER: shares }`
+Read `portfolio.md`. This gives cinvest its own last-known positions: what it bought, how many shares, and when it last acted.
 
 **0B-2 — Get live reality from ctradeexe**
 
 Call ctradeexe: `"report all current positions: ticker, shares held, avg entry price, current price, unrealized P&L"`
 
-ctradeexe is the ground truth on *what exists in the account*. It cannot tell you *why* those positions exist or who initiated them.
+This is ground truth — what the account actually holds right now.
 
-**0B-3 — Reconcile: what changed while cinvest was offline?**
+**0B-3 — Note the delta, carry both forward**
 
-Compare `cinvest_expected` against live account positions. The delta reveals what happened while cinvest was offline.
+Silently compare the two. Most of the time they match, or the account has extra positions cinvest has never heard of (the user's own holdings — ignore them entirely). Don't classify, don't flag, don't act yet.
 
-| Situation | Classification | Action |
-|-----------|---------------|--------|
-| In `cinvest_expected`, shares match (±5%) | `cinvest_initiated` | Evaluate normally |
-| In `cinvest_expected`, share count is **lower** than expected | `cinvest_tampered` | **Raise concern on screen**: "My position in X was reduced from N to M shares while I was offline. Was this intentional?" Accept actual count and continue. |
-| In `cinvest_expected`, but **no longer in account** | `cinvest_closed_externally` | **Raise concern on screen**: "My position in X was fully closed while I was offline. Was this intentional?" Remove from `portfolio.md`. |
-| In `cinvest_expected`, share count is **higher** than expected | `cinvest_initiated` | **Raise concern on screen**: "My position in X was increased from N to M shares while I was offline. Was this intentional?" Accept actual count and continue. |
-| **NOT in `cinvest_expected`** | `personal_position` | **Hands off — none of cinvest's business.** Do not evaluate, do not buy, do not sell. These were opened by someone else while cinvest was offline (or are the user's long-standing personal holdings). Use actual cash balance from ctradeexe for sizing — it already reflects any cash spent on personal positions. |
+Carry both `cinvest_portfolio` and `live_account` into Step 5. Concerns are only raised there, when a discrepancy actually affects a planning decision — for example:
+- cinvest expects 8 AAPL but account shows 7, and the plan is to hold 8 → *"One AAPL share is missing — buy it back or accept 7?"*
+- cinvest's AAPL position is gone entirely, and the plan is to hold → *"AAPL was closed externally — re-enter at 8 shares or drop the position?"*
+- cinvest wants to buy 10 NVDA, but account already holds 20 under the user → *"User holds 20 NVDA already — open a separate cinvest position, reduce to 10, or skip?"*
 
-**Fallback — if `portfolio.md` is missing:**
-1. Pull live positions from ctradeexe and treat everything in the account as the starting reality — cinvest cannot yet distinguish its own positions from personal ones, so treat all as `cinvest_initiated` for this run and write `portfolio.md` at end of Step 9D.
-2. If ctradeexe is also unavailable: treat as a **clean slate** — no existing positions to evaluate, proceed directly to Step 5B (new picks only).
+If there is no discrepancy that touches the plan, say nothing.
 
-Build:
-```
-live_positions = [{
-  ticker, shares, entry_price, current_price, pnl_pct,
-  classification,    ← cinvest_initiated | cinvest_tampered | cinvest_closed_externally | personal_position
-  change_trigger,    ← from action file history (blank if personal_position)
-  thesis_summary,    ← from action file history (blank if personal_position)
-  cinvest_buy_date   ← from action file history (blank if personal_position)
-}]
-```
-
-Carry `live_positions` into Step 5A. **Never apply cinvest's logic to `personal_position` entries.**
 
 ---
 
@@ -153,9 +158,9 @@ Process all results together before moving to Step 0D.
 
 ### Step 0D — Retrospective: diagnose past calls *(runs after 0A + 0B complete)*
 
-**Purpose: understand, not decide.** This step looks backward only — no hold/sell decisions yet. Those happen in Step 5A, once today's macro context from Steps 1–3 is available. What 0D produces is the diagnostic clarity that makes Step 5A sharper.
+**Purpose: understand, not decide.** This step looks backward only — no hold/sell decisions yet. Those happen in Step 5A, once today's macro context from Steps 1–3 is available. What 0D produces is the diagnostic clarity that makes Step 5A sharper. Feel free to jot notes into `tmp/` as you work through positions — write it down, read it back, think on paper.
 
-For each pick in the most recent `_action_plan.md` files (look back up to 2 weeks, focus on still-open or recently closed positions), compare what cinvest predicted against what actually happened:
+For each pick in the most recent `_log.md` files (look back up to 2 weeks, focus on still-open or recently closed positions), compare what cinvest predicted against what actually happened:
 
 - What was the thesis and expected price direction?
 - What did the stock actually do?
@@ -421,7 +426,7 @@ Add `_Last updated: <today's date>_` at the top.
 ```markdown
 # Market Knowledge Snapshot
 
-_Last updated: <YYYY-MM-DD>_
+_Last updated: <YYYYMMDD-HHMM>_
 
 > Investor profile: aggressive swing trading, 2–8 week hold horizon, daily monitoring cadence.
 > Signals are evaluated for near-term catalyst plays. Long-term structural trends are noted as context, not as primary trade drivers.
@@ -560,7 +565,7 @@ After completing Step 5, ask: *"Did something happen — a bad call, a surprise,
 
 ```markdown
 ## <Short title — what this lesson is about>
-_Added: YYYY-MM-DD_
+_Added: YYYYMMDD-HHMM_
 
 ### What happened
 - Ticker(s) involved, date(s), and what cinvest did (bought / held / sold)
@@ -586,52 +591,86 @@ _Added: YYYY-MM-DD_
 
 ---
 
-## Step 8 — Save action plan
+## Step 8 — Write today's log (Portfolio Diagnosing + Plan sections)
 
-Write a new file to `~/.claude/skills/cinvest/action/<YYYY-MM-DD>_action_plan.md` using the template below.
-This is cinvest's **pre-execution judgment** — what it recommended and why, written before any trades happen. Never overwrite a past action plan file.
+Create `~/.claude/skills/cinvest/log/<YYYYMMDD-HHMM>_log.md` with the first two sections. The Execution section is appended later by Step 9D after trades complete. Never overwrite a past log file.
 
 ```markdown
-# Investment Action Plan — <YYYY-MM-DD>
+# Daily Log — <YYYYMMDD-HHMM>
 
-## Market Context (brief)
+## Portfolio Diagnosing
+
+_Always written. Brief if positions are healthy; detailed if something diverged from the original thesis._
+
+<For each cinvest_initiated position held, state:>
+<- TICKER — Company Name | entry $X.XX → today $X.XX | +/-X% | held X days of X-week target>
+<- Original thesis & change trigger>
+<- Status: ON TRACK / TRIGGER HIT / THESIS BROKEN / WINDOW EXPIRING>
+<- If diverged: what happened? Was the reasoning wrong, timing off, or an unforeseeable event?>
+
+<If no open cinvest positions: "No open cinvest positions to diagnose.">
+
+---
+
+## Plan
+
+_Always written. Can be as short as "HOLD all positions — no changes needed" if nothing warrants action._
+
+### Market Context
 - Fed Funds Rate: <x.xx%> | 10Y yield: <x.xx%> | VIX: <xx.x>
 - S&P 500: <xxxx> (<YTD%>) | NASDAQ: <xxxxx> (<YTD%>)
 - Macro theme: <one sentence>
 
----
+### Reasoning
+<Narrative thinking chain: what did diagnosing reveal? How does today's macro context change the picture?
+What hot spots are attracting capital? Any sector rotation or policy shock creating opportunity or risk?
+Keep this honest — show the thinking, not just the conclusion.>
 
-## Big Tech Picks (3) — Big Tech Pool selection
+### Portfolio Changes
 
-| # | Ticker | Company        | Price at call | Thesis (brief)              | Hold horizon | Change trigger              |
-|---|--------|----------------|---------------|-----------------------------|--------------|-----------------------------|
-| 1 | <TICK> | <Name>         | $<xx.xx>      | <reason>                    | <horizon>    | <trigger>                   |
-| 2 | <TICK> | <Name>         | $<xx.xx>      | <reason>                    | <horizon>    | <trigger>                   |
-| 3 | <TICK> | <Name>         | $<xx.xx>      | <reason>                    | <horizon>    | <trigger>                   |
+**Sells**
+<List tickers to sell with one-line reason each, or "None">
 
-## Free-style Picks (5) — sorted #1 best → #5 most speculative
+**Buys**
+<List tickers to buy with one-line thesis each, or "None">
 
-| Rank | Ticker | Company        | Price at call | Thesis (brief)              | Hold horizon | Change trigger              |
-|------|--------|----------------|---------------|-----------------------------|--------------|-----------------------------|
-| #1   | <TICK> | <Name>         | $<xx.xx>      | <reason>                    | <horizon>    | <trigger>                   |
-| #2   | <TICK> | <Name>         | $<xx.xx>      | <reason>                    | <horizon>    | <trigger>                   |
-| #3   | <TICK> | <Name>         | $<xx.xx>      | <reason>                    | <horizon>    | <trigger>                   |
-| #4   | <TICK> | <Name>         | $<xx.xx>      | <reason>                    | <horizon>    | <trigger>                   |
-| #5   | <TICK> | <Name>         | $<xx.xx>      | <reason>                    | <horizon>    | <trigger>                   |
+**Holds**
+<List cinvest-initiated positions being held with one-line status each>
 
-## Stocks to Avoid (3)
+### Today's Watch Universe
 
-| # | Ticker | Company        | Price at call | Concern (brief)             | Re-evaluate in | Reversal trigger            |
-|---|--------|----------------|---------------|-----------------------------|----------------|-----------------------------|
-| 1 | <TICK> | <Name>         | $<xx.xx>      | <concern>                   | <timeframe>    | <trigger>                   |
-| 2 | <TICK> | <Name>         | $<xx.xx>      | <concern>                   | <timeframe>    | <trigger>                   |
-| 3 | <TICK> | <Name>         | $<xx.xx>      | <concern>                   | <timeframe>    | <trigger>                   |
+**Big Tech Picks (3)**
+| # | Ticker | Company | Price | Thesis (brief) | Hold horizon | Change trigger |
+|---|--------|---------|-------|----------------|--------------|----------------|
+| 1 | <TICK> | <Name>  | $<xx> | <reason>       | <horizon>    | <trigger>      |
+| 2 | <TICK> | <Name>  | $<xx> | <reason>       | <horizon>    | <trigger>      |
+| 3 | <TICK> | <Name>  | $<xx> | <reason>       | <horizon>    | <trigger>      |
 
----
+**Free-style Picks (5) — #1 best → #5 most speculative**
+| Rank | Ticker | Company | Price | Thesis (brief) | Hold horizon | Change trigger |
+|------|--------|---------|-------|----------------|--------------|----------------|
+| #1   | <TICK> | <Name>  | $<xx> | <reason>       | <horizon>    | <trigger>      |
+| #2   | <TICK> | <Name>  | $<xx> | <reason>       | <horizon>    | <trigger>      |
+| #3   | <TICK> | <Name>  | $<xx> | <reason>       | <horizon>    | <trigger>      |
+| #4   | <TICK> | <Name>  | $<xx> | <reason>       | <horizon>    | <trigger>      |
+| #5   | <TICK> | <Name>  | $<xx> | <reason>       | <horizon>    | <trigger>      |
 
-## Self-evaluation of previous call
-<If Step 0 found past records: honest self-assessment — what was right, what was wrong, what bias to correct.>
+**Stocks to Avoid (3)**
+| # | Ticker | Company | Price | Concern (brief) | Re-evaluate in | Reversal trigger |
+|---|--------|---------|-------|-----------------|----------------|------------------|
+| 1 | <TICK> | <Name>  | $<xx> | <concern>       | <timeframe>    | <trigger>        |
+| 2 | <TICK> | <Name>  | $<xx> | <concern>       | <timeframe>    | <trigger>        |
+| 3 | <TICK> | <Name>  | $<xx> | <concern>       | <timeframe>    | <trigger>        |
+
+### Self-evaluation
+<Honest assessment of previous calls: what was right, what was wrong, what bias to correct.>
 <If first run: "First run — no prior calls to evaluate.">
+
+---
+
+## Execution
+
+_Appended after trades complete (Step 9D). If no trades were made, this section reads "None"._
 ```
 
 ---
@@ -647,7 +686,7 @@ This is cinvest's **pre-execution judgment** — what it recommended and why, wr
 Present the full plan as a single table before handing off to ctradeexe:
 
 ```
-=== PORTFOLIO ACTION PLAN — <YYYY-MM-DD> ===
+=== PORTFOLIO ACTION PLAN — <YYYYMMDD-HHMM> ===
 Current positions: X  |  Cash available: $XX,XXX
 
 ── SELLS (cinvest-initiated positions only) ────────────────────────────────
@@ -693,22 +732,28 @@ When ctradeexe escalates, cinvest re-evaluates the specific question using the s
 
 Once execution is complete, cinvest is responsible for persisting everything. Do not skip this — the memory is what makes the next run aware.
 
-**D1 — Write execution record**
-Write a new file to `~/.claude/skills/cinvest/action/<YYYY-MM-DD>_execution.md`. This is the **authoritative record of what cinvest confirmed was executed** — it is what Step 0B reads in future runs to know what cinvest is responsible for. Write it carefully; it is the boundary between "cinvest's work" and "anything else." Never overwrite a past execution file.
+**D1 — Append Execution section to today's log**
+Open `~/.claude/skills/cinvest/log/<YYYYMMDD-HHMM>_log.md` (created in Step 8) and replace the placeholder `## Execution` section with the actual record. This is the **authoritative record of what cinvest confirmed was executed** — it is what Step 0B reads in future runs to classify positions as cinvest-initiated vs. personal. Write it carefully; it is the boundary between "cinvest's work" and "anything else."
 
+If no trades were made, write:
 ```markdown
-# Execution Record — <YYYY-MM-DD HH:MM>
+## Execution
+None — no trades executed this session.
+```
 
-> This section records ONLY what cinvest confirmed was filled in this session.
+Otherwise write:
+```markdown
+## Execution
+
+> Records ONLY what cinvest confirmed was filled in this session.
 > Any position changes NOT listed here were made by the user or external events.
-> Future cinvest runs will use this section to classify positions as cinvest-initiated vs. personal.
 
-### Sells executed (cinvest confirmed)
+### Sells executed
 | Ticker | Company | Shares | Fill price | Proceeds | Reason |
 |--------|---------|--------|------------|----------|--------|
 | TSM    | Taiwan Semiconductor Manufacturing | 24 | $420.11 | $10,082 | Q1 catalyst complete |
 
-### Buys executed (cinvest confirmed)
+### Buys executed
 | Ticker | Company | Shares | Fill price | Cost | Change trigger |
 |--------|---------|--------|------------|------|----------------|
 | NVDA   | NVIDIA Corporation | 15 | $875.20 | $13,128 | ... |
@@ -717,13 +762,13 @@ Write a new file to `~/.claude/skills/cinvest/action/<YYYY-MM-DD>_execution.md`.
 - INTC: dropped — plan error (on avoid list)
 - LLY: price drifted >15% — skipped
 
-### Adjustments made during execution
+### Adjustments during execution
 - LLY: reduced from 9 to 7 shares — cash constraint
 
 ### Cash after execution
 Starting: $XX,XXX | Sells freed: $XX,XXX | Buys cost: $XX,XXX | Remaining: $XX,XXX
 
-### Pre-existing positions cinvest did NOT touch this session
+### Pre-existing positions cinvest did NOT touch
 | Ticker | Classification | Note |
 |--------|---------------|------|
 | AAPL   | personal_position | User's own holding — cinvest hands off |
@@ -738,7 +783,7 @@ Add or update a `## Current Portfolio` section at the bottom of `~/.claude/skill
 
 ```markdown
 ## Current Portfolio
-_As of <YYYY-MM-DD HH:MM>_
+_As of <YYYYMMDD-HHMM>_
 
 | Ticker | Company | Shares | Entry price | Change trigger |
 |--------|---------|--------|-------------|----------------|
@@ -751,7 +796,7 @@ Overwrite `~/.claude/skills/cinvest/stm/watchlist.md` with any stock cinvest fou
 
 ```markdown
 # cinvest Watchlist
-_Last updated: YYYY-MM-DD_
+_Last updated: YYYYMMDD-HHMM_
 
 | Ticker | Company | Why watching | Re-evaluate when |
 |--------|---------|--------------|------------------|
@@ -768,11 +813,13 @@ Overwrite `/home/xingqianx/Project/trichord/cc/cinvest/stm/portfolio.md` to refl
 
 ```markdown
 # cinvest Portfolio
-_Last updated: YYYY-MM-DD HH:MM_
+_Last updated: YYYYMMDD-HHMM_
 
-| Ticker | Shares |
-|--------|--------|
+| Ticker | Shares | Last action (YYYYMMDD-HHMM) |
+|--------|--------|------------------|
 ```
+
+`Last action (YYYYMMDD-HHMM)` is the timestamp (24-hour) of the most recent cinvest buy, sell, or size adjustment for that position — look up `log/<YYYYMMDD-HHMM>_log.md` for details.
 
 ---
 
@@ -783,7 +830,7 @@ _Last updated: YYYY-MM-DD HH:MM_
 3. After execution completes, print a final summary:
 
 ```
-🟢 Execution complete — <YYYY-MM-DD>
+🟢 Execution complete — <YYYYMMDD-HHMM>
 
 Sold:   TSM (24 shares, +16.7%), RTX (43 shares, -2.1%)
 Bought: NVDA (15 shares @ $875), MSFT (23 shares @ $373), ...
@@ -795,10 +842,9 @@ Next check-in: tomorrow — watch for RTX Apr 21 earnings and GOOGL Apr 23 earni
 
 4. Confirm saves:
 ```
-Action plan   → ~/.claude/skills/cinvest/action/<YYYY-MM-DD>_action_plan.md
-Execution     → ~/.claude/skills/cinvest/action/<YYYY-MM-DD>_execution.md
+Daily log     → ~/.claude/skills/cinvest/log/<YYYYMMDD-HHMM>_log.md  (diagnosing + plan + execution)
 Portfolio     → ~/.claude/skills/cinvest/stm/portfolio.md  (cinvest confirmed state updated)
-Watchlist     → ~/.claude/skills/cinvest/stm/watchlist.md  (a tracking on what are the stocks cinvest is watching and why)
+Watchlist     → ~/.claude/skills/cinvest/stm/watchlist.md  (stocks cinvest is watching and why)
 Market snap   → ~/.claude/skills/cinvest/stm/market_knowledge.md  (Current Portfolio section updated)
 Learnings     → ~/.claude/skills/cinvest/ltm/learnings.md  (if updated)
 ```

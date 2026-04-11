@@ -327,6 +327,28 @@ Identify **2–3 hot spots** before selecting candidates. Then deliberately sour
 
 Candidates must come from this universe. Do not pick stocks outside it without noting why.
 
+**Mandatory sector sweep — do this before building the shortlist:**
+
+Before gravitating toward familiar names, sweep all 11 GICS sectors. For each sector, answer in 1–2 sentences: *"Does the current macro environment, policy radar, or earnings calendar create a specific catalyst or capital rotation into or out of this sector this week?"*
+
+| Sector | Relevant this week? | If YES — 1–2 candidate names to add to shortlist |
+|--------|---------------------|--------------------------------------------------|
+| Energy | | |
+| Materials | | |
+| Industrials | | |
+| Consumer Discretionary | | |
+| Consumer Staples | | |
+| Health Care | | |
+| Financials | | |
+| Information Technology | | |
+| Communication Services | | |
+| Utilities | | |
+| Real Estate | | |
+
+- **YES sectors**: add 1–2 representative names to the candidate shortlist with one line on why.
+- **NO sectors**: dismiss with a one-line reason (e.g. "Utilities — no near-term catalyst; rate environment unfavorable for yield names").
+- **Do not skip or leave any sector blank.** Every sector gets a verdict. This is the structural check against silently defaulting to Mag-7 and a handful of familiar names. The sweep typically surfaces 3–5 non-tech candidates that would otherwise be missed.
+
 **Output structure for today's recommendations:**
 - **8 total accumulation picks**, split as:
   - **3 Big Tech** — chosen from the **Big Tech Pool** at `~/.claude/skills/cinvest/ltm/bigtech_pool.md` (~30 names spanning Mag-7, semiconductors, enterprise SaaS, cybersecurity, fintech, streaming, and platform companies). Pick the 3 with the best current fundamental + macro setup. Do not default to the same 3 daily — rotate based on valuation, recent earnings, and macro conditions. If a company should be added or removed from the pool based on today's findings, update `bigtech_pool.md` and log the change in its removal/addition log.
@@ -407,6 +429,14 @@ Final selection:
 - **Big tech 3**: pick the 3 names from the pool with the strongest current catalyst + fundamental setup. Do not default to the same names daily — rotate as catalysts arise and resolve.
 - **Free-style 5**: rank by expected return over the 4–8 week window. #1 is your highest-conviction, clearest-catalyst call.
 - **Avoids 3**: the 3 most structurally or fundamentally weak names, or names where the near-term catalyst is clearly negative.
+
+**Sector diversity check — apply before finalizing the free-style 5:**
+
+The 5 free-style picks must span at least 3 different GICS sectors. If more than 2 of the 5 picks fall in the same sector:
+- State explicitly: *"[N] of 5 free-style picks are in [Sector] — justified because: [one sentence on why this sector has disproportionately more near-term catalysts this specific week than others]."*
+- Name at least 2 other sectors that were considered and rejected, with one-line reasons.
+
+This makes concentration a deliberate, visible choice — not silent drift toward familiar names.
 
 **Collision check — run before locking in the final list:**
 For each finalized pick, check if it appears as a `personal_position` in `live_positions`:

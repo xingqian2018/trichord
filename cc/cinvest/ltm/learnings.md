@@ -61,3 +61,18 @@ _Distilled, reusable lessons from past runs. Apply these in Step 4 before finali
 **When it applies**: When evaluating defense vs. energy as "geopolitical beneficiaries." They are different exposures: energy benefits from the *spot* geopolitical premium; defense benefits from the *durable* rearmament cycle.
 
 **How to apply**: Never treat defense and energy as the same trade. In a ceasefire environment, rotate from energy to defense — the defense story gets better (spending locked in) while energy narrative gets worse (oil premium deflates). Both can coexist as separate theses.
+
+---
+
+## Lesson 7 — AI competitive disruption is structural, not transient — don't apply Lesson 3 blindly
+_Added: 20260410-0930_
+
+**Pattern**: Lesson 3 says "fear is already priced in for quality companies down >20% on consensus bearish narratives." But this lesson has a critical exception: if the bear thesis is that AI *directly displaces the company's core product category* (e.g., AI agents replacing ITSM workflow tools, LLMs replacing basic SaaS functionality), the fear may not be "already priced in" — it may be *correctly* priced in and likely to worsen. ServiceNow (NOW) is down 45% YTD with UBS downgrading to Neutral citing "weaker non-AI demand and AI competitive risks." This is different from MSFT being down on "AI capex ROI uncertainty" — the latter is a thesis about whether AI investments will pay off; the former is a thesis about whether AI *eliminates the need for the platform itself*.
+
+**When it applies**: Any time a SaaS/software company is down >30% YTD and the bear thesis explicitly cites AI agents/LLMs as direct product substitutes for the company's core offering. Examples: traditional ITSM tools (ServiceNow), legacy analytics (Tableau, some Splunk scenarios), basic CRM workflows (if Copilot replaces them), old-school automation platforms.
+
+**How to apply**: Before applying Lesson 3 ("fear priced in") to a beaten-down software stock, ask this question first: *"Is the fear macroeconomic/sentiment-driven, OR is the fear that AI agents replace the product itself?"*
+- Macroeconomic fear (rates, recession, capex budget cuts) → Lesson 3 applies; fear is likely priced in if fundamentals are intact.
+- AI displacement fear (the product category is being structurally disrupted) → Apply a structural disruption filter instead. A stock down 45% on AI competitive disruption is not necessarily cheap; it may be pricing in a future with a shrinking TAM.
+
+**Going forward**: For software companies down >30% YTD with AI competitive risk as the stated bear thesis, require explicit evidence that the core product is NOT being displaced (e.g., strong NRR, expanding headcount per customer, new use cases unlocked by AI) before treating it as a Lesson 3 entry. If the evidence is absent at the upcoming earnings, exit immediately — don't hold hoping for recovery.

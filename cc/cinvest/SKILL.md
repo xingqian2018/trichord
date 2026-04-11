@@ -62,7 +62,7 @@ Assume many participants in the market have information advantages — instituti
 
 ## Step 0 — Bootstrap: LTM context, portfolio sync, and macro data
 
-**Step 0A, 0B, and 0C are independent — launch all three in parallel.**
+**Step 0A, 0B, and 0C are independent — launch all three in parallel. Step 0D runs after 0A and 0B complete.**
 
 ---
 
@@ -71,9 +71,8 @@ Assume many participants in the market have information advantages — instituti
 Read all long-term memory files simultaneously:
 
 - `~/.claude/skills/cinvest/stm/market_knowledge.md` — prior market snapshot and portfolio summary
-- `~/.claude/skills/cinvest/stm/watchlist.md` — running list of stocks cinvest is keeping an eye on (found interesting, may not be action ready yet); use as a candidate pool for Step 4
-- `~/.claude/skills/cinvest/ltm/learnings.md` — lessons that shape Step 4 candidate selection
-- `~/.claude/skills/cinvest/ltm/mistakes_and_learns.md` — (if exists) prior execution errors to avoid repeating
+- `~/.claude/skills/cinvest/stm/watchlist.md` — running list of stocks cinvest is keeping an eye on (found interesting, may not be action ready yet); use as a candidate pool for Step 5
+- `~/.claude/skills/cinvest/ltm/learnings.md` — distilled understanding from past runs: not a mistake log, but what those mistakes revealed about how to think and act differently going forward
 - **All files** in `~/.claude/skills/cinvest/action/` — two file types per day:
   - `_action_plan.md` — cinvest's pre-execution judgment (picks, avoids, self-eval). Scan for thesis patterns and recent recommendations.
   - `_execution.md` — ground truth of what was actually filled. This is what Step 0B uses to classify positions as cinvest-initiated. Read carefully.
@@ -108,8 +107,8 @@ Compare `cinvest_expected` against live account positions. The delta reveals wha
 | **NOT in `cinvest_expected`** | `personal_position` | **Hands off — none of cinvest's business.** Do not evaluate, do not buy, do not sell. These were opened by someone else while cinvest was offline (or are the user's long-standing personal holdings). Use actual cash balance from ctradeexe for sizing — it already reflects any cash spent on personal positions. |
 
 **Fallback — if `portfolio.md` is missing:**
-1. Pull live positions from ctradeexe and treat everything in the account as the starting reality — cinvest cannot yet distinguish its own positions from personal ones, so treat all as `cinvest_initiated` for this run and write `portfolio.md` at end of Phase D.
-2. If ctradeexe is also unavailable: treat as a **clean slate** — no existing positions to evaluate, proceed directly to Step 4B (new picks only).
+1. Pull live positions from ctradeexe and treat everything in the account as the starting reality — cinvest cannot yet distinguish its own positions from personal ones, so treat all as `cinvest_initiated` for this run and write `portfolio.md` at end of Step 9D.
+2. If ctradeexe is also unavailable: treat as a **clean slate** — no existing positions to evaluate, proceed directly to Step 5B (new picks only).
 
 Build:
 ```
@@ -122,7 +121,7 @@ live_positions = [{
 }]
 ```
 
-Carry `live_positions` into Step 4A. **Never apply cinvest's logic to `personal_position` entries.**
+Carry `live_positions` into Step 5A. **Never apply cinvest's logic to `personal_position` entries.**
 
 ---
 
@@ -148,7 +147,37 @@ Fire all macro searches simultaneously so Steps 1–3 need no new queries:
 - `"tariff announcement <month> <year>"`, `"trade policy impact sectors"`
 - `"geopolitical risk market impact <month> <year>"`
 
-Process all results together before moving to Step 1.
+Process all results together before moving to Step 0D.
+
+---
+
+### Step 0D — Retrospective: diagnose past calls *(runs after 0A + 0B complete)*
+
+**Purpose: understand, not decide.** This step looks backward only — no hold/sell decisions yet. Those happen in Step 5A, once today's macro context from Steps 1–3 is available. What 0D produces is the diagnostic clarity that makes Step 5A sharper.
+
+For each pick in the most recent `_action_plan.md` files (look back up to 2 weeks, focus on still-open or recently closed positions), compare what cinvest predicted against what actually happened:
+
+- What was the thesis and expected price direction?
+- What did the stock actually do?
+- How far did reality diverge from the prediction?
+
+For every **meaningful divergence**, classify the error type honestly:
+
+| Question | Error type |
+|---|---|
+| Was the fundamental thesis wrong? | Analysis error |
+| Was the thesis right but catalyst timing off? | Timing error |
+| Did unexpected news emerge that wasn't foreseeable? | Information gap |
+| Was cinvest following consensus narrative that proved hollow? | Sentiment trap |
+| Did cinvest exit when it should have held, or hold when it should have exited? | Discipline failure |
+| Is the market temporarily wrong, or is cinvest wrong? | Conviction test — be honest; the market usually knows something |
+
+**Output of Step 0D — carry both into Steps 4 and 5:**
+
+1. **Per-position diagnostic**: for each cinvest_initiated position, a one-line error classification and what it implies about thesis confidence (e.g. "NVDA — timing error, catalyst still pending, thesis intact" or "RTX — sentiment trap, thesis weaker than believed"). Step 5A will use this alongside today's macro to make the actual hold/sell call.
+2. **Behavioral hypotheses for this run**: 1–3 patterns noticed that may be distorting today's thinking (e.g. "been chasing momentum — watch for that in Step 5B" or "last two avoids were noise — raise the structural bar"). These are hypotheses, not rules. Only graduate them to `learnings.md` in Step 9D if today's run confirms them.
+
+**If there are no past picks to review** (first run, or no recent action files), skip Step 0D and proceed.
 
 ---
 
@@ -205,17 +234,48 @@ Beyond the standard macro indicators, actively scan for **policy-driven market f
 
 **Key analytical rule**: Policy events are high-signal but often create **temporary mispricings**. A tariff announcement may crater a sector for days — but if the underlying business is strong and the policy is likely to be walked back or negotiated, that's an opportunity, not a reason to avoid. Always ask: *"Is this policy shock permanent or transient? Who benefits structurally, who is hurt structurally?"*
 
-Summarize the top 2–3 policy/macro events currently in play and their likely sector impact. Carry this directly into Step 4 candidate selection.
+Summarize the top 2–3 policy/macro events currently in play and their likely sector impact. Carry this directly into Step 5 candidate selection.
 
 ---
 
-## Step 4 — Research candidates
+## Step 4 — Learning session: extract lessons from prediction misalignments
+
+Based on Step 0D's diagnostic output, and with today's macro context from Steps 1–3 now available, conduct a deliberate learning session for each flagged misalignment. This step has two gates.
+
+**Gate 1 — Is this a genuine mistake or market noise?**
+
+Not every wrong prediction deserves a lesson. Before going deeper, ask:
+
+- Could cinvest have reasonably known better at the time, given available information?
+- Or was this an unforeseeable event — a sudden macro shock, a surprise data print, a geopolitical eruption — where the reasoning was sound but the outcome was unlucky?
+
+If it's noise: note it briefly and move on. Don't change behavior in response to randomness.
+If cinvest *could* have known better, or fell into a repeatable trap: proceed to Gate 2.
+
+**Gate 2 — Conduct the full learning session**
+
+For each genuine mistake, work through it fully using today's macro context to help explain the *why*:
+
+- **What happened**: ticker, date, what cinvest predicted, what actually occurred, estimated P&L impact
+- **Why it happened**: which error type (analysis / timing / sentiment trap / discipline failure / information gap) and what specifically led cinvest there — what was overweighted, underweighted, or ignored? Use today's macro view to help reconstruct the environment at the time.
+- **What should have been done**: the specific alternative action, and which signal or check cinvest failed to apply
+- **Going forward**: one concrete behavioral rule, stated as a condition + action (e.g. "when a thesis is consensus and VIX is falling, require a harder fundamental edge before entering")
+
+Write the result to `~/.claude/skills/cinvest/ltm/learnings.md` using the Step 7 template. If an existing entry covers the same pattern, update it and note the recurrence rather than adding a duplicate.
+
+**If 0D found no genuine mistakes**, skip Gate 2 and proceed.
+
+---
+
+## Step 5 — Research candidates
 
 ### Part A — Evaluate existing positions first
 
 **Only evaluate positions with classification `cinvest_initiated`, `cinvest_recommended_unconfirmed`, or `user_repositioned`.** Skip `personal_position` entries — they are out of cinvest's scope.
 
-For every in-scope ticker in `live_positions` (from Step 0C), evaluate before touching new research:
+This is where Step 0D's diagnostic meets today's macro context from Steps 1–3. For each in-scope position, bring both together: the retrospective told you *what happened and why*; the macro context tells you *what the environment looks like now*. The hold/sell decision needs both.
+
+For every in-scope ticker in `live_positions`, evaluate:
 
 **1. Has the change trigger been hit?**
 Search current price + any recent news/events for each held ticker. Check it against the change trigger recorded at time of entry.
@@ -350,9 +410,9 @@ For each finalized pick, check if it appears as a `personal_position` in `live_p
 
 ---
 
-## Step 5 — Write to ltm
+## Step 6 — Persist market snapshot (stm)
 
-> Steps 5, 6, and 7 are all independent file writes. Run them in parallel — write all three files in the same tool-call batch.
+> Steps 5, 6, and 7 are all independent file writes. Run them in parallel — write all three files in the same tool-call batch. Together they update both stm (today's live snapshot) and ltm (distilled knowledge that survives across runs).
 
 Write a structured Markdown file to `~/.claude/skills/cinvest/stm/market_knowledge.md` using the template below.
 Replace all `<placeholders>` with real data gathered above.
@@ -492,29 +552,41 @@ Keep avoids brief — no deep fundamental dive needed since no one is buying the
 
 ---
 
-## Step 6 — Update learnings.md (only if something new was learned)
+## Step 7 — Update learnings.md from this run (only if something new was learned)
 
-After completing Step 4, ask: *"Did I catch a repeatable mistake or confirm a pattern that should survive into future runs?"*
+After completing Step 5, ask: *"Did something happen — a bad call, a surprise, an adjustment — that reveals something about how to think or act differently next time?"*
 
-**If yes** — open `~/.claude/skills/cinvest/ltm/learnings.md` and add or update the relevant entry. Keep entries tight:
-- One lesson per bullet
-- State the pattern, not the specific stocks
-- Note the condition under which it applies
+**If yes** — open `~/.claude/skills/cinvest/ltm/learnings.md` and add a new entry using this structure:
 
-Example lessons (illustrative, not prescriptive):
-```
-- Avoid high-P/E growth stocks when 10Y yield is rising fast — multiple compression dominates thesis
-- "Rate cut expected" narrative often front-runs by 3–6 months; don't chase stocks that already priced it in
-- Macro risk calls (avoids) tend to be too early — a stock can stay irrational longer than the thesis is valid
+```markdown
+## <Short title — what this lesson is about>
+_Added: YYYY-MM-DD_
+
+### What happened
+- Ticker(s) involved, date(s), and what cinvest did (bought / held / sold)
+- What the outcome was: price moved from X to Y, estimated loss/gain impact
+
+### Why it happened
+- What led cinvest to this decision — what information, reasoning, or bias drove it
+- What was missed, misread, or overweighted
+- Was this an analysis error, a timing error, a sentiment trap, or a discipline failure?
+
+### What should have been done
+- Specific alternative action that would have produced a better outcome
+- What signal or check cinvest failed to apply
+
+### Going forward
+- Concrete rule or adjustment to apply in future runs
+- Condition under which this lesson applies (e.g. "when VIX > 25", "when thesis is consensus", "when hold window exceeds 6 weeks")
 ```
 
 **If nothing new was learned**, do not touch `learnings.md`. Silence is the right answer when there is nothing to add.
 
-`learnings.md` is a living, curated document. Prefer depth over accumulation — update or replace stale lessons rather than appending forever.
+`learnings.md` is a living, curated document. Update or supersede stale entries rather than appending forever — if a newer lesson contradicts an older one, replace it and note why the thinking evolved.
 
 ---
 
-## Step 7 — Save action plan
+## Step 8 — Save action plan
 
 Write a new file to `~/.claude/skills/cinvest/action/<YYYY-MM-DD>_action_plan.md` using the template below.
 This is cinvest's **pre-execution judgment** — what it recommended and why, written before any trades happen. Never overwrite a past action plan file.
@@ -564,30 +636,15 @@ This is cinvest's **pre-execution judgment** — what it recommended and why, wr
 
 ---
 
-## Step 8 — Execute via /ctradeexe (dynamic action loop)
+## Step 9 — Execute via /ctradeexe
 
-**The division of responsibility:**
-- **cinvest** owns the plan — what to buy, what to sell, why, in what order.
-- **ctradeexe** owns the truth — actual positions, real cash, real feasibility.
-- When they conflict, cinvest revises the plan. ctradeexe never changes the strategy; cinvest never overrides the account reality.
+**Division of responsibility:**
+- **cinvest** owns the strategy — what to buy, what to sell, why, ranked by conviction.
+- **ctradeexe** owns the execution — how to place orders, handle fills, manage cash flow, resolve order-level issues. cinvest does not dictate order sequencing or ticker-by-ticker mechanics.
 
-This is a dynamic loop. cinvest sends an action, ctradeexe responds, cinvest adapts if needed and sends the next action. It continues until the plan is fully executed or both agents agree it's complete.
+### Step 9A — Present the action plan to the user (one screen, then OK)
 
-### Internal session state (maintain throughout Step 8)
-
-```
-pending_sells   = []   ← from Step 4A — tickers to sell with reasons
-pending_buys    = []   ← 6-position buy plan, ranked
-already_sold    = []   ← filled this session
-already_bought  = []   ← filled this session
-available_cash  = X    ← updated after each fill (sells increase it, buys decrease it)
-```
-
-**Silent drop rule**: if a buy pick already appears in live positions at adequate size, drop it from `pending_buys` without comment and recompute sizing.
-
-### Phase A — Present the action plan to the user (one screen, then OK)
-
-Compute the full plan from `pending_sells` + `pending_buys`. Present it as a single action plan table:
+Present the full plan as a single table before handing off to ctradeexe:
 
 ```
 === PORTFOLIO ACTION PLAN — <YYYY-MM-DD> ===
@@ -597,9 +654,9 @@ Current positions: X  |  Cash available: $XX,XXX
   SELL  TSM   24 shares  ~$420   est. proceeds $10,080  reason: Q1 catalyst complete (+16%)
   SELL  RTX   43 shares  ~$185   est. proceeds  $7,955  reason: change trigger hit
 
-── BUYS (after sells + available cash = ~$XX,XXX) ──────────────────────────
-  BUY   NVDA  XX shares  ~$XXX   est. cost  $X,XXX   thesis: [one line]
-  BUY   MSFT  XX shares  ~$XXX   est. cost  $X,XXX   thesis: [one line]
+── BUYS ────────────────────────────────────────────────────────────────────
+  BUY   NVDA  ~equal weight   thesis: [one line]   change trigger: [trigger]
+  BUY   MSFT  ~equal weight   thesis: [one line]   change trigger: [trigger]
   ...
 
 ── HOLDS (cinvest managing) ─────────────────────────────────────────────────
@@ -607,60 +664,32 @@ Current positions: X  |  Cash available: $XX,XXX
 
 ── PERSONAL HOLDS (cinvest hands off — not touching) ───────────────────────
   SKIP  AAPL  — not in any cinvest action log; user's personal holding
-  SKIP  VTI   — not in any cinvest action log; user's personal holding
 
 ── USER REPOSITIONED (flag for awareness) ───────────────────────────────────
   NOTE  LLY   — cinvest bought 9 shares on 2026-04-10; account shows 6 shares now; user sold 3 without cinvest instruction
 
-Say OK to execute, or tell me what to adjust.
 ```
 
-**STOP. Wait for the user to say OK.** This is the only moment the user is asked anything.
+Print this plan to screen, then proceed immediately to Step 9B.
 
-### Phase B — Execute sells first (free up capital)
+### Step 9B — Hand off to ctradeexe
 
-Work through `pending_sells` one at a time. For each:
-1. Send to ctradeexe: `"sell N shares of TICKER — reason: [one line]"`
-2. When ctradeexe responds with a concern or question, answer it immediately using the standing policies below.
-3. On fill: add to `already_sold`, update `available_cash`, move to next sell.
+Once the user says OK, pass the full plan to ctradeexe in a single instruction. ctradeexe decides sequencing, sizing, and order mechanics. cinvest does not micromanage.
 
-### Phase C — Execute buys (using freed cash + original available cash)
+### Step 9C — Strategic re-planning (only if ctradeexe escalates)
 
-After all sells are resolved, recompute `available_cash` (original cash + sell proceeds). Recompute equal-weight sizing across `pending_buys`.
+ctradeexe will handle routine execution issues autonomously. It will only come back to cinvest when a **strategic decision** is needed — something that changes the intent of the plan, not just its mechanics. Examples:
 
-Work through buys one at a time:
-1. Confirm ticker is not in `already_bought` — skip silently if it is.
-2. Send to ctradeexe: `"buy N shares of TICKER market order — sourced from cinvest <date>, thesis: [one line], change trigger: [trigger]"`
-3. Answer any ctradeexe questions immediately using standing policies.
-4. On fill: add to `already_bought`, update `available_cash`, move to next.
+- A key sell is rejected and the cash assumption for the buy plan is now wrong
+- A position cinvest planned to buy has moved significantly and the thesis may be priced in
+- Available capital is insufficient to execute the plan as ranked — which picks get cut?
+- An unexpected account state requires cinvest to reconsider priorities
 
-**Never batch.** One order resolved before the next is sent.
-
-### cinvest standing answers — keep the loop moving without user involvement
-
-| ctradeexe says | cinvest does |
-|---|---|
-| Cash short for this buy — round down or skip? | Round down to max affordable whole shares (≥1). If 0 affordable, skip — note in summary. |
-| This ticker is on the avoid list — was this intentional? | Plan error. Drop it. Replace with next ranked buy pick (#4, then #5) not already in plan. |
-| Concentration too high (>25%) — resize? | Yes — resize to equal-weight. Update `pending_buys` and recompute remaining positions. |
-| This sell — ticker not held or partial hold? | Adjust sell quantity to match actual held shares. Send revised sell instruction. |
-| Price drifted +5–15% on a buy — proceed? | Yes, proceed. |
-| Price drifted >+15% on a buy — thesis may be priced in? | Skip. Note in summary as "skipped — price drifted >15%." Substitute next ranked buy if cash allows. |
-| Sell order REJECTED (e.g. unsettled funds)? | Note it, move on. Do not retry. Adjust buy plan if the sell proceeds were counted on. |
-| Order WORKING after 300s? | Proceed to next order in parallel. Leave open. |
-| Order REJECTED/FAILED (buy)? | Skip. Log. Note in summary. |
-| VIX elevated (>30) — proceed with buys? | Yes. Plan was formed with VIX context. |
-
-**Escalate to the user only when:**
-- Account has zero buying power even after all sells (needs cash deposit)
-- A single position would exceed 40% of portfolio even after resize
-- ctradeexe and cinvest have exchanged two messages and still cannot resolve
-
-Escalation format: `❓ **USER INPUT NEEDED**: [one sentence, one question, nothing else]`
+When ctradeexe escalates, cinvest re-evaluates the specific question using the same analytical standards as Step 5 and responds with a revised instruction. cinvest does not second-guess ctradeexe's execution judgment — only the strategic layer is cinvest's call.
 
 **ctradeexe's account data is always ground truth.** cinvest revises the plan to fit reality — never the reverse.
 
-### Phase D — Log and persist (after all orders resolve)
+### Step 9D — Log and persist (after all orders resolve)
 
 Once execution is complete, cinvest is responsible for persisting everything. Do not skip this — the memory is what makes the next run aware.
 
@@ -701,8 +730,8 @@ Starting: $XX,XXX | Sells freed: $XX,XXX | Buys cost: $XX,XXX | Remaining: $XX,X
 | LLY    | user_repositioned | cinvest bought 9 on 2026-04-10; user holds 6; 3 shares unaccounted by cinvest |
 ```
 
-**D2 — Update learnings.md (if anything new was learned)**
-Did ctradeexe flag something cinvest should have caught? Did a standing policy produce a bad outcome? Did an adjustment expose a weakness in the plan-building logic? If yes — add a lesson. If no — leave it alone.
+**D2 — Graduate insights to learnings.md (if earned)**
+Two sources to draw from: (1) anything from today's execution — did ctradeexe flag something cinvest should have caught, did a standing policy produce a bad outcome? (2) any behavioral flags raised in Step 0D that proved out during today's run — if the retrospective identified a thinking pattern and today's execution confirmed it, it has earned a place in learnings.md. If neither source produced something genuinely new, leave it alone.
 
 **D3 — Update market_knowledge.md with portfolio summary**
 Add or update a `## Current Portfolio` section at the bottom of `~/.claude/skills/cinvest/stm/market_knowledge.md` as a human-readable snapshot:
@@ -749,8 +778,8 @@ _Last updated: YYYY-MM-DD HH:MM_
 
 ## Output to user
 
-1. Print the **portfolio action plan** (sells + holds + buys) and wait for OK — this is the only user prompt.
-2. During execution: the cinvest ↔ ctradeexe dialogue is visible but the user is not asked anything unless `❓ USER INPUT NEEDED` appears.
+1. Print the **portfolio action plan** (sells + holds + buys), then execute immediately — no user confirmation needed.
+2. During execution: the cinvest ↔ ctradeexe dialogue is visible but the user is not asked anything unless ctradeexe escalates a strategic question.
 3. After execution completes, print a final summary:
 
 ```

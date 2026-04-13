@@ -64,6 +64,28 @@ _Distilled, reusable lessons from past runs. Apply these in Step 4 before finali
 
 ---
 
+## Lesson 8 — Short-term ceasefires in active military conflicts are false dawns — plan for both paths
+_Added: 20260413-0900_
+
+**Pattern**: The April 8 US-Iran two-week ceasefire felt like a significant de-escalation. The April 10 plan was built around it holding. Within 4 days (April 12), peace talks in Pakistan failed and Trump announced a Hormuz blockade. The ceasefire lasted less than one trading week. Any portfolio thesis that assumes a specific geopolitical outcome (ceasefire holds, deal is reached) is taking on binary political risk that cannot be managed with fundamental analysis.
+
+**When it applies**: Any time a portfolio is built around a specific geopolitical stabilization event — ceasefire, peace deal, trade truce, sanctions relief. Short windows (<4 weeks) are especially fragile.
+
+**How to apply**: For every pick where the thesis requires a geopolitical stabilization to hold: explicitly define TWO paths in the plan — (1) "stabilization holds": target and hold window, and (2) "stabilization fails": specific exit trigger. If you cannot define a credible exit for the "fails" path without catastrophic loss, the position is too geopolitical and the size should be reduced. Note: the April 10 plan survived the ceasefire collapse reasonably well (RTX, AMZN, GOOGL, MSFT, META are all insulated from Iran war binary risk) — this is the right model: catalysts that are independent of the geopolitical outcome.
+
+---
+
+## Lesson 9 — Electronics tariff announcements follow a bilateral exemption-to-walkback pattern
+_Added: 20260413-0900_
+
+**Pattern**: On April 10 (Friday night), Trump announced electronics/chip tariff exemptions from China reciprocal tariffs. Within 48 hours (Sunday April 12), Commerce Secretary Lutnick announced a "special-focus type of tariff" would be applied within 2 months. The exemption announcement came from the White House; the walk-back came from the Commerce Department. This bilateral pattern (White House exempts → Commerce Department corrects) reflects a structural coordination gap between Trump's ad-hoc trade signaling and the formal USTR/Commerce process.
+
+**When it applies**: Any time the White House announces electronics or semiconductor tariff exemptions from China-related tariffs without a corresponding Commerce/USTR technical process.
+
+**How to apply**: Do not size up chip/electronics positions on the day of a tariff exemption announcement. The Lutnick-type walk-back is structurally likely because Commerce and USTR require formal processes (Section 232, investigation windows, Federal Register notices) that contradict spontaneous White House exemptions. Wait 48–72 hours for the correction to clarify, then size based on the NET policy status (exemption minus walk-back), not the initial headline. The net result is usually: near-term sentiment positive with a 2-month ceiling — use that as the trade window, not "exemption = unlimited upside."
+
+---
+
 ## Lesson 7 — AI competitive disruption is structural, not transient — don't apply Lesson 3 blindly
 _Added: 20260410-0930_
 

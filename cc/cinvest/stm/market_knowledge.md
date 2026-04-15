@@ -1,6 +1,6 @@
 # Market Knowledge Snapshot
 
-_Last updated: 20260413-0900_
+_Last updated: 20260415-1000_
 
 > Investor profile: aggressive swing trading, 2–8 week hold horizon, daily monitoring cadence.
 > Signals are evaluated for near-term catalyst plays. Long-term structural trends are noted as context, not as primary trade drivers.
@@ -11,13 +11,13 @@ _Last updated: 20260413-0900_
 
 | Instrument                  | Value / Range        | Notes                              |
 |-----------------------------|----------------------|------------------------------------|
-| Fed Funds Rate (target)     | 3.50% – 3.75%        | Last changed: 2025; held at March 17-18, 2026 FOMC |
-| 10-Year Treasury Yield      | 4.31%                | Elevated — compressing growth multiples |
-| 2-Year Treasury Yield       | 3.81%                | Curve: NORMAL (+50bps spread, 10Y over 2Y) |
-| Next FOMC Meeting           | April 28–29, 2026    | Expected action: HOLD (94.8–97.9% probability per CME FedWatch) |
+| Fed Funds Rate (target)     | 3.50% – 3.75%        | Last changed: 2025; held March 17-18, 2026 FOMC |
+| 10-Year Treasury Yield      | 4.24–4.27%           | Down from 4.36% Apr 14 — bonds rallying slightly |
+| 2-Year Treasury Yield       | ~3.77%               | Curve: NORMAL (+47–50 bps spread, 10Y over 2Y) |
+| Next FOMC Meeting           | April 28–29, 2026    | Expected action: HOLD (~95% probability per CME FedWatch) |
 
 ### Fed Narrative
-The Fed held rates at its March 17-18 meeting for the second consecutive time, citing PCE inflation above the 2% target. March CPI printed at 3.3% YoY (hot, driven by gasoline +21.2% from Iran war) but core CPI was 2.6% — benign underlying inflation. The Hormuz blockade sends oil back to $104+, which will keep April CPI elevated and push rate cut timing further out. The median dot plot projects one cut in 2026 with September as the earliest realistic date — that is now less certain given the oil re-escalation. This is a structurally unfavorable rates environment for high-multiple growth stocks.
+The Fed held at 3.50–3.75% at the March 18 FOMC (second consecutive hold). CPI at 3.3% YoY was driven almost entirely by the Iran-war oil spike (gasoline +21.2%), while core CPI remains benign at 2.6%. With oil retreating below $100 on peace-talk hopes, the April CPI print (due May 12) is expected to moderate sharply, making June 16-17 an increasingly realistic cut window (~55-60% odds). The April 28-29 FOMC will be a hold; the key signal to watch is whether Powell's final meeting (FOMC leadership succession pending) shifts the forward guidance tone. Bonds rallied slightly today (10Y down to 4.24% from 4.36%), consistent with rate-cut expectations quietly rebuilding.
 
 ---
 
@@ -25,13 +25,13 @@ The Fed held rates at its March 17-18 meeting for the second consecutive time, c
 
 | Index       | Level       | YTD Change   | Long-term signal?       |
 |-------------|-------------|--------------|-------------------------|
-| S&P 500     | ~6,781      | Approximately flat-to-slightly-negative | Recovering trend broken — Hormuz blockade reversal |
-| NASDAQ      | ~22,500     | ~+1% to -0.4% range today | Mixed — chip tariff exemption partially offsetting oil fear |
-| DJIA        | Down ~270 pts today | Just turned positive for 2026 pre-blockade | Weakening on macro uncertainty |
-| VIX         | ~19.23–20.28 | —            | Elevated — higher than April 10 close (19.49) but not spiking; fear building |
+| S&P 500     | ~6,913      | ~+1.4%       | Approaching fresh all-time record |
+| NASDAQ      | ~23,400     | ~+3%         | At January highs — trending |
+| DJIA        | ~48,170     | ~flat        | Slightly lower today, but YTD recovery intact |
+| VIX         | 18.36       | —            | Neutral (down from 18.59) — market stable, not complacent |
 
 ### Market Narrative
-The dominant theme shifted from "ceasefire relief rally" to "blockade shock" between April 10 and April 13. Peace talks in Pakistan failed over the weekend. Trump announced a US Navy Hormuz blockade on Sunday April 12. Oil surged 8%+ to $104+ WTI. The S&P is down but only modestly (-0.4%) because (1) the blockade technically only targets Iranian port traffic (not all Hormuz traffic), and (2) chip stocks are getting a simultaneous bid from the Friday night tariff exemption. VIX is creeping higher but not spiking — markets are uncertain, not panicking. University of Michigan consumer confidence hit a record low, adding another macro headwind. The ceasefire-driven "best week since November" rally from April 9-10 has been interrupted.
+April 15 session: S&P 500 approaching fresh all-time record (+0.4%), NASDAQ at January highs (+0.9%), driven by: (1) **Meta-Broadcom 1 GW AI chip deal** confirmed — Broadcom also confirmed Google TPU deal through 2031, validating the AI capex supercycle is structural not hype; (2) Amazon +5% on Globalstar $11.6B acquisition (Kuiper/Starlink competition story); (3) US-Iran second-round talk hopes keeping oil subdued and macro risk-on sentiment alive. VIX at 18.36 (down from 18.59) = market is becoming less fearful, not more complacent. The dominant near-term theme is **pre-earnings positioning** — the April 21-30 cluster (RTX, NFLX, GE, NOW, AMZN, GOOGL, MSFT, META, LLY) is the most concentrated 10-day earnings window in years. Gold at all-time high $4,775 = institutional hedges remain, indicating latent macro uncertainty despite the rally.
 
 ---
 
@@ -39,34 +39,39 @@ The dominant theme shifted from "ceasefire relief rally" to "blockade shock" bet
 
 | Indicator            | Latest Reading     | Trend                   | Long-term implication        |
 |----------------------|--------------------|-------------------------|------------------------------|
-| CPI (YoY)            | 3.3% (March 2026)  | Rising sharply from 2.4% Feb | Iran war energy shock — Hormuz blockade pushes April CPI even higher |
-| Core CPI (YoY)       | 2.6% (March 2026)  | Stable/falling (below consensus) | Benign underlying — Fed can be patient if energy normalizes |
-| Core PCE (YoY)       | ~2.7% (Fed forecast)| Stable                  | Still above 2% target — rate cuts constrained |
-| Unemployment Rate    | 4.3% (March 2026)  | Stable (from 4.4% Feb)  | 178K payrolls March; labor market still solid |
-| Consumer Confidence  | Record low (April 2026, U of M) | Collapsing | Record low with oil at $104 + tariff uncertainty = consumer discretionary headwind |
-| Oil WTI              | ~$104.40–$104.82   | Surged 8%+ on April 13  | Hormuz blockade re-introduces war premium; April CPI will be hot |
+| CPI (YoY)            | 3.3% (March 2026)  | Gas-driven spike, now retreating | April CPI likely sub-3% as oil falls |
+| Core CPI (YoY)       | 2.6% (March 2026)  | Stable                  | Benign underlying — Fed can be patient |
+| Core PCE (YoY)       | ~2.7% (Fed forecast)| Stable                 | Above 2% target but trending down |
+| Unemployment Rate    | 4.3% (March 2026)  | Fell from 4.4% Feb | Labor force participation falling (61.9%) — soft headline |
+| Consumer Confidence  | Record low (U of M, Apr 2026) | Collapsing | Consumer discretionary structural headwind |
+| Oil WTI              | Below $100         | Down from $104 peak (Apr 13) | Peace-talk driven; June CPI relief incoming |
+| Gold                 | ~$4,775/oz         | All-time high            | Institutional hedge demand = latent uncertainty |
 
 ### Key Risks (long-term lens)
-- **Hormuz blockade escalation**: If Iran retaliates militarily, oil spikes to $115–$120+, CPI surges, Fed cannot cut. This is the primary macro risk for the next 2–4 weeks.
-- **Consumer spending collapse**: Record low consumer confidence + oil at $104 (raising gas/food prices) = consumer discretionary under severe pressure.
-- **Higher-for-longer rates**: April CPI will be hot (gasoline contribution). 10Y at 4.31% compresses growth multiples. Rate cut probability for 2026 fading.
-- **Tariff bilateral uncertainty**: Chip/electronics tariff exemption (April 10) + Lutnick walk-back (April 12) = policy whipsaw continues for semiconductors and consumer electronics.
+- **Ceasefire binary (April 22 expiry)**: Second-round talks in consideration but no deal yet. If blockade activates fully, oil returns to $110+, CPI spikes, rate cuts pushed to 2027.
+- **Consumer spending collapse**: Record-low confidence + tariff-driven price increases (11% avg tariff) = structural drag on consumer discretionary. Tariff uncertainty also suppresses business capex outside AI.
+- **Section 122 expiry (July 24)**: The 10% tariff regime expires in ~100 days. Policy uncertainty about what replaces it creates medium-term uncertainty.
+- **FOMC leadership**: April 28-29 may be Powell's final meeting. Successor choice adds policy uncertainty.
+- **Pharma tariff (100%, Section 232)**: Different legal basis from IEEPA tariffs — harder to challenge. Structural headwind for LLY, ABBV, PFE, MRK. Does not benefit from Feb 20 IEEPA ruling.
 
 ---
 
 ## Policy & Macro Event Radar
 
-| Event / Policy                         | Status              | Sectors impacted                        | Transient or structural? |
-|----------------------------------------|---------------------|-----------------------------------------|--------------------------|
-| US-Iran war: Hormuz blockade (Apr 13)  | **NEW — Active**    | Energy (positive), Defense (positive), Consumer (negative), Broad market (cautious) | Binary: blockade holds → oil $110+; negotiation → oil $95 |
-| US-Iran ceasefire (Apr 8) — COLLAPSED  | RESOLVED/FAILED     | Ceasefire-based theses: re-evaluate    | Transient — lasted 4 days only |
-| Chip/electronics tariff exemption (Apr 10 AH) | Active but walked back | NVDA, AAPL, TSM, AMD: sentiment positive | Transient — Lutnick "special-focus" tariff within 2 months |
-| Pharma import tariffs (100%, Apr 2)    | Active              | Pharma importers (LLY, ABBV, PFE, MRK) | Structural headwind |
-| Q1 US earnings season (April 21–30)   | Beginning April 21  | All sectors — RTX/GE Apr 21, NOW Apr 22, AMZN Apr 23, GOOGL/MSFT/META/LLY Apr 29-30 | Near-term catalyst dominant |
-| University of Michigan consumer confidence | Record low April 2026 | Consumer discretionary, airlines, autos | Structural concern if sustained |
+| Event / Policy                              | Status              | Sectors impacted                           | Transient or structural? |
+|---------------------------------------------|---------------------|--------------------------------------------|--------------------------|
+| US-Iran war: Hormuz blockade (Apr 12)       | Active; 2nd-round talks considered; Apr 22 binary | Energy (oil retreating), Defense (structural) | Binary; market pricing as transient |
+| Supreme Court IEEPA ruling (Feb 20)         | Structural change — IEEPA tariffs invalid | All import-dependent sectors — removes 145%+ tariff overhang | Structural improvement |
+| Section 122 surcharge (10%)                 | Active through ~July 24, 2026 | Import-dependent companies | Transient (expires) |
+| META-Broadcom 1 GW AI chip deal (Apr 14)   | **NEW** — multi-year through 2029 | AVGO (direct winner), NVDA (AI capex confirmed), semiconductors broadly | Structural confirmation |
+| Google-Broadcom TPU deal (Apr 14)           | **NEW** — through 2031 | AVGO (direct winner), AI infrastructure | Structural commitment |
+| Amazon-Globalstar acquisition ($11.6B, Apr 14) | **NEW** — satellite internet expansion | AMZN (strategic positive), satellite/space sector | Strategic, long-term |
+| $1.5T defense budget proposal (+40%)        | Proposed, not yet passed | RTX, LMT, GE — structural if approved | Structural if approved |
+| Pharma import tariffs (100%, Section 232, Apr 2) | Active | LLY, ABBV, PFE, MRK | Structural headwind (different from IEEPA) |
+| Q1 2026 earnings season                     | **STARTS TONIGHT** | All sectors — NFLX Apr 16, RTX/GE Apr 21, NOW Apr 22, AMZN Apr 29-30, GOOGL/MSFT/META Apr 29, LLY Apr 30 | Near-term catalyst dominant |
 
 ### Policy Interpretation
-The Hormuz blockade is the most significant policy development since the war began. Unlike the ceasefire (which was bilateral between the US and Iran), a naval blockade is a unilateral US action that Iran cannot easily counter without direct military conflict. This makes it more durable than the 4-day ceasefire — but also higher risk of escalation. For swing trades: the defense thesis (RTX, LMT) is unambiguously strengthened. Energy (XOM, CVX) is re-benefiting from oil surge but has already run 30%+ YTD. Consumer discretionary (TSLA, airlines, retail) faces a double headwind from oil cost inflation AND record low consumer confidence. AI infrastructure (NVDA, AMZN AWS, MSFT Azure, GOOGL GCP) is insulated from oil/Iran dynamics — earnings season will confirm or deny.
+Three structural shifts now confirmed today: (1) META-Broadcom + Google-Broadcom custom AI chip deals cement the AI capex supercycle — these are not hype-driven quarterly purchases, they are multi-year infrastructure commitments from the two largest social/advertising platforms in the world. This makes NVDA's data center business more durable (even as some custom silicon grows alongside), confirms AVGO's multi-year revenue visibility, and validates MSFT/GOOGL/META AI investment theses. (2) Amazon's Globalstar acquisition ($11.6B) is a strategic satellite internet play — Project Kuiper vs. Starlink — adding a third growth lever to AWS + advertising. (3) Oil retreating below $100 on second-round Iran talk signals is reducing the CPI overhang, making June rate cuts realistic again. Who benefits: AI infrastructure (NVDA, AVGO, MSFT, META, AMZN), defense (RTX), anyone hurt by prior tariff overhang. Who is structurally challenged: consumer discretionary (record-low confidence), pharma importers (100% tariff, Section 232 legally durable), energy (peace talks = oil premium deflating, Lesson 1).
 
 ---
 
@@ -74,188 +79,209 @@ The Hormuz blockade is the most significant policy development since the war beg
 
 ### Big Tech Picks (3) — selected from Big Tech Pool
 
-#### AMZN — Amazon.com, Inc.  (~$238)
-| Metric         | Value          | Signal                        |
-|----------------|----------------|-------------------------------|
-| AWS AI revenue | $15B annualized (CEO letter Apr 9) | First explicit quantification — de-risks AI ROI bear thesis |
-| AWS revenue growth | +24% YoY (ARR ~$142B) | Accelerating |
-| Q1 operating income guidance | $16.5–21.5B | Expanding significantly |
-| Capex 2026     | $200B (AI infrastructure) | Demand-driven — record capex |
-| TSMC Q1 confirm | $35.7B beat    | AWS AI chip supply chain executing |
-| Consumer confidence | Record low April 2026 | Retail segment headwind; AWS unaffected |
-
-**Thesis**: Jassy's April 9 CEO letter ($15B annualized AWS AI revenue) was a mini-earnings event (Lesson 6). Institutional repositioning takes 2–3 weeks; April 23 Q1 earnings is the confirming second catalyst. TSMC Q1 beat strengthens the AWS supply chain thesis. The consumer confidence drop adds risk to the retail segment but does not affect the AWS earnings story. Lessons 3 + 6 apply precisely.
-**Hot spot**: AI infrastructure de-risking + mega-cap tech earnings season.
-**Catalyst**: Q1 2026 earnings April 23 (after close) — AWS growth confirmation + AI revenue detail.
-**Target window**: 2–3 weeks (entry → April 23 earnings + 1-week post-earnings)
-**Pricing question**: At ~32x P/E, market is pricing "AI capex ROI is uncertain." The $15B annualized AI revenue disclosure addressed this. But consumer confidence at record low raises a new question: if retail Q1 disappointed on tariff-driven demand destruction, does AWS beat get overshadowed? The two-catalyst structure assumes both legs (letter + earnings) work. The risk is that retail weakness in Q1 dominates headlines even if AWS beats. Who is on the other side? Sellers who believe $200B capex compresses margins for 2–3 years, plus new sellers who now fear consumer demand is collapsing faster than expected.
-**Key risk**: Q1 operating income misses $16.5B guidance floor, OR retail gross margin compresses materially from tariff-driven demand destruction.
-**Change trigger**: AWS growth <20% YoY for 2 consecutive quarters, OR Q1 operating income misses $16.5B guidance floor.
-**Primary source**: CEO Andy Jassy 2025 Annual Letter (April 9, 2026); Q4 2025 earnings transcript.
-
----
-
-#### GOOGL — Alphabet Inc.  (~$317)
-| Metric         | Value       | Signal                        |
-|----------------|-------------|-------------------------------|
-| Search revenue growth | +17% YoY Q4 2025 | Stable — AI disruption not materializing at revenue level |
-| GCP revenue    | $17.7B Q4 2025 (+48% YoY) | Accelerating — approaching Search profitability |
-| GCP margin     | 30% Q4 2025 | Expanding significantly |
-| Q1 2026 revenue estimate | ~+20% YoY | Consensus bar |
-| Consumer confidence | Record low | Digital ad (Search) might see slight softening |
-
-**Thesis**: AI disruption fears for Search are overdone — Search grew 17% YoY in Q4 2025. GCP is accelerating at 48% with expanding margins. Consumer confidence at record low may modestly reduce search ad volume, but Google's performance advertising is globally diversified and not primarily driven by US consumer discretionary spending. April 29 Q1 earnings is the catalyst.
-**Hot spot**: Mega-cap tech earnings season. GOOGL reports April 29 with MSFT and META — sentiment amplification effect.
-**Catalyst**: Q1 2026 earnings April 29 — GCP ~$18.5–19B + Search mid-teens growth confirmation.
-**Target window**: 2–3 weeks (entry → April 29 earnings + 1-week post)
-**Pricing question**: At $317, market is pricing continued Search strength + GCP acceleration. New risk from today: consumer confidence record low could suppress Google Search ad volume in Q1 (weaker US consumer = fewer searches for products to buy). However, GOOGL's diversification (YouTube, international, GCP) limits this. Who is selling? Those who believe AI Overviews + consumer confidence collapse compress Search revenue in Q1.
-**Key risk**: Q1 Search revenue decelerates below 12% YoY, OR GCP misses ~45% growth due to capacity constraints.
-**Change trigger**: Q1 Search revenue <12% YoY OR GCP growth <40% YoY.
-**Primary source**: Alphabet Q4 2025 earnings transcript (January 2026).
-
----
-
-#### MSFT — Microsoft Corporation  (~$372)
+#### MSFT — Microsoft Corporation  (~$394)
 | Metric         | Value       | Signal                        |
 |----------------|-------------|-------------------------------|
 | Azure growth   | +40% YoY (Q1 FY26) | Ahead of expectations |
 | Copilot MAU    | 900M AI features; 150M Copilot | Enterprise-scale adoption |
-| Fortune 500    | 90%+ using M365 Copilot | Mass enterprise adoption |
-| Capacity constraint | Through FY26 end | Backlog building (bullish) |
-| Consumer confidence impact | Minimal | Enterprise SaaS — not consumer-facing |
+| Fortune 500    | 90%+ using M365 Copilot | Mass enterprise adoption confirmed |
+| FCF yield      | Strong — enterprise software + cloud | FCF machine |
+| P/E (fwd)      | ~33x        | Premium justified by Azure growth |
+| Meta-AVGO deal impact | Positive — enterprise AI demand confirmed | Net positive |
 
-**Thesis**: Azure at 40% + Copilot at Fortune 500 scale = durable AI monetization story. MSFT is the least consumer-facing of the three Big Tech picks — enterprise software spending is more resilient than consumer discretionary. Consumer confidence collapse does not directly affect Microsoft's enterprise IT spend. TSMC Q1 confirms the chips needed for Azure AI expansion are executing. April 29 Q3 FY2026 earnings confirm trajectory.
-**Hot spot**: Enterprise AI monetization — MSFT is the clearest proof point that AI creates measurable enterprise revenue.
-**Catalyst**: Q3 FY2026 earnings ~April 29. Azure growth rate is the key metric.
-**Target window**: 2–3 weeks (entry → April 29 earnings)
-**Pricing question**: At ~33x forward P/E for an 18%+ revenue grower, this is not cheap. But MSFT has the lowest sensitivity to consumer confidence of the Big Tech 3. The enterprise moat is durable. Risk: Azure decelerates to 30% in Q3 due to capacity constraints, disappointing on delivery.
-**Key risk**: Azure growth <35% in Q3 due to capacity limits, OR guidance cut.
-**Change trigger**: Azure growth <35% for 2 consecutive quarters OR Copilot adoption growth stalls.
-**Primary source**: Microsoft Q1 FY2026 earnings transcript (October 29, 2025).
+**Thesis**: Azure at 40% + Copilot at Fortune 500 scale = most durable AI monetization story. MSFT is the least consumer-facing of the picks (enterprise spending more resilient than consumer). Azure capacity constraints through FY26 mean backlog is building. April 29 Q3 FY2026 earnings is the catalyst.
+**Hot spot**: Enterprise AI monetization — MSFT is the clearest proof that AI creates measurable enterprise revenue at scale. Meta-AVGO + Google-AVGO deals confirm AI hardware investment, which runs through Azure for model hosting.
+**Catalyst**: Q3 FY2026 earnings April 29 — Azure growth rate ≥37-40% is the key metric; Copilot adoption data secondary.
+**Target window**: 2–3 weeks (today → April 29 earnings + 1-week post-earnings reaction)
+**Pricing question**: At $394, MSFT is at ~33x forward P/E. The +1% move today is modest vs. broader market +0.9%. The stock is approaching its all-time high. More of the earnings catalyst may be baked in vs. April 10 ($372). Azure at 38% may not drive a meaningful move if the market expected 40%+. The edge: MSFT's Copilot ARR is still not fully modeled by consensus — any first-time quantification of Copilot revenue adds upside beyond the Azure line.
+**Key risk**: Azure Q3 growth <35% due to capacity constraints OR Copilot monetization slower than anticipated.
+**Change trigger**: Azure growth <35% for 2 consecutive quarters OR Copilot adoption growth stalls materially.
+**Primary source**: Microsoft Q1 FY2026 earnings transcript (October 29, 2025); Motley Fool April 15 MSFT price target prediction.
+
+---
+
+#### NVDA — NVIDIA Corporation  (~$196)
+| Metric         | Value          | Signal                        |
+|----------------|----------------|-------------------------------|
+| TSMC Q1 2026   | $35.7B revenue beat | Blackwell demand confirmed |
+| Hyperscaler AI capex | AMZN $200B, GOOGL $175-185B, MSFT $35B+/qtr | Demand runway confirmed |
+| META-AVGO deal | 1 GW custom AI chips (MTIA, not NVDA) | Custom silicon additive, not substitution — AI compute market expanding |
+| NVDA price     | $195.88 (+3.6% today) | Volume 161M vs 150M avg — above average buying |
+| IEEPA ruling   | IEEPA tariffs largely invalid — Lutnick tariff threat weaker | NET POSITIVE |
+| Section 122    | 10% surcharge, expires July 24 | Much better than feared |
+
+**Thesis**: TSMC Q1 beat ($35.7B) confirmed Blackwell production is executing at scale. The META-Broadcom + Google-Broadcom custom chip deals do NOT undercut NVDA — they expand the total AI compute market by creating dedicated inference-optimized silicon alongside NVDA's training-dominant GPU stack. Hyperscaler Q1 earnings (April 21-29) will contain AI capex commentary that functions as proxy catalysts for NVDA's May earnings. At $196, NVDA is priced for 40-50%+ revenue growth that TSMC data confirms is real.
+**Hot spot**: AI infrastructure supercycle — TSMC Q1 + META/GOOGL-AVGO deals = sequential confirmation that AI hardware investment is structural, not episodic. NVDA is the primary beneficiary of training compute spend.
+**Catalyst**: (1) Hyperscaler Q1 earnings capex commentary April 21-29 (proxy catalysts — each AI capex guidance raise is a forward read for NVDA demand); (2) May FY2027 Q1 earnings as the core catalyst window.
+**Target window**: 3–5 weeks (today → through hyperscaler capex commentary → into May earnings positioning)
+**Pricing question**: At $196 (vs $189 yesterday, $183-190 original plan range), NVDA has risen 3.6% in one day. The META-AVGO deal is superficially negative for NVDA (META building custom silicon), but the market correctly read it as demand expansion confirmation — META's AI workloads are growing so fast they need BOTH NVDA GPUs and custom ASICs. This is the right interpretation. Who is selling? Those who believe custom silicon will displace NVDA's data center GPU TAM within 2-3 years. That's a 2027+ risk, not a Q1 2026 earnings risk.
+**Key risk**: Hyperscaler Q1 capex guidance shows first signs of deceleration (>20% cut), OR new Section 232 tariff explicitly targets data center chips.
+**Change trigger**: Hyperscaler capex guidance cuts >20% in Q1 earnings season, OR new targeted data-center chip tariff without exemptions.
+**Primary source**: TSMC Q1 2026 earnings ($35.7B, April 2026); META-Broadcom CNBC April 14, 2026.
+
+---
+
+#### GOOGL — Alphabet Inc.  (~$333)
+| Metric         | Value       | Signal                        |
+|----------------|-------------|-------------------------------|
+| GCP revenue    | $17.7B Q4 2025 (+48% YoY) | Growing FASTER than Azure — fastest major cloud |
+| GCP margin     | 30% Q4 2025 | Expanding — approaching Search-level profitability |
+| Search revenue | +17% YoY Q4 2025 | Stable — AI disruption not showing in revenue |
+| Google-Broadcom TPU deal | Through 2031 | Same catalyst type as META-AVGO deal, but 2 years longer |
+| Q1 2026 estimate | ~$106B+ consensus | Strong bar |
+| Analyst targets | $354–$379 avg | 12–20% implied upside from $333 |
+| Relative perf  | GOOGL +5% vs MSFT +6%, META +4.5% since April 10 | Underperformed — less upside already captured |
+
+**Thesis**: GOOGL belongs in Big Tech #3 over META for three concrete reasons: (1) GCP growth 48% YoY exceeds Azure's 40% — GOOGL's cloud is the fastest-growing major platform in the April 29 earnings cluster; (2) The Google-Broadcom TPU deal through 2031 (announced same day as META-AVGO deal) is an equivalent structural AI capex signal, but lasts two years longer — the market under-reacted to this relative to META; (3) GOOGL has underperformed both MSFT and META since April 10, meaning less of the April 29 catalyst is already in the price. There is no consumer segment binary risk (Search + GCP only — no tariff/confidence exposure). Search disruption fears remain consensus but are not materializing in revenue.
+**Hot spot**: Mega-cap AI cloud earnings season — GOOGL reports April 29 with MSFT and META; triple earnings-day sentiment amplification. GCP beats drive re-rating toward MSFT multiples.
+**Catalyst**: Q1 2026 earnings April 29 — GCP ~$18.5–19B + Search mid-teens growth. Any first-time AI monetization quantification within Search (AI Mode, AI Overviews CPMs) is a de-risking event per Lesson 6.
+**Target window**: 2–3 weeks (today → April 29 earnings + 1-week post)
+**Pricing question**: At $333, GOOGL received the same Broadcom structural signal as META (Google TPU deal through 2031) on the same day, but underperformed META by ~3.5% in the subsequent session. Why? Residual Search disruption fear. That's the asymmetry: GOOGL needs to show the same thing the market already believes about MSFT and META — that AI infrastructure works and drives revenue — but from a lower relative starting point. The investor selling GOOGL at $333 believes Q1 Search revenue will finally crack below 12%. That's the decisive test on April 29.
+**Key risk**: Q1 Search revenue decelerates below 12% YoY OR GCP misses ~45% growth threshold.
+**Change trigger**: Q1 Search revenue <12% YoY OR GCP growth <40% YoY.
+**Primary source**: Alphabet Q4 2025 earnings transcript (January 2026); Google-Broadcom TPU deal CoinCentral April 15; ibtimes.com.au GOOGL earnings preview April 15.
 
 ---
 
 ### Free-style Picks (5) — sorted #1 best → #5 most speculative
 
-#### #1 — RTX — RTX Corporation  (~$202)
+#### #1 — RTX — RTX Corporation  (~$203)
 | Metric         | Value       | Signal                        |
 |----------------|-------------|-------------------------------|
 | Total backlog  | $268B       | Record high                   |
 | Raytheon backlog | $75B (record) | 47% international          |
 | 2026 sales contracted | 85% | Exceptionally low earnings risk |
-| Raytheon Q4 op profit | +22% YoY | Accelerating defense segment |
-| Earnings date  | April 21, 2026 (BMO) | 6 trading days away |
-| Hormuz blockade | Active as of April 13 | Patriot/Tomahawk demand locked in further |
-| Analyst target | $225 (~12% upside) | BUY consensus, 11 analysts |
+| Forward P/E    | ~33x        | Premium justified by backlog visibility |
+| Q1 earnings    | April 21 BMO | **6 trading days away**      |
+| Defense budget | $1.5T proposed (+40%) | Structural upside if approved |
+| Bank of America | Q2 2026 top pick | Institutional conviction |
 
-**Thesis**: With 85% of 2026 sales contracted and the Hormuz blockade extending the active conflict, RTX's Q1 2026 earnings are as de-risked as any name in this universe. The blockade makes further Patriot, Tomahawk, and GEM-T procurement more urgent, not less. Lesson 5 applies: defense spending is driven by multi-year budgets and locked-in backlog, not spot geopolitical events. The ceasefire collapse actually strengthens RTX — the 4-day ceasefire did not cause NATO or the Pentagon to cancel orders; the resumption confirms those orders are needed.
-**Hot spot**: Defense sector re-escalation — capital rotating back into defense from the brief ceasefire-driven pause.
-**Catalyst**: Q1 2026 earnings April 21 (before market open) — 85% contracted + accelerating Raytheon backlog = high beat probability.
-**Target window**: 1–2 weeks (entry → April 21 earnings + 1-2 day post-earnings reaction)
-**Pricing question**: At $202 (~18-20x forward earnings), analyst consensus target is $225 (12% upside). This is not cheap for a defense company but the backlog visibility is exceptional. The Hormuz blockade adds an overhang of future defense spending increases. Who is selling? Investors who believed the ceasefire would reduce defense procurement (Lesson 5 says this is wrong) — and those concerned about supply chain disruptions. The 85% contracted number makes the Q1 print very predictable.
-**Key risk**: Q1 earnings meet guidance but FY2026 guidance unchanged (no raise) — stock stays flat post-earnings despite beat. OR Congressional defense budget cuts (unlikely with active blockade).
-**Change trigger**: RTX management cuts FY2026 defense revenue guidance >5% OR Congressional defense budget cuts >5%.
-**Rank rationale**: Unambiguously #1. Nearest catalyst (6 days), most contracted earnings, defense thesis STRENGTHENED by today's Hormuz blockade, 12% analyst upside. Cleanest swing trade in the entire list.
-**Primary source**: RTX Q4 2025 / FY2025 earnings release (January 27, 2026); analyst consensus as of April 13, 2026.
-
----
-
-#### #2 — NVDA — NVIDIA Corporation  (~$186)
-| Metric         | Value          | Signal                        |
-|----------------|----------------|-------------------------------|
-| TSMC Q1 2026   | $35.7B revenue, beats estimates | Blackwell demand confirmed real |
-| AI capex hyperscalers | AMZN $200B, GOOGL $175-185B, MSFT $35B+/qtr | Demand runway visible and confirmed |
-| Chip tariff exemption (Apr 10 AH) | Electronics exempt from China reciprocal tariffs | Positive sentiment today |
-| Lutnick walk-back (Apr 12) | "Special-focus type of tariff" within 2 months | Overhead ceiling — but 2-month runway |
-| Section 232 (Jan 2026) | 25% on advanced computing chips with data center exemptions | Primary US data center revenue protected |
-| Stock today    | $183–190 range | No extreme gap-up — reasonable entry |
-
-**Thesis**: TSMC's Q1 2026 beat ($35.7B) is the most important data point for NVDA's thesis — it proves Blackwell production is executing and AI capex demand is real, not pulled forward from tariff hedging. The chip tariff exemption is a near-term sentiment positive (stocks opened higher Monday on the news). The Lutnick walk-back (2 months away) creates a ceiling but keeps NVDA's May earnings within a more favorable window. The Hormuz blockade doesn't directly affect NVDA's data center business — AI infrastructure spending is a long-cycle commitment that macro shocks don't easily interrupt. Stock traded $183–190 today without an extreme gap-up, making entry more reasonable.
-**Hot spot**: AI infrastructure supercycle — TSMC Q1 confirms hyperscaler AI capex is translating into real chip demand.
-**Catalyst**: (1) Chip tariff exemption positive sentiment (today's catalyst, already partially in price); (2) Ongoing hyperscaler Q1 earnings capex commentary (April 21–29); (3) May 2026 Q1 FY2027 earnings setup.
-**Target window**: 3–5 weeks (through hyperscaler earnings commentary + into May earnings setup)
-**Pricing question**: At $186 (~$4.52T market cap), NVDA is priced for sustained 40-50%+ revenue growth through the Blackwell cycle. TSMC's Q1 beat is the strongest confirmation yet that this demand is real. Who is on the other side? Sellers believe peak AI capex has passed and NVDA will guide down in May. The TSMC Q1 data says the opposite — but if the Hormuz blockade deepens recession fears, hyperscaler capex guidance could be revised down.
-**Key risk**: Lutnick tariff specifics remove data center exemptions, OR hyperscaler Q1 earnings guidance cuts >20% signal capex pause.
-**Change trigger**: Lutnick special-focus tariff explicitly removes data center exemptions, OR hyperscaler capex guidance cuts >20% in Q1 earnings season.
-**Rank rationale**: Ranked #2 (above META) because the chip tariff exemption is creating a real-time positive catalyst today, TSMC Q1 is confirmed, and the May earnings setup is strengthening. No April earnings catalyst limits upside vs. RTX (#1), but 3–5 week runway is appropriate.
-**Primary source**: TSMC Q1 2026 earnings ($35.7B beat, April 2026); AMZN CEO letter April 9, 2026.
+**Thesis**: 85% of 2026 sales are contracted — RTX's Q1 print is essentially predetermined. April 21 earnings (6 days away) carries the lowest earnings risk of any large-cap in the market: 85% contracted + $268B backlog + Raytheon +22% acceleration. The $1.5T defense budget proposal (+40%) is the NEW structural leg: if approved, FY2027+ guidance will step up dramatically. Ceasefire talks do not invalidate the backlog (Lesson 5).
+**Hot spot**: Defense earnings confirmation — RTX's April 21 earnings is the nearest high-visibility catalyst in the universe. Bank of America designated it a Q2 2026 top pick.
+**Catalyst**: Q1 2026 earnings April 21 before market open — beat probability extremely high given 85% contracted + Raytheon +22%. The question is whether management raises FY2026 guidance (consensus target $219, vs current $203 = 8% upside minimum).
+**Target window**: 1–2 weeks (today → April 21 earnings + 2-day post-earnings reaction)
+**Pricing question**: At $203 with ~33x forward P/E, RTX is richly valued vs. historical defense comps (~20-25x). The premium reflects $268B backlog certainty. Analyst target $219 (8% upside from current). The $1.5T budget approval would push targets significantly higher. Who is selling? Those who believe the defense budget proposal won't pass and RTX is at peak valuation. But even without the budget, 85% contracted revenue means Q1 is a near-certain beat.
+**Key risk**: Q1 beats but FY2026 guidance unchanged (no raise) = flat post-earnings. Congressional defense budget cuts or proposal blocked.
+**Change trigger**: RTX management cuts FY2026 defense revenue guidance >5% OR Congressional defense budget approval fails entirely.
+**Rank rationale**: #1 by Lesson 2 (catalyst timing × setup quality). Nearest major catalyst (6 days), highest earnings visibility (85% contracted), strongest institutional confirmation (Bank of America Q2 top pick). No other pick combines this timing + certainty.
+**Primary source**: RTX Q4 2025 / FY2025 earnings release (January 27, 2026); MarketBeat RTX earnings April 21 confirmed; Bank of America Q2 top picks list.
 
 ---
 
-#### #3 — META — Meta Platforms, Inc.  (~$630)
+#### #2 — META — Meta Platforms, Inc.  (~$659)
 | Metric         | Value          | Signal                        |
 |----------------|----------------|-------------------------------|
-| Ad impressions | +18% YoY      | Accelerating                  |
-| Avg price per ad | +6% YoY    | Pricing power intact           |
-| Q1 revenue guidance | $53.5–56.5B | Clear; Q1 already largely locked in |
-| Meta AI MAU    | ~1B           | Largest consumer AI platform   |
-| Earnings date  | April 29, 2026 | Same day as GOOGL and MSFT   |
-| Consumer confidence | Record low | Q2 guidance risk — Q1 locked in |
+| Ad impressions | +18% YoY (Q4 2025) | Accelerating              |
+| Avg price per ad | +6% YoY (Q4 2025) | Pricing power intact      |
+| Q1 revenue guidance | $53.5–56.5B | Bar set                   |
+| META AI MAU    | ~1B           | Largest consumer AI platform  |
+| META-Broadcom deal | 1 GW custom AI chips through 2029, 2nm MTIA | AI capex commitment confirmed |
+| Stock move     | +4.41% April 14 (Broadcom deal), flat April 15 | Deal in price; April 29 is the catalyst |
+| Earnings date  | April 29, 2026 | 14 days away |
 
-**Thesis**: The ad duopoly (META + GOOGL) remains intact. AI-powered targeting improves advertiser ROI, reinforcing META's position. Q1 ad revenue (+18% impressions × +6% price = ~25% effective revenue growth) is largely locked in — Q1 2026 advertising contracts were signed in Q4 2025 and Q1 early weeks. Consumer confidence at record low is a Q2 guidance risk, not a Q1 actuals risk. April 29 earnings: if revenue lands at $55B+ (mid-guide), the stock re-rates on confirmed 15-20% YoY growth.
-**Hot spot**: AI monetization in advertising — META is the most proven at scale.
-**Catalyst**: Q1 2026 earnings April 29 — revenue vs. $53.5–56.5B guidance range; management FY2026 guidance commentary is the upside/downside driver.
-**Target window**: 2–3 weeks (entry → April 29 earnings)
-**Pricing question**: At $630 (~30-32x forward P/E), META is not cheap for a 15-20% grower. Reality Labs burning $15-20B/year is the ongoing offset. New risk: if consumer confidence at record low signals that digital ad spending is about to roll over in Q2, META management might guide conservatively. That would hurt the stock even on a Q1 beat. Who is on the other side? Sellers believe the combination of consumer confidence collapse + potential Q2 ad spending pullback + Reality Labs cash burn = the stock is too richly valued.
-**Key risk**: Q1 revenue misses $53.5B OR management guides FY2026 conservatively citing consumer confidence/macro uncertainty.
+**Thesis**: META ranks here in free-style rather than Big Tech #3 because GOOGL's GCP growth rate is faster and GOOGL has more upside remaining relative to entry — but META is still a high-conviction April 29 play. The Broadcom 1 GW deal through 2029 proves AI infrastructure spend is structural, Q1 ad revenue was locked in pre-Iran-war and pre-confidence-collapse, and the triple April 29 earnings day creates sentiment amplification. At $659 (+4.5%), some upside is already captured, but the earnings confirmation itself hasn't happened yet.
+**Hot spot**: AI monetization in advertising at scale. April 29 triple earnings day (META + GOOGL + MSFT) creates a favorable sentiment backdrop — a rising tide for all three if the AI spend story holds.
+**Catalyst**: Q1 2026 earnings April 29 — revenue vs. $53.5–56.5B guidance + FY2026 guidance commentary + AI engagement data (LLaMA, AI feed ranking impact on CPMs).
+**Target window**: 2–3 weeks (today → April 29 earnings + 1-week post)
+**Pricing question**: At $659, the Broadcom deal announcement is already in the price (+4.5% absorbed). The remaining question is whether Q1 beats on the top line AND management guides confidently for FY2026 despite consumer confidence being at record lows. META often trades more on guidance than actuals. The bear: management hedges FY guidance → stock stalls even on a Q1 beat.
+**Key risk**: Q1 2026 revenue misses $53.5B floor OR FY2026 guidance implies growth <12%.
 **Change trigger**: Q1 2026 revenue <$53.5B OR FY2026 guidance implies growth <12%.
-**Rank rationale**: Ranked #3 behind NVDA because: (1) NVDA has a real-time catalyst today (tariff exemption) whereas META's next catalyst is April 29 (16 days away), and (2) consumer confidence record low adds more near-term uncertainty to META's ad revenue trajectory than to NVDA's data center thesis.
-**Primary source**: Meta Q4 2025 earnings transcript; analyst consensus April 13, 2026.
+**Rank rationale**: Free-style #2 — behind RTX (nearer catalyst, higher certainty) but ahead of AMZN because META's revenue model is purely advertising with no consumer-segment binary risk. The April 29 setup is clean: the Broadcom deal pre-validates the AI capex narrative, so Q1 just needs to confirm the ad line. AMZN has a retail margin wildcard that META doesn't carry.
+**Primary source**: Meta Q4 2025 earnings transcript; META-Broadcom CNBC April 14, 2026.
 
 ---
 
-#### #4 — AMZN — Amazon.com, Inc.  (~$238)
-_(Same as Big Tech #1 — repeated here as free-style #4 because of the two-catalyst structure. April 23 earnings is 10 days away, making this the clearest near-term earnings play after RTX.)_
-
-**Rank rationale**: Ranked #4 in free-style (below NVDA and META in this slot) because: (1) consumer confidence at record low adds retail segment risk not present in NVDA/defense picks, and (2) April 23 earnings has two-sided risk (AWS beat could be overshadowed by retail miss if consumer demand collapsed in Q1). Still a high-conviction call — the AWS thesis is intact — but the binary risk is higher than April 10.
-**Key update vs. April 10**: Consumer confidence at record low is a new headwind for the retail segment. If Q1 shows Amazon retail demand destruction from tariff-driven price increases, the AWS beat may not be enough to drive the stock. Monitor this carefully.
-
----
-
-#### #5 — NOW — ServiceNow, Inc.  (~$101)
+#### #3 — AMZN — Amazon.com, Inc.  (~$249)
 | Metric         | Value          | Signal                        |
 |----------------|----------------|-------------------------------|
-| Price          | ~$100–101      | Down ~45% YTD                |
-| Q1 sub revenue guidance | $3.65–3.655B (+18.5–19% CC) | Management-set bar |
-| Earnings date  | April 22, 2026 | 7 trading days away |
-| UBS downgrade  | Price target $100 (Neutral) | AI competitive risk cited |
-| Enterprise IT spend | B2B — more resilient than consumer | Consumer confidence less relevant here |
+| AWS AI revenue | $15B+ annualized (Q1 2026) | De-risking of AI ROI narrative confirmed |
+| AWS revenue growth | +24% YoY (ARR ~$142B) | Accelerating |
+| Q1 operating income guidance | $16.5–21.5B | Wide range but floor is high |
+| Custom chip revenue | $20B+ annualized (Trainium/Inferentia) | Custom silicon growing |
+| Globalstar acquisition | $11.6B (announced Apr 14) | Satellite internet (Project Kuiper vs. Starlink) — strategic long-term |
+| Citizens target | $315 (reiterated post-deal) | 26.5% upside from $249 |
+| Earnings date  | April 29-30 confirmed (was April 23 — data error corrected) | 14-15 days away |
 
-**Thesis**: SPECULATIVE. Down 45% YTD following UBS downgrade. Enterprise B2B IT spending is more resilient than consumer discretionary — ServiceNow serves IT/HR/finance departments at large companies, not consumers directly. If Q1 subscription revenue meets guidance ($3.65B at 18.5-19% CC growth) AND management does NOT cut FY2026 guidance, the stock bounces from ~$101 toward $120-130 (20-30% upside). The consumer confidence record low adds macro color but does not directly affect NOW's enterprise revenue base. BUT: Lesson 7 applies — the AI displacement risk (AI agents replacing ITSM tools) remains the primary bear thesis. This is still NOT a Lesson 3 "fear is priced in" play.
-**Hot spot**: Enterprise software reset plays — beaten-down names that report in-line generate violent short-covering rallies.
-**Catalyst**: Q1 2026 earnings April 22 — subscription revenue vs. $3.65B is the binary decision.
-**Target window**: 1–2 weeks (entry before April 22, exit day after earnings)
-**Pricing question**: At $101, NOW is at ~7-8x forward revenue for an 18-19% growing SaaS company — historically cheap. But if AI agents structurally shrink the ITSM TAM, this is not cheap; it's correctly priced. April 22 will answer this.
-**Key risk**: Q1 misses $3.65B OR management cuts guidance — confirms UBS bear thesis; stock re-tests lows.
-**Change trigger**: Q1 subscription revenue misses $3.65B (exit immediately) OR management confirms non-AI demand weakness.
-**Rank rationale**: Last (#5 most speculative) because the AI displacement bear thesis (Lesson 7) may be correct. Half weight only. Nearest catalyst for a speculative play is still April 22 — only 7 trading days away.
-**Primary source**: ServiceNow Q1 2026 earnings announcement (April 22 confirmed); UBS downgrade analysis.
+**Thesis**: AWS $15B annualized AI revenue (from CEO Jassy's April 9 annual letter) was a fundamental de-risking event (Lesson 6). The Globalstar acquisition adds a third growth lever: Project Kuiper satellite internet (direct competition with SpaceX Starlink). This is a strategic use of Amazon's balance sheet that strengthens the "Amazon has multiple compounding growth vectors" narrative. Q1 2026 earnings (April 29-30) confirms the AWS trajectory. Citizens reiterated $315 target post-deal.
+**Hot spot**: AWS AI cloud infrastructure + Globalstar satellite narrative. Both de-risk the "Amazon is just a consumer retailer" bear thesis.
+**Catalyst**: Q1 2026 earnings April 29-30 — AWS growth confirmation + AI revenue detail + operating income vs. $16.5B floor. Globalstar deal announcement was April 14 and the 5% move is already in the price; the earnings confirmation is the second catalyst.
+**Target window**: 2–3 weeks (today → April 29-30 earnings + 1-week post-earnings)
+**Pricing question**: At $249 (vs $220 on April 14, vs original $238 thesis price), AMZN has run past the original plan entry. The Globalstar deal explains the ~5% one-day move from $239 to $249. Citizens' $315 target represents 26.5% upside from $249 — the fundamental thesis is intact and the analyst community is not backing down on upside. The consumer segment risk (record-low confidence, tariff-driven price increases) is real but AWS and advertising are insulated from consumer confidence. Who is selling? Those who believe $200B AI capex compresses FCF for 3+ years AND that consumer demand destruction in Q1 is worse than the AWS beat.
+**Key risk**: Q1 operating income misses $16.5B guidance floor OR retail gross margins compress materially from tariff-driven price increases.
+**Change trigger**: AWS growth <20% YoY for 2 consecutive quarters OR Q1 operating income misses $16.5B guidance floor.
+**Rank rationale**: #3 behind META because META's advertising revenue has no consumer-segment binary risk. AMZN's consumer retail margin wildcard (tariff-driven price increases + record-low confidence) could overshadow an AWS beat on earnings day. At $249 (vs original $220 entry opportunity), the risk/reward is slightly less favorable than META from current levels, though the Citizens $315 target still represents compelling upside.
+**Primary source**: CEO Jassy 2025 Annual Letter (April 9, 2026); Amazon-Globalstar CNBC April 14; Citizens Bank $315 target reiteration April 14.
+
+---
+
+#### #4 — AVGO — Broadcom Inc.  (~$393)
+| Metric         | Value          | Signal                        |
+|----------------|----------------|-------------------------------|
+| META deal      | 1 GW custom AI chips (MTIA) through 2029, 2nm process | Multi-year revenue locked in |
+| Google deal    | Custom TPUs through 2031 | Decade-long infrastructure commitment |
+| Analyst target | $464 mean (27 analysts), $525 Bernstein | 18-33% upside from $393 |
+| YTD run        | Up 21% in past 2 weeks | Some upside captured |
+| Next earnings  | June 4, 2026 (Q2 FY2026) | 7 weeks away |
+| VMware revenue | Enterprise stack acquisition synergies compound | Additional revenue layer |
+| Strong Buy consensus | 27 buy / 4 hold | High institutional conviction |
+
+**Thesis**: META and Google simultaneously locked in multi-year custom AI chip agreements with Broadcom (April 14). These are not annual purchase orders — they are structural infrastructure commitments: META through 2029, Google through 2031. AVGO is becoming the custom ASIC backbone for AI workloads that run alongside NVDA GPUs. The June 4 Q2 FY2026 earnings will be the first to quantify the initial MTIA revenue contribution. Mean analyst target $464 = 18% upside even after the 21% two-week run.
+**Hot spot**: Custom AI silicon — direct beneficiary of both META and Google's decision to build dedicated inference/training ASICs. VMware enterprise stack adds an independent revenue layer (not just semiconductor cycles).
+**Catalyst**: June 4 Q2 FY2026 earnings — first quantification of MTIA revenue contribution + Google TPU design wins + guidance upgrade reflecting multi-year deals.
+**Target window**: 6–8 weeks (today → June 4 earnings)
+**Pricing question**: At $393, with 21% already captured in 2 weeks on these deals, is the upside gone? The answer is no — the $464 mean target implies 18% further upside, and the deals were announced at the end of last week. The market is still digesting the scale of the commitment (1 GW META + multi-GW pipeline + Google TPU through 2031). The revenue contribution isn't modeled yet. The June 4 earnings is where analysts update their models with confirmed MTIA ASP and volumes.
+**Key risk**: META or Google significantly reduces AI infrastructure spend (capex cut >30%) before MTIA production ramps, OR NVDA data center chip shortage resolves faster than expected and reduces urgency for custom silicon.
+**Change trigger**: META or Google announces >25% reduction in AI capex guidance OR analyst consensus target drops below $400 on revised capex assumptions.
+**Rank rationale**: #4 because the 21% run captures some upside, and the June 4 catalyst is 7 weeks away (at the upper end of the swing horizon). RTX, META, and AMZN all have nearer catalysts. But the multi-year deal commitments (META through 2029, Google through 2031) are structurally significant enough to hold for the full window — the June 4 earnings will be the first to quantify revenue from these deals.
+**Primary source**: META-Broadcom CNBC April 14; Broadcom-Google CoinCentral April 15; Bernstein $525 target Investing.com.
+
+---
+
+#### #5 — NOW — ServiceNow, Inc.  (~$88) — HALF WEIGHT
+| Metric         | Value          | Signal                        |
+|----------------|----------------|-------------------------------|
+| Price          | $88.13 (Apr 15) | Near 52-week low ($81.24) — down ~42% YTD |
+| Q4 2025 earnings | BEAT consensus | Fundamental weakness narrative weakened |
+| Earnings date  | April 22, 2026 (after close) | **7 days away** |
+| Consensus target | 31 analysts, Strong Buy, avg $228 | 159% implied upside from $88 |
+| RBC target     | $121 (lowered from $150) | Most conservative estimate still 37% upside |
+| Analyst expectations | EPS $0.97 on $3.75B revenue | |
+
+**Thesis**: NOW at $88 is near its 52-week low with Q4 2025 earnings that BEAT consensus — the current price is driven by forward AI competitive fear (Lesson 7), not by current fundamental weakness. The April 22 setup: fundamental beat dispels bear thesis. If Q1 hits $3.75B+ subscription revenue AND management does not cut guidance, stock bounces to $100-110 (14-25% upside). Half weight per Lesson 7 — the structural AI displacement risk is still unresolved. The asymmetry is exceptional: 31 analysts target $228 vs current $88.
+**Hot spot**: Enterprise SaaS beaten-down bounce — near 52-week lows with Q4 beat sets up April 22 as potential inflection.
+**Catalyst**: Q1 2026 earnings April 22 — subscription revenue vs. $3.75B guidance; guidance maintenance or raise; any AI workflow adoption data (AIOps, HR Assist) that disproves AI displacement bear thesis.
+**Target window**: 1–2 weeks (today → April 22 earnings + 1-day reaction). Half weight limits downside if bear case plays out.
+**Pricing question**: At $88 with 31 analysts targeting $228 (159% above current), either the analyst community is systematically wrong about AI displacement timelines, or the market is pricing in an improbable worst-case. The Q4 beat suggests displacement is not yet in the revenue. The real question: is management's tone on the April 22 call defensive (cutting guidance citing AI competition) or confident (citing new AI workflow use cases expanding TAM)?
+**Key risk**: Q1 misses $3.75B OR management cuts guidance — confirms bear thesis and tests $81 52-week low.
+**Change trigger**: Q1 subscription revenue misses $3.75B (exit immediately) OR guidance cut confirms AI displacement accelerating.
+**Rank rationale**: #5 most speculative — half weight. Speculative bounce candidate with asymmetric upside if the AI disruption bear is wrong. Lesson 7 still applies; treat as a small position until April 22 provides evidence either way.
+**Primary source**: ServiceNow Q1 2026 earnings April 22 (GuruFocus/MarketBeat confirmed); 31-analyst consensus Strong Buy, $228 target.
 
 ---
 
 ### Stocks to Avoid (3)
 
 #### INTC — Intel Corporation  (~$22)
-**Concern**: Structural turnaround with no near-term April catalyst. IDM 2.0 foundry strategy requires massive ongoing capex with no proven large customer wins at scale. AMD continues gaining CPU share; NVDA dominates AI GPU. Intel squeezed on both sides. The Hormuz blockade and consumer confidence collapse add macro uncertainty that makes customers even less likely to commit to Intel foundry partnerships. No April earnings catalyst to re-rate the stock.
-**Noise check**: Structural problem. Declining fab technology leadership, quarterly operating losses, uncertain foundry ramp. Lesson 3 does NOT apply.
-**Reversal trigger**: Intel announces a major foundry customer win (MSFT, Google, or Apple committing to Intel 18A process) with confirmed volume.
+**Concern**: Structural IDM 2.0 foundry turnaround with no near-term April catalyst. AMD continues gaining CPU share; NVDA dominates AI GPU; TSMC's Q1 beat confirms demand is going to the established leaders, not Intel. Intel's 18A process node has not yet landed a confirmed external customer with volume production commitment.
+**Noise check**: Structural execution problem. Not noise.
+**Reversal trigger**: Announced major foundry customer win (MSFT, Google, or Apple) at 18A process node with confirmed production volume.
 **Re-evaluate in**: Q2 2026 earnings (~June 2026).
 
 ---
 
 #### SMCI — Super Micro Computer, Inc.  (~$40)
-**Concern**: Accounting controversy (SEC investigation, delayed filings) + business model heavily dependent on imported components from Asia = directly exposed to chip/electronics tariff uncertainty. The chip tariff exemption briefly helps sentiment but Lutnick's walk-back and the underlying governance risk remain unchanged. The Hormuz blockade adds supply chain uncertainty through its impact on Asia-Pacific shipping routes.
-**Noise check**: Mixed — accounting controversy is structural governance risk, not noise. Better AI infrastructure play is CLS (Celestica) with no accounting controversy.
-**Reversal trigger**: SEC investigation resolved with no material findings AND sustainable gross margin improvement above 16%.
-**Re-evaluate in**: May 2026 when SEC review status and Q1 2026 earnings are available.
+**Concern**: SEC investigation (accounting controversy) + governance risk persists. The META-AVGO and Google-AVGO deals bypass SMCI's server assembly model — hyperscalers are increasingly building custom silicon that integrates directly with their infrastructure, reducing the SMCI assembly layer. Better AI server play is CLS (Celestica) without the governance controversy.
+**Noise check**: Accounting controversy is structural governance risk. Not noise.
+**Reversal trigger**: SEC investigation resolved with no material findings AND gross margin sustainably above 16% AND SMCI wins a direct hyperscaler AI server contract at scale.
+**Re-evaluate in**: May 2026 when SEC review status and Q1 earnings available.
 
 ---
 
-#### TSLA — Tesla, Inc.  (~$280–320)
-**Concern**: Q1 2026 deliveries of 358,023 units missed consensus estimates of 365,000–370,000 (China's 34% retaliatory tariffs hurt demand and supply). Down 20%+ YTD. Consumer confidence at record low = fewer high-ticket EV purchases. Auto tariffs (25% on imported auto parts) add cost headwinds. CEO Elon Musk's DOGE controversy has measurably hurt brand affinity, particularly among demographic groups that previously bought Tesla disproportionately. Oil at $104 could perversely help EV appeal long-term (driving up gas costs), but near-term consumer confidence collapse dominates.
-**Noise check**: Multi-factor structural headwind — not noise. Delivery miss + consumer confidence + Musk brand damage + tariff exposure = the bear thesis has multiple non-correlated legs. Not a single headline risk.
-**Reversal trigger**: Q1 earnings (late April) show EPS beat + FY2026 delivery guidance raised, AND consumer confidence stabilizes, AND tariff situation resolves favorably.
-**Re-evaluate in**: After Q1 2026 earnings (~April 22-23 estimated) — if EPS and delivery guidance exceed current depressed expectations.
+#### TSLA — Tesla, Inc.  (~$300)
+**Concern**: Q1 2026 deliveries missed (358,023 vs. 365-370K consensus). Consumer confidence at record low = fewer high-ticket EV purchases. Musk CEO brand controversy (DOGE) measurably affecting brand affinity and sales in key markets (Germany, Norway). Down 20%+ YTD. Multiple non-correlated bear legs (delivery miss + consumer confidence + brand damage + auto tariffs). **TSLA reports Q1 earnings ~April 22-23 (unconfirmed)** — if deliveries miss is confirmed and guidance cut, bear case deepens.
+**Noise check**: Multi-factor structural headwind — not noise.
+**Reversal trigger**: Q1 earnings show EPS beat + FY2026 delivery guidance raise + consumer confidence stabilizes + Musk reduces DOGE-related controversy.
+**Re-evaluate in**: After Q1 2026 earnings (~April 22-23 estimated).
 
 ---
 
@@ -264,41 +290,48 @@ _(Same as Big Tech #1 — repeated here as free-style #4 because of the two-cata
 ---
 
 ## Sources
-- Federal Reserve FOMC minutes March 17-18, 2026 (federalreserve.gov)
-- CME FedWatch: 94.8–97.9% hold probability for April 28-29 FOMC
-- Treasury Yields Snapshot April 10, 2026 (ETF Trends / Advisor Perspectives)
-- BLS CPI release April 10, 2026 (3.3% headline, 2.6% core; gasoline +21.2%)
-- BLS Employment Situation March 2026 (178K payrolls, 4.3% unemployment)
-- CNBC/CNN: Trump US Navy Hormuz blockade announcement April 12-13, 2026
-- Bloomberg: Oil jumps 8%+ to WTI $104+, Brent $102+ on Hormuz blockade
-- University of Michigan: Consumer confidence record low April 2026
-- CNBC/Al Jazeera: Oil prices surge past $103 after US Hormuz blockade
-- RTX analyst consensus (Yahoo Finance/MarketBeat): $225 target, Buy, April 13
-- LMT April 23 earnings confirmed; stock ~$613.72 (Barchart, April 13)
-- NVDA stock range April 13: $183–190 (Yahoo Finance)
-- Tesla Q1 2026 delivery miss: 358,023 units vs. 365-370K est.
-- GE Aerospace April 21 earnings confirmed; up 79% past year
-- ServiceNow April 22 earnings confirmed; ~$100-101 April 7 close
-- Amazon.com: ~$235-240 range April 13-14
+- Federal Reserve: 3.50-3.75% held March 18, 2026; April 28-29 next meeting
+- CME FedWatch: ~94.8% hold probability April 2026 FOMC (MEXC News)
+- FRED / Federal Reserve H.15: April 14, 2026
+- 10Y Treasury: 4.24-4.27% (down from 4.36% Apr 14) — Trading Economics, CNBC
+- 2Y Treasury: 3.77% (April 14) — Trading Economics
+- S&P 500 approaching fresh record April 15: CNBC live updates
+- VIX: 18.36 (April 15) — CBOE via multiple sources
+- CPI March 2026: 3.3% headline, 2.6% core — BLS, CNBC April 10
+- Unemployment: 4.3% March 2026, 178K payrolls — BLS, CNBC April 3
+- META-Broadcom 1 GW AI chip deal (2029): CNBC April 14
+- Google-Broadcom TPU deal (2031): CoinCentral April 15
+- Amazon-Globalstar $11.6B acquisition: Bloomberg/CNBC April 14
+- AVGO $393 after-hours: FX Leaders April 14; Broadcom Q2 earnings June 4 confirmed
+- RTX $202-203, April 21 earnings confirmed: MarketBeat; Bank of America Q2 top pick
+- NVDA $195.88 (Apr 15 range $189.49-$196.82): Yahoo Finance
+- META ~$659 (+4.41% Apr 14): Benzinga/CNBC
+- GOOGL ~$333 (Apr 14 close): MarketBeat/Alphabet chart
+- AMZN $249 (+3.81% Apr 14 close), Citizens $315 target: 24/7 Wall St., Benzinga
+- MSFT $394.40 (Apr 15 range $386.52-$394.78): Multiple sources
+- NOW $88.13 (Apr 15 range $87.12-$92.40): MarketBeat; April 22 earnings confirmed
+- LLY $913.69 (Apr 15), April 30 earnings BMO confirmed: GuruFocus, TipRanks
+- NFLX Q1 earnings April 16 (TONIGHT — NOT April 22 as previously noted): Multiple sources confirmed
 
 ---
 
 ## Current Portfolio
-_As of 20260413-0900_
+_As of 20260415-1000_
 
-_No cinvest-initiated positions. Execution blocked — `~/.schwab/config.json` not found._
+_No cinvest-initiated positions. Execution has been blocked across all 5 runs (20260410-0930, 20260410-1700, 20260413-0900, 20260414-1200, 20260415-1000) due to missing `~/.schwab/config.json`. Eight trades remain pending (RTX, NVDA, META, MSFT, GOOGL, AMZN, AVGO, NOW). Portfolio remains empty until credentials are configured._
 
 | Ticker | Company | Shares | Entry price | Change trigger |
 |--------|---------|--------|-------------|----------------|
 | — | — | — | — | — |
 
-**Pending (not yet executed) — carries forward from April 10, updated for April 13 macro:**
+**Pending (not yet executed — refreshed for April 15 prices):**
 | Ticker | Company | Planned action | Size | Thesis one-line |
 |--------|---------|----------------|------|-----------------|
-| RTX   | RTX Corporation    | BUY equal weight | Full | Apr 21 earnings, $268B backlog, 85% contracted; Hormuz blockade strengthens |
-| NVDA  | NVIDIA Corporation | BUY equal weight | Full | Chip tariff exemption today + TSMC Q1 + May earnings setup |
-| META  | Meta Platforms     | BUY equal weight | Full | Ad impressions +18%, Apr 29 earnings, Q1 locked in |
-| AMZN  | Amazon.com, Inc.   | BUY equal weight | Full | Two-catalyst AI de-risking + Apr 23 earnings |
-| GOOGL | Alphabet Inc.      | BUY equal weight | Full | GCP 48% growth, Apr 29 earnings |
-| MSFT  | Microsoft Corp     | BUY equal weight | Full | Azure 40%, Copilot scale, ~Apr 29 earnings |
-| NOW   | ServiceNow, Inc.   | BUY half weight  | Half | Speculative Apr 22 bounce, Lesson 7 applies |
+| RTX   | RTX Corporation         | BUY equal weight | Full | Free-style #1 — Apr 21 earnings, 85% contracted, $268B backlog, nearest catalyst |
+| NVDA  | NVIDIA Corporation      | BUY equal weight | Full | Big Tech #1 — Blackwell confirmed TSMC Q1; hyperscaler capex proxy Apr 21-29 |
+| MSFT  | Microsoft Corporation   | BUY equal weight | Full | Big Tech #2 — Azure 40%, Copilot scale, Apr 29 earnings |
+| GOOGL | Alphabet Inc.           | BUY equal weight | Full | Big Tech #3 — GCP 48% (fastest major cloud), Google-AVGO TPU deal, Apr 29 earnings |
+| META  | Meta Platforms          | BUY equal weight | Full | Free-style #2 — Broadcom deal confirms AI capex; Apr 29 earnings |
+| AMZN  | Amazon.com, Inc.        | BUY equal weight | Full | Free-style #3 — AWS de-risking + Globalstar satellite; Apr 29-30 earnings |
+| AVGO  | Broadcom Inc.           | BUY equal weight | Full | Free-style #4 — Meta+Google custom AI chip deals; Jun 4 earnings |
+| NOW   | ServiceNow, Inc.        | BUY half weight  | Half | Free-style #5 — Near 52-wk low, Q4 beat, Apr 22 earnings; AI disruption risk (Lesson 7) |

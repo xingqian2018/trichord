@@ -16,7 +16,7 @@ _Distilled, reusable lessons from past runs. Apply these in Step 4 before finali
 
 ## Lesson 2 — Catalyst timing is more important than thesis quality for swing trades
 
-**Pattern**: During earnings seasons with many reports clustered in 2–3 weeks (like April 2026 with RTX Apr 21, NOW Apr 22, LMT/CAT Apr 23, GOOGL/MSFT Apr 29, LLY Apr 30), the highest-quality swing trade is almost always the one with the nearest earnings date + clearest fundamental setup — not the one with the most compelling long-term thesis.
+**Pattern**: During earnings seasons with many reports clustered in 2–3 weeks (like April 2026 with RTX Apr 21, NOW Apr 22, LMT/CAT Apr 23, GOOGL/MSFT/META Apr 29, LLY Apr 30), the highest-quality swing trade is almost always the one with the nearest earnings date + clearest fundamental setup — not the one with the most compelling long-term thesis.
 
 **When it applies**: Always for the swing trader horizon (4–8 weeks). If two candidates are comparable in quality, default to the one with the nearer catalyst.
 
@@ -64,14 +64,14 @@ _Distilled, reusable lessons from past runs. Apply these in Step 4 before finali
 
 ---
 
-## Lesson 8 — Short-term ceasefires in active military conflicts are false dawns — plan for both paths
-_Added: 20260413-0900_
+## Lesson 8 — Geopolitical escalations in active conflicts are often as transient as ceasefires — plan for both paths
+_Added: 20260413-0900 | Updated: 20260414-1200_
 
-**Pattern**: The April 8 US-Iran two-week ceasefire felt like a significant de-escalation. The April 10 plan was built around it holding. Within 4 days (April 12), peace talks in Pakistan failed and Trump announced a Hormuz blockade. The ceasefire lasted less than one trading week. Any portfolio thesis that assumes a specific geopolitical outcome (ceasefire holds, deal is reached) is taking on binary political risk that cannot be managed with fundamental analysis.
+**Pattern**: The April 8 US-Iran ceasefire lasted 4 days before talks collapsed and a Hormuz blockade was announced (April 12). Then within ONE trading day, the blockade rally in oil (+8% to $104) reversed: oil fell 6% to $97 on April 14 as second-round talk hopes emerged. The market reversed the entire blockade pricing in a single session. Both the ceasefire and the blockade were treated by markets as transient political signals — not durable fundamental shifts. The key pattern: in active military conflicts with political back-channels open, moves in either direction (escalation OR de-escalation) are frequently reversed within 1–7 trading days.
 
-**When it applies**: Any time a portfolio is built around a specific geopolitical stabilization event — ceasefire, peace deal, trade truce, sanctions relief. Short windows (<4 weeks) are especially fragile.
+**When it applies**: Any time a pick's thesis hinges on a specific geopolitical stabilization (ceasefire holds, blockade activates, deal closes, sanctions lift). Short windows (<4 weeks) — whether escalation OR de-escalation — are especially fragile.
 
-**How to apply**: For every pick where the thesis requires a geopolitical stabilization to hold: explicitly define TWO paths in the plan — (1) "stabilization holds": target and hold window, and (2) "stabilization fails": specific exit trigger. If you cannot define a credible exit for the "fails" path without catastrophic loss, the position is too geopolitical and the size should be reduced. Note: the April 10 plan survived the ceasefire collapse reasonably well (RTX, AMZN, GOOGL, MSFT, META are all insulated from Iran war binary risk) — this is the right model: catalysts that are independent of the geopolitical outcome.
+**How to apply**: For every pick where the thesis requires a geopolitical outcome to hold: explicitly define TWO paths in the plan — (1) "stabilization/de-escalation holds": target and hold window, and (2) "escalation resumes / de-escalation reverses": specific exit trigger. If you cannot define a credible exit for either path without catastrophic loss, the position is too geopolitical and size should be reduced. The right model: picks with catalysts **independent** of the geopolitical outcome (RTX backlog, AMZN AWS, GOOGL GCP, MSFT Azure — all immune to the Iran binary). Energy and defense sentiment picks that require oil to stay above $X or below $Y are the wrong model — those are geopolitical bets, not thesis bets.
 
 ---
 
@@ -98,3 +98,73 @@ _Added: 20260410-0930_
 - AI displacement fear (the product category is being structurally disrupted) → Apply a structural disruption filter instead. A stock down 45% on AI competitive disruption is not necessarily cheap; it may be pricing in a future with a shrinking TAM.
 
 **Going forward**: For software companies down >30% YTD with AI competitive risk as the stated bear thesis, require explicit evidence that the core product is NOT being displaced (e.g., strong NRR, expanding headcount per customer, new use cases unlocked by AI) before treating it as a Lesson 3 entry. If the evidence is absent at the upcoming earnings, exit immediately — don't hold hoping for recovery.
+
+---
+
+## Lesson 10 — Planned entry prices become stale when execution is blocked across multiple runs
+_Added: 20260414-1200_
+
+**Pattern**: The April 10 plan set AMZN at ~$238 (post-CEO-letter spike) and NOW at ~$95. By April 14 (4 days and 3 blocked runs later), AMZN was at $220.52 and NOW at $89. The plans carried stale prices without refreshing because execution was blocked — not because the analysis was wrong. Stale prices create phantom risk/reward calculations: a thesis evaluated at $238 entry is materially different at $220 entry.
+
+**When it applies**: Any time the skill runs for the second or later consecutive time WITHOUT executing trades from the prior plan — the planned prices are assumed "current" by the next run's analysis, but they may have moved significantly.
+
+**How to apply**: At the start of every run where prior trades remain unexecuted (portfolio still empty), explicitly refresh prices on ALL planned picks before presenting the action plan. Do not carry prices forward from the prior log file — they are stale from the moment they were written. The refresh search should happen in Step 0C's parallel batch, not as an afterthought. AMZN falling 7.5% while the thesis is intact is BETTER for the trade — lower entry, same catalyst — but only if cinvest notices and adjusts the risk/reward accordingly.
+
+---
+
+## Lesson 12 — Build one global ranking first; allocate to Big Tech 3 and Free-style 5 from it — never build the two lists independently
+_Added: 20260415-1000_
+
+### What happened
+Big Tech #3 = META, Free-style #2 = GOOGL. This implies META > GOOGL for the Big Tech slot but GOOGL > almost everything else overall. The two lists contradicted each other. The market-facing analysis said GOOGL was my 2nd-best overall pick, but the Big Tech selection said META was better than GOOGL. Both cannot be true.
+
+### Why it happened
+Two compounding errors:
+
+**1. Narrative capture**: META was up 4.5% on a prominent Broadcom deal headline. That anchored META as "the pick of the day" and it was inserted into Big Tech #3 based on narrative energy, not on a head-to-head comparison against all alternatives. GOOGL received the *same* Broadcom structural signal on the same day (Google-AVGO TPU deal through 2031) but generated less headline noise, so it was underweighted.
+
+**2. Point-mutation selection**: Each run's Big Tech 3 was derived by keeping the prior day's lineup as the base and making 1-2 swaps ("add NVDA, add META"). This means the Big Tech 3 accumulates drift from past decisions rather than reflecting today's best ranking. The Free-style list, built separately afterward, then diverged from the Big Tech list because it was evaluated fresh.
+
+The root cause of both: two independent selection processes for lists that should be one coherent ranking.
+
+### What should have been done
+Build a **single global conviction ranking** of all candidates first. Then allocate:
+- The 3 highest-ranked names that are in the Big Tech Pool → Big Tech 3
+- The remaining picks → Free-style (overlap is fine and expected for the best tech names)
+
+This way, the Big Tech 3 and Free-style 5 are not two separate decisions — they are two views of the same underlying ranking.
+
+### Going forward
+**Rule**: Before locking in any final list, run the coherence check explicitly:
+
+> *"Is every name in my Big Tech 3 ranked higher overall than every Big Tech Pool name that appears in my Free-style?"*
+
+If any Free-style entry would displace a Big Tech 3 entry by any conviction metric (catalyst timing, growth rate, entry quality, fundamental strength), that is a contradiction. Fix the Big Tech 3 first, then rebuild Free-style.
+
+**Anti-pattern to catch**: "Today's biggest mover / loudest headline → automatic Big Tech promotion." The loudest narrative and the best pick are not the same thing. Always ask: *"Does this name beat every incumbent it would displace, on the criteria I'm actually using to rank — not on narrative energy?"*
+
+**Condition**: This lesson is especially important on days with a single dominant market story (a major deal announced, a macro surprise, a large intraday move) that makes one name feel obviously special. Those are exactly the days when narrative capture is most likely.
+
+---
+
+## Lesson 11 — Earnings date verification requires multiple official sources, not a single news article
+_Added: 20260415-1000_
+
+### What happened
+- In the April 13-14 runs, AMZN's Q1 2026 earnings was cited as **April 23** (sourced from a single article: rollingout.com April 8). Official sources now confirm **April 29-30** — a 6-day timing error.
+- In the April 14 run, NFLX earnings was listed as **April 22** in the watchlist. The actual date is **April 16** (TOMORROW) — a 6-day timing error in the opposite direction.
+- Neither error affected executed trades (no trades were executed). But if trades had been placed, both would have produced wrong hold-window calculations and risk/reward analysis.
+
+### Why it happened
+- Single-source reliance: both dates were sourced from one article each, without cross-referencing official IR pages or earnings calendars (MarketBeat, Nasdaq.com, official company IR).
+- The AMZN error: rollingout.com is a general news site, not a financial data provider. It published a plausible-sounding date without sourcing it to Amazon IR.
+- The NFLX error: the watchlist noted "same day as NOW (April 22)" but NFLX's actual Q1 date (April 16) is well-documented in every earnings calendar.
+
+### What should have been done
+- For every pick with a cited earnings date, cross-check against at least two dedicated financial data sources: MarketBeat, Nasdaq.com, or the company's official Investor Relations page.
+- For a high-confidence catalyst like an earnings date, reject any date that can't be corroborated by at least one official/financial data source.
+
+### Going forward
+**Rule**: Before recording an earnings date in a plan or watchlist, verify it against at least ONE of: (1) company IR page, (2) Nasdaq.com earnings calendar, (3) MarketBeat earnings calendar. A single news article is not sufficient verification for an earnings date. Apply this especially for dates that seem "interesting" (nearby, round number, same day as another catalyst) — those are the ones most likely to be wrong.
+
+**Condition**: Every time an earnings date is cited as a catalyst, ask: "Where did I get this date? Is it from an official source or a secondary article?" If secondary only, cross-check before finalizing the plan.

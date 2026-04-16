@@ -168,3 +168,29 @@ _Added: 20260415-1000_
 **Rule**: Before recording an earnings date in a plan or watchlist, verify it against at least ONE of: (1) company IR page, (2) Nasdaq.com earnings calendar, (3) MarketBeat earnings calendar. A single news article is not sufficient verification for an earnings date. Apply this especially for dates that seem "interesting" (nearby, round number, same day as another catalyst) — those are the ones most likely to be wrong.
 
 **Condition**: Every time an earnings date is cited as a catalyst, ask: "Where did I get this date? Is it from an official source or a secondary article?" If secondary only, cross-check before finalizing the plan.
+
+---
+
+## Lesson 13 — Developer conferences and cloud/AI summits create pre-earnings catalyst windows for hosting companies
+_Added: 20260416-0930_
+
+### What happened
+Citi's 90-day positive catalyst watch on GOOGL (April 14, 2026) explicitly cited THREE sequential near-term catalysts: (1) Google Cloud Next April 22–24, (2) Q1 earnings April 29, (3) Google I/O May 19–20. The Cloud Next conference was not captured in the April 15 plan — it was surfaced only when the Citi analyst note was discovered on April 16. This is a near-term catalyst that was hiding in plain sight.
+
+### Why it happened
+Developer/partner conferences were not part of the standard catalyst checklist (which focused on: earnings date, FDA decision, product launch, index inclusion, regulatory ruling, macro event). Google Cloud Next is a major 3-day conference specifically designed to demonstrate GCP adoption, Gemini enterprise use cases, and cloud platform announcements. For a company like GOOGL where the bear thesis is "AI threatens cloud adoption" — a conference showing the opposite is a meaningful de-risking event, functionally similar to a pre-earnings investor day.
+
+### What should have been done
+When evaluating any major tech company whose bull thesis depends on proving AI/cloud adoption, check the **developer conference calendar** alongside the earnings date. Conferences where the hosting company presents live proof of AI adoption (demo environments, enterprise customer case studies, partner announcements) function as pre-earnings de-risking events — not just marketing noise.
+
+### Going forward
+**Rule**: For every tech company pick, check if a major developer conference or cloud/AI summit is scheduled within the 4–8 week swing window. Key conferences to monitor:
+- **GOOGL**: Google Cloud Next (April), Google I/O (May)
+- **MSFT**: Microsoft Build (May), Ignite (November)
+- **AMZN**: AWS re:Invent (November/December)
+- **CRM/NOW**: Dreamforce (September), ServiceNow Knowledge (May/June)
+- **NVDA**: GTC (March)
+
+When a conference falls within the swing window AND the company's bull thesis specifically depends on proving AI/cloud adoption to skeptics, count it as a **pre-earnings catalyst** that: (a) extends the target window slightly (conference → earnings), and (b) provides qualitative de-risking before the financial confirmation.
+
+**Condition**: This lesson applies most powerfully when: (1) the company is hosting (not just attending) the conference, (2) the bear thesis explicitly involves questioning AI adoption, and (3) the conference is within 1–3 weeks of earnings. A conference that is 8+ weeks before earnings is marketing, not a swing catalyst.

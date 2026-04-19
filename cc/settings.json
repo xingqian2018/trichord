@@ -1,13 +1,27 @@
 {
   "permissions": {
     "allow": [
-      "Bash(*)",
-      "WebSearch(*)",
-      "WebFetch(*)",
-      "Read(*)",
-      "Write(/home/xingqian/.claude/skills/cinvest/)",
-      "Write(/home/xingqian/.claude/skills/ctradeexe/)",
-      "Write(/home/xingqian/.claude/skills/cslack/)"
+      "WebSearch",
+      "WebFetch",
+      "Bash",
+      "Skill(cinvest)",
+      "Bash(cat ~/.claude/skills/cinvest/**)",
+      "Bash(echo ~/.claude/skills/cinvest/**)",
+      "Read(~/.claude/skills/cinvest/**)",
+      "Edit(~/.claude/skills/cinvest/**)",
+      "Write(~/.claude/skills/cinvest/**)",
+      "Skill(ctradeexe)",
+      "Bash(cat ~/.claude/skills/ctradeexe/**)",
+      "Bash(echo ~/.claude/skills/ctradeexe/**)",
+      "Read(~/.claude/skills/ctradeexe/**)",
+      "Edit(~/.claude/skills/ctradeexe/**)",
+      "Write(~/.claude/skills/ctradeexe/**)",
+      "Edit(~/.claude/skills/cslack/**)",
+      "Write(~/.claude/skills/cslack/**)"
+    ],
+    "disallow": [
+      "Read(crednentials/**)"
     ]
-  }
+  },
+  "model": "opus[1m]"
 }

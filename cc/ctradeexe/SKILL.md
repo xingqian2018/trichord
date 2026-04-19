@@ -5,7 +5,6 @@ user_invocable: true
 allowed-tools:
   - Bash
   - Read
-  - Write
 ---
 
 ## Output Formatting — Visual Language

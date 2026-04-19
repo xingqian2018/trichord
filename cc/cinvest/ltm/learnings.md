@@ -194,3 +194,28 @@ When evaluating any major tech company whose bull thesis depends on proving AI/c
 When a conference falls within the swing window AND the company's bull thesis specifically depends on proving AI/cloud adoption to skeptics, count it as a **pre-earnings catalyst** that: (a) extends the target window slightly (conference → earnings), and (b) provides qualitative de-risking before the financial confirmation.
 
 **Condition**: This lesson applies most powerfully when: (1) the company is hosting (not just attending) the conference, (2) the bear thesis explicitly involves questioning AI adoption, and (3) the conference is within 1–3 weeks of earnings. A conference that is 8+ weeks before earnings is marketing, not a swing catalyst.
+
+---
+
+## Lesson 14 — Tariff/regulation effective dates routinely differ from signing/announcement dates by months
+_Added: 20260417-0930_
+
+### What happened
+The April 2, 2026 Section 232 pharmaceutical tariff (100% on patented pharma imports) was described in cinvest's market snapshot as "Active from Apr 2" — implying the tariff was already creating a structural headwind for LLY's near-term earnings. The actual effective date for large companies (Annex III, including Eli Lilly) is **July 31, 2026** — 120 days after signing. For other companies it is September 29, 2026. LLY's Q1 2026 earnings (April 30) will occur entirely BEFORE the pharma tariff is in effect. The prior assessment significantly overstated the near-term impact.
+
+Secondary error: EU/Japan/Korea/Switzerland manufacturers receive only a 15% tariff rate (not 100%). Generic drugs and biosimilars are exempt entirely. The flat "100% pharma tariff active" description missed all three of these nuances.
+
+### Why it happened
+News coverage of the April 2 signing focused on the executive order date and the dramatic "100% tariff" headline. Cinvest relied on news summaries without verifying the legal proclamation, which contains explicit effective-date language ("takes effect 120 days from the date of this proclamation"). The signing date and the effective date are different legal events and routinely differ by 30–180 days in Section 232/IEEPA proclamations.
+
+### What should have been done
+Read the White House proclamation or a legal analysis of the specific proclamation (e.g., Crowell & Moring, Foley Hoag alerts) to find: (1) the effective date, (2) whether phase-in periods exist for different company categories, (3) what the exemptions are (generics, specific countries, pre-existing agreements). A single legal alert would have corrected all three errors.
+
+### Going forward
+**Rule**: When a tariff or regulatory proclamation is announced, ALWAYS verify the effective date from the official legal document or a law-firm alert — not just the news headline. Signing date ≠ effective date. Key questions to answer before classifying a tariff as "active":
+- What is the explicit effective date in the proclamation? (Often expressed as "X days from the date of this proclamation")
+- Are there different effective dates for different company categories (Annex I vs. Annex III companies, etc.)?
+- What exemptions exist (generics, specific country rates, pre-existing onshoring agreements)?
+- Is the tariff subject to legal challenge that could delay implementation (compare IEEPA ruling pattern from Lesson 9)?
+
+**Condition**: Every time a tariff or regulation is cited in a thesis, ask: "Is this *signed* or *in effect*?" If signed but not yet effective, estimate the impact timeline correctly. A tariff effective in 3+ months is a medium-term headwind, not an immediate one — and for a 4–8 week swing trade, it may be effectively irrelevant to the current earnings catalyst.

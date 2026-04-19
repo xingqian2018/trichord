@@ -5,9 +5,11 @@ user_invocable: true
 allowed-tools:
   - WebSearch
   - WebFetch
-  - Read
-  - Write
   - Bash
+  - Read(~/.claude/skills/cinvest/**)
+  - Edit(~/.claude/skills/cinvest/**)
+  - Write(~/.claude/skills/cinvest/**)
+  - Skill(ctradeexe)
 ---
 
 ## Goal

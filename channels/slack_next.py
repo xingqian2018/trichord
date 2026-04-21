@@ -32,14 +32,8 @@ NO_ALL = {"no all", "noall", "deny all"}
 
 app = AsyncApp(token=CREDS["SLACK_BOT_TOKEN"])
 
-# thread_key -> FIFO of asyncio.Future[tuple[str, str]]
-# ("allow", "")            -> approve
-# ("deny", "...reason")    -> deny with reason surfaced to claude
-# ("interrupt", "...text") -> deny + interrupt claude so text becomes next-turn input
 PENDING: dict[str, deque[asyncio.Future]] = {}
 
-# thread_key -> True if "yes all" is in effect for the rest of this Claude turn
-# (cleared automatically in drive_claude's finally)
 AUTO_APPROVE: dict[str, bool] = {}
 
 
@@ -85,11 +79,32 @@ def render_message(msg) -> str:
     return ""
 
 
-def extract_init(msg) -> tuple[str | None, str | None]:
-    if isinstance(msg, SystemMessage):
-        data = getattr(msg, "data", {}) or {}
-        return data.get("session_id"), data.get("model")
-    return None, None
+async def try_finalize_gear_ts(channel, gear_ts, msg):
+    if not isinstance(msg, SystemMessage):
+        return gear_ts
+    sid = msg.data.get('session_id')
+    model = msg.data.get('model')
+    if not sid:
+        return gear_ts
+    await app.client.chat_update(
+        channel=channel,
+        ts=gear_ts,
+        text=f":gear: `{model or '?'}` / `{sid}`",
+    )
+    return None
+
+
+async def commit(channel, thread_ts, body: str) -> str:
+    if len(body) > SLACK_MAX_TEXT:
+        body = "_(...earlier output truncated...)_\n\n" + body[-SLACK_MAX_TEXT:]
+
+    if thread_ts is None:
+        posted = await app.client.chat_postMessage(
+            channel=channel, thread_ts=thread_ts, text=body
+        )
+        return posted["ts"]
+    await app.client.chat_update(channel=channel, ts=thread_ts, text=body)
+    return thread_ts
 
 
 async def drive_claude(
@@ -97,96 +112,17 @@ async def drive_claude(
     session_id: str | None,
     channel: str,
     thread_ts: str,
-    initial_ts: str,
-    gear_ts: str | None,
+    header_ts, str,
     logger,
 ) -> tuple[str, str | None]:
-    """Run claude and surface events as discrete Slack messages.
-
-    `initial_ts` is the first hourglass placeholder (posted by the caller).
-    For each event with renderable content, we overwrite the current hourglass
-    with that content and post a fresh hourglass below it. When the turn ends,
-    we delete the trailing hourglass.
-    """
-    accumulated = ""  # kept only for the logger at the end of the turn
-    init_sid: str | None = None
-    # active_ts is the hourglass Slack ts. Invariant: set iff we are waiting
-    # on Claude. Cleared when Claude is blocked on a user permission reply.
-    active_ts: str | None = initial_ts
-    # Buffer for consecutive render fragments. Flushed at natural boundaries
-    # (before a permission prompt, at turn end) so a run of tool uses / results
-    # collapses into a single Slack message instead of one per event.
-    buffer = ""
-    # If the user replies to a permission prompt with arbitrary text, we deny
-    # the tool (with interrupt=True) and stash the text here so the outer loop
-    # can send it as the next turn's user message.
-    pending_followup: str | None = None
-    key = thread_key(channel, thread_ts)
-    loop = asyncio.get_running_loop()
-
-    async def post_hourglass() -> None:
-        nonlocal active_ts
-        if active_ts is not None:
-            return
-        try:
-            msg = await app.client.chat_postMessage(
-                channel=channel,
-                thread_ts=thread_ts,
-                text=":hourglass_flowing_sand: _thinking..._",
-            )
-            active_ts = msg["ts"]
-        except Exception as e:
-            logger.warning(f"post hourglass failed: {e}")
-
-    async def remove_hourglass() -> None:
-        nonlocal active_ts
-        if active_ts is None:
-            return
-        try:
-            await app.client.chat_delete(channel=channel, ts=active_ts)
-        except Exception as e:
-            logger.warning(f"delete hourglass failed: {e}")
-        active_ts = None
-
-    async def commit(body: str) -> None:
-        """Turn the current hourglass into `body`, then open a fresh one below."""
-        nonlocal active_ts
-        if len(body) > SLACK_MAX_TEXT:
-            body = "_(...earlier output truncated...)_\n\n" + body[-SLACK_MAX_TEXT:]
-        if active_ts is not None:
-            try:
-                await app.client.chat_update(channel=channel, ts=active_ts, text=body)
-            except Exception as e:
-                logger.warning(f"chat_update failed: {e}")
-            active_ts = None
-        else:
-            try:
-                await app.client.chat_postMessage(
-                    channel=channel, thread_ts=thread_ts, text=body
-                )
-            except Exception as e:
-                logger.warning(f"chat_postMessage failed: {e}")
-        await post_hourglass()
-
-    async def flush_buffer() -> None:
-        """Commit buffered fragments as a single Slack message."""
-        nonlocal buffer
-        if not buffer:
-            return
-        body, buffer = buffer, ""
-        await commit(body)
+    
+    pending_permission = []
 
     async def can_use_tool(tool_name, tool_input, _context):
-        if AUTO_APPROVE.get(key):
-            return PermissionResultAllow(updated_input=tool_input)
-
-        # Flush any pending content so the :lock: prompt lands at the bottom.
-        await flush_buffer()
-        # Claude is now blocked on us, not the other way around -> hide hourglass.
-        await remove_hourglass()
 
         fut: asyncio.Future[tuple[str, str]] = loop.create_future()
-        PENDING.setdefault(key, deque()).append(fut)
+        pending_permission.setdefault(key, deque()).append(fut)
+
         preview = json.dumps(tool_input)[:400]
         prompt_ts: str | None = None
         try:
@@ -203,97 +139,69 @@ async def drive_claude(
             prompt_ts = prompt["ts"]
         except Exception:
             logger.exception("failed to post permission prompt")
+
         try:
             verdict, message = await fut
         except asyncio.CancelledError:
-            await post_hourglass()
             return PermissionResultDeny(message="permission cancelled")
 
         if prompt_ts is not None:
+            verdict_label = {
+                "allow": ":white_check_mark: _allowed_",
+                "deny": ":x: _denied_",
+                "interrupt": ":arrow_right_hook: _interrupted_",
+            }.get(verdict, f"_{verdict}_")
             try:
-                await app.client.chat_delete(channel=channel, ts=prompt_ts)
+                await app.client.chat_update(
+                    channel=channel,
+                    ts=prompt_ts,
+                    text=f":lock: `{tool_name}` — {verdict_label}\n```{preview}```",
+                )
             except Exception as e:
-                logger.warning(f"delete permission prompt failed: {e}")
-
-        # User replied -> claude is about to work again, restore hourglass.
-        await post_hourglass()
+                logger.warning(f"update permission prompt failed: {e}")
 
         if verdict == "allow":
             return PermissionResultAllow(updated_input=tool_input)
         if verdict == "interrupt":
-            # Stash the user's text so the outer loop can resend it as a new
-            # user turn after claude's current turn unwinds from the interrupt.
-            nonlocal pending_followup
-            pending_followup = message
             return PermissionResultDeny(message=message, interrupt=True)
         return PermissionResultDeny(message=message or "user denied")
 
-    options = ClaudeAgentOptions(resume=session_id, can_use_tool=can_use_tool)
     try:
-        async with ClaudeSDKClient(options=options) as client:
-            next_text: str | None = text
-            while next_text is not None:
-                current = next_text
-                next_text = None
-                await client.query(current)
-                last_role: str | None = None
-                async for msg in client.receive_response():
-                    sid, model = extract_init(msg)
-                    if sid and init_sid is None:
-                        init_sid = sid
-                        if gear_ts is not None:
-                            try:
-                                await app.client.chat_update(
-                                    channel=channel,
-                                    ts=gear_ts,
-                                    text=f":gear: `{model or '?'}` / `{sid}`",
-                                )
-                            except Exception as e:
-                                logger.warning(f"gear chat_update failed: {e}")
-                        continue
-                    if isinstance(msg, ResultMessage):
-                        continue
-                    fragment = render_message(msg)
-                    if not fragment:
-                        continue
-                    # Flush the previous batch when role changes
-                    # (assistant text/tool_use <-> user tool_result).
-                    role = "assistant" if isinstance(msg, AssistantMessage) else "user"
-                    if last_role is not None and role != last_role:
-                        await flush_buffer()
-                    last_role = role
-                    accumulated += fragment
-                    buffer += fragment
-                # Turn ended for this query; flush whatever is left.
-                await flush_buffer()
-                # If the user interrupted with a follow-up, feed it back in.
-                if pending_followup is not None:
-                    next_text = pending_followup
-                    pending_followup = None
+        main_msg = await app.client.chat_postMessage(
+            channel=channel,
+            thread_ts=thread_ts,
+            text=":hourglass_flowing_sand: _thinking..._",
+        )
+        main_ts = main_msg["ts"]
     except Exception as e:
-        logger.exception("claude query failed")
-        buffer += f"\n:x: `{e}`"
-        await flush_buffer()
-        raise
-    finally:
-        AUTO_APPROVE.pop(key, None)
+        main_ts = None
 
-    # Turn ended. Clean up any dangling hourglass.
-    if active_ts is not None:
-        if accumulated:
-            try:
-                await app.client.chat_delete(channel=channel, ts=active_ts)
-            except Exception as e:
-                logger.warning(f"delete hourglass failed: {e}")
-        else:
-            try:
-                await app.client.chat_update(
-                    channel=channel, ts=active_ts, text="_(no response)_"
-                )
-            except Exception as e:
-                logger.warning(f"chat_update failed: {e}")
+    options = ClaudeAgentOptions(resume=session_id, can_use_tool=can_use_tool)
 
-    return accumulated, init_sid
+    key = thread_key(channel, thread_ts)
+    loop = asyncio.get_running_loop()
+
+    #############
+    # main loop #
+    #############
+
+    async with ClaudeSDKClient(options=options) as client:
+        response_str = ""
+        query_str = text
+
+        await client.query(query_str)
+        async for msg in client.receive_response():
+            if header_ts is not None:
+                header_ts = await try_finalize_gear_ts(channel, header_ts, msg)
+            if isinstance(msg, ResultMessage):
+                if response_str:
+                    main_ts = await commit(channel, main_ts, response_str)
+                break
+            fragment = render_message(msg)
+            if fragment:
+                response_str += fragment
+
+    return None
 
 
 @app.event("message")
@@ -308,6 +216,7 @@ async def handle_dm_events(event, say, logger):
     user = event.get("user")
     text = event.get("text", "")
     channel = event.get("channel")
+    is_new_session = event.get("thread_ts") is None
     thread_ts = event.get("thread_ts") or event.get("ts")
     key = thread_key(channel, thread_ts)
     stripped = text.strip().lower()
@@ -320,8 +229,6 @@ async def handle_dm_events(event, say, logger):
         is_no = stripped in NO
 
         if is_yes_all:
-            # Approve the currently-pending prompt AND every future tool call
-            # for the rest of this Claude turn (cleared in drive_claude's finally).
             AUTO_APPROVE[key] = True
             while queue:
                 fut = queue.popleft()
@@ -345,7 +252,6 @@ async def handle_dm_events(event, say, logger):
                     break
             return
 
-        # Any other text: interrupt claude with the user's message as follow-up input.
         while queue:
             fut = queue.popleft()
             if not fut.done():
@@ -354,25 +260,20 @@ async def handle_dm_events(event, say, logger):
 
     logger.info(f"DM from user={user} channel={channel}: {text[:30]}")
 
-    log = load_log()
-    session_id = log.get(key)
-    is_new_session = not session_id
+    session_id = None if is_new_session else load_log().get(key)
 
-    gear_msg = None
-    if is_new_session:
-        gear_msg = await say(text=":gear: _starting new session..._", thread_ts=thread_ts)
+    header_ts = None
+    try:
+        if is_new_session:
+            header_msg = await app.client.chat_postMessage(
+                channel=channel, thread_ts=thread_ts, text=":gear: _starting new session..._"
+            )
+            header_ts = header_msg['ts']
+    except:
+        header_ts = None
 
-    placeholder = await say(text=":hourglass_flowing_sand: _thinking..._", thread_ts=thread_ts)
-    initial_ts = placeholder["ts"]
-
-    if session_id:
-        logger.info(f"Resuming claude session {session_id} for {key}")
-    else:
-        logger.info(f"Starting new claude session for {key}")
-
-    gear_ts = gear_msg["ts"] if gear_msg else None
     reply, init_sid = await drive_claude(
-        text, session_id, channel, thread_ts, initial_ts, gear_ts, logger
+        text, session_id, channel, thread_ts, header_ts, logger
     )
 
     if init_sid and init_sid != session_id:

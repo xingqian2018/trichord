@@ -1,6 +1,5 @@
 import asyncio
 import json
-from collections import deque
 from pathlib import Path
 
 from claude_agent_sdk import (
@@ -22,7 +21,6 @@ from slack_bolt.async_app import AsyncApp
 
 CREDS = json.loads((Path(__file__).parent.parent / "credentials" / "slack.json").read_text())
 
-LOG_PATH = Path(__file__).parent / "tmp" / "slack_thread_to_claude_session_mapping.json"
 SLACK_MAX_TEXT = 38000  # Slack chat.update hard limit is 40000 chars
 
 YES = {"yes", "y", "allow", "approve", "ok", "sure"}
@@ -32,176 +30,255 @@ NO_ALL = {"no all", "noall", "deny all"}
 
 app = AsyncApp(token=CREDS["SLACK_BOT_TOKEN"])
 
-PENDING: dict[str, deque[asyncio.Future]] = {}
 
-AUTO_APPROVE: dict[str, bool] = {}
-
-
-def thread_key(channel: str, thread_ts: str) -> str:
-    return f"{channel}:{thread_ts}"
+ACTIVE_CLAUDE_SESSION: "dict[str, SlackClaudeSession]" = {}
 
 
-def load_log() -> dict:
-    if not LOG_PATH.exists():
-        return {}
-    try:
-        return json.loads(LOG_PATH.read_text())
-    except json.JSONDecodeError:
-        return {}
-
-
-def save_log(log: dict) -> None:
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    LOG_PATH.write_text(json.dumps(log, indent=2))
-
-
-def render_message(msg) -> str:
-    if isinstance(msg, AssistantMessage):
-        parts = []
-        for block in msg.content:
-            if isinstance(block, TextBlock):
-                parts.append(block.text)
-            elif isinstance(block, ToolUseBlock):
-                parts.append(f"\n> :wrench: `{block.name}` {json.dumps(block.input)[:120]}\n")
-            elif isinstance(block, ThinkingBlock):
-                pass
-        return "".join(parts)
-    if isinstance(msg, UserMessage):
-        content = msg.content
-        if isinstance(content, list):
-            for block in content:
-                if isinstance(block, ToolResultBlock):
-                    result = block.content
-                    if isinstance(result, list):
-                        result = " ".join(c.get("text", "") for c in result if isinstance(c, dict))
-                    snippet = str(result or "").strip().replace("\n", " ")[:160]
-                    return f"> _result:_ {snippet}\n"
-    return ""
-
-
-async def try_finalize_gear_ts(channel, gear_ts, msg):
-    if not isinstance(msg, SystemMessage):
-        return gear_ts
-    sid = msg.data.get('session_id')
-    model = msg.data.get('model')
-    if not sid:
-        return gear_ts
-    await app.client.chat_update(
-        channel=channel,
-        ts=gear_ts,
-        text=f":gear: `{model or '?'}` / `{sid}`",
+class SlackClaudeSession:
+    PERMISSION_QUESTION = (
+        "_reply *yes* / *no* / *yes all* / *no all* "
+        "— any other text interrupts claude with your message_"
     )
-    return None
 
+    def __init__(self, channel: str, thread_ts: str, logger):
+        self.channel = channel
+        self.thread_ts = thread_ts
+        self.key = f"{channel}:{thread_ts}"
+        self.logger = logger
+        self.lock = asyncio.Lock()
 
-async def commit(channel, thread_ts, body: str) -> str:
-    if len(body) > SLACK_MAX_TEXT:
-        body = "_(...earlier output truncated...)_\n\n" + body[-SLACK_MAX_TEXT:]
+        self.session_id: str | None = None
+        self.header_ts: str | None = None
+        self.main_ts: str | None = None
+        self.response_str: str = ""
+        # tool_use_id -> Future[tuple[verdict, message]] — tools whose
+        # can_use_tool has been called and is awaiting a decision.
+        self.pending: dict[str, asyncio.Future[tuple[str, str]]] = {}
+        # tool_use_id -> (verdict, message) — pre-computed decisions for tools
+        # that haven't reached can_use_tool yet (e.g. seeded by "yes all").
+        self.pending_tool_verdicts: dict[str, tuple[str, str]] = {}
+        # tool_use_id -> ToolUseBlock — tools Claude has called but whose
+        # result has not arrived yet.
+        self.pending_tool_tracker: dict[str, ToolUseBlock] = {}
 
-    if thread_ts is None:
-        posted = await app.client.chat_postMessage(
-            channel=channel, thread_ts=thread_ts, text=body
-        )
-        return posted["ts"]
-    await app.client.chat_update(channel=channel, ts=thread_ts, text=body)
-    return thread_ts
+    def has_pending(self) -> bool:
+        return bool(self.pending)
 
+    def render_message(self, msg) -> str:
+        if isinstance(msg, AssistantMessage):
+            parts = []
+            for block in msg.content:
+                if isinstance(block, TextBlock):
+                    parts.append(block.text)
+                elif isinstance(block, ToolUseBlock):
+                    self.pending_tool_tracker[block.id] = block
+                    line = f":wrench: `{block.name}` {json.dumps(block.input)[:120]}"
+                    parts.append(f"\n> {line}\n")
+                elif isinstance(block, ThinkingBlock):
+                    pass
+            return "".join(parts)
+        if isinstance(msg, UserMessage):
+            content = msg.content
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, ToolResultBlock):
+                        self.pending_tool_tracker.pop(block.tool_use_id, None)
+                        self.pending_tool_verdicts.pop(block.tool_use_id, None)
+                        result = block.content
+                        if isinstance(result, list):
+                            result = " ".join(c.get("text", "") for c in result if isinstance(c, dict))
+                        snippet = str(result or "").strip().replace("\n", " ")[:160]
+                        return f"> _result:_ {snippet}\n"
+        return ""
 
-async def drive_claude(
-    text: str,
-    session_id: str | None,
-    channel: str,
-    thread_ts: str,
-    header_ts, str,
-    logger,
-) -> tuple[str, str | None]:
-    
-    pending_permission = []
-
-    async def can_use_tool(tool_name, tool_input, _context):
-
-        fut: asyncio.Future[tuple[str, str]] = loop.create_future()
-        pending_permission.setdefault(key, deque()).append(fut)
-
-        preview = json.dumps(tool_input)[:400]
-        prompt_ts: str | None = None
+    async def try_finalize_gear(self, msg) -> None:
+        if self.header_ts is None or not isinstance(msg, SystemMessage):
+            return
+        sid = msg.data.get('session_id')
+        model = msg.data.get('model')
+        if not sid:
+            return
         try:
-            prompt = await app.client.chat_postMessage(
-                channel=channel,
-                thread_ts=thread_ts,
-                text=(
-                    f":lock: allow `{tool_name}`?\n"
-                    f"```{preview}```\n"
-                    f"reply *yes* / *no* / *yes all* / *no all* "
-                    f"— any other text interrupts claude with your message"
-                ),
+            await app.client.chat_update(
+                channel=self.channel, ts=self.header_ts,
+                text=f":gear: `{model or '?'}` / `{sid}`",
             )
-            prompt_ts = prompt["ts"]
         except Exception:
-            logger.exception("failed to post permission prompt")
+            self.logger.exception("failed to finalize gear header")
+        self.header_ts = None
 
+    def create_permission_asking_message(self) -> str:
+        return f":lock: Asking permission ({len(self.pending_tool_tracker)} in flight)\n" + self.PERMISSION_QUESTION
+
+    def create_permission_verdict_message(self, verdict: str) -> str:
+        return {
+            "allow_all": ":white_check_mark: Allowed All",
+            "allow": ":white_check_mark: Allowed",
+            "deny_all": ":x: Denied All",
+            "deny": ":x: Denied",
+            "interrupt": ":arrow_right_hook: Denied with reasoning",
+        }.get(verdict, ":grey_question: Error")
+
+    async def _update_main(self, body: str):
+        # Caller must hold self.lock.
+        if len(body) > SLACK_MAX_TEXT:
+            body = "_(...earlier output truncated...)_\n\n" + body[-SLACK_MAX_TEXT:]
         try:
-            verdict, message = await fut
-        except asyncio.CancelledError:
-            return PermissionResultDeny(message="permission cancelled")
-
-        if prompt_ts is not None:
-            verdict_label = {
-                "allow": ":white_check_mark: _allowed_",
-                "deny": ":x: _denied_",
-                "interrupt": ":arrow_right_hook: _interrupted_",
-            }.get(verdict, f"_{verdict}_")
-            try:
-                await app.client.chat_update(
-                    channel=channel,
-                    ts=prompt_ts,
-                    text=f":lock: `{tool_name}` — {verdict_label}\n```{preview}```",
+            if self.main_ts is None:
+                posted = await app.client.chat_postMessage(
+                    channel=self.channel, thread_ts=self.thread_ts, text=body,
                 )
-            except Exception as e:
-                logger.warning(f"update permission prompt failed: {e}")
+                self.main_ts = posted["ts"]
+            else:
+                await app.client.chat_update(
+                    channel=self.channel, ts=self.main_ts, text=body,
+                )
+        except Exception:
+            self.logger.exception("failed to update main message")
 
-        if verdict == "allow":
+    async def refresh_asking_permission(self):
+        await self._update_main(self.response_str + self.create_permission_asking_message())
+
+    async def refresh_with_permission(self, verdict: str):
+        await self._update_main(self.response_str + self.create_permission_verdict_message(verdict))
+
+    async def post_fresh_thinking(self):
+        try:
+            msg = await app.client.chat_postMessage(
+                channel=self.channel, thread_ts=self.thread_ts,
+                text=":hourglass_flowing_sand: _thinking..._",
+            )
+            self.main_ts = msg["ts"]
+        except Exception:
+            self.logger.exception("failed to post fresh thinking placeholder")
+
+    async def deliver_response(self, text: str) -> bool:
+        stripped = text.strip().lower()
+        async with self.lock:
+            if not self.pending:
+                return False
+
+            if stripped in YES_ALL:
+                # Assign allow_all to every known in-flight tool_use_id.
+                for tid in self.pending_tool_tracker:
+                    self.pending_tool_verdicts[tid] = ("allow_all", "user allowed")
+            elif stripped in NO_ALL:
+                for tid in self.pending_tool_tracker:
+                    self.pending_tool_verdicts[tid] = ("deny_all", "user denied")
+            elif stripped in YES:
+                # First waiting fut gets allow.
+                first_id = next(iter(self.pending))
+                self.pending_tool_verdicts[first_id] = ("allow", "user allowed")
+            elif stripped in NO:
+                first_id = next(iter(self.pending))
+                self.pending_tool_verdicts[first_id] = ("deny", "user denied")
+            else:
+                # Interrupt: first waiting fut carries the user's text and
+                # aborts the turn; the rest deny quietly.
+                for i, tid in enumerate(list(self.pending)):
+                    if i == 0:
+                        self.pending_tool_verdicts[tid] = ("interrupt", text)
+                    else:
+                        self.pending_tool_verdicts[tid] = ("deny", "user interrupted")
+
+            # Resolve any waiting fut whose verdict is now decided.
+            for tid in list(self.pending.keys()):
+                if tid in self.pending_tool_verdicts:
+                    fut = self.pending.pop(tid)
+                    verdict = self.pending_tool_verdicts.pop(tid)
+                    if not fut.done():
+                        fut.set_result(verdict)
+        return True
+
+    async def can_use_tool(self, tool_name, tool_input, context):
+        loop = asyncio.get_running_loop()
+        tool_use_id = context.tool_use_id
+
+        synthesized: tuple[str, str] | None = None
+        async with self.lock:
+            if tool_use_id in self.pending_tool_verdicts:
+                synthesized = self.pending_tool_verdicts.pop(tool_use_id)
+
+        if synthesized is None:
+            fut: asyncio.Future[tuple[str, str]] = loop.create_future()
+            async with self.lock:
+                self.pending[tool_use_id] = fut
+                await self.refresh_asking_permission()
+
+            try:
+                verdict, message = await fut
+            except asyncio.CancelledError:
+                async with self.lock:
+                    self.pending.pop(tool_use_id, None)
+                    await self.refresh_with_permission("error")
+                return PermissionResultDeny(message="permission cancelled")
+
+            async with self.lock:
+                await self.refresh_with_permission(verdict)
+                self.response_str = ""
+                await self.post_fresh_thinking()
+        else:
+            verdict, message = synthesized
+
+        if verdict in ("allow", "allow_all"):
             return PermissionResultAllow(updated_input=tool_input)
         if verdict == "interrupt":
             return PermissionResultDeny(message=message, interrupt=True)
         return PermissionResultDeny(message=message or "user denied")
 
-    try:
-        main_msg = await app.client.chat_postMessage(
-            channel=channel,
-            thread_ts=thread_ts,
-            text=":hourglass_flowing_sand: _thinking..._",
+    async def run(self, text: str) -> None:
+        async with self.lock:
+            self.main_ts = None
+            self.response_str = ""
+            self.pending.clear()
+            self.pending_tool_verdicts.clear()
+            self.pending_tool_tracker.clear()
+
+            if self.session_id is None and self.header_ts is None:
+                try:
+                    header_msg = await app.client.chat_postMessage(
+                        channel=self.channel, thread_ts=self.thread_ts,
+                        text=":gear: _starting new session..._",
+                    )
+                    self.header_ts = header_msg['ts']
+                except Exception:
+                    self.logger.exception("failed to post gear header")
+
+            try:
+                msg = await app.client.chat_postMessage(
+                    channel=self.channel, thread_ts=self.thread_ts,
+                    text=":hourglass_flowing_sand: _thinking..._",
+                )
+                self.main_ts = msg["ts"]
+            except Exception:
+                self.logger.exception("failed to post initial placeholder")
+
+        options = ClaudeAgentOptions(
+            resume=self.session_id,
+            can_use_tool=self.can_use_tool,
         )
-        main_ts = main_msg["ts"]
-    except Exception as e:
-        main_ts = None
 
-    options = ClaudeAgentOptions(resume=session_id, can_use_tool=can_use_tool)
-
-    key = thread_key(channel, thread_ts)
-    loop = asyncio.get_running_loop()
-
-    #############
-    # main loop #
-    #############
-
-    async with ClaudeSDKClient(options=options) as client:
-        response_str = ""
-        query_str = text
-
-        await client.query(query_str)
-        async for msg in client.receive_response():
-            if header_ts is not None:
-                header_ts = await try_finalize_gear_ts(channel, header_ts, msg)
-            if isinstance(msg, ResultMessage):
-                if response_str:
-                    main_ts = await commit(channel, main_ts, response_str)
-                break
-            fragment = render_message(msg)
-            if fragment:
-                response_str += fragment
-
-    return None
+        async with ClaudeSDKClient(options=options) as client:
+            await client.query(text)
+            async for msg in client.receive_response():
+                if isinstance(msg, SystemMessage):
+                    sid = msg.data.get('session_id')
+                    if sid and self.session_id is None:
+                        self.session_id = sid
+                await self.try_finalize_gear(msg)
+                if isinstance(msg, ResultMessage):
+                    async with self.lock:
+                        if self.response_str:
+                            await self._update_main(self.response_str)
+                    break
+                fragment = self.render_message(msg)
+                if fragment:
+                    async with self.lock:
+                        self.response_str += fragment
+                        if self.pending:
+                            await self.refresh_asking_permission()
+                        else:
+                            await self._update_main(self.response_str)
 
 
 @app.event("message")
@@ -216,73 +293,22 @@ async def handle_dm_events(event, say, logger):
     user = event.get("user")
     text = event.get("text", "")
     channel = event.get("channel")
-    is_new_session = event.get("thread_ts") is None
     thread_ts = event.get("thread_ts") or event.get("ts")
-    key = thread_key(channel, thread_ts)
-    stripped = text.strip().lower()
+    key = f"{channel}:{thread_ts}"
 
-    queue = PENDING.get(key)
-    if queue:
-        is_yes_all = stripped in YES_ALL
-        is_no_all = stripped in NO_ALL
-        is_yes = stripped in YES
-        is_no = stripped in NO
+    session = ACTIVE_CLAUDE_SESSION.get(key)
 
-        if is_yes_all:
-            AUTO_APPROVE[key] = True
-            while queue:
-                fut = queue.popleft()
-                if not fut.done():
-                    fut.set_result(("allow", ""))
-            return
-
-        if is_no_all:
-            while queue:
-                fut = queue.popleft()
-                if not fut.done():
-                    fut.set_result(("deny", "user denied"))
-            return
-
-        if is_yes or is_no:
-            result = ("allow", "") if is_yes else ("deny", "user denied")
-            while queue:
-                fut = queue.popleft()
-                if not fut.done():
-                    fut.set_result(result)
-                    break
-            return
-
-        while queue:
-            fut = queue.popleft()
-            if not fut.done():
-                fut.set_result(("interrupt", text))
+    if session is not None and session.has_pending():
+        await session.deliver_response(text)
         return
 
     logger.info(f"DM from user={user} channel={channel}: {text[:30]}")
 
-    session_id = None if is_new_session else load_log().get(key)
+    if session is None:
+        session = SlackClaudeSession(channel, thread_ts, logger)
+        ACTIVE_CLAUDE_SESSION[key] = session
 
-    header_ts = None
-    try:
-        if is_new_session:
-            header_msg = await app.client.chat_postMessage(
-                channel=channel, thread_ts=thread_ts, text=":gear: _starting new session..._"
-            )
-            header_ts = header_msg['ts']
-    except:
-        header_ts = None
-
-    reply, init_sid = await drive_claude(
-        text, session_id, channel, thread_ts, header_ts, logger
-    )
-
-    if init_sid and init_sid != session_id:
-        log = load_log()
-        log[key] = init_sid
-        save_log(log)
-        logger.info(f"Saved session {init_sid} for {key}")
-
-    logger.info(f"Claude response: {reply[:30]}")
+    await session.run(text)
 
 
 async def main():

@@ -197,6 +197,64 @@ When a conference falls within the swing window AND the company's bull thesis sp
 
 ---
 
+## Lesson 16 — A single-day dip in a stock already in a multi-week downtrend is not an "improved entry"
+_Added: 20260421-1130_
+
+### What happened
+In the April 21 plan, LLY was framed as a free-style #1 pick, with the thesis "$903 Kelonia-dip entry vs $950 on Apr 17 = improved entry." When challenged by the user, the honest price action was: LLY is down ~13% over 30 days ($1,020 → $903), not just down 5% on Kelonia. The one-day Kelonia drop was the latest bar on a persistent downtrend driven by structural concerns: GLP-1 pricing pressure (TrumpRx/MFN = "low-to-mid teens drag" on 2026 top-line), CVS opt-out of Medicare obesity coverage, Novo Nordisk oral Wegovy FDA approval, India market share erosion, and health-insurer uncertainty on Medicare GLP-1 coverage. Framing the price at $903 as an "improved entry" compared to $950 four days ago ignored that the stock had been at $1,020 thirty days earlier and the selling had real structural causes — none of which were resolved by the dip.
+
+### Why it happened
+Entry-price anchoring to the last recommendation date, not to the full recent trajectory or the underlying reasons for the decline. The framing compared the new price to the PRIOR CALL PRICE (recency anchor) rather than to the FULL 30-DAY PATH. Additionally, the Kelonia news gave a plausible narrative for the day's drop, which masked the fact that multiple pre-existing bearish forces were driving the broader trend. A falling-knife stock with identifiable structural headwinds is a different risk profile than a sideways stock dipping on a transient event.
+
+### What should have been done
+Before calling a price "improved entry," answer explicitly: (1) Over the last 30 days, is this stock in an uptrend, sideways, or downtrend? (2) If declining, what are the specific structural drivers — and are any resolved? (3) Is today's drop the latest data point of that existing trend, or a genuine one-off dislocation? Only if the drop is a one-off dislocation (surprise headline, no persistent trend) does "dip = improved entry" apply. If the drop is continuation of a multi-week decline with unresolved drivers, the correct framing is "falling knife — require confirmation of reversal before entry, not just a catalyst date."
+
+### Going forward
+**Rule**: Every pick with a "price dropped since last call = better entry" framing must pass three checks before that framing is allowed:
+1. **Trend check**: 30-day price trajectory. If down >5%, this is a downtrend, not a dip.
+2. **Driver check**: List the specific reasons the stock has been declining. Are any of them resolved or reversing? If not, the headwinds persist past the catalyst.
+3. **Lesson 3 vs Lesson 7 check**: Is the bear thesis sentiment-driven with intact fundamentals (Lesson 3 applies — dip may be opportunity), OR is the bear thesis structural erosion of product economics (Lesson 7 — dip is continuation risk)?
+
+If all three pass, entry framing is legitimate. If any fail, treat as a falling knife: either (a) skip entirely, (b) half-weight with a tight post-catalyst stop, or (c) wait for post-catalyst confirmation before entering.
+
+**Condition**: This lesson is especially important for large pharmaceutical, consumer, and industrial names where pricing/regulatory concerns can create multi-month downtrends that look like "dips" on short timeframes. Tech growth stocks sometimes have similar patterns when secular AI/cloud narratives are questioned.
+
+**Anti-pattern to catch**: "It dropped X% since my last call, so entry is now better" — this is valid only if the drop is a one-off. For a stock in a sustained downtrend on unresolved structural concerns, the entry is NOT better; it just looks better from a cherry-picked starting point.
+
+---
+
+## Lesson 15 — Strong earnings beats can fail to rally on days with elevated macro/geopolitical noise
+_Added: 20260421-1030_
+
+### What happened
+On April 21, 2026, two defense/aerospace names reported clean Q1 2026 beats on the same day that US-Iran ceasefire talks stalled (ceasefire extended by Trump at Pakistan's request but negotiations in limbo):
+
+- **RTX**: Adjusted EPS $1.78 (beat $1.51 consensus by 18%, +21% YoY); revenue $22.1B (+9% YoY); record $271B backlog; FY2026 guidance RAISED to $6.70–$6.90 EPS and $92.5–$93.5B revenue. **Stock weak** — headlines described "tariff concerns, geopolitical risks weigh on shares."
+- **GE Aerospace**: Revenue $12.4B (+25% YoY, beat $10.72B consensus by 15.7%); EPS $1.83 (beat $1.68 consensus); orders +87%; 2026 guidance maintained. **Stock dropped ~6%** on Middle East conflict concerns.
+
+Both were "high-certainty" earnings catalysts in cinvest's prior frameworks (RTX had 85% FY2026 contracted revenue; GE had $190B backlog). Both fired cleanly. Neither stock rallied. VIX rose +3.34% that day on Iran peace uncertainty.
+
+### Why it happened
+Pre-earnings cinvest framework treated earnings date + high-certainty beat as near-guarantee of a post-earnings rally. The missing variable: macro regime on the day of the print. When VIX is rising and a geopolitical/policy narrative is live, institutional flow is driven by risk-off rotation, not by sector-specific fundamentals — even clean beats become secondary. Defense was additionally exposed because its multi-year backlog thesis is intertwined with Middle East conflict expectations (positive for orders if war continues, uncertain if peace holds).
+
+### What should have been done
+Two specific adjustments:
+1. **Pre-earnings macro check** — before entering any earnings-catalyst position, read current-day VIX trajectory and active macro narratives. If VIX is rising AND a geopolitical narrative is in an unresolved state, size down or skip, even if the fundamental setup is strong.
+2. **Don't double-bet sector + macro** — if a sector's thesis depends on a macro outcome (defense depends on rearmament cycle, which depends on geopolitical tension), then positive earnings from that sector during the counter-macro phase (peace progress) will not rally. This compounds the Lesson 5 insight: defense is better than energy during ceasefire, but "better" doesn't mean "bullish" — it means "less bad."
+
+### Going forward
+**Rule**: For any swing position where the catalyst is an earnings print, check BOTH:
+- Is the fundamental setup high-conviction? (revenue visibility, consensus, historical beat rate)
+- What is the macro regime on the day of the print? (VIX trajectory, active policy/geopolitical narratives, 10Y yield moves, dollar)
+
+If the macro regime is hostile (rising VIX + unresolved policy narrative + sector-adjacent geopolitical binary), expect the beat to either: (a) fail to rally on the day, or (b) reverse within 1-3 sessions as the macro story dominates again. Position sizing should halve or skip when fundamentals and macro are misaligned.
+
+**Condition**: This lesson is especially important for sectors whose secular thesis is macro-dependent (defense on rearmament, energy on conflict premium, materials on tariff strategy, financials on rate cycle). For sectors whose thesis is mostly internal (tech AI capex, consumer staples, healthcare innovation), the macro overlay matters less.
+
+**How to apply in candidate selection**: Add a single row to each pick's table — "**Macro overlay:** low/moderate/high hostility to today's thesis." Use it to decide weight and timing. A high-quality pick in a low-hostility regime gets full weight; the same pick in a high-hostility regime gets half weight or deferred 1-3 days post-catalyst for confirmation.
+
+---
+
 ## Lesson 14 — Tariff/regulation effective dates routinely differ from signing/announcement dates by months
 _Added: 20260417-0930_
 

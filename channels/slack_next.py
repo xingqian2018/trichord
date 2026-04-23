@@ -1,6 +1,7 @@
 import asyncio
 import json
 from pathlib import Path
+from typing import Optional
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -21,8 +22,10 @@ from slack_bolt.async_app import AsyncApp
 
 CREDS = json.loads((Path(__file__).parent.parent / "credentials" / "slack.json").read_text())
 
-SLACK_MAX_TEXT = 38000  # Slack chat.update hard limit is 40000 chars
+SLACK_ROLLOVER_AT = 3000  # Seal current message and start a fresh one before hitting the limit
+MAX_VISIBLE_TOOLS = 3  # How many in-flight tools to render before collapsing the rest
 
+YES_ALWAYS = {"always", "always yes", "always_yes"}
 YES = {"yes", "y", "allow", "approve", "ok", "sure"}
 NO = {"no", "n", "deny", "reject", "stop"}
 YES_ALL = {"yes all", "yesall", "allow all"}
@@ -32,6 +35,27 @@ app = AsyncApp(token=CREDS["SLACK_BOT_TOKEN"])
 
 
 ACTIVE_CLAUDE_SESSION: "dict[str, SlackClaudeSession]" = {}
+
+
+def find_rollover_cut(text: str, soft_limit: int) -> int:
+    if len(text) <= soft_limit:
+        return len(text)
+    head = text[:soft_limit]
+    for delim in ('```', '"""'):
+        if head.count(delim) % 2 == 1:
+            opening = head.rfind(delim)
+            if opening > 0:
+                return opening
+    for boundary in ('\n\n', '\n'):
+        idx = head.rfind(boundary)
+        if idx > 0:
+            return idx + len(boundary)
+    min_cut = soft_limit // 2
+    for boundary in ('. ', ' '):
+        idx = head.rfind(boundary)
+        if idx >= min_cut:
+            return idx + len(boundary)
+    return soft_limit
 
 
 class SlackClaudeSession:
@@ -51,15 +75,11 @@ class SlackClaudeSession:
         self.header_ts: str | None = None
         self.main_ts: str | None = None
         self.response_str: str = ""
-        # tool_use_id -> Future[tuple[verdict, message]] — tools whose
-        # can_use_tool has been called and is awaiting a decision.
+
         self.pending: dict[str, asyncio.Future[tuple[str, str]]] = {}
-        # tool_use_id -> (verdict, message) — pre-computed decisions for tools
-        # that haven't reached can_use_tool yet (e.g. seeded by "yes all").
         self.pending_tool_verdicts: dict[str, tuple[str, str]] = {}
-        # tool_use_id -> ToolUseBlock — tools Claude has called but whose
-        # result has not arrived yet.
         self.pending_tool_tracker: dict[str, ToolUseBlock] = {}
+        self.always_allow_pending_tool_flag = False
 
     def has_pending(self) -> bool:
         return bool(self.pending)
@@ -72,8 +92,6 @@ class SlackClaudeSession:
                     parts.append(block.text)
                 elif isinstance(block, ToolUseBlock):
                     self.pending_tool_tracker[block.id] = block
-                    line = f":wrench: `{block.name}` {json.dumps(block.input)[:120]}"
-                    parts.append(f"\n> {line}\n")
                 elif isinstance(block, ThinkingBlock):
                     pass
             return "".join(parts)
@@ -84,11 +102,7 @@ class SlackClaudeSession:
                     if isinstance(block, ToolResultBlock):
                         self.pending_tool_tracker.pop(block.tool_use_id, None)
                         self.pending_tool_verdicts.pop(block.tool_use_id, None)
-                        result = block.content
-                        if isinstance(result, list):
-                            result = " ".join(c.get("text", "") for c in result if isinstance(c, dict))
-                        snippet = str(result or "").strip().replace("\n", " ")[:160]
-                        return f"> _result:_ {snippet}\n"
+                        return ""
         return ""
 
     async def try_finalize_gear(self, msg) -> None:
@@ -107,50 +121,90 @@ class SlackClaudeSession:
             self.logger.exception("failed to finalize gear header")
         self.header_ts = None
 
-    def create_permission_asking_message(self) -> str:
-        return f":lock: Asking permission ({len(self.pending_tool_tracker)} in flight)\n" + self.PERMISSION_QUESTION
+    def create_pending_tool_message(self) -> str:
+        tools = list(self.pending_tool_tracker.values())
+        if not tools:
+            return ""
+        hidden = max(0, len(tools) - MAX_VISIBLE_TOOLS)
+        visible = tools[:MAX_VISIBLE_TOOLS] if hidden else tools
+        lines = [f"\n> :wrench: `{t.name}` {json.dumps(t.input)[:120]}" for t in visible]
+        if hidden:
+            lines += [f"\n> _… and {hidden} more_"]
+        return "\n".join(lines) + "\n"
 
-    def create_permission_verdict_message(self, verdict: str) -> str:
+    def create_permission_asking_message(self) -> str:
+        return f":lock: Asking permission \n" + self.PERMISSION_QUESTION
+
+    def create_permission_verdict_message(self, verdict: str, message: Optional[str] = None) -> str:
+        message = message or "N/A"
         return {
-            "allow_all": ":white_check_mark: Allowed All",
+            "always_allow": ":white_check_mark::white_check_mark::white_check_mark: Always Allowed",
+            "allow_all": ":white_check_mark::white_check_mark: Allowed All",
             "allow": ":white_check_mark: Allowed",
-            "deny_all": ":x: Denied All",
+            "deny_all": ":x::x: Denied All",
             "deny": ":x: Denied",
-            "interrupt": ":arrow_right_hook: Denied with reasoning",
+            "interrupt": f":arrow_right_hook: Denied because {message}",
         }.get(verdict, ":grey_question: Error")
 
-    async def _update_main(self, body: str):
-        # Caller must hold self.lock.
-        if len(body) > SLACK_MAX_TEXT:
-            body = "_(...earlier output truncated...)_\n\n" + body[-SLACK_MAX_TEXT:]
-        try:
+    async def update_main(self):
+        async with self.lock:
             if self.main_ts is None:
-                posted = await app.client.chat_postMessage(
-                    channel=self.channel, thread_ts=self.thread_ts, text=body,
-                )
-                self.main_ts = posted["ts"]
-            else:
+                await self.post_fresh_thinking()
+
+            while len(self.response_str) > SLACK_ROLLOVER_AT:
+                cut = find_rollover_cut(self.response_str, SLACK_ROLLOVER_AT)
+                head = self.response_str[:cut]
+                tail = self.response_str[cut:]
+                try:
+                    await app.client.chat_update(
+                        channel=self.channel, ts=self.main_ts, text=head + "\n_(...continued below...)_",
+                    )
+                except Exception:
+                    self.logger.exception("failed to seal main message for rollover")
+                self.response_str = tail
+                self.main_ts = None
+                await self.post_fresh_thinking()
+
+            body = self.response_str
+            if self.create_pending_tool_message() and not (self.always_allow_pending_tool_flag):
+                body += self.create_pending_tool_message()
+                body += self.create_permission_asking_message()
+            if not body:
+                return
+            try:
                 await app.client.chat_update(
                     channel=self.channel, ts=self.main_ts, text=body,
                 )
-        except Exception:
-            self.logger.exception("failed to update main message")
+            except Exception:
+                self.logger.exception("failed to seal last main message")
+        return
 
-    async def refresh_asking_permission(self):
-        await self._update_main(self.response_str + self.create_permission_asking_message())
-
-    async def refresh_with_permission(self, verdict: str):
-        await self._update_main(self.response_str + self.create_permission_verdict_message(verdict))
+    async def update_main_with_verdict(self, verdict: str, message: Optional[str] = None):
+        async with self.lock:
+            body = self.response_str
+            body += self.create_pending_tool_message()
+            body += self.create_permission_verdict_message(verdict, message)
+            try:
+                await app.client.chat_update(
+                    channel=self.channel, ts=self.main_ts, text=body,
+                )
+                self.response_str = ""
+                self.main_ts = None
+                await self.post_fresh_thinking()
+            except Exception:
+                self.logger.exception("failed to seal last main message")
 
     async def post_fresh_thinking(self):
-        try:
-            msg = await app.client.chat_postMessage(
-                channel=self.channel, thread_ts=self.thread_ts,
-                text=":hourglass_flowing_sand: _thinking..._",
-            )
-            self.main_ts = msg["ts"]
-        except Exception:
-            self.logger.exception("failed to post fresh thinking placeholder")
+        assert self.main_ts is None
+        if self.lock:
+            try:
+                msg = await app.client.chat_postMessage(
+                    channel=self.channel, thread_ts=self.thread_ts,
+                    text=":hourglass_flowing_sand: _thinking..._",
+                )
+                self.main_ts = msg["ts"]
+            except Exception:
+                self.logger.exception("failed to post fresh thinking placeholder")
 
     async def deliver_response(self, text: str) -> bool:
         stripped = text.strip().lower()
@@ -158,30 +212,29 @@ class SlackClaudeSession:
             if not self.pending:
                 return False
 
-            if stripped in YES_ALL:
-                # Assign allow_all to every known in-flight tool_use_id.
+            if stripped in YES_ALWAYS:
                 for tid in self.pending_tool_tracker:
-                    self.pending_tool_verdicts[tid] = ("allow_all", "user allowed")
+                    self.always_allow_pending_tool_flag = True
+                    self.pending_tool_verdicts[tid] = ("always_allow", "user always allowed")
+            elif stripped in YES_ALL:
+                for tid in self.pending_tool_tracker:
+                    self.pending_tool_verdicts[tid] = ("allow_all", "user allowed all pending")
+            elif stripped in YES:
+                first_id = next(iter(self.pending))
+                self.pending_tool_verdicts[first_id] = ("allow", "user allowed current pending")
             elif stripped in NO_ALL:
                 for tid in self.pending_tool_tracker:
-                    self.pending_tool_verdicts[tid] = ("deny_all", "user denied")
-            elif stripped in YES:
-                # First waiting fut gets allow.
-                first_id = next(iter(self.pending))
-                self.pending_tool_verdicts[first_id] = ("allow", "user allowed")
+                    self.pending_tool_verdicts[tid] = ("deny_all", "user denied all pending")
             elif stripped in NO:
                 first_id = next(iter(self.pending))
-                self.pending_tool_verdicts[first_id] = ("deny", "user denied")
+                self.pending_tool_verdicts[first_id] = ("deny", "user denied current pending")
             else:
-                # Interrupt: first waiting fut carries the user's text and
-                # aborts the turn; the rest deny quietly.
                 for i, tid in enumerate(list(self.pending)):
                     if i == 0:
                         self.pending_tool_verdicts[tid] = ("interrupt", text)
                     else:
                         self.pending_tool_verdicts[tid] = ("deny", "user interrupted")
 
-            # Resolve any waiting fut whose verdict is now decided.
             for tid in list(self.pending.keys()):
                 if tid in self.pending_tool_verdicts:
                     fut = self.pending.pop(tid)
@@ -198,29 +251,28 @@ class SlackClaudeSession:
         async with self.lock:
             if tool_use_id in self.pending_tool_verdicts:
                 synthesized = self.pending_tool_verdicts.pop(tool_use_id)
+            if self.always_allow_pending_tool_flag:
+                synthesized = ("allow", "user allowed")
 
         if synthesized is None:
             fut: asyncio.Future[tuple[str, str]] = loop.create_future()
             async with self.lock:
                 self.pending[tool_use_id] = fut
-                await self.refresh_asking_permission()
+            await self.update_main()
 
             try:
                 verdict, message = await fut
             except asyncio.CancelledError:
                 async with self.lock:
                     self.pending.pop(tool_use_id, None)
-                    await self.refresh_with_permission("error")
+                await self.update_main_with_verdict("error")
                 return PermissionResultDeny(message="permission cancelled")
 
-            async with self.lock:
-                await self.refresh_with_permission(verdict)
-                self.response_str = ""
-                await self.post_fresh_thinking()
+            await self.update_main_with_verdict(verdict, message)
         else:
             verdict, message = synthesized
 
-        if verdict in ("allow", "allow_all"):
+        if verdict == "allow":
             return PermissionResultAllow(updated_input=tool_input)
         if verdict == "interrupt":
             return PermissionResultDeny(message=message, interrupt=True)
@@ -267,18 +319,16 @@ class SlackClaudeSession:
                         self.session_id = sid
                 await self.try_finalize_gear(msg)
                 if isinstance(msg, ResultMessage):
+                    await self.update_main()
                     async with self.lock:
-                        if self.response_str:
-                            await self._update_main(self.response_str)
+                        self.response_str = ""
+                        self.main_ts = None
                     break
                 fragment = self.render_message(msg)
                 if fragment:
                     async with self.lock:
-                        self.response_str += fragment
-                        if self.pending:
-                            await self.refresh_asking_permission()
-                        else:
-                            await self._update_main(self.response_str)
+                        self.response_str += "\n" + fragment
+                await self.update_main()
 
 
 @app.event("message")

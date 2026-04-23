@@ -53,7 +53,6 @@ python ~/Project/bashrc/s3_omni.py <op> <args...> [--maxjob 64]
 | `ul` | `ul <local_src> <s3_dest>` | Upload file or folder. Same-size files skipped. |
 | `cp` | `cp <s3_src> <s3_dest>` | Copy S3→S3. Same profile: server-side `copy()`. Cross profile (e.g. `team-cosmos:...` → `gcs:...`): streams via `get_object` → `put_object`, with multipart for files >8MB. Same-size keys are skipped; non-empty destinations trigger an overwrite prompt. |
 | `rm` | `rm <s3_src>` | Delete file or all keys under prefix. **Prompts for confirmation.** |
-| `vim` | `vim <s3_file>` | Download file to a tmp path and open in vim (read-mostly; does NOT auto re-upload). |
 | `hint` | `hint` | Print the curated hint list (`s3_omni_hint.txt`). Good starting point for "where do X live?" |
 | `hintadd` / `hintrm` | `hintadd <path>` / `hintrm <path>` | Manage the hint list. |
 | `auto <path>` | `auto profile:...` | Best-effort: treat arg as a path and run `ls`. Useful when unsure. |
@@ -71,7 +70,7 @@ There is no CLI `cpf` op anymore. For force-overwrite, call from Python: `s3cp([
 5. **Interactive prompts inside the helper:** `s3dl`, `s3ul`, `s3rm` may ask merge/nest/overwrite questions. Run the command in the foreground so the user can answer. Do not pipe `echo y |` unless the user explicitly asked for non-interactive behavior.
 6. **Large transfers:** default `--maxjob 64`. Raise to 128–256 only if the user wants more parallelism; lower for shared nodes.
 7. **When the user is exploring ("what's in X?"):** run `ls`, then if they want more, run `cnt` or `hint`. Don't chain long pipelines — the helper's output is already paginated/capped.
-8. **When the user says "open that file":** use `vim` for text, `dl` + local tool for binary/images. Remember `vim` does not auto re-upload — warn the user if they edit and expect a write-back.
+8. **Never invoke the `vim` op.** It requires an interactive terminal which this skill cannot drive. When the user says "open that file" / "show me what's in <s3-file>" / "read <s3-file>": `dl` the file to a temp path (e.g. `/tmp/s3io_<basename>`), then use the `Read` tool on that local path. For binary/images, `dl` + appropriate local tool. Do not attempt a write-back unless the user explicitly asks you to `ul` the edited file.
 
 ## Parsing examples
 
@@ -86,7 +85,7 @@ There is no CLI `cpf` op anymore. For force-overwrite, call from Python: `s3cp([
 | "copy <s3-A> to <s3-B> across profiles" | `python ~/Project/bashrc/s3_omni.py cp <A> <B>`  (streams through local machine — slower than intra-profile) |
 | "delete <s3-prefix>" | `python ~/Project/bashrc/s3_omni.py rm <s3-prefix>` (confirm at prompt) |
 | "show me the hint list" / "common paths" | `python ~/Project/bashrc/s3_omni.py hint` |
-| "open <s3-file> in vim" | `python ~/Project/bashrc/s3_omni.py vim <s3-file>` |
+| "read <s3-file>" / "open <s3-file>" / "show me what's in <s3-file>" | `python ~/Project/bashrc/s3_omni.py dl <s3-file> /tmp/s3io_<basename>` then `Read` that local path. **Do not use the `vim` op.** |
 
 ## Python use from code
 

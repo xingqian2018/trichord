@@ -59,6 +59,12 @@ python cc/cslack/slack_client.py reply --channel "#general" --text "Hello!"
 # Post a reply into a thread
 python cc/cslack/slack_client.py reply --channel "#general" --thread 1712345678.123456 --text "Got it, thanks."
 
+# Post a message that @-mentions someone (repeat --mention for multiple users).
+# Accepts a raw user ID (U01ABCDEFGH), @name, name, or email.
+python cc/cslack/slack_client.py reply --channel "#general" \
+    --mention U01ABCDEFGH --mention alice \
+    --text "heads up — deploy finished"
+
 # Get channel metadata (ID, member count, topic)
 python cc/cslack/slack_client.py info --channel "#general"
 ```
@@ -76,6 +82,7 @@ When invoked as `/cslack`, interpret the user's natural language instruction:
 | `/cslack get #dev` | Fetch last 20 messages from #dev |
 | `/cslack get #dev last 50` | Fetch last 50 messages |
 | `/cslack reply #dev "Looks good!"` | Post message to #dev |
+| `/cslack reply #dev @alice "heads up — deploy finished"` | Post to #dev and @-mention alice (adds `--mention alice`) |
 | `/cslack reply to thread 1712345678.123 in #dev "Done"` | Reply into that thread |
 | `/cslack get thread 1712345678.123 in #dev` | Fetch all replies in that thread |
 | `/cslack info #dev` | Show channel metadata |

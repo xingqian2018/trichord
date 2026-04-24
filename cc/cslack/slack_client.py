@@ -75,13 +75,64 @@ async def resolve_channel(client, name: str) -> str | None:
         return name
     cursor = None
     while True:
-        kwargs: dict[str, Any] = {"limit": 200, "types": "public_channel,private_channel,mpim,im"}
+        # Only request types our bot token has scope for. `im` would require
+        # `im:read`, which most bots don't have — listing DMs by name is rarely
+        # useful anyway (DMs don't have names; pass a raw D... ID instead,
+        # which is handled by the short-circuit above).
+        kwargs: dict[str, Any] = {"limit": 200, "types": "public_channel,private_channel,mpim"}
         if cursor:
             kwargs["cursor"] = cursor
         resp = await client.conversations_list(**kwargs)
         for ch in resp.get("channels", []):
             if ch.get("name") == name:
                 return ch["id"]
+        cursor = resp.get("response_metadata", {}).get("next_cursor")
+        if not cursor:
+            break
+    return None
+
+
+async def resolve_user(client, who: str) -> str | None:
+    """Resolve a user reference to a Slack user ID.
+
+    Accepts:
+      - Raw user ID like `U01ABCDEFGH` (length ≥ 9, starts with U/W) → passthrough
+      - `@username` or `username` → looked up via users.list against `name` and `real_name`
+      - Email like `a@b.com` → tried via users.lookupByEmail (needs users:read.email),
+        falls back to scanning users.list for a profile.email match
+    Returns None if not found.
+    """
+    who = who.lstrip("@").strip()
+    if not who:
+        return None
+    # Raw ID passthrough
+    if who[0] in ("U", "W") and len(who) >= 9 and who.replace("_", "").isalnum():
+        return who
+    is_email = "@" in who
+    if is_email:
+        try:
+            resp = await client.users_lookupByEmail(email=who)
+            u = resp.get("user") or {}
+            if u.get("id"):
+                return u["id"]
+        except Exception:
+            pass  # fall through to list scan — may still find via profile.email
+    cursor = None
+    lower = who.lower()
+    while True:
+        kwargs: dict[str, Any] = {"limit": 200}
+        if cursor:
+            kwargs["cursor"] = cursor
+        resp = await client.users_list(**kwargs)
+        for u in resp.get("members", []):
+            if u.get("deleted"):
+                continue
+            if is_email:
+                if (u.get("profile") or {}).get("email", "").lower() == lower:
+                    return u.get("id")
+            else:
+                if u.get("name", "").lower() == lower or u.get("real_name", "").lower() == lower:
+                    return u.get("id")
         cursor = resp.get("response_metadata", {}).get("next_cursor")
         if not cursor:
             break
@@ -139,7 +190,13 @@ async def get_messages(config: dict, channel: str, limit: int, thread_ts: str | 
         return {"error": f"Slack API error: {e}", "success": False}
 
 
-async def reply_message(config: dict, channel: str, text: str, thread_ts: str | None) -> dict:
+async def reply_message(
+    config: dict,
+    channel: str,
+    text: str,
+    thread_ts: str | None,
+    mention: list[str] | None = None,
+) -> dict:
     AsyncWebClient = require_sdk()
 
     token = config.get("bot_token")
@@ -151,18 +208,42 @@ async def reply_message(config: dict, channel: str, text: str, thread_ts: str | 
     if not channel_id:
         return {"error": f"Channel not found: {channel}", "success": False}
 
+    # Resolve @mentions. Each entry may be a user ID, @name, name, or email.
+    mention_ids: list[str] = []
+    mention_failed: list[str] = []
+    if mention:
+        for m in mention:
+            m = m.strip()
+            if not m:
+                continue
+            uid = await resolve_user(client, m)
+            if uid:
+                mention_ids.append(uid)
+            else:
+                mention_failed.append(m)
+    if mention_ids:
+        # Slack renders <@UID> as a clickable @mention. Prepend so the text still
+        # reads naturally even if the message body also references the user.
+        prefix = " ".join(f"<@{uid}>" for uid in mention_ids)
+        text = f"{prefix} {text}"
+
     kwargs: dict[str, Any] = {"channel": channel_id, "text": text}
     if thread_ts:
         kwargs["thread_ts"] = thread_ts
 
     try:
         resp = await client.chat_postMessage(**kwargs)
-        return {
+        result = {
             "channel_id": channel_id,
             "ts": resp.get("ts"),
             "thread_ts": thread_ts,
             "success": True,
         }
+        if mention_ids:
+            result["mentions"] = mention_ids
+        if mention_failed:
+            result["mention_unresolved"] = mention_failed
+        return result
     except Exception as e:
         return {"error": f"Slack API error: {e}", "success": False}
 
@@ -211,6 +292,16 @@ def main():
     p_reply.add_argument("--channel", required=True, help="Channel name or ID")
     p_reply.add_argument("--text", required=True, help="Message text to send")
     p_reply.add_argument("--thread", default=None, help="Thread timestamp to reply into")
+    p_reply.add_argument(
+        "--mention",
+        action="append",
+        default=None,
+        help=(
+            "User to @-mention (prepended to text). Accepts a raw user ID "
+            "(U01ABCDEFGH), @username, username, or email. May be passed multiple "
+            "times to mention several users."
+        ),
+    )
 
     # info subcommand
     p_info = subparsers.add_parser("info", help="Get channel metadata")
@@ -222,7 +313,9 @@ def main():
     if args.command == "get":
         result = asyncio.run(get_messages(config, args.channel, args.limit, args.thread))
     elif args.command == "reply":
-        result = asyncio.run(reply_message(config, args.channel, args.text, args.thread))
+        result = asyncio.run(
+            reply_message(config, args.channel, args.text, args.thread, args.mention)
+        )
     elif args.command == "info":
         result = asyncio.run(channel_info(config, args.channel))
     else:

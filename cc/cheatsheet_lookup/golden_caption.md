@@ -27,19 +27,26 @@ For local-run command, launch through:
 
 This skill should collect some basic information **angle-bracket placeholders** (`<VERSION>`, `<VERSION_LONG>`, `<JUDGE_MODEL>`, `<GEN_MODEL>`, some times `<STAGE1_REF_VERSION>` for stage2) in able to create a final commend. **Do not guess or default silently.**
 Enviornment variable (usually for credentials) should be resolved fully as plan text...
-Go the credentials from JSON `credentials/gateway.json`, usually they key is the same name as the environment variable we want (i.e. LEPTON_API_QWEN3_VL_235B).
+Go the credentials from JSON `~/Project/trichord/credentials/gateway.json`, usually they key is the same name as the environment variable we want (i.e. LEPTON_API_QWEN3_VL_235B).
 
 
 ## Version and setting for fast lookup.
 
 | Version | Version_Long | Judge (all stages VLM) | Gen (Stage 1,2,4 VLM) | Gen (Stage 3 LLM) | Specials |
 |---|---|---|---|---|---|
-| default |  | gemini-3.1-pro |  | If not mentioned, same as Gen (Stage 1,2,4 VLM) |  |
-| v9 | golden_caption_v9_g3fg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p |
-| v10 | v10_mixg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p |
-| v10p1 | v10p1_mixg3p |  | gemini-3.1-pro |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p |
-| v11 | v11_mixg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p |
-| v12 | v12_g3fg3p |  | gemini-3-flash |  | A newer pipeline of search and refinement prompting |
+| default |  | gemini-3.1-pro |  | If not mentioned, same as Gen (Stage 1,2,4 VLM) | If not mentioned, is the last version's setting |
+| v2 | golden_caption_v2 | mixed | mixed |  | The first version of looping refinement system |
+| v3 | golden_caption_v3 | | mixed |  | |
+| v4 | golden_caption_v4_g3pg3p | | gemini-3.1-pro |  |  |
+| v5 | golden_caption_v5_g3fg3p |  | gemini-3.1-flash |  |  |
+| v6 | golden_caption_v6_q235g3p |  | qwen235b |  |  |
+| v7 | golden_caption_v7_q235g3p |  | gemini-3-flash |  | New structure grounding involved. Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p (qwen235b) |
+| v8 | golden_caption_v8_q235g3p |  | gemini-3-flash |  | New structure grounding involved. Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p (gemini-3.1-flash) |
+| v9 | golden_caption_v9_g3fg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p (gemini-3.1-flash) |
+| v10 | v10_mixg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p (qwen235b) |
+| v10p1 | v10p1_mixg3p |  | gemini-3.1-pro |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p (qwen235b) |
+| v11 | v11_mixg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p (gemini-3.1-flash) |
+| v12 | v12_g3fg3p |  | gemini-3-flash |  | A full new stage 1 and 2 prompting design, YAML I/O |
 | v13 | v13_q235bg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | |
 | v14 | v14_mixg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v12_g3fg3p |
 | v15 | v15_mixg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v13_q235bg3p |
@@ -151,5 +158,23 @@ slaunch cpu 1x1 golden_caption_convert_<VERSION_SHORT> \
     --input_credential credentials/gcs.secret \
     --num_concurrency 32
 ```
+
+---
+
+## Local run
+
+To run any of the above locally instead of through `slaunch`, swap the prefix:
+
+```bash
+slaunch cpu 1x4 <slurm_job_name> \
+```
+
+with:
+
+```bash
+.venv/bin/python \
+```
+
+All other arguments stay the same.
 
 ---

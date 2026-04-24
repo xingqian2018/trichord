@@ -97,6 +97,21 @@ If no channel is given:
 - For one-shots: the result just appears in the REPL when the callback fires.
 - For recurring: consider asking the user whether they want Slack posting, since they may not be watching the REPL.
 
+### @-mentioning the scheduler's creator
+
+Scheduled Slack messages should @-mention the person who scheduled the callback — otherwise the message lands silently in the channel and is easy to miss. `slack_client.py reply` supports a `--mention` flag that accepts a raw user ID (`U01ABCDEFGH`), an `@username`, a username, or an email. It can be repeated to mention several people.
+
+When composing a callback prompt that posts to Slack, prefer calling the helper directly so `--mention` is explicit:
+
+```
+python /home/xingqianx/.claude/skills/cslack/slack_client.py reply \
+  --channel "#<channel>" \
+  --mention "<creator_user_id_or_username>" \
+  --text "<message>"
+```
+
+At schedule time, resolve the creator's Slack user ID once and bake it into the callback prompt (raw `U…` IDs are the most robust — they don't break if the person renames their Slack handle). If you don't have it handy, `users.list` via the Slack SDK returns everyone in the workspace; match on `name` or `real_name`. Email lookup needs the `users:read.email` scope, which most bot tokens don't have.
+
 ## Listing & cancelling
 
 - **`/cschedule list`** → call `CronList` and render: id, schedule, next fire time, first ~80 chars of the prompt.

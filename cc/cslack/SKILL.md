@@ -14,21 +14,25 @@ Read messages from and post replies to a Slack channel or thread. Operates again
 
 ## Config
 
-Config lives at `~/.claude/skills/cslack/config.json`:
+Credentials live in the project's unified credentials file at `<project_root>/credentials/slack.json` — the same file the `channels/slack.py` bot reads:
 
 ```json
 {
-  "bot_token":       "xoxb-...",
-  "user_token":      "xoxp-...",
-  "default_channel": "#your-channel"
+  "SLACK_BOT_TOKEN":  "xoxb-...",
+  "SLACK_USER_TOKEN": "xoxp-...",
+  "SLACK_APP_TOKEN":  "xapp-...",
+  "default_channel":  "#your-channel"
 }
 ```
 
-- **`bot_token`** — required for sending (posting messages). Create a Slack app, add `chat:write` scope, install to workspace, copy Bot OAuth token.
-- **`user_token`** — required for reading channel history (`conversations:history`, `conversations:replies`). Needed because bot tokens may lack history read access depending on Slack plan.
+- **`SLACK_BOT_TOKEN`** — required for sending (posting messages). Create a Slack app, add `chat:write` scope, install to workspace, copy Bot OAuth token. Also used as a fallback for reading if the bot has `channels:history` / `groups:history` / `mpim:history` / `im:history` scopes.
+- **`SLACK_USER_TOKEN`** — optional; only needed if your bot can't read history in the channels you care about. A user token (`xoxp-…`) reads as the installing user and bypasses per-channel bot membership.
+- **`SLACK_APP_TOKEN`** — not used by this skill; lives in the same file for the `channels/slack.py` Socket Mode bot.
 - **`default_channel`** — optional fallback when no channel is specified.
 
-If config is missing, the client prints a clear error with the path.
+Legacy lowercase keys (`bot_token`, `user_token`) are still accepted for backward compatibility — the loader normalizes them.
+
+The helper resolves `credentials/slack.json` by walking up from the script's own directory first, then from CWD — so it works regardless of where you invoke it from. If the file is missing, the client prints a clear error showing the paths it tried.
 
 ## Helper Script
 

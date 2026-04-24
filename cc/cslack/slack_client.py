@@ -7,31 +7,55 @@ Usage:
   python slack_client.py reply --channel CHANNEL --text TEXT [--thread THREAD_TS]
   python slack_client.py info  --channel CHANNEL
 
-Config file: ~/.claude/skills/cslack/config.json
+Credentials: <project_root>/credentials/slack.json
   {
-    "bot_token":       "xoxb-...",   # required for sending
-    "user_token":      "xoxp-...",   # required for reading (if bot can't read)
-    "default_channel": "#my-channel" # optional
+    "SLACK_BOT_TOKEN":  "xoxb-...",   # required for sending / reading
+    "SLACK_USER_TOKEN": "xoxp-...",   # optional; used for reading if bot lacks scopes
+    "SLACK_APP_TOKEN":  "xapp-...",   # unused here; read by channels/slack.py bot
+    "default_channel":  "#my-channel" # optional
   }
+
+Legacy lowercase keys (bot_token / user_token) are also accepted for backward compat.
 """
 
 import argparse
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
-CONFIG_PATH = Path.home() / ".claude" / "skills" / "cslack" / "config.json"
+
+def resolve_credentials_path() -> Path:
+    """Locate credentials/slack.json. Prefer a path relative to this script
+    (works when script lives in <root>/cc/cslack/), then fall back to walking
+    up from CWD.
+    """
+    script = Path(__file__).resolve()
+    by_script = script.parent.parent.parent / "credentials" / "slack.json"
+    if by_script.exists():
+        return by_script
+    for p in [Path.cwd(), *Path.cwd().parents]:
+        cand = p / "credentials" / "slack.json"
+        if cand.exists():
+            return cand
+    raise FileNotFoundError(
+        f"credentials/slack.json not found (tried {by_script} and upward from {Path.cwd()})"
+    )
 
 
 def load_config() -> dict:
-    if not CONFIG_PATH.exists():
-        print(json.dumps({"error": f"Config not found at {CONFIG_PATH}. Create it with bot_token and user_token.", "success": False}))
+    try:
+        path = resolve_credentials_path()
+    except FileNotFoundError as e:
+        print(json.dumps({"error": str(e), "success": False}))
         sys.exit(1)
-    with open(CONFIG_PATH) as f:
-        return json.load(f)
+    raw = json.loads(path.read_text())
+    return {
+        "bot_token":       raw.get("SLACK_BOT_TOKEN")  or raw.get("bot_token"),
+        "user_token":      raw.get("SLACK_USER_TOKEN") or raw.get("user_token"),
+        "default_channel": raw.get("default_channel"),
+    }
 
 
 def require_sdk():

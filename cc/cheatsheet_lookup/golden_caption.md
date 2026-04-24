@@ -39,6 +39,10 @@ Go the credentials from JSON `credentials/gateway.json`, usually they key is the
 | v10 | v10_mixg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p |
 | v10p1 | v10p1_mixg3p |  | gemini-3.1-pro |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p |
 | v11 | v11_mixg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p |
+| v12 | v12_g3fg3p |  | gemini-3-flash |  | A newer pipeline of search and refinement prompting |
+| v13 | v13_q235bg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | |
+| v14 | v14_mixg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v12_g3fg3p |
+| v15 | v15_mixg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v13_q235bg3p |
 
 ---
 

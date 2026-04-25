@@ -103,7 +103,7 @@ def slack_user_id(s: str) -> str:
 
 def render_anchor(owner_slack_id: str, topic: str, now_iso: str, status: str) -> str:
     badge = ":large_green_circle: Live" if status == "running" else ":red_circle: Closed"
-    return f":thread: <@{owner_slack_id}> *{topic}* {now_iso}  {badge}"
+    return f":robot_face::calendar: <@{owner_slack_id}> {topic} | {now_iso} | {badge}"
 
 
 def main() -> int:
@@ -127,6 +127,7 @@ def main() -> int:
         anchor_text = render_anchor(args.owner_slack_id, args.topic, args.createtime, "closed")
         anchor_update = update(existing["channel_id"], existing["thread_ts"], anchor_text)
         delete_locked(TOPIC_INDEX_FILE, TOPIC_INDEX_LOCKFILE, tkey)
+        term_msg = post(existing["channel_id"], "--- _terminated_ ---", thread_ts=existing["thread_ts"])
 
         print(json.dumps(
             {

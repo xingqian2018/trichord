@@ -26,6 +26,9 @@ CREDS = json.loads((Path(__file__).parent.parent / "credentials" / "slack.json")
 SLACK_ROLLOVER_AT = 3000  # Seal current message and start a fresh one before hitting the limit
 MAX_VISIBLE_TOOLS = 3  # How many in-flight tools to render before collapsing the rest
 
+SCHEDULE_ANCHOR_PREFIX = ":robot_face::calendar:"
+SCHEDULE_TERMINATE_WORDS = {"terminate", "cancel", "stop"}
+
 YES_ALWAYS = {"always", "always yes", "always_yes"}
 YES = {"yes", "y", "allow", "approve", "ok", "sure"}
 NO = {"no", "n", "deny", "reject", "stop"}
@@ -282,13 +285,6 @@ class SlackClaudeSession:
         return True
 
     async def terminate(self) -> None:
-        async with self.lock:
-            self.always_allow_pending_tool_flag = False
-            for tid in list(self.pending.keys()):
-                fut = self.pending.pop(tid)
-                if not fut.done():
-                    fut.set_result(("deny", "user terminated session"))
-            self.pending_tool_verdicts.clear()
         if self.session_id is not None:
             try:
                 options = ClaudeAgentOptions(
@@ -299,6 +295,14 @@ class SlackClaudeSession:
                     await client.interrupt()
             except Exception:
                 self.logger.exception("failed to interrupt claude session")
+        async with self.lock:
+            self.always_allow_pending_tool_flag = False
+            self.pending_tool_tracker.clear()
+            self.pending_tool_verdicts.clear()
+            for tid in list(self.pending.keys()):
+                fut = self.pending.pop(tid)
+                if not fut.done():
+                    fut.set_result(("deny", "user terminated session"))
         try:
             await app.client.chat_postMessage(
                 channel=self.channel, thread_ts=self.thread_ts,
@@ -396,6 +400,22 @@ class SlackClaudeSession:
                 await self.update_main()
 
 
+def parse_schedule_anchor(text: str) -> dict | None:
+    # format: ":bot::calendar: <@UID> topic | createtime | badge"
+    body = text[len(SCHEDULE_ANCHOR_PREFIX):].strip()
+    if not body.startswith("<@"):
+        return None
+    close = body.find(">")
+    if close < 0:
+        return None
+    owner_slack_id = body[2:close]
+    rest = body[close + 1:].strip()
+    parts = rest.split(" | ", 2)
+    if len(parts) < 2:
+        return None
+    return {"owner_slack_id": owner_slack_id, "topic": parts[0].strip(), "createtime": parts[1].strip()}
+
+
 @app.event("message")
 async def handle_message_events(event, logger):
     channel_type = event.get("channel_type")
@@ -426,12 +446,23 @@ async def handle_message_events(event, logger):
                 parent_mentions_bot = bool(BOT_USER_ID) and f"<@{BOT_USER_ID}>" in parent.get("text", "")
                 if not (parent_by_bot or parent_mentions_bot):
                     return
+                if parent.get("text", "").startswith(SCHEDULE_ANCHOR_PREFIX):
+                    if text.strip().lower() not in SCHEDULE_TERMINATE_WORDS:
+                        return
+                    info = parse_schedule_anchor(parent["text"])
+                    if info is None:
+                        return
+                    text = (
+                        f"Please cancel the scheduled event with '--owner-slack-id {info['owner_slack_id']}' "
+                        f"'--topic {info['topic']}' and '--createtime {info['createtime']}'. "
+                        f"Use the cschedule skill to find and cancel it."
+                    )
             except Exception:
                 logger.exception("failed to fetch thread parent")
                 return
 
     if is_mention:
-        text = text.replace(f"<@{BOT_USER_ID}>", "", 1).strip()
+        text = text.replace(f"<@{BOT_USER_ID}>", " @you ").strip()
 
     session = ACTIVE_CLAUDE_SESSION.get(key)
 

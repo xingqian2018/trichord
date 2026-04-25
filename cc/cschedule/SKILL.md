@@ -18,11 +18,15 @@ Typical uses:
 - **Deferred reminder** — "in 30 min, post 'check the deploy' to #ops"
 - **Long-running monitor** — "every 15 min, run my_script.py and Slack the result if it changed"
 
-## Why not the REPL `CronCreate` tool?
+## PROHIBITED: the REPL `CronCreate` / `CronList` / `CronDelete` tools
 
-`CronCreate` claims to fire callbacks back into the same Claude session, which would let the agent reason about each fire. In practice, this harness has been observed to silently drop those jobs — they register, then disappear from `CronList` without ever firing visibly. **Do not rely on `CronCreate` for anything that needs to actually happen.** This skill uses OS cron exclusively.
+**Do not call `CronCreate`, `CronList`, or `CronDelete`. They do not work in this environment. Do not attempt them, not even once, not even to "verify" — they are a dead end.**
 
-The cost: Claude isn't in the loop on each fire. Whatever the cron does has to be a self-contained shell/python invocation. If the user wants "look at output, decide, do next thing", encode that decision logic in a shell or python script the cron runs — not in a Claude prompt.
+Symptom: jobs appear to register, then silently disappear from `CronList` without ever firing. Past sessions have wasted significant time retrying these tools or trying to diagnose them. Don't.
+
+This skill uses **OS cron exclusively** (Backend B), with the user-space loop runner (Backend C) as the only fallback. If you find yourself reaching for `CronCreate`, stop and re-read this section.
+
+The cost of OS cron: Claude isn't in the loop on each fire. Whatever the cron does has to be a self-contained shell/python invocation. If the user wants "look at output, decide, do next thing", encode that decision logic in a shell or python script the cron runs — not in a Claude prompt.
 
 ## Two backends, picked by environment
 
@@ -99,7 +103,7 @@ Schedule-time command:
 
 - **`--owner-slack-id`**: raw Slack user ID of the **person invoking `/cschedule`** (the creator) — names, handles, and emails are rejected by the CLI validator. Resolve it dynamically at install time via `cslack` (`users.lookupByEmail` requires the bot's OAuth to include `users:read.email`); never resolve at fire time. The `<@UID>` render only works with real IDs — Slack will not resolve plain `@handle` text sent via the API.
 - **`--topic`**: unique identifier for this schedule. Same `(owner, topic)` always resolves to the same thread — this is the idempotency key.
-- **`--createtime`**: datetime string in the format `YYYY/mm/dd HH:MM`, captured **at schedule time** (not fire time) and baked into the cron command. Combined with `(owner, topic)` this forms the full identity of the schedule — same triple always resolves to the same thread; a different createtime is treated as a different schedule. Use `$(date '+%Y/%m/%d %H:%M')` at install time.
+- **`--createtime`**: datetime string in the format `YYYY/mm/dd-HH:MM`, captured **at schedule time** (not fire time) and baked into the cron command. Combined with `(owner, topic)` this forms the full identity of the schedule — same triple always resolves to the same thread; a different createtime is treated as a different schedule. Use `$(date '+%Y/%m/%d %H:%M')` at install time.
 - **`--message`**: the text to post on this fire.
 
 ## Operations

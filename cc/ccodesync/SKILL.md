@@ -42,23 +42,39 @@ Last line (outside the fence): `Sync the eligible repos? (yes/no)` — then stop
 
 ## Stage 2 — sync (only on explicit user "yes")
 
-Never initiate on your own. Eligibility is **per-repo, independent** — multiple repos can qualify in the same run. A repo is eligible iff **all**:
+Never initiate on your own. Eligibility is **per-repo, independent** — multiple repos can qualify in the same run. Two sync modes, pick the first that matches:
 
-1. Exactly ONE row for the repo is non-clean (`unstaged=yes` and/or `sync=lead`) → call it the leader.
-2. Leader's drift is only `unstaged` and/or `lead` — `behind`/`diverged`/`untracked` on the leader always blocks.
-3. Every OTHER row for the **same repo** has `unstaged=no` AND `sync ∈ {-, behind}`. `behind` on the other machines is fine — we're about to `pull` them anyway. `lead`/`diverged`/`untracked` anywhere else blocks.
+### Mode A — push & pull (there's a leader)
 
-Drift in unrelated repos does NOT block this repo's sync.
+Iff **all** hold:
 
-For each eligible repo:
+1. Exactly ONE row for the repo is `unstaged=yes` and/or `sync=lead` → call it the leader.
+2. Leader's sync is only `-` or `lead` (never `behind`/`diverged`/`untracked`).
+3. Every OTHER row for the same repo has `unstaged=no` AND `sync ∈ {-, behind}`. `behind` is fine — we're about to pull it anyway.
+
+Action:
 - On leader: `git add -A && git commit -m "auto code sync"` (if dirty), then `git push`.
 - On every other machine holding the repo: `git pull --ff-only`.
+
+### Mode B — pull-only (no leader, just stragglers)
+
+Iff **all** hold:
+
+1. No row for the repo is `unstaged=yes` or `sync=lead` anywhere.
+2. At least one row is `sync=behind`.
+3. Every row has `sync ∈ {-, behind}` (no `diverged`/`untracked`).
+
+Action: on each `behind` machine for this repo, `git pull --ff-only`. No commit, no push.
+
+### Common
+
+Drift in unrelated repos does NOT block this repo's sync.
 
 Remote commands go through `ssh <host> 'bash -lc "cd ~/Project/<repo> && <cmd>"'`.
 
 **Result output, in this order:**
 
-1. A short "acted" list — one line per eligible repo: `<repo>: pushed from <leader>, pulled on <others>`.
+1. A short "acted" list — one line per eligible repo. Mode A: `<repo>: pushed from <leader>, pulled on <others>`. Mode B: `<repo>: pulled on <machines>`.
 2. A short "blocked" list — one line per repo skipped: `<repo>: <one-line reason>` (e.g. "leader behind on n0", "diverged on gcpcode", "multiple leads (n0, gcpcode)", "untracked everywhere"). Omit the list entirely if nothing was blocked.
 3. Then re-run Stage 1 and render the refreshed table in the **same fenced/padded format** as Stage 1.
 

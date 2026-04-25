@@ -1,4 +1,5 @@
 import asyncio
+import fcntl
 import json
 from pathlib import Path
 from typing import Optional
@@ -33,8 +34,45 @@ NO_ALL = {"no all", "noall", "deny all"}
 
 app = AsyncApp(token=CREDS["SLACK_BOT_TOKEN"])
 
+BOT_USER_ID: str | None = None
 
 ACTIVE_CLAUDE_SESSION: "dict[str, SlackClaudeSession]" = {}
+
+SESSION_MAPPING_FILE = Path(__file__).parent / "tmp" / "slack_thread_to_claude_session_mapping.json"
+SESSION_MAPPING_LOCKFILE = Path(__file__).parent / "tmp" / "slack_thread_to_claude_session_mapping.lock"
+session_mapping_lock = asyncio.Lock()
+
+
+def load_cached_session_id(key: str) -> Optional[str]:
+    if not SESSION_MAPPING_FILE.exists():
+        return None
+    SESSION_MAPPING_LOCKFILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(SESSION_MAPPING_LOCKFILE, "a") as lockf:
+        fcntl.flock(lockf.fileno(), fcntl.LOCK_SH)
+        try:
+            data = json.loads(SESSION_MAPPING_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            return None
+    return data.get(key)
+
+
+async def save_cached_session_id(key: str, session_id: str) -> None:
+    async with session_mapping_lock:
+        SESSION_MAPPING_LOCKFILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(SESSION_MAPPING_LOCKFILE, "a") as lockf:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_EX)
+            data: dict = {}
+            if SESSION_MAPPING_FILE.exists():
+                try:
+                    data = json.loads(SESSION_MAPPING_FILE.read_text())
+                except (json.JSONDecodeError, OSError):
+                    data = {}
+            if data.get(key) == session_id:
+                return
+            data[key] = session_id
+            tmp = SESSION_MAPPING_FILE.with_suffix(SESSION_MAPPING_FILE.suffix + ".tmp")
+            tmp.write_text(json.dumps(data, indent=2, sort_keys=True))
+            tmp.replace(SESSION_MAPPING_FILE)
 
 
 def find_rollover_cut(text: str, soft_limit: int) -> int:
@@ -71,7 +109,7 @@ class SlackClaudeSession:
         self.logger = logger
         self.lock = asyncio.Lock()
 
-        self.session_id: str | None = None
+        self.session_id: str | None = load_cached_session_id(self.key)
         self.header_ts: str | None = None
         self.main_ts: str | None = None
         self.response_str: str = ""
@@ -243,6 +281,32 @@ class SlackClaudeSession:
                         fut.set_result(verdict)
         return True
 
+    async def terminate(self) -> None:
+        async with self.lock:
+            self.always_allow_pending_tool_flag = False
+            for tid in list(self.pending.keys()):
+                fut = self.pending.pop(tid)
+                if not fut.done():
+                    fut.set_result(("deny", "user terminated session"))
+            self.pending_tool_verdicts.clear()
+        if self.session_id is not None:
+            try:
+                options = ClaudeAgentOptions(
+                    resume=self.session_id,
+                    can_use_tool=self.can_use_tool,
+                )
+                async with ClaudeSDKClient(options=options) as client:
+                    await client.interrupt()
+            except Exception:
+                self.logger.exception("failed to interrupt claude session")
+        try:
+            await app.client.chat_postMessage(
+                channel=self.channel, thread_ts=self.thread_ts,
+                text=":octagonal_sign: _terminated by user — always-allow cleared, interrupt sent_",
+            )
+        except Exception:
+            self.logger.exception("failed to post terminate notice")
+
     async def can_use_tool(self, tool_name, tool_input, context):
         loop = asyncio.get_running_loop()
         tool_use_id = context.tool_use_id
@@ -278,7 +342,7 @@ class SlackClaudeSession:
             return PermissionResultDeny(message=message, interrupt=True)
         return PermissionResultDeny(message=message or "user denied")
 
-    async def run(self, text: str) -> None:
+    async def run(self, text: str, user_id: str) -> None:
         async with self.lock:
             self.main_ts = None
             self.response_str = ""
@@ -311,12 +375,13 @@ class SlackClaudeSession:
         )
 
         async with ClaudeSDKClient(options=options) as client:
-            await client.query(text)
+            await client.query(f"[UserID: {user_id}] {text}")
             async for msg in client.receive_response():
                 if isinstance(msg, SystemMessage):
                     sid = msg.data.get('session_id')
                     if sid and self.session_id is None:
                         self.session_id = sid
+                        await save_cached_session_id(self.key, sid)
                 await self.try_finalize_gear(msg)
                 if isinstance(msg, ResultMessage):
                     await self.update_main()
@@ -331,9 +396,36 @@ class SlackClaudeSession:
                 await self.update_main()
 
 
+async def dispatch(channel: str, thread_ts: str, user: str, text: str, logger) -> None:
+    key = f"{channel}:{thread_ts}"
+    session = ACTIVE_CLAUDE_SESSION.get(key)
+
+    if session is not None and text.strip().lower() == "terminate":
+        await session.terminate()
+        return
+
+    if session is not None and session.has_pending():
+        await session.deliver_response(text)
+        return
+
+    logger.info(f"msg from user={user} channel={channel}: {text[:30]}")
+
+    if session is None:
+        session = SlackClaudeSession(channel, thread_ts, logger)
+        ACTIVE_CLAUDE_SESSION[key] = session
+
+    await session.run(text, user)
+
+
+@app.event("app_mention")
+async def handle_app_mention(event, logger):
+    return
+
+
 @app.event("message")
-async def handle_dm_events(event, say, logger):
-    if event.get("channel_type") != "im":
+async def handle_message_events(event, logger):
+    channel_type = event.get("channel_type")
+    if channel_type not in ("im", "channel", "group"):
         return
     if event.get("subtype") in ("message_changed", "message_deleted", "bot_message"):
         return
@@ -344,24 +436,26 @@ async def handle_dm_events(event, say, logger):
     text = event.get("text", "")
     channel = event.get("channel")
     thread_ts = event.get("thread_ts") or event.get("ts")
-    key = f"{channel}:{thread_ts}"
+    is_mention = bool(BOT_USER_ID) and f"<@{BOT_USER_ID}>" in text
 
-    session = ACTIVE_CLAUDE_SESSION.get(key)
+    if channel_type != "im":
+        if not event.get("thread_ts") and not is_mention:
+            return
+        key = f"{channel}:{thread_ts}"
+        engaged = key in ACTIVE_CLAUDE_SESSION or load_cached_session_id(key) is not None
+        if not is_mention and not engaged:
+            return
 
-    if session is not None and session.has_pending():
-        await session.deliver_response(text)
-        return
+    if is_mention:
+        text = text.replace(f"<@{BOT_USER_ID}>", "", 1).strip()
 
-    logger.info(f"DM from user={user} channel={channel}: {text[:30]}")
-
-    if session is None:
-        session = SlackClaudeSession(channel, thread_ts, logger)
-        ACTIVE_CLAUDE_SESSION[key] = session
-
-    await session.run(text)
+    await dispatch(channel, thread_ts, user, text, logger)
 
 
 async def main():
+    global BOT_USER_ID
+    auth = await app.client.auth_test()
+    BOT_USER_ID = auth["user_id"]
     handler = AsyncSocketModeHandler(app, CREDS["SLACK_APP_TOKEN"])
     await handler.start_async()
 

@@ -124,7 +124,6 @@ def main() -> int:
             print(json.dumps({"stage": "terminate", "success": False, "error": "no existing thread"}, indent=2))
             return 2
 
-        reply = post(existing["channel_id"], args.message, thread_ts=existing["thread_ts"])
         anchor_text = render_anchor(args.owner_slack_id, args.topic, args.createtime, "closed")
         anchor_update = update(existing["channel_id"], existing["thread_ts"], anchor_text)
         delete_locked(TOPIC_INDEX_FILE, TOPIC_INDEX_LOCKFILE, tkey)
@@ -133,14 +132,13 @@ def main() -> int:
             {
                 "stage": "terminated",
                 "thread_key": existing["thread_key"],
-                "message_ts": reply.get("ts"),
                 "anchor_updated": anchor_update.get("success"),
                 "topic_index_cleared": True,
-                "success": bool(reply.get("success") and anchor_update.get("success")),
+                "success": bool(anchor_update.get("success")),
             },
             indent=2,
         ))
-        return 0 if reply.get("success") and anchor_update.get("success") else 2
+        return 0 if anchor_update.get("success") else 2
 
     if existing is None:
         anchor_text = render_anchor(args.owner_slack_id, args.topic, args.createtime, "running")
@@ -152,8 +150,6 @@ def main() -> int:
         channel_id = anchor["channel_id"]
         thread_ts = anchor["ts"]
         thread_key = f"{channel_id}:{thread_ts}"
-
-        post(channel_id, thread_key, thread_ts=thread_ts)
 
         entry = {
             "thread_key": thread_key,

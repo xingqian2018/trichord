@@ -82,7 +82,6 @@ Insert/update/delete operations preserve every other crontab line. The unique ta
 Every Slack-posting cschedule entry should go through `channels/slack_callback.py` (in the user's trichord project), **not** `slack_client.py reply` directly. The callback wraps `slack_client.py` and adds:
 
 1. **Thread-per-schedule**: the first fire creates one anchor message in the channel, and every subsequent fire posts as a reply in that same thread. This keeps the channel tidy instead of flooding it with N top-level messages.
-2. **Machine-readable thread ID reply**: immediately after the anchor, an auto-reply is posted containing the raw `"<channel_id>:<thread_ts>"` string so an external listener can parse and key on it.
 
 All other state (thread lookup by `(owner, topic)`, routing replies back to a Claude session) is managed internally by the callback — cschedule doesn't need to know about those files.
 
@@ -143,8 +142,20 @@ crontab -l 2>/dev/null | awk '
 
 ### Cancel one entry by tag
 
+**Important:** if the entry posts to Slack via `slack_callback.py`, run a final `--terminate` invocation **before** removing the crontab line. This closes the thread on the Slack side: it edits the anchor message badge from "Live" to "Closed" and clears the topic-index entry. See the "Termination protocol for Slack-callback schedules" section below.
+
 ```bash
 TAG='<unique-tag>'
+
+# 1. Pull the existing slack_callback.py invocation out of the cron line and
+#    re-run it verbatim with --terminate appended (same owner/topic/createtime/message).
+LINE=$(crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '$0 ~ t {found=1; next} found {print; exit}')
+PY_CMD=$(echo "$LINE" | sed -nE 's|.*(/usr/bin/python [^;}]*slack_callback\.py[^;}]*).*|\1|p')
+if [ -n "$PY_CMD" ]; then
+  eval "$PY_CMD --terminate"
+fi
+
+# 2. Remove the crontab block.
 crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '
   $0 ~ t {skip=2; next}
   skip>0 {skip--; next}
@@ -154,13 +165,34 @@ crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '
 
 ### Cancel every cschedule-managed entry (leaves user's other cron lines intact)
 
+Iterate so each Slack-callback entry gets its own termination ping before its crontab block is removed:
+
 ```bash
+for TAG in $(crontab -l 2>/dev/null | awk '/^# cschedule:tag=/ {sub(/^# cschedule:tag=/, ""); print}'); do
+  LINE=$(crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '$0 ~ t {found=1; next} found {print; exit}')
+  PY_CMD=$(echo "$LINE" | sed -nE 's|.*(/usr/bin/python [^;}]*slack_callback\.py[^;}]*).*|\1|p')
+  if [ -n "$PY_CMD" ]; then
+    eval "$PY_CMD --terminate"
+  fi
+done
+
 crontab -l 2>/dev/null | awk '
   /^# cschedule:tag=/ {skip=2; next}
   skip>0 {skip--; next}
   {print}
 ' | crontab -
 ```
+
+### Termination protocol for Slack-callback schedules
+
+Schedules that post via `slack_callback.py` have **state on the Slack side** that outlives the crontab entry: an anchor message in the channel and an entry in `cschedule_topic_index.json`. Cancelling the cron without telling the callback leaves the anchor showing "Live" forever and leaves a stale topic-index entry that will collide if the same `(owner, topic, createtime)` triple is ever reused.
+
+`slack_callback.py --terminate` is the cleanup hook:
+- (a) Posts the final `--message` into the existing thread.
+- (b) Edits the anchor message — green-circle "Live" → red-circle "Closed".
+- (c) Removes the topic-index entry.
+
+Always run terminate **before** removing the crontab line — once the line is gone, you've lost `--owner-slack-id`, `--topic`, and `--createtime`, and the callback can no longer find the thread.
 
 ## One-shots
 

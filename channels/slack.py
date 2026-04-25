@@ -396,8 +396,43 @@ class SlackClaudeSession:
                 await self.update_main()
 
 
-async def dispatch(channel: str, thread_ts: str, user: str, text: str, logger) -> None:
+@app.event("message")
+async def handle_message_events(event, logger):
+    channel_type = event.get("channel_type")
+    if channel_type not in ("im", "channel", "group"):
+        return
+    if event.get("subtype") in ("message_changed", "message_deleted", "bot_message"):
+        return
+    if event.get("bot_id"):
+        return
+
+    user = event.get("user")
+    text = event.get("text", "")
+    channel = event.get("channel")
+    thread_ts = event.get("thread_ts") or event.get("ts")
+    is_mention = bool(BOT_USER_ID) and f"<@{BOT_USER_ID}>" in text
     key = f"{channel}:{thread_ts}"
+
+    if channel_type != "im":
+        if not event.get("thread_ts") and not is_mention:
+            return
+        if not is_mention and key not in ACTIVE_CLAUDE_SESSION:
+            try:
+                resp = await app.client.conversations_replies(
+                    channel=channel, ts=thread_ts, limit=1
+                )
+                parent = (resp.get("messages") or [{}])[0]
+                parent_by_bot = parent.get("user") == BOT_USER_ID or bool(parent.get("bot_id"))
+                parent_mentions_bot = bool(BOT_USER_ID) and f"<@{BOT_USER_ID}>" in parent.get("text", "")
+                if not (parent_by_bot or parent_mentions_bot):
+                    return
+            except Exception:
+                logger.exception("failed to fetch thread parent")
+                return
+
+    if is_mention:
+        text = text.replace(f"<@{BOT_USER_ID}>", "", 1).strip()
+
     session = ACTIVE_CLAUDE_SESSION.get(key)
 
     if session is not None and text.strip().lower() == "terminate":
@@ -415,41 +450,6 @@ async def dispatch(channel: str, thread_ts: str, user: str, text: str, logger) -
         ACTIVE_CLAUDE_SESSION[key] = session
 
     await session.run(text, user)
-
-
-@app.event("app_mention")
-async def handle_app_mention(event, logger):
-    return
-
-
-@app.event("message")
-async def handle_message_events(event, logger):
-    channel_type = event.get("channel_type")
-    if channel_type not in ("im", "channel", "group"):
-        return
-    if event.get("subtype") in ("message_changed", "message_deleted", "bot_message"):
-        return
-    if event.get("bot_id"):
-        return
-
-    user = event.get("user")
-    text = event.get("text", "")
-    channel = event.get("channel")
-    thread_ts = event.get("thread_ts") or event.get("ts")
-    is_mention = bool(BOT_USER_ID) and f"<@{BOT_USER_ID}>" in text
-
-    if channel_type != "im":
-        if not event.get("thread_ts") and not is_mention:
-            return
-        key = f"{channel}:{thread_ts}"
-        engaged = key in ACTIVE_CLAUDE_SESSION or load_cached_session_id(key) is not None
-        if not is_mention and not engaged:
-            return
-
-    if is_mention:
-        text = text.replace(f"<@{BOT_USER_ID}>", "", 1).strip()
-
-    await dispatch(channel, thread_ts, user, text, logger)
 
 
 async def main():

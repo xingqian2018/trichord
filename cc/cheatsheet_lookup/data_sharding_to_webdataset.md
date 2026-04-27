@@ -60,36 +60,40 @@ Notes for `shard_full_dbinfo.py`:
 
 ## Template — `shard_full_dbinfo_meta_reload.py` (webdataset meta recreation)
 
-Use this when the WebDS shards already exist and you only want to **refresh / add a new meta tar** alongside `metas/` — e.g. after the LanceDB has been re-augmented with new caption fields and you want them surfaced into the webds layout without re-sharding the images.
+Use this when the WebDS shards already exist and you only want to **refresh / add a new meta tar** alongside the existing meta subdir — e.g. after the LanceDB has been re-augmented with new caption fields and you want them surfaced into the webds layout without re-sharding the images.
 
-For each existing `{root}/resolution_*/aspect_ratio_*/metas/<shard>.tar`, the script writes a sibling `{root}/resolution_*/aspect_ratio_*/{new_meta_subdir}/<shard>.tar` whose entries mirror the original tar's per-entry order (keyed by `<uuid>.json`) and embed the latest LanceDB row under `new_meta_key`.
+For each existing `{root}/resolution_*/aspect_ratio_*/{old_meta_key}/<shard>.tar`, the script writes a sibling `{root}/resolution_*/aspect_ratio_*/{new_meta_key}/<shard>.tar` whose entries mirror the original tar's per-entry order (keyed by `<uuid>.json`) and embed the latest LanceDB row.
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
 slaunch cpu 1x1 reload_meta_<dataset_name> \
     pipelines/image/text_rendering/shard_full_dbinfo_meta_reload.py \
-    --input-lancedb-path <gs_lancedb_path> \
-    --dataset-name <dataset_name> \
-    --output-webds-path <bucket>/<prefix>/<dataset_name> \
-    --new-meta-key lance_db_full_meta \
-    --new-meta-subdir metas_full \
-    --s3-profile team-gcs \
+    --input_lancedb_path <gs_lancedb_path> \
+    --output_webds_path <bucket>/<prefix>/<dataset_name> \
+    --dataset_name <dataset_name> \
+    --webds_credential credentials/gcp_checkpoint.secret \
+    --s3_profile team-gcs \
+    --old_meta_key metas \
+    --new_meta_key metas_new \
+    --num_concurrency 4 \
     --workers 16
 ```
 
 ### Arguments
 
-- `--input-lancedb-path` *(required)*: Lance table URI to read fresh per-uuid metadata from. `.lance` suffix is auto-appended; `gcs://` is normalized to `gs://`.
-- `--dataset-name` *(required)*: filter — only rows where `source_dataset == <dataset_name>` are loaded into the uuid lookup.
-- `--output-webds-path` *(required)*: existing WebDS root to walk. The script does **not** create new shards; it only writes sidecar tars beside discovered `metas/` dirs.
-- `--new-meta-key` *(default `lance_db_full_meta`)*: top-level JSON key under which each lance row is stored inside the new tar's `<uuid>.json`.
-- `--new-meta-subdir` *(default `metas_full`)*: sibling-of-`metas/` directory name where the new tars are written.
-- `--s3-profile` *(default `team-gcs`)*: S3/GCS profile name. Must allow overwrite/delete on the destination.
-- `--workers` *(default 4)*: worker thread count. 16 is a good working point on the `cpu` queue.
+- `--input_lancedb_path` *(required)*: Lance table URI to read fresh per-uuid metadata from. `.lance` suffix is auto-appended; `gcs://` is normalized to `gs://`.
+- `--output_webds_path` *(required)*: existing WebDS root to walk. The script does **not** create new shards; it only writes sidecar tars beside discovered meta dirs.
+- `--dataset_name` *(required)*: filter — only rows where `source_dataset == <dataset_name>` are loaded into the uuid lookup.
+- `--webds_credential` *(default `credentials/gcp_checkpoint.secret`)*: credential file for the WebDS bucket.
+- `--s3_profile` *(default `team-gcs`)*: S3/GCS profile name. Must allow overwrite/delete on the destination.
+- `--old_meta_key` *(default `metas`)*: existing meta subdir under each `aspect_ratio_*/` to read entry order from.
+- `--new_meta_key` *(default `metas_new`)*: new sibling meta subdir to write the rebuilt tars into.
+- `--num_concurrency` *(default 4)*: per-task concurrency for download/upload streams.
+- `--workers` *(default 4)*: outer worker thread count. 16 is a good working point on the `cpu` queue.
 
 ### Notes
 
-- Entry order inside each rebuilt tar matches the existing `metas/<shard>.tar` exactly — only the JSON payload changes.
+- Entry order inside each rebuilt tar matches the existing `{old_meta_key}/<shard>.tar` exactly — only the JSON payload changes.
 - UUIDs in the existing tar that are missing from the filtered LanceDB are **dropped** from the new tar, with a per-shard warning logging the missing count.
 - Safe to re-run: the destination tars are overwritten on each run.
 - No `--samples-per-shard` / `--max-rows` flags — shape is dictated by the existing webds.

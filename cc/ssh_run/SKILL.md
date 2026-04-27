@@ -16,6 +16,25 @@ Pick the host from the user's phrasing:
 - Mentions "gcp", "on gcp", "gcpcode" → `gcpcode`
 - Ambiguous → ask the user which one; do not guess.
 
+## Pre-flight: dedupe check (before submitting jobs)
+
+**Before any Slurm submission (`slaunch`, `sbatch`, or any wrapper), check whether the same job is already running on the target host.** Repeated runs waste cluster time, clobber outputs in shared `output_dir`s / `--signature` namespaces, and force a `scancel` cleanup afterward. This matters especially when **multiple Claude agents may be operating in parallel** — each one is unaware of the others' submissions and can independently re-launch the same job. The remote `squeue` is the only shared source of truth.
+
+The check:
+
+```
+ssh <host> 'squeue -u $USER -o "%i %j %T %R" | grep <job_name>'
+```
+
+Match by job name (the `<slurm_job_name>` you're about to pass) and/or by script + identifying args (`--signature`, output path, etc.). When launching a multi-variant batch (e.g. several evaluations at once), pre-check **each** variant's job name — don't just check one and assume the rest are clear.
+
+If a duplicate is found, **stop and ask the user**. Do not blindly resubmit. Acceptable resolutions:
+- "skip" → don't submit; report the existing job id.
+- "cancel and re-run" → `scancel <jobid>` first, then submit.
+- "submit anyway" → proceed.
+
+The check is cheap. The cleanup after a duplicate-launch incident is not.
+
 ## Default behavior — plain SSH
 
 For ANY request of the form "run X on the cluster" / "kick off X" / "submit X", default to plain SSH. Do not invent wrappers. The shape is always:

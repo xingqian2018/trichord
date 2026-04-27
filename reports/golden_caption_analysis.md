@@ -1,6 +1,6 @@
 # Captioning quality stress testing via iterative refinement and judging system
 
-_Stress test of the `golden_caption` pipeline, v2 → v13, on `CosCapBenchImage/V1`._
+_Stress test of the `golden_caption` pipeline, v2 → v15, on `CosCapBenchImage/V1`._
 
 ---
 
@@ -68,6 +68,7 @@ image ──► STAGE 1: entity search
 | v12   | gemini-3.1-pro   | gemini-3-flash            | same         | New S1+S2 prompting design (YAML I/O)|
 | v13   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | `q235bg3p`; qwen gen, pro judge      |
 | v14   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | S1 from v13; identifier-location fix |
+| v15   | gemini-3.1-pro   | qwen3-vl-235b             | qwen3-235b   | Fully agent self-improved prompting system |
 
 ---
 
@@ -120,6 +121,9 @@ Model abbreviations: **g3.1p** = gemini-3.1-pro, **g3f** = gemini-3-flash, **q23
 | v14   | q235b | q235b  | dense   | 0.9419    | 0.6071 | 0.7384     | 21,801  | 296    | 293    |
 | v14   | q235b | q235b  | struct  | 0.9384    | 0.5801 | 0.7170     | 24,499  | 299    | 293    |
 | v14   | q235b | q235b  | s4      | 0.9361    | 0.6374 | 0.7584     | 31,412  | 299    | 293    |
+| v15   | q235b | q235b  | dense   | 0.9409    | 0.6034 | 0.7353     | 22,137  | 298    | 292    |
+| v15   | q235b | q235b  | struct  | 0.9410    | 0.5889 | 0.7244     | 23,646  | 296    | 292    |
+| v15   | q235b | q235b  | s4      | 0.9341    | 0.6370 | 0.7575     | 32,049  | 298    | 292    |
 
 † v9's "S2–S4" is heterogeneous: S2 grounding ran on gemini-3-flash, but the final S3 dense-rewriter batch (144 images) was redone with gemini-3.1-pro, and S4 (camera+style) ran end-to-end on gemini-3.1-pro. Treat v9's high precision (≈0.97) as a g3p-tail effect, not as pure-flash performance.
 
@@ -139,6 +143,7 @@ Per-version best F1 (stage-4 variant, sorted):
 | v6    | 0.7688     | 0.8719 | 0.6875 |
 | v13   | 0.7639     | 0.9400 | 0.6434 |
 | v14   | 0.7584     | 0.9361 | 0.6374 |
+| v15   | 0.7575     | 0.9341 | 0.6370 |
 | v8    | 0.7559     | 0.9003 | 0.6514 |
 
 ---

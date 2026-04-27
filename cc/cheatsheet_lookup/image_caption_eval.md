@@ -139,6 +139,11 @@ From `recall_eval_result_<SIGNATURE>.json`:
 1. **Recall** — `recall`
 2. **Recall success image count** — first pair in `success_cnt` (e.g. `success_cnt = "293/293, 2976/4780"` → image count = `293/293`)
 
+### Report to file:
+
+1. ~/Project/trichord/reports/golden_caption_analysis_long_version.md (long version)
+2. ~/Project/trichord/reports/golden_caption_analysis.md (summary version)
+
 ### Rules
 
 - **Be concise — one table is usually the entire response.** No preamble, no per-variant prose paragraphs, no recap of the commands that were launched. Just the table, plus at most one short line if something is genuinely off (e.g. a job failed).

@@ -1,6 +1,6 @@
 # Captioning quality stress testing via iterative refinement and judging system
 
-**Report covers:** `golden_caption_v2` → `golden_caption_v13_q235bg3p`
+**Report covers:** `golden_caption_v2` → `golden_caption_v15_q235bg3p`
 **Benchmark:** `CosCapBenchImage/V1` (≈300 images, ≈4.7k–4.8k recall assertions)
 **Judge for P/R evaluation:** `gemini-3.1-pro` (unless noted)
 **Authored:** 2026-04-24
@@ -149,6 +149,7 @@ Key design choices:
 | v12 | gemini-3-flash | same as VLM | own S1 | `g3fg3p`; full new Stage 1 + Stage 2 prompting design with YAML I/O. |
 | v13 | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | own S1 | `q235bg3p`; all-qwen gen with gemini-3.1-pro judge. |
 | v14 | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | **from v13** (q235b) | S2–S4 only; fixes the ignore issue on identifier location. |
+| v15 | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | own S1 | `q235bg3p`; fully agent self-improved prompting system. |
 
 Judge across all stages of all versions is `gemini-3.1-pro` (the v2 "mixed" case is the only
 exception). Evaluation judge (precision / recall scoring) is also `gemini-3.1-pro`.
@@ -191,6 +192,7 @@ Three tables, one per caption variant. P = precision, R = recall, F1 = 2·P·R /
 | v12 (g3fg3p)  | 0.961 | 0.612 | 0.747 |
 | v13 (q235bg3p)| 0.939 | 0.613 | 0.742 |
 | v14 (q235bg3p)| 0.942 | 0.607 | 0.738 |
+| v15 (q235bg3p)| 0.941 | 0.603 | 0.735 |
 
 \* v3 dense/structured recall never finished (only v3 s4s recall was run); numbers for the
 v3 paragraph are backed by the s4 row below.
@@ -214,6 +216,7 @@ v13 image-success counts (every variant): precision 298 / 298 images, recall 292
 | v12 (g3fg3p)  | 0.957 | 0.600 | 0.737 |
 | v13 (q235bg3p)| 0.938 | 0.596 | 0.729 |
 | v14 (q235bg3p)| 0.938 | 0.580 | 0.717 |
+| v15 (q235bg3p)| 0.941 | 0.589 | 0.724 |
 
 ### 4.3 Stage-4 structured caption (Stage 3 structured + camera + style)
 
@@ -232,6 +235,7 @@ v13 image-success counts (every variant): precision 298 / 298 images, recall 292
 | v12 (g3fg3p)  | 0.958 | 0.653 | 0.777 |
 | v13 (q235bg3p)| 0.940 | 0.643 | 0.764 |
 | v14 (q235bg3p)| 0.936 | 0.637 | 0.758 |
+| v15 (q235bg3p)| 0.934 | 0.637 | 0.758 |
 
 ---
 

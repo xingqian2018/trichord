@@ -18,3 +18,9 @@ Sibling `.md` files (except `SKILL.md`) are cheatsheets. Filename without `.md` 
 4. **Keep the template's indented multi-line form** (backslash continuations, `VAR=... \` prefixes, per-line args). Substitute placeholders the user gave you; do not flatten. Only produce a one-liner if the user explicitly asks.
 5. **Resolve credentials locally** (env var, `credentials/*.json`, `~/.aws/credentials`, `~/.netrc`, etc.) and inline them into the command. If unresolvable, leave the `<placeholder>` and say where to set it.
 6. Leave any unresolved placeholders as `<angle-bracket>` and call them out. Never invent values.
+
+## Local-run conversion (cross-cutting)
+
+If the user asks to run any cheatsheet's `slaunch ...` command **locally** (on `n0`, no slurm), or to convert a remote/GCP/AWS submission into a docker-local invocation — **always** consult the **`slaunch_to_local_docker`** cheatsheet for the canonical recipe (tmux + `docker exec`, credential handling, watching, pitfalls). Apply that recipe on top of the pipeline-specific args from the cheatsheet the user named. Do **not** improvise the local form.
+
+This rule applies to every current and future cheatsheet — pipeline-specific files do not need to repeat the local-run instructions.

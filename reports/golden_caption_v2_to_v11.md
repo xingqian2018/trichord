@@ -1,6 +1,6 @@
 # Captioning quality stress testing via iterative refinement and judging system
 
-_Stress test of the `golden_caption` pipeline, v2 → v11, on `CosCapBenchImage/V1`._
+_Stress test of the `golden_caption` pipeline, v2 → v13, on `CosCapBenchImage/V1`._
 
 ---
 
@@ -58,13 +58,16 @@ image ──► STAGE 1: entity search
 | v2    | mixed            | mixed                     | same         | First looping-refinement version     |
 | v3    | gemini-3.1-pro   | mixed                     | same         | —                                    |
 | v4    | gemini-3.1-pro   | gemini-3.1-pro            | same         | Pure "pro"                           |
-| v5    | gemini-3.1-pro   | gemini-3.1-flash          | same         | Pure "flash"                         |
+| v5    | gemini-3.1-pro   | gemini-3-flash            | same         | Pure "flash"                         |
 | v6    | gemini-3.1-pro   | qwen3-vl-235b             | same         | Pure qwen                            |
 | v7    | gemini-3.1-pro   | gemini-3-flash (S2–S4)    | same         | S1 from v6; new structured prompts   |
-| v8    | gemini-3.1-pro   | gemini-3-flash (S2–S4)    | same         | S1 from v5; new structured prompts   |
-| v9    | gemini-3.1-pro   | gemini-3-flash (S2–S4)    | same         | S1 from v5                           |
+| v8    | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | S1 from v6; new structured prompts   |
+| v9    | gemini-3.1-pro   | gemini-3-flash S2; mixed S3 / g3p S4 | g3f → g3p tail | S1 from v5; S3 last 144-img batch + S4 reran on gemini-3.1-pro |
 | v10p1 | gemini-3.1-pro   | gemini-3.1-pro (S2–S4)    | same         | S1 from v6                           |
 | v11   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | S1 from v5                           |
+| v12   | gemini-3.1-pro   | gemini-3-flash            | same         | New S1+S2 prompting design (YAML I/O)|
+| v13   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | `q235bg3p`; qwen gen, pro judge      |
+| v14   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | S1 from v13; identifier-location fix |
 
 ---
 
@@ -72,38 +75,53 @@ image ──► STAGE 1: entity search
 
 Three caption variants: **dense** (stage-3 paragraph), **struct** (stage-3 structured, 8 fields), **s4** (struct + camera + style).
 
-| Ver   | Variant | Prec      | Rec    | F1         | #claims | #assert |
-|-------|---------|-----------|--------|------------|---------|---------|
-| v2    | dense   | 0.9331    | 0.6377 | 0.7576     | 51,191  | 4,797   |
-| v2    | struct  | 0.9353    | 0.6402 | 0.7601     | 55,686  | 4,797   |
-| v2    | s4      | 0.9393    | 0.6706 | 0.7825     | 54,032  | 4,797   |
-| v3    | dense   | 0.9350    | 0.6609 | 0.7744     | 55,466  | 4,777   |
-| v3    | struct  | 0.9380    | 0.6583 | 0.7737     | 60,082  | 4,797   |
-| v3    | s4      | 0.9390    | 0.6927 | **0.7973** | 60,834  | 4,797   |
-| v4    | dense   | **0.9762**| 0.6008 | 0.7439     | 33,698  | 4,765   |
-| v4    | struct  | 0.9752    | 0.5925 | 0.7371     | 31,588  | 4,797   |
-| v4    | s4      | 0.9742    | 0.6531 | 0.7820     | 33,774  | 4,797   |
-| v5    | dense   | 0.9708    | 0.6281 | 0.7627     | 33,541  | 4,765   |
-| v5    | struct  | 0.9706    | 0.6211 | 0.7575     | 31,865  | 4,769   |
-| v5    | s4      | 0.9689    | 0.6688 | 0.7914     | 33,439  | 4,780   |
-| v6    | dense   | 0.8656    | 0.6629 | 0.7508     | 56,153  | 4,728   |
-| v6    | struct  | 0.8598    | 0.6485 | 0.7393     | 57,118  | 4,745   |
-| v6    | s4      | 0.8719    | **0.6875** | 0.7688 | 56,996  | 4,745   |
-| v7    | dense   | 0.8753    | 0.6593 | 0.7521     | 54,387  | 4,738   |
-| v7    | struct  | 0.8670    | 0.6574 | 0.7478     | 59,335  | 4,749   |
-| v7    | s4      | 0.8758    | 0.6877 | 0.7705     | 58,226  | 4,749   |
-| v8    | dense   | 0.9055    | 0.6165 | 0.7335     | 18,636  | 4,649   |
-| v8    | struct  | 0.8948    | 0.6045 | 0.7215     | 27,158  | 4,690   |
-| v8    | s4      | 0.9003    | 0.6514 | 0.7559     | 30,346  | 4,690   |
-| v9    | dense   | 0.9709    | 0.6226 | 0.7587     | 20,345  | 4,780   |
-| v9    | struct  | 0.9733    | 0.6130 | 0.7522     | 28,853  | 4,780   |
-| v9    | s4      | 0.9724    | 0.6500 | 0.7792     | 30,468  | 4,780   |
-| v10p1 | dense   | 0.9690    | 0.6249 | 0.7598     | 19,399  | 4,772   |
-| v10p1 | struct  | 0.9696    | 0.6180 | 0.7549     | 25,582  | 4,772   |
-| v10p1 | s4      | 0.9709    | 0.6563 | 0.7832     | 27,524  | 4,772   |
-| v11   | dense   | 0.9459    | 0.6431 | 0.7657     | 17,718  | 4,733   |
-| v11   | struct  | 0.9377    | 0.6329 | 0.7557     | 27,621  | 4,756   |
-| v11   | s4      | 0.9349    | 0.6680 | 0.7792     | 32,488  | 4,756   |
+Model abbreviations: **g3.1p** = gemini-3.1-pro, **g3f** = gemini-3-flash, **q235b** = qwen3-vl-235b, **mix** = mixed.
+
+`#img_P` / `#img_R` are the number of benchmark images successfully evaluated by the precision / recall judges respectively. Bench size is ≈300 images.
+
+| Ver   | S1    | S2–S4  | Variant | Prec      | Rec    | F1         | #claims | #img_P | #img_R |
+|-------|-------|--------|---------|-----------|--------|------------|---------|--------|--------|
+| v2    | mix   | mix    | dense   | 0.9331    | 0.6377 | 0.7576     | 51,191  | 299    | 294    |
+| v2    | mix   | mix    | struct  | 0.9353    | 0.6402 | 0.7601     | 55,686  | 300    | 294    |
+| v2    | mix   | mix    | s4      | 0.9393    | 0.6706 | 0.7825     | 54,032  | 300    | 294    |
+| v3    | mix   | mix    | dense   | 0.9350    | 0.6609 | 0.7744     | 55,466  | 299    | 293    |
+| v3    | mix   | mix    | struct  | 0.9380    | 0.6583 | 0.7737     | 60,082  | 300    | 294    |
+| v3    | mix   | mix    | s4      | 0.9390    | 0.6927 | **0.7973** | 60,834  | 300    | 294    |
+| v4    | g3.1p | g3.1p  | dense   | **0.9762**| 0.6008 | 0.7439     | 33,698  | 300    | 293    |
+| v4    | g3.1p | g3.1p  | struct  | 0.9752    | 0.5925 | 0.7371     | 31,588  | 300    | 294    |
+| v4    | g3.1p | g3.1p  | s4      | 0.9742    | 0.6531 | 0.7820     | 33,774  | 300    | 294    |
+| v5    | g3f   | g3f    | dense   | 0.9708    | 0.6281 | 0.7627     | 33,541  | 299    | 292    |
+| v5    | g3f   | g3f    | struct  | 0.9706    | 0.6211 | 0.7575     | 31,865  | 299    | 292    |
+| v5    | g3f   | g3f    | s4      | 0.9689    | 0.6688 | 0.7914     | 33,439  | 299    | 293    |
+| v6    | q235b | q235b  | dense   | 0.8656    | 0.6629 | 0.7508     | 56,153  | 297    | 290    |
+| v6    | q235b | q235b  | struct  | 0.8598    | 0.6485 | 0.7393     | 57,118  | 297    | 291    |
+| v6    | q235b | q235b  | s4      | 0.8719    | **0.6875** | 0.7688 | 56,996  | 297    | 291    |
+| v7    | q235b | g3f    | dense   | 0.8753    | 0.6593 | 0.7521     | 54,387  | 297    | 290    |
+| v7    | q235b | g3f    | struct  | 0.8670    | 0.6574 | 0.7478     | 59,335  | 297    | 291    |
+| v7    | q235b | g3f    | s4      | 0.8758    | 0.6877 | 0.7705     | 58,226  | 297    | 291    |
+| v8    | q235b | q235b  | dense   | 0.9055    | 0.6165 | 0.7335     | 18,636  | 291    | 286    |
+| v8    | q235b | q235b  | struct  | 0.8948    | 0.6045 | 0.7215     | 27,158  | 291    | 288    |
+| v8    | q235b | q235b  | s4      | 0.9003    | 0.6514 | 0.7559     | 30,346  | 294    | 288    |
+| v9    | g3f   | g3f†   | dense   | 0.9709    | 0.6226 | 0.7587     | 20,345  | 298    | 293    |
+| v9    | g3f   | g3f†   | struct  | 0.9733    | 0.6130 | 0.7522     | 28,853  | 299    | 293    |
+| v9    | g3f   | g3f†   | s4      | 0.9724    | 0.6500 | 0.7792     | 30,468  | 297    | 293    |
+| v10p1 | q235b | g3.1p  | dense   | 0.9690    | 0.6249 | 0.7598     | 19,399  | 299    | 293    |
+| v10p1 | q235b | g3.1p  | struct  | 0.9696    | 0.6180 | 0.7549     | 25,582  | 299    | 293    |
+| v10p1 | q235b | g3.1p  | s4      | 0.9709    | 0.6563 | 0.7832     | 27,524  | 299    | 293    |
+| v11   | g3f   | q235b  | dense   | 0.9459    | 0.6431 | 0.7657     | 17,718  | 288    | 290    |
+| v11   | g3f   | q235b  | struct  | 0.9377    | 0.6329 | 0.7557     | 27,621  | 291    | 291    |
+| v11   | g3f   | q235b  | s4      | 0.9349    | 0.6680 | 0.7792     | 32,488  | 292    | 291    |
+| v12   | g3f   | g3f    | dense   | 0.9608    | 0.6116 | 0.7474     | 19,133  | 297    | 292    |
+| v12   | g3f   | g3f    | struct  | 0.9565    | 0.5996 | 0.7371     | 28,244  | 298    | 292    |
+| v12   | g3f   | g3f    | s4      | 0.9581    | 0.6532 | 0.7768     | 29,797  | 298    | 292    |
+| v13   | q235b | q235b  | dense   | 0.9388    | 0.6130 | 0.7417     | 23,085  | 298    | 292    |
+| v13   | q235b | q235b  | struct  | 0.9380    | 0.5962 | 0.7290     | 26,937  | 298    | 292    |
+| v13   | q235b | q235b  | s4      | 0.9400    | 0.6434 | 0.7639     | 31,574  | 298    | 292    |
+| v14   | q235b | q235b  | dense   | 0.9419    | 0.6071 | 0.7384     | 21,801  | 296    | 293    |
+| v14   | q235b | q235b  | struct  | 0.9384    | 0.5801 | 0.7170     | 24,499  | 299    | 293    |
+| v14   | q235b | q235b  | s4      | 0.9361    | 0.6374 | 0.7584     | 31,412  | 299    | 293    |
+
+† v9's "S2–S4" is heterogeneous: S2 grounding ran on gemini-3-flash, but the final S3 dense-rewriter batch (144 images) was redone with gemini-3.1-pro, and S4 (camera+style) ran end-to-end on gemini-3.1-pro. Treat v9's high precision (≈0.97) as a g3p-tail effect, not as pure-flash performance.
 
 Per-version best F1 (stage-4 variant, sorted):
 
@@ -116,8 +134,11 @@ Per-version best F1 (stage-4 variant, sorted):
 | v4    | 0.7820     | 0.9742 | 0.6531 |
 | v9    | 0.7792     | 0.9724 | 0.6500 |
 | v11   | 0.7792     | 0.9349 | 0.6680 |
+| v12   | 0.7768     | 0.9581 | 0.6532 |
 | v7    | 0.7705     | 0.8758 | 0.6877 |
 | v6    | 0.7688     | 0.8719 | 0.6875 |
+| v13   | 0.7639     | 0.9400 | 0.6434 |
+| v14   | 0.7584     | 0.9361 | 0.6374 |
 | v8    | 0.7559     | 0.9003 | 0.6514 |
 
 ---

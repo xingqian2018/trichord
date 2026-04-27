@@ -29,7 +29,7 @@ Examples of what "plain SSH" covers:
 - Slurm submissions via `slaunch` or `sbatch`: `ssh awscode 'cd ~/Project/... && slaunch small 1 <job_name> <script> ...'`
 - Cron-related work (installing/listing/removing crontab entries, status checks): `ssh gcpcode 'crontab -l'`
 
-Quote the remote command with **single quotes** so the local shell doesn't expand `$` / `` ` ``. If the remote command itself contains single quotes, escape using `'"'"'` or switch to a heredoc via `ssh <host> bash -s <<'EOF' ... EOF`.
+Quote the remote command with **single quotes** so the local shell doesn't expand `$` / `` ` ``. If the remote command itself contains single quotes, escape using `'"'"'`. **Do not** reach for heredoc syntax as a fallback — see the absolute ban below.
 
 If the remote command needs a specific working directory, chain it: `cd <dir> && <cmd>`. Do NOT assume `$HOME` is the right cwd for Slurm submissions.
 
@@ -47,13 +47,24 @@ Skip the profile load only for trivial built-ins where you are certain nothing c
 
 ### Tmp-file trick for complex commands
 
-When the remote command has awkward quoting (nested quotes, multi-line scripts, long pipelines, heredocs inside the command, etc.), avoid fighting the escaping. Instead:
+**Absolute rule: never use heredoc syntax in this skill.** No `<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, no custom terminators — none of it, anywhere. Not for building remote files, not for sending commands, not for "just this once because it's simple". The ban is total. If you find yourself typing `<<` in any tool call this skill drives, stop.
 
-1. Write the command to a temporary script under `~/tmp/` on the **remote** host (e.g. `~/tmp/ssh_run_<timestamp>.sh`).
-2. `chmod +x` it and run it: `ssh <host> 'bash ~/tmp/ssh_run_<timestamp>.sh'`.
-3. **Clean up on success** — remove the tmp file once the command completes successfully (`rm ~/tmp/ssh_run_<timestamp>.sh`). On failure, leave it so the user can inspect.
+When the remote command has awkward quoting (nested quotes, multi-line scripts, long pipelines, etc.), use the **write-locally → scp → ssh-execute** pattern. Always.
 
-Use `~/tmp/` specifically (not `/tmp/`) so the scratch file lives under the user's home and is easy to find. Create the directory if missing (`mkdir -p ~/tmp`).
+1. Write the script to a **local** file (e.g. `/tmp/sshrun/<name>.sh`) using the Write tool.
+2. `scp` it to the remote `~/tmp/` directory: `scp /tmp/sshrun/<name>.sh <host>:~/tmp/<name>.sh`.
+3. Execute it: `ssh <host> 'bash ~/tmp/<name>.sh'`.
+
+Use `~/tmp/` specifically (not `/tmp/`) on the remote so the scratch file lives under the user's home. Create the directory first if missing: `ssh <host> 'mkdir -p ~/tmp'`. Leave the script in place after execution — no cleanup needed.
+
+#### Why the heredoc ban is absolute
+
+The pattern `ssh host "cat > foo.sh <<'EOF' ... EOF; bash foo.sh"` looks tempting and seems equivalent to scp. It is not. Two things go wrong together:
+
+1. The whole multi-line string is one double-quoted local arg. Backslash-newline continuations (`\\` in the source → `\<newline>` after local processing) get **eaten as line continuation by the remote shell's tokenizer before heredoc body collection completes**, collapsing lines.
+2. With the heredoc body collapsed, the `EOF` terminator may not be recognized on its own line, so `cat` slurps **everything** including the trailing `chmod +x ... && bash foo.sh` lines into the script body. The resulting script is **self-recursive** — running it submits one slaunch, errors on the literal `EOF` line, then re-invokes itself via the embedded `bash foo.sh`. This causes a runaway: tens of slurm jobs submitted in seconds before you notice.
+
+**This bit us on `golden_caption_v14s2` — 29 stray Slurm jobs were submitted before being caught and `scancel`'d.** That incident is the reason for the absolute ban. There is no version of "but I'll be careful this time" that is worth re-litigating. Use scp.
 
 ## Composing with other skills
 

@@ -116,6 +116,7 @@ slaunch cpu 1x1 golden_caption_<VERSION>s3 \
     --output_credential credentials/gcs.secret \
     --num_concurrency 32 \
     --batch_size 100 \
+    --timeout 400 \
     --max_retry 3 \
     --force_gen_model <STAGE3_GEN_MODEL>
 ```

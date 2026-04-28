@@ -49,8 +49,8 @@ slaunch cpu 1x1 slice_multi \
 - `--input_lancedb_path` *(required)* — source Lance URI (use `gs://...`). `.lance` suffix is auto-appended. The input must have a `source_dataset` column (script errors out otherwise).
 - `--output_lancedb_path` *(required, `nargs="+"`)* — one or more output Lance URIs, paired with `--dataset_name`.
 - `--dataset_name` *(required, `nargs="+"`)* — one or more `source_dataset` values to slice. Duplicates are rejected; `len(dataset_name) == len(output_lancedb_path)` is enforced.
-- `--max_concurrency` *(default 32)* — number of parallel scanner threads. Each owns one fragment per task; work-stealing across threads. Bump higher (e.g. 64) on cloud storage if your bandwidth allows.
-- `--batch_size` *(default 4096)* — rows per scanner batch. Larger → fewer Python boundary crossings but coarser progress / higher peak memory per batch. 4096 is a good cloud-storage working point.
+- `--max_concurrency` *(default 256)* — number of parallel scanner threads. Each owns one fragment per task; work-stealing across threads. Bump higher (e.g. 64) on cloud storage if your bandwidth allows.
+- `--batch_size` *(default 100000)* — rows per scanner batch. Larger → fewer Python boundary crossings but coarser progress / higher peak memory per batch. 4096 is a good cloud-storage working point.
 - `--max_rows_per_file` *(default 100000)* — rows per output Lance datafile. Lance rotates datafiles when this fills. Drop (e.g. 10k) if you want more downstream parallelism on the read; raise (e.g. 1M) for fewer files on huge slices.
 
 ## Architecture / why it's fast
@@ -90,10 +90,13 @@ These are the canonical per-dataset slices that have already been carved out of 
 
 | `source_dataset` | Output Lance URI |
 |---|---|
-| `screen2words_rico` | `gs://nv-00-10206-lancedb/prod/image/text_related/screen2words_rico_slice_from_maintable_0427.lance/` |
-| `slide_audit`       | `gs://nv-00-10206-lancedb/prod/image/text_related/slide_audit_slice_from_maintable_0427.lance/` |
-| `voxel51_rico`      | `gs://nv-00-10206-lancedb/prod/image/text_related/voxel51_rico_slice_from_maintable_0427.lance/` |
-| `zennodo10k`        | `gs://nv-00-10206-lancedb/prod/image/text_related/zennodo10k_slice_from_maintable_0427.lance/` |
+| `screen2words_rico` | `gs://nv-00-10206-lancedb/prod/image/text_related/screen2words_rico_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `slide_audit`       | `gs://nv-00-10206-lancedb/prod/image/text_related/slide_audit_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `voxel51_rico`      | `gs://nv-00-10206-lancedb/prod/image/text_related/voxel51_rico_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `zennodo10k`        | `gs://nv-00-10206-lancedb/prod/image/text_related/zennodo10k_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `synthetic_scene_text_v0`                     | `gs://nv-00-10206-lancedb/prod/image/synthetic_scene_text/synthetic_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `synthetic_chinese_scene_text_v0`             | `gs://nv-00-10206-lancedb/prod/image/synthetic_scene_text/synthetic_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `synthetic_traditional_chinese_scene_text_v0` | `gs://nv-00-10206-lancedb/prod/image/synthetic_scene_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
 
 Naming convention: `<dataset>_slice_from_maintable_<MMDD>.lance`. When you re-cut from a fresher main table, bump the date suffix — don't overwrite the previous slice in place.
 

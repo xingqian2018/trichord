@@ -52,15 +52,27 @@ Quote the remote command with **single quotes** so the local shell doesn't expan
 
 If the remote command needs a specific working directory, chain it: `cd <dir> && <cmd>`. Do NOT assume `$HOME` is the right cwd for Slurm submissions.
 
-**Load the user profile by default.** Most remote commands rely on aliases, shell functions, `$PATH` entries, conda/venv activation, or env vars that only exist once `~/.bashrc` / `~/.profile` is sourced. Non-interactive SSH does **not** source these by default, so the safe default is to wrap the remote command in a login shell:
+**Load the user profile by default.** Most remote commands rely on aliases, shell functions, `$PATH` entries, conda/venv activation, or env vars that only exist once `~/.bashrc` / `~/.profile` is sourced. Non-interactive SSH does **not** source these by default. The safe default is:
 
 ```
-ssh <host> 'bash -lc "cd <dir> && <cmd>"'
-# or
-ssh <host> 'source ~/.bashrc && cd <dir> && <cmd>'
+ssh <host> 'bash -c "shopt -s expand_aliases && source ~/.bashrc && cd <dir> && <cmd>"'
 ```
 
-This matters especially for `slaunch` — it is a shell function / alias defined in `~/.bashrc` (via `bashrc.sh`), not a binary on `$PATH`, so a plain `ssh <host> 'slaunch ...'` will fail with "command not found". The same pitfall hits conda envs, `s3_omni.py` wrappers, custom `PATH` additions, and any other bashrc-defined tooling.
+Three things this incantation gets right that simpler forms get wrong:
+
+1. **Outer `bash -c`.** The default SSH login shell on `gcpcode` is **csh**, not bash. So `ssh gcpcode 'source ~/.bashrc && ...'` fails with `Illegal variable name` (csh trying to interpret bash syntax). Wrapping in `bash -c "..."` forces a bash subshell regardless of what the user's login shell is.
+2. **`shopt -s expand_aliases`.** `slaunch` (and similar tooling) is a **bash alias**, not a function or `$PATH` binary — e.g. `alias slaunch="bash $HOME/Project/bashrc/sbatch_launch/main.sh"`. Non-interactive bash has alias expansion **disabled by default**. So even after `source ~/.bashrc` defines the alias, typing `slaunch ...` still fails with "command not found" until `expand_aliases` is on. `shopt -s expand_aliases` must come **before** `source`.
+3. **`source ~/.bashrc`** (rather than `bash -lc`). `-lc` triggers a login shell, which on Debian/Ubuntu reads `~/.profile` / `~/.bash_profile` — neither of which is guaranteed to chain into `~/.bashrc`. Sourcing `~/.bashrc` directly is more reliable for picking up aliases / `$PATH` additions / conda activation.
+
+This matters especially for `slaunch` — a plain `ssh <host> 'slaunch ...'` will fail with "command not found". The same pitfall hits conda envs, `s3_omni.py` wrappers, custom `PATH` additions, and any other bashrc-defined tooling.
+
+**Escape hatch — bypass the alias entirely.** When the alias-expansion path is fragile (or you want to keep the script independent of the user's bashrc state), call the alias *target* directly. For `slaunch`, that's:
+
+```
+bash $HOME/Project/bashrc/sbatch_launch/main.sh <args...>
+```
+
+Useful inside `~/tmp/<name>.sh` scripts launched via the scp pattern below.
 
 Skip the profile load only for trivial built-ins where you are certain nothing custom is needed (e.g. `ls`, `cat`, `crontab -l`).
 

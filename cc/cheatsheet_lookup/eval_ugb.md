@@ -69,11 +69,12 @@ CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_alt \
 slaunch cpu 1x1 ugb_score_<some_run_name> \
     projects/cosmos3/vfm/evaluation/text_to_image/compute_unigenbench_metric.py \
     --input_folder <stage1_output_path> \
-    --s3_cred credentials/gcp_checkpoint.secret \
+    --s3_cred credentials/gcs.secret \
     --benchmark_name <benchmark_name> \
     --batch_size 1170 \
-    --judge_model gemini-3-flash \
-    --num_concurrency 8 \
+    --judge_model gemini-3.1-pro \
+    --num_concurrency 128 \
+    --signature gemini-3p1-pro \
     --extension webp \
     --force_rescore
 ```

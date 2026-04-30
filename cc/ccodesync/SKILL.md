@@ -1,16 +1,32 @@
 ---
 name: ccodesync
-description: Two stages. S1 — collect git status for ~/Project/{imaginaire4,imaginaire4_alt,imaginaire4_sila,bashrc,trichord} across n0, awscode, gcpcode, render one table, ask to sync. S2 — on explicit yes, push+pull any unambiguously-drifted repo, then re-render the S1 table as proof.
+description: Two stages. S1 — collect git status for ~/Project/{imaginaire4,imaginaire4_alt,imaginaire4_sila,bashrc,trichord} across the tracked machines (AIZ + n0 + awscode + gcpcode when launched from AIZ; n0 + awscode + gcpcode when launched from n0), render one table, ask to sync. S2 — on explicit yes, push+pull any unambiguously-drifted repo, then re-render the S1 table as proof.
 user_invocable: true
 ---
 
 ## Hosts
 
-Local is `xingqian-AIZ` or `xingqianx-NVDesktop0` (`n0`). SSH reachable: `awscode`, `gcpcode`. **AIZ→n0 is one-way** — from n0, AIZ is unreachable; mark as "not reachable from n0".
+**First, determine which machine you are on by running `hostname`.** The local machine is itself a tracked repo host — its row comes from running the script locally, never from SSH-to-self. Reachability differs by host:
+
+- `xingqian-AIZ` (AIZ workstation) — tracked set is **4 machines**: {AIZ, n0, awscode, gcpcode}. AIZ row comes from local invocation; the other three via SSH. Local row is labeled `AIZ` (not `n0`).
+- `xingqianx-NVDesktop0` — this machine **is** `n0`. Tracked set is **3 machines**: {n0, awscode, gcpcode}. n0 row comes from local invocation; awscode/gcpcode via SSH. AIZ is **out of scope** from n0 — don't try to reach it, don't mention it, don't add a row for it.
+
+Pick the Stage 1 command set that matches your hostname.
 
 ## Stage 1 — collect & report
 
-Run in parallel (awscode's login shell is tcsh, so pipe the script via stdin, don't `bash -lc`):
+Run all calls in parallel (awscode's login shell is tcsh, so pipe the script via stdin, don't `bash -lc`).
+
+**If on `xingqian-AIZ`** — local invocation gives the AIZ row, plus three SSH calls (4 machines total):
+
+```
+bash ~/.claude/skills/ccodesync/check_repos.sh AIZ
+ssh n0      'bash -s n0'      < ~/.claude/skills/ccodesync/check_repos.sh
+ssh awscode 'bash -s awscode' < ~/.claude/skills/ccodesync/check_repos.sh
+ssh gcpcode 'bash -s gcpcode' < ~/.claude/skills/ccodesync/check_repos.sh
+```
+
+**If on `xingqianx-NVDesktop0` (n0)** — local invocation gives the n0 row, plus two SSH calls (3 machines total). Do NOT add an AIZ call:
 
 ```
 bash ~/.claude/skills/ccodesync/check_repos.sh n0
@@ -22,7 +38,7 @@ Script emits `<machine>|<repo>|<branch>|<yes/no>|<sync>`. Sync values: `-` · `b
 
 **Reply = the table only, then one prompt line. No commentary, no readouts, no anomaly notes.**
 
-Columns: `machine | repo | branch | unstaged | sync`. Sort by machine (n0, awscode, gcpcode, then unreachable); keep the script's repo order within each block. Render `unstaged`: `yes`→`⚠️`, `no`→`-`.
+Columns: `machine | repo | branch | unstaged | sync`. Sort by machine in fixed order: `AIZ, n0, awscode, gcpcode` — skip any machine that wasn't queried (e.g. when launched from n0 there's no AIZ block). Keep the script's repo order within each block. Render `unstaged`: `yes`→`⚠️`, `no`→`-`.
 
 **Table format: wrap the whole table in a fenced code block (triple backticks, no language tag) so it renders as monospace and columns line up.** Inside the fence, pad each column to the width of its widest value + 1 space, separate columns with ` | `, and include a header row plus a `---` separator row. Example shape:
 
@@ -70,7 +86,7 @@ Action: on each `behind` machine for this repo, `git pull --ff-only`. No commit,
 
 Drift in unrelated repos does NOT block this repo's sync.
 
-Remote commands go through `ssh <host> 'bash -lc "cd ~/Project/<repo> && <cmd>"'`.
+Remote commands go through `ssh <host> 'bash -lc "cd ~/Project/<repo> && <cmd>"'`. The local machine runs commands without SSH (`cd ~/Project/<repo> && <cmd>` directly). From `xingqian-AIZ`: AIZ is local, {n0, awscode, gcpcode} are remote. From `xingqianx-NVDesktop0` (n0): n0 is local, {awscode, gcpcode} are remote — AIZ is out of scope, ignore it entirely.
 
 **Result output, in this order:**
 

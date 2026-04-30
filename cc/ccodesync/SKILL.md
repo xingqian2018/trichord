@@ -15,7 +15,7 @@ Pick the Stage 1 command set that matches your hostname.
 
 ## Stage 1 — collect & report
 
-Run all calls in parallel (awscode's login shell is tcsh, so pipe the script via stdin, don't `bash -lc`).
+**Issue every call in a single parallel tool message — never one-by-one.** Fan out the local `bash` and all SSH calls together in one message; serial execution is needlessly slow and never warranted here. (awscode's login shell is tcsh, so pipe the script via stdin, don't `bash -lc`.)
 
 **If on `xingqian-AIZ`** — local invocation gives the AIZ row, plus three SSH calls (4 machines total):
 
@@ -85,6 +85,8 @@ Action: on each `behind` machine for this repo, `git pull --ff-only`. No commit,
 ### Common
 
 Drift in unrelated repos does NOT block this repo's sync.
+
+**Same parallelism rule as Stage 1: fan out every git command — local pulls, remote pulls, remote pushes — in a single tool message.** Do not serialize per-repo or per-host. (Pull-then-push on the same machine should still be one chained shell command, not two separate tool calls.)
 
 Remote commands go through `ssh <host> 'bash -lc "cd ~/Project/<repo> && <cmd>"'`. The local machine runs commands without SSH (`cd ~/Project/<repo> && <cmd>` directly). From `xingqian-AIZ`: AIZ is local, {n0, awscode, gcpcode} are remote. From `xingqianx-NVDesktop0` (n0): n0 is local, {awscode, gcpcode} are remote — AIZ is out of scope, ignore it entirely.
 

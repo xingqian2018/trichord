@@ -255,6 +255,44 @@ If the macro regime is hostile (rising VIX + unresolved policy narrative + secto
 
 ---
 
+## Lesson 17 — Big Tech capex raises require commensurate revenue acceleration to be rewarded
+_Added: 20260429-1530_
+
+### What happened
+On April 29, 2026, four Big Tech mega-caps reported Q1 calendar 2026 results within two hours of each other. All four beat top-line and bottom-line consensus. Yet the after-hours dispersion was extreme:
+
+- **GOOGL**: Revenue $109.9B (+22% YoY, beat), Cloud +63% with $460B backlog, Search +19%, capex raised to $180-190B → **+7% AH**
+- **AMZN**: Revenue $181.52B (beat), AWS +28% (reaccelerating from +24%), advertising +24%, Q2 guide $194-199B → **+4% AH**
+- **MSFT**: Revenue $82.89B (beat), Azure +40% cc (in line with consensus), OpenAI exclusivity ENDED, $190B FY capex → **flat AH**
+- **META**: Revenue $56.31B (beat $55.45B est), EPS $7.31 adj (beat $6.79), capex raised to $125-145B → **-6% AH**
+
+The four-way contrast is informative because it isolates capex narrative as the differentiator: GOOGL raised capex AND showed revenue acceleration (Cloud +63% vs. prior +30s); AMZN's AWS reaccel was the clean second-derivative story; MSFT raised capex with Azure decelerating-or-flat; META raised capex without a corresponding revenue acceleration story. The market rewarded the capex raises with commensurate revenue acceleration and punished the ones without.
+
+### Why it happened
+The market is in the second year of the AI capex supercycle and is increasingly questioning AI ROI duration — i.e., when does the capex stop scaling and start producing operating leverage? The April 29 cluster gave investors four direct data points. They priced in the differentiator: capex raise + revenue accel = bullish (more demand justifies more capex); capex raise without revenue accel = bearish (capex is going up but the return curve isn't bending fast enough).
+
+The naive prior framework treated "Big Tech earnings catalyst" as a uniform event — beat = pop. The dispersion proved that's wrong on a cluster day. The right framework is: each name has its own capex/revenue ratio narrative, and the catalyst is whether that name's specific ratio is improving (revenue acceleration > capex acceleration) or deteriorating (capex acceleration > revenue acceleration).
+
+### What should have been done
+For each Big Tech pick going into a major earnings cluster, evaluate not just whether the company will beat consensus, but specifically whether its capex/revenue trajectory is favorable:
+
+1. Is the company raising capex? (Often yes given the AI supercycle.)
+2. Is revenue growth accelerating in parallel? (The key differentiator.)
+3. If both raised, is the ratio improving (revenue % growth > capex % growth) or deteriorating?
+
+A pick that satisfies "yes / yes / improving" is a strong post-earnings continuation candidate. A pick with "yes / no" or "yes / yes / deteriorating" is a coin flip at best — the market may punish even a clean fundamental beat.
+
+### Going forward
+**Rule**: Before a Big Tech pick into earnings, build a one-line summary: "FY capex trajectory: X → Y. Revenue growth trajectory: A% → B%. Ratio: Y/A vs X/B = improving/deteriorating." Only pick the names where the ratio is improving for full weight; the others get half weight or skip.
+
+**Anti-pattern to catch**: "Strong fundamentals + earnings beat = pop." This was the prior framework. It's wrong on cluster days where multiple peers report at the same time and provide forced comparison. Investors will use whichever is the worst capex/revenue ratio as the "tell" for the entire AI capex narrative.
+
+**Condition**: This lesson is most powerful for AI-capex-heavy mega-caps (MSFT, GOOGL, AMZN, META, NVDA) during their 2026-2027 earnings cycle, where capex is uniformly large and revenue acceleration is the real differentiator. It applies less for consumer hardware (AAPL) or pharma (LLY) where capex is a small fraction of revenue.
+
+**Contrast to Lesson 15**: Lesson 15 said clean beats can fail to rally on macro-hostile days. Lesson 17 adds: clean beats can fail to rally on FUNDAMENTAL-favorable days too, if the capex/revenue narrative is unfavorable. Both can apply simultaneously — a beat in a macro-hostile environment with a deteriorating capex/revenue ratio is a near-certain disappointment trade.
+
+---
+
 ## Lesson 14 — Tariff/regulation effective dates routinely differ from signing/announcement dates by months
 _Added: 20260417-0930_
 

@@ -22,6 +22,7 @@ from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from slack_bolt.async_app import AsyncApp
 
 CREDS = json.loads((Path(__file__).parent.parent / "credentials" / "slack.json").read_text())
+SYSTEM_PROMPT = (Path(__file__).parent / "slack_gsb_system_prompt.md").read_text()
 
 SLACK_ROLLOVER_AT = 3000  # Seal current message and start a fresh one before hitting the limit
 MAX_VISIBLE_TOOLS = 3  # How many in-flight tools to render before collapsing the rest
@@ -122,6 +123,10 @@ class SlackClaudeSession:
         self.pending_tool_tracker: dict[str, ToolUseBlock] = {}
         self.always_allow_pending_tool_flag = False
 
+        self.terminated: bool = False
+        self.client: ClaudeSDKClient | None = None
+        self.run_task: asyncio.Task | None = None
+
     def has_pending(self) -> bool:
         return bool(self.pending)
 
@@ -188,7 +193,11 @@ class SlackClaudeSession:
         }.get(verdict, ":grey_question: Error")
 
     async def update_main(self):
+        if self.terminated:
+            return
         async with self.lock:
+            if self.terminated:
+                return
             if self.main_ts is None:
                 await self.post_fresh_thinking()
 
@@ -221,7 +230,11 @@ class SlackClaudeSession:
         return
 
     async def update_main_with_verdict(self, verdict: str, message: Optional[str] = None):
+        if self.terminated:
+            return
         async with self.lock:
+            if self.terminated:
+                return
             body = self.response_str
             body += self.create_pending_tool_message()
             body += self.create_permission_verdict_message(verdict, message)
@@ -237,6 +250,8 @@ class SlackClaudeSession:
 
     async def post_fresh_thinking(self):
         assert self.main_ts is None
+        if self.terminated:
+            return
         if self.lock:
             try:
                 msg = await app.client.chat_postMessage(
@@ -285,16 +300,7 @@ class SlackClaudeSession:
         return True
 
     async def terminate(self) -> None:
-        if self.session_id is not None:
-            try:
-                options = ClaudeAgentOptions(
-                    resume=self.session_id,
-                    can_use_tool=self.can_use_tool,
-                )
-                async with ClaudeSDKClient(options=options) as client:
-                    await client.interrupt()
-            except Exception:
-                self.logger.exception("failed to interrupt claude session")
+        self.terminated = True
         async with self.lock:
             self.always_allow_pending_tool_flag = False
             self.pending_tool_tracker.clear()
@@ -303,10 +309,17 @@ class SlackClaudeSession:
                 fut = self.pending.pop(tid)
                 if not fut.done():
                     fut.set_result(("deny", "user terminated session"))
+        if self.client is not None:
+            try:
+                await self.client.interrupt()
+            except Exception:
+                self.logger.exception("failed to interrupt active claude client")
+        if self.run_task is not None and not self.run_task.done():
+            self.run_task.cancel()
         try:
             await app.client.chat_postMessage(
                 channel=self.channel, thread_ts=self.thread_ts,
-                text=":octagonal_sign: _terminated by user — always-allow cleared, interrupt sent_",
+                text=":octagonal_sign: _terminated by user — always-allow cleared, session interrupted, no further messages_",
             )
         except Exception:
             self.logger.exception("failed to post terminate notice")
@@ -347,6 +360,8 @@ class SlackClaudeSession:
         return PermissionResultDeny(message=message or "user denied")
 
     async def run(self, text: str, user_id: str) -> None:
+        self.terminated = False
+        self.run_task = asyncio.current_task()
         async with self.lock:
             self.main_ts = None
             self.response_str = ""
@@ -376,28 +391,40 @@ class SlackClaudeSession:
         options = ClaudeAgentOptions(
             resume=self.session_id,
             can_use_tool=self.can_use_tool,
+            system_prompt=SYSTEM_PROMPT,
         )
 
-        async with ClaudeSDKClient(options=options) as client:
-            await client.query(f"[UserID: {user_id}] {text}")
-            async for msg in client.receive_response():
-                if isinstance(msg, SystemMessage):
-                    sid = msg.data.get('session_id')
-                    if sid and self.session_id is None:
-                        self.session_id = sid
-                        await save_cached_session_id(self.key, sid)
-                await self.try_finalize_gear(msg)
-                if isinstance(msg, ResultMessage):
-                    await self.update_main()
-                    async with self.lock:
-                        self.response_str = ""
-                        self.main_ts = None
-                    break
-                fragment = self.render_message(msg)
-                if fragment:
-                    async with self.lock:
-                        self.response_str += "\n" + fragment
-                await self.update_main()
+        try:
+            async with ClaudeSDKClient(options=options) as client:
+                self.client = client
+                await client.query(f"[UserID: {user_id}] {text}")
+                async for msg in client.receive_response():
+                    if self.terminated:
+                        break
+                    if isinstance(msg, SystemMessage):
+                        sid = msg.data.get('session_id')
+                        if sid and self.session_id is None:
+                            self.session_id = sid
+                            await save_cached_session_id(self.key, sid)
+                    await self.try_finalize_gear(msg)
+                    if isinstance(msg, ResultMessage):
+                        if not self.terminated:
+                            await self.update_main()
+                        async with self.lock:
+                            self.response_str = ""
+                            self.main_ts = None
+                        break
+                    fragment = self.render_message(msg)
+                    if fragment and not self.terminated:
+                        async with self.lock:
+                            self.response_str += "\n" + fragment
+                    if not self.terminated:
+                        await self.update_main()
+        except asyncio.CancelledError:
+            self.logger.info("claude run task cancelled by terminate")
+        finally:
+            self.client = None
+            self.run_task = None
 
 
 def parse_schedule_anchor(text: str) -> dict | None:

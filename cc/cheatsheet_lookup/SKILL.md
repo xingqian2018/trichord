@@ -32,12 +32,27 @@ If the user asks to set up a VSCode debug config for one of the cheatsheet runs 
 - The target is `<project_repo>/.vscode/launch.json`, which is a symlink to `<project_repo>/.vscode/launch_gsb.json`. Writing through the symlink is fine — both paths refer to the same file.
 - If `<project_repo>/.vscode/launch.json` is not a symlink to `<project_repo>/.vscode/launch_gsb.json`, you need to symlink it yourself.
 - This file lives on a **remote cluster** (GCP or AWS), not on `n0`. The user must specify which one; use the `ssh_run` skill to write the file on the chosen host.
-- **Rewrite the entire file** in the format below. Do not merge with prior contents.
+- **Append, do not overwrite.** The file accumulates a history of recent debug sessions so the user can switch back to an earlier config in one click. Procedure:
+  1. **Read** the existing `launch_gsb.json` first (via `ssh <host> 'cat ...'`). If the file is empty or missing, start from the skeleton below.
+  2. **Comment out only the currently-live entry/entries.** Wrap each live `{ ... }` object in a `/* ... */` block comment. Leave the `"version"` field, the array brackets, and **all already-commented entries** untouched — never re-format, merge, or clean up the existing mothball blocks. They pipeline up: each successive update just appends one more `/* ===== superseded ===== */` block on top of the existing ones. VSCode's `launch.json` parser tolerates `/* ... */` the same way it tolerates the `//` dividers, so an arbitrarily long stack is fine.
+  3. **Append the new entry** as the last (live) element of `"configurations"`, in the format below. Place any trailing comma **inside** the block comment so the live array stays well-formed regardless of how many prior entries got mothballed.
+  4. **Write** the merged file back via the `ssh_run` write-locally → scp pattern (no heredocs).
+- **An update always introduces a new live entry.** Commenting out the prior config without adding a new live one is not a valid outcome — if there is nothing new to add, the user is not asking for an update. Ask them what the new config should be before touching the file.
+
+Skeleton — what the file should look like after one append on top of one prior run:
 
 ```JSON
 {
     "version": "0.2.0",
     "configurations": [
+
+        /* ===== superseded =====
+        {
+            "name": "<old_debugname>",
+            ...prior config body...
+        },
+        */
+
         {
             "name": "<debugname>",
             "type": "debugpy",
@@ -73,7 +88,7 @@ Field guide:
 - `<double_quoted_comma_delimited_arguments>` — each CLI flag and value as its own quoted string, comma-separated. Translate the cheatsheet's shell command into this form (drop backslash continuations; keep one token per array entry).
 - `<random_between_20000_to_30000>` — pick any free port in that range.
 
-The `///` lines are non-standard JSON, but VSCode's `launch.json` parser tolerates them. Keep them as a visual divider.
+The `///` and `/* ... */` markers are non-standard JSON, but VSCode's `launch.json` parser tolerates both. Use `///` as a visual divider for the live entry; use `/* ... */` to mothball superseded entries.
 
 Repo lookup table:
 

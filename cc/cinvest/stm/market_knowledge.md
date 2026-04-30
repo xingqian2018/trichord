@@ -1,6 +1,6 @@
 # Market Knowledge Snapshot
 
-_Last updated: 20260421-1030_
+_Last updated: 20260429-1530_
 
 > Investor profile: aggressive swing trading, 2–8 week hold horizon, daily monitoring cadence.
 > Signals are evaluated for near-term catalyst plays. Long-term structural trends are noted as context, not as primary trade drivers.
@@ -11,27 +11,27 @@ _Last updated: 20260421-1030_
 
 | Instrument                  | Value / Range        | Notes                              |
 |-----------------------------|----------------------|------------------------------------|
-| Fed Funds Rate (target)     | 3.50% – 3.75%        | Last changed: 2025; held March 17–18, 2026 FOMC |
-| 10-Year Treasury Yield      | ~4.27%               | Up slightly from 4.24% on Apr 17 as peace-premium unwinds |
-| 2-Year Treasury Yield       | ~3.72%               | Curve: NORMAL (+55 bps spread)     |
-| Next FOMC Meeting           | April 28–29, 2026    | Expected action: HOLD (~83% probability per CME FedWatch) |
+| Fed Funds Rate (target)     | 3.50% – 3.75%        | **HELD TODAY** at Apr 28-29 FOMC, 8-4 dissent vote (Miran wanted -25bp; 3 others wanted to remove forward-cut language) |
+| 10-Year Treasury Yield      | ~4.27%               | Range-bound on absorbed oil shock |
+| 2-Year Treasury Yield       | ~3.72%               | Curve: NORMAL (+55 bps spread) |
+| Next FOMC Meeting           | June 16-17, 2026     | Expected action: HOLD (oil shock + 4-dissent hawkish split makes June cut unlikely) |
 
 ### Fed Narrative
-Fed is 8 days from the April 28-29 FOMC — clean hold expected. CME FedWatch shows 83% no-change probability at this meeting; market pricing one more 25bp cut through end-2026 most likely at Sept/Nov meeting. Powell's possibly-final meeting as chair — Kevin Warsh confirmation hearing today was a market input (stocks slipped amid Warsh hearing per Yahoo Finance reporting). April CPI (released May 12) will be the first post-Iran-peace inflation print — if oil deflation shows through to headline and core remains benign, June cut odds could revive.
+**Powell's likely final meeting** (Trump nominated Warsh; confirmation pending). The 8-4 dissent is the first 4-dissent FOMC vote since October 1992 — a structurally hawkish split: Miran wanted a cut, but 3 hawks pushed to REMOVE forward-cut language. Net signal: rate cuts are now meaningfully less likely in 2026 than the market priced in April. With March CPI at 3.3% (gas-driven), and Brent oil now at $118 (Iran blockade reactivated today), the inflation runway is widening, not narrowing. Market repriced cut odds DOWN today despite the meeting being a "hold" — the dissent hawkishness was the surprise.
 
 ---
 
 ## Equity Indices
 
-| Index       | Level        | YTD Change   | Long-term signal?                   |
-|-------------|--------------|--------------|-------------------------------------|
-| S&P 500     | 7,109.14     | ~+4.3%       | **DOWN -0.6%** from Apr 17 ATH (7,143) — peace uncertainty |
-| NASDAQ      | 24,404.39    | ~+7.4%       | **DOWN -0.6%** from Apr 17 ATH (24,498) |
-| DJIA        | 49,442.56    | ~+1.0%       | **DOWN -0.6%** from Apr 17 (49,701) — pre-50K stall |
-| VIX         | 19.50        | —            | **UP +3.34%** from 17.28 — risk pricing returning |
+| Index       | Level        | YTD Change   | Long-term signal? |
+|-------------|--------------|--------------|---------------------|
+| S&P 500     | 7,137.90     | ~+4.7%       | **+1.05%** today, near Apr 17 ATH (7,143) — absorbed oil shock |
+| NASDAQ      | 24,657.57    | ~+8.5%       | **+1.64%** today, fresh ATH territory — earnings strength dominant |
+| DJIA        | 49,490.03    | ~+1.1%       | **+0.69%** today, 1.0% below 50K |
+| VIX         | 18.92        | —            | **DOWN -2.97%** despite oil shock — surprising complacency |
 
 ### Market Narrative
-April 21: Market pulled back from Apr 17 ATHs as US-Iran peace talks stalled ahead of ceasefire expiry. Trump extended ceasefire at Pakistan's request but talks in limbo — VP Vance cancelled Pakistan trip. Iran's parliamentary speaker accused US of "imposing a siege." Markets digesting Kevin Warsh Fed chair confirmation hearing. VIX up +3.34% to 19.50 shows risk pricing is returning but still in confident range. The pullback is orderly, not panic — Q1 earnings season just entering its biggest week (Apr 21–30). RTX and GE Aerospace both reported strong Q1 beats today BUT stocks dropped on tariff/geopolitical overhang — a signal that even clean catalysts cannot break through macro noise today.
+Markets are calmly absorbing two simultaneous shocks: (1) Iran naval blockade re-escalated by Trump TODAY ($118 Brent, +6%, highest since June 2022 — UAE exited OPEC), and (2) FOMC's hawkish 4-dissent split. Yet S&P set a new ATH and VIX FELL. The reason: Big Tech earnings are delivering the AI capex thesis at scale. Today's reports collectively validated >$600B in 2026 hyperscaler capex. The "AI is real and accelerating" narrative is overwhelming geopolitical and rate noise — but only for tech beneficiaries. Defensives, energy, defense are not benefiting evenly (RTX -1.7% to $172, despite Iran escalation — the market is fighting the Lesson 8 binary).
 
 ---
 
@@ -39,20 +39,20 @@ April 21: Market pulled back from Apr 17 ATHs as US-Iran peace talks stalled ahe
 
 | Indicator            | Latest Reading     | Trend                   | Long-term implication        |
 |----------------------|--------------------|-------------------------|------------------------------|
-| CPI (YoY)            | 3.3% (March 2026)  | Gas-driven spike; April will drop | June cut odds rebuilding as oil deflates |
-| Core CPI (YoY)       | 2.6% (March 2026)  | Stable                  | Benign underlying — Fed can be patient |
-| Core PCE (YoY)       | ~2.7% (Fed forecast)| Stable                 | Above 2% target, trending down |
-| Unemployment Rate    | 4.3% (March 2026)  | Fell from 4.4% Feb      | Labor market resilient |
-| Jobless Claims       | 207K (Apr 11 week) | Fell 11K — largest drop since Feb | Strong labor market confirmed |
-| Oil WTI              | ~$87              | Modestly up from Apr 17 low as ceasefire doubts emerge | Direct input to April CPI print |
-| Gold                 | ~$4,775/oz         | Near all-time high       | Institutional hedges staying in place despite peace progress |
+| CPI (YoY)            | 3.3% (March 2026)  | **Highest since Apr 2024** — 21% gas surge | Iran shock will keep inflation elevated through Q2 |
+| Core CPI (YoY)       | 2.6% (March 2026)  | Stable                   | Underlying still benign — Fed can wait |
+| Core PCE (YoY)       | ~3.0% (Apr est)    | Rising on energy passthrough | Fed has cover to remain on hold |
+| Unemployment Rate    | 4.4% (March 2026, revised up from 4.3%) | Slight loosening | Labor cooling but not crashing |
+| Initial Jobless Claims | 214K (Apr 18 wk) | Up 6K from 208K — still healthy | Labor market intact |
+| Brent Oil            | **$118** (+6% today) | **EXPLOSIVE** — UAE exited OPEC; Trump blockade reaffirmed | Direct CPI shock → Fed cut delay |
+| Gold                 | Near ATH (~$4,800) | Hedge demand intact      | Institutional defensive positioning |
 
 ### Key Risks (long-term lens)
-- **Iran ceasefire in limbo**: Ceasefire extended by Trump on Apr 21 at Pakistan's request but talks stalled. Both sides warn of resumed fighting. Strait of Hormuz control + Iran nuclear program are core sticking points. Binary-within-binary situation.
-- **FOMC leadership succession**: April 28-29 may be Powell's final meeting. Warsh's Fed chair confirmation hearing on April 21 moved markets — policy continuity uncertainty.
-- **Pharma tariff (100%, Section 232, effective July 31, 2026)**: Announced April 2, effective July 31 for Annex III large companies (LLY). EU/Japan/Korea get 15% rate. Generics/biosimilars exempt. Pre-earnings for LLY on April 30.
-- **Section 122 expiry (July 24)**: 10% tariff regime expires in ~94 days — replacement policy uncertain.
-- **Earnings-vs-macro hostility**: RTX +21% EPS beat + guidance raise → stock weak today. GE Aerospace +25% revenue beat → stock -6%. Macro noise overwhelming fundamental catalysts this session.
+- **Iran blockade reactivated TODAY**: Trump told Axios "blockade more effective than bombing." Iran refuses to reopen Hormuz until US lifts blockade. ~20% global oil shipments halted = "largest supply shock on record" (IEA). Oil at $118 vs $87 on Apr 21 = +35% in 8 days.
+- **Powell-Warsh transition**: Today's 8-4 dissent suggests internal Fed conflict over future rate path. Warsh likely confirmed before September. Policy continuity uncertain.
+- **OPEC fragmentation**: UAE exit from OPEC is a structural producer-side change. Multiple oil-cartel reset risk.
+- **Pharma tariff effective July 31**: ABBV/LLY pre-tariff Q1 results in hand. Tariff impact starts in 92 days. Pre-tariff "clean" results may overstate FY trajectory.
+- **AI capex sustainability**: Today's Big Tech earnings showed >$600B 2026 hyperscaler capex. META's stock dropped -6% AH on capex raise = market starting to question ROI duration even as totals expand.
 
 ---
 
@@ -60,238 +60,206 @@ April 21: Market pulled back from Apr 17 ATHs as US-Iran peace talks stalled ahe
 
 | Event / Policy                              | Status              | Sectors impacted                           | Transient or structural? |
 |---------------------------------------------|---------------------|--------------------------------------------|--------------------------|
-| Iran ceasefire extended by Trump (Apr 21)   | BINARY — extended but talks stalled | Energy (volatile), Defense (outperforming today), Tech (pulled back with market) | Transient per Lesson 8 |
-| FOMC April 28–29                            | Active — 8 days     | All sectors                                | Clean hold expected |
-| Warsh Fed chair confirmation (today)        | Active               | Rates, financials, tech                    | Transient political uncertainty |
-| Pharma tariffs Section 232 (effective Jul 31) | Not yet active — 100 days away | LLY, ABBV, PFE, MRK — April 29-30 earnings all pre-tariff | Structural when active |
-| Metals tariffs Section 232 (active Apr 6)   | Active               | Steel/aluminum/copper-intensive manufacturers | Structural while active |
-| Q1 2026 Earnings Season — peak week         | **IN PROGRESS** — RTX/GE reported Apr 21 (beat, stocks weak); TSLA/NOW Apr 22; LMT Apr 23; ABBV/GOOGL/MSFT/META Apr 29; AMZN Apr 29-30; LLY Apr 30 | ALL sectors — dominant near-term driver | Near-term binary (each print) |
-| Google Cloud Next 2026                      | **April 22–24 (starts TOMORROW)** | GOOGL — "Agentic Cloud" focus, Gemini announcements | Near-term catalyst |
-| LLY-Kelonia acquisition ($7B)               | Closed Apr 20 AMC    | LLY — initial -2.5% reaction, strategic diversification beyond GLP-1 | Long-term strategic positive |
-| NOW-Armis acquisition ($7.75B cash/debt)    | **Closed today Apr 21** | NOW — adds cybersecurity platform, triples security TAM | Strategic positive; integration risk |
+| **Trump Iran blockade reaffirmed (Apr 29)**  | ACTIVE — escalated | Energy ($118 Brent), Defense (mixed reaction), Tech (resilient) | Lesson 8 binary — both directions reverse 1-7 days |
+| **FOMC April 28-29 HOLD with 8-4 dissent**   | RESOLVED — hawkish | Rates-sensitive: financials, REITs, growth stocks | Structural shift — rate path now flatter |
+| Powell-Warsh chair transition                | Pending Senate      | All sectors                                | Structural |
+| Pharma tariff Sec 232 (effective Jul 31)    | 92 days away        | LLY, ABBV, PFE, MRK — Q1 reports pre-tariff | Structural when active |
+| Metals tariffs Sec 232 (active Apr 6)       | Active              | Steel/aluminum-intensive manufacturers      | Structural while active |
+| **Big Tech Earnings — Apr 29 cluster**       | RESOLVED — mixed   | Dispersion: GOOGL +7% AH, AMZN +4% AH, MSFT flat, META -6% AH | Sets up post-earnings continuation/divergence trades |
+| NVDA Q1 FY27 earnings — May 20              | 21 days away        | Semiconductors, AI infrastructure          | Near-term major catalyst |
+| AAPL Q2 FY26 — Apr 30 AHC (TOMORROW)         | Imminent           | Consumer hardware, services                | Last Tim Cook earnings before Sept 1 transition |
+| LLY Q1 — Apr 30 BMO (TOMORROW)              | Imminent — falling knife | Healthcare/Pharma                  | Pre-tariff frame; downtrend $1,020 → $852 (-16%) |
+| Google I/O 2026 — May 19-20                  | 20 days away        | GOOGL — Gemini frontier model demos       | Third leg of GOOGL catalyst cascade |
+| AVGO Q2 FY26 — June 4                       | 36 days away        | Semis, custom ASICs                        | First MTIA quantification |
 
 ### Policy Interpretation
-Three themes dominate today: (1) Iran ceasefire reality check — Trump extended but talks stalled, both sides rhetorical escalation. Per Lesson 8, both directions of geopolitical moves reverse within 1-7 days. VIX up to 19.50 reflects this reversion but not panic. (2) Earnings catalysts proving fragile — RTX/GE both beat but stocks weak. This is actionable: do not assume a clean earnings beat will produce an immediate price pop on days with macro noise; position sizing should reflect this. (3) Pharma tariff timeline remains a key distinction — LLY's Apr 30 earnings will be pre-tariff (effective Jul 31). At $903 (down 2.5% on Kelonia dip), LLY is now a more attractive entry vs $950+ on Apr 17.
+Three forces are now in tension: (1) Big Tech AI capex is being confirmed at >$600B 2026 — bullish for NVDA/AVGO/CEG; (2) Iran blockade reactivation drives oil shock and complicates Fed cut path — bearish for rate-sensitive sectors; (3) FOMC's 8-4 dissent is structurally hawkish — flatter rate path. The market is choosing AI capex as the dominant narrative TODAY (S&P ATH, VIX down) but this is not guaranteed to hold. The right trade is to position with the dominant narrative (tech AI infra) while sizing reasonably (full weight on confirmed names like NVDA/AVGO; half weight on binary catalysts like AAPL).
+
+Per Lesson 16, LLY's continuation slide ($903 → $852, -5.6% in 8 days) confirms the "falling knife" reading — wait for post-earnings confirmation before any entry.
+
+Per Lesson 15, today's mixed Big Tech reaction confirms that even clean beats (META beat, -6%) require macro alignment AND specific guidance differentiation to rally. GOOGL's +7% AH was earned by a Cloud beat + Search +19% (refuting AI-disruption thesis); META's -6% was the price for raising capex without a corresponding revenue acceleration story.
 
 ---
 
 ## Today's Stock Watchlist
 
 ### Big Tech Picks (3) — selected from Big Tech Pool
-_Unchanged lineup from Apr 17 (GOOGL/MSFT/NVDA). GOOGL remains #1 — Cloud Next starts TOMORROW._
+_Lineup change vs Apr 21: NVDA stays #1 (best setup pre-May 20 earnings), GOOGL replaces #2 slot for post-earnings momentum, AMZN replaces MSFT (AWS reacceleration vs MSFT in-line)._
 
-#### GOOGL — Alphabet Inc.  (~$336.40)
+#### NVDA — NVIDIA Corporation  (~$215)
 | Metric         | Value       | Signal                        |
 |----------------|-------------|-------------------------------|
-| GCP growth (Q4 2025) | +48% YoY | Fastest major cloud |
-| GCP margin     | 30% Q4 2025 | Expanding                     |
-| Gemini MAU     | 750M+       | Massive adoption scale        |
-| Citi PT        | $405        | 90-day positive catalyst watch |
-| KeyBanc note   | April 21 "Top Pick" before Cloud Next | +12% upside call |
-| Google Cloud Next | **April 22–24 (starts TOMORROW)** | "Agentic Cloud" — Gemini announcements |
-| Q1 earnings    | April 29 AHC | Primary financial catalyst   |
-| Google I/O     | May 19–20   | Third sequential catalyst     |
-| P/E fwd        | ~20x        | Depressed on AI fears that data refutes |
-| YTD April move | +20%        | Rallied into Cloud Next despite today's market pullback |
+| Q1 FY27 guide  | $78B revenue ±2% | Confirmed by April 29 hyperscaler capex |
+| 2026 hyperscaler capex | $600B+ confirmed | MSFT $190B + GOOGL $180-190B + META $125-145B + AMZN reacceleration |
+| Blackwell deployment | ~9 GW deployed; ~1,000 NVL72 racks/wk | Production at scale |
+| Rubin platform | 6 chips, samples shipping | H2 FY27 production on track |
+| TSMC Q1 2026   | $35.7B revenue | Demand-side validated |
+| Earnings date  | **May 20, 2026 5pm ET** | 21 days away |
+| P/E fwd        | ~38x        | Justified by >40% rev growth  |
+| Macro overlay  | LOW hostility | AI capex narrative dominant |
 
-**Thesis**: Triple catalyst structure starts TOMORROW. Cloud Next "Agentic Cloud" April 22-24 → Q1 earnings April 29 AHC (GCP ~$18.5-19B + Search stability) → Google I/O May 19-20. KeyBanc named GOOGL a "Top Pick" days before the conference. GOOGL has already moved ~20% in April — less "catch-up room" than on Apr 17, but the three-catalyst cascade is still unresolved.
-**Hot spot**: Cloud Next "Agentic Cloud" + pre-earnings Big Tech AI cluster. April 29 triple-earnings day (GOOGL + MSFT + META).
-**Catalyst**: Google Cloud Next April 22–24 (live enterprise AI proof, Gemini model announcements) → Q1 earnings April 29 AHC.
-**Target window**: 3–5 weeks (Cloud Next Apr 22 → Apr 29 earnings → optionally to Google I/O May 19).
-**Pricing question**: At $336, Citi PT $405 = 20.4% upside. GOOGL rallied +20% in April — part of the catch-up is done. Sellers believe Search cracks <12% YoY on AI-generated answers and GCP growth slows. Cloud Next in 1 day provides qualitative read before April 29 financial confirmation. The risk: if Cloud Next announcements disappoint (no new Gemini frontier model, incremental enterprise case studies), the stock sells off 5-10% before earnings even lands.
-**Key risk**: Q1 Search revenue <12% YoY OR GCP misses ~45% growth threshold.
-**Change trigger**: Q1 Search revenue <12% YoY OR GCP growth <40% YoY.
-**Primary source**: Alphabet Q4 2025 transcript; Citi 90-day watch (PT $405); KeyBanc April 21 "Top Pick" note; Cloud Next 2026 confirmed April 22-24.
+**Thesis**: Today's Big Tech earnings sweep validated $600B+ in 2026 hyperscaler capex — direct positive read for NVDA's May 20 earnings. MSFT raised capex to $190B, GOOGL raised to $180-190B, META raised to $125-145B, AMZN reaccelerating AWS to +28%. NVDA Q1 FY27 already guided to $78B; today's confirmation supports a beat-and-raise. Stock at $215 has not yet repriced for confirmed capex — best technical setup of any Big Tech name.
+**Hot spot**: AI infrastructure supercycle confirmation day.
+**Catalyst**: Q1 FY27 earnings May 20 + ongoing Rubin platform updates.
+**Target window**: 3–4 weeks (today → May 20 + 1-week post).
+**Pricing question** (honest): At $215, the stock has rallied from low-$190s but lags GOOGL/AMZN's +6-9% post-earnings reactions in the parallel AI trade. Sellers believe Rubin transition creates a Blackwell drawdown air-pocket. Buyers are positioning for the May 20 print to clear that fear. The risk: if a hyperscaler explicitly cuts Q1 capex commentary on the May 20 conference call, the multiple compresses fast. Today's data argues capex is being raised, not cut — but META's -6% AH shows the bar for "AI ROI" is rising.
+**Key risk**: Hyperscaler capex cut >20% OR tariff specifically targeting data center chips.
+**Change trigger**: May 20 Q1 FY27 revenue <$76B OR Q2 FY27 guide <$80B OR direct chip-tariff announcement.
+**Primary source**: NVDA IR May 20 confirmed; today's MSFT/GOOGL/META/AMZN earnings; TSMC Q1 results.
 
 ---
 
-#### MSFT — Microsoft Corporation  (~$424.16)
+#### GOOGL — Alphabet Inc.  (~$336 closing → opens ~$360 AH after +7%)
 | Metric         | Value       | Signal                        |
 |----------------|-------------|-------------------------------|
-| Azure growth   | +40% YoY (Q1 FY26) | Ahead of expectations   |
-| Copilot        | 150M MAU; Fortune 500 90%+ | Enterprise-scale adoption |
-| Prior ATH      | ~$480–490   | Still 12% below prior high   |
-| April 21 move  | +1.46% vs S&P -0.6% | **Bucking market pullback** |
-| P/E fwd        | ~32x        | Fair for 40% Azure growth     |
-| Q3 FY2026 earnings | April 29 AHC | Azure ≥37–40% + first Copilot ARR quantification |
+| Q1 2026 revenue | $109.9B (+22% YoY) | **BEAT** estimate $107.2B |
+| Google Cloud Q1 | $20.03B (+63% YoY) | **BLOWOUT** vs $18.05B est |
+| GCP backlog | $460B | Massive forward visibility |
+| Search revenue | +19% YoY | **REFUTES** AI-disruption fear (Lesson 3 confirmed) |
+| Net income | $62.57B (+81% YoY) | Operating leverage scaling |
+| 2026 capex guide | RAISED to $180-190B (from $175-185B) | AI infrastructure demand confirmed |
+| Stock Apr 29 reg close | ~$336 | Pre-earnings level |
+| Stock AH | **+7%** (~$360) | Strong post-earnings reaction |
+| Google I/O | May 19-20 | Third catalyst leg |
+| Macro overlay  | LOW hostility | Today's beat is the validation event |
 
-**Thesis**: Classic Lesson 3 recovery play. MSFT fell >30% from ATH on "AI displacement" fear that never materialized. April 29 Q3 FY2026 earnings is the definitive proof point. KEY SIGNAL: MSFT rallied +1.46% today while S&P was down -0.6% — institutional accumulation ahead of the print. This divergence is the pre-earnings positioning signal.
-**Hot spot**: April 29 triple-earnings day + enterprise AI recovery trade.
-**Catalyst**: Q3 FY2026 earnings April 29 AHC — Azure growth rate ≥37–40%; first-time Copilot ARR disclosure.
-**Target window**: 2–3 weeks (today → April 29 + 1-week post-earnings).
-**Pricing question**: At $424, MSFT is still 12% below prior ATH. The +1.46% rally today on a down market day shows institutional conviction building. A clean Azure ≥40% + Copilot ARR disclosure should re-rate toward $460-480. Entry today is $3 less than Apr 17's $426.92 — marginally improved.
-**Key risk**: Azure Q3 growth <35% for second consecutive quarter.
-**Change trigger**: Azure growth <35% for 2 consecutive quarters OR Copilot growth stalls materially.
-**Primary source**: Microsoft Q1 FY2026 earnings transcript (Oct 2025); April 29 AHC confirmed.
+**Thesis**: GOOGL delivered the cleanest Big Tech beat tonight — Cloud +63% with $460B backlog, Search +19% (refutes AI-disruption thesis), capex raised. Stock ran +7% AH. The post-earnings continuation trade typically lasts 1-3 weeks for this magnitude of beat, especially with Google I/O May 19-20 as a third catalyst. KeyBanc was already calling GOOGL a "Top Pick" pre-earnings.
+**Hot spot**: Confirmed AI capex + post-earnings momentum + I/O Gemini frontier model imminent.
+**Catalyst**: Post-earnings momentum 1-3 weeks → Google I/O May 19-20 (Gemini frontier).
+**Target window**: 2–3 weeks (today → I/O + 1 week).
+**Pricing question** (honest): At $360 AH, GOOGL is already up ~25% in April (from $290 lows). Some of the catch-up move is done. Sellers will argue the +63% Cloud beat is now priced in and Q2 will face tougher comps. Buyers see $460B backlog as multi-year visibility. The risk: if I/O announcements are incremental (no new Gemini frontier model), the stock gives back 5-10% even on great fundamentals.
+**Key risk**: I/O underwhelms OR Q2 guide implies decel below 18%.
+**Change trigger**: Q2 guidance growth <18% OR no new Gemini frontier model at I/O.
+**Primary source**: Alphabet Q1 2026 release Apr 29; CNBC AH coverage.
 
 ---
 
-#### NVDA — NVIDIA Corporation  (~$201)
-| Metric         | Value          | Signal                        |
-|----------------|----------------|-------------------------------|
-| TSMC Q1 2026   | $35.7B revenue | Blackwell demand confirmed    |
-| Hyperscaler capex | AMZN $200B, GOOGL $175–185B, MSFT $35B+/qtr | Demand runway confirmed |
-| Custom silicon | META+Google ASIC deals = additive, not substitution | AI compute market expanding |
-| SiFive investment | $400M Series G, $3.65B valuation | RISC-V CPUs working with CUDA + NVLink Fusion |
-| P/E fwd        | ~38x           | Justified by >40% rev growth  |
-| Near price     | $201           | Essentially flat since Apr 17 |
+#### AMZN — Amazon.com, Inc.  (~$249 closing → opens ~$259 AH after +4%)
+| Metric         | Value       | Signal                        |
+|----------------|-------------|-------------------------------|
+| Q1 2026 revenue | $181.52B | **BEAT** estimate $177.30B |
+| AWS Q1 revenue | $37.59B (+28% YoY) | **REACCELERATING** from +24% prior; beat $36.64B est |
+| AWS op income | $14.2B (vs $11.5B prior) | Margin expansion confirmed |
+| Advertising revenue | $17.24B (+24% YoY) | Beat +21.2% expectation |
+| Net income | $30.3B | Boosted by $16.8B Anthropic gain |
+| Q2 guide | $194-199B (16-19% growth) | Maintained accelerated pace |
+| Stock Apr 29 close | ~$249 | Pre-earnings level |
+| Stock AH | +4% (~$259) | Confirms post-earnings strength |
+| Macro overlay  | LOW hostility | AWS reacceleration is the narrative GOOGL/MSFT couldn't match |
 
-**Thesis**: TSMC's Q1 $35.7B beat validates Blackwell at scale. META/Google custom chips expand the AI compute market alongside NVDA GPUs. Hyperscaler Q1 earnings April 29 are proxy catalysts for NVDA's May FY2027 Q1 earnings. NVDA is essentially flat over the past week — not yet repricing the April 29 proxy event.
-**Hot spot**: AI infrastructure supercycle + hyperscaler capex readthrough April 29.
-**Catalyst**: Hyperscaler Q1 earnings April 29 (capex guidance = forward read for NVDA demand); May FY2027 Q1 earnings as core window.
-**Target window**: 3–5 weeks (today → hyperscaler earnings → into May earnings positioning).
-**Pricing question**: NVDA at $201 has not participated in April's Big Tech rally (GOOGL +20%, MSFT recovery). This non-participation reflects uncertainty about the hyperscaler capex guide. If capex is maintained/raised on April 29, NVDA re-rates. If it's cut, NVDA falls harder. Risk/reward skewed positive given hyperscaler earnings history and Blackwell ramp confirmation.
-**Key risk**: Hyperscaler capex cuts >20% in Q1 earnings OR new Section 232 tariff targeting data center chips.
-**Change trigger**: Hyperscaler capex cuts >20% in Q1 earnings OR new targeted data-center chip tariff.
-**Primary source**: TSMC Q1 2026 earnings ($35.7B); SiFive $400M Series G; April 29 hyperscaler earnings cluster.
+**Thesis**: AMZN's AWS reacceleration to +28% (from +24% prior quarter) is the single most bullish data point in tonight's mega-cap cluster. Combined with advertising +24% and a strong Q2 guide ($194-199B), AMZN has the cleanest second-derivative acceleration story. Post-earnings continuation 2-3 weeks is the trade. Anthropic gain boosted net income but is non-recurring — operating story is what matters and it's strong.
+**Hot spot**: AWS reacceleration day; Anthropic ecosystem play.
+**Catalyst**: Post-earnings momentum + AWS reacceleration narrative-build over Q2.
+**Target window**: 2–4 weeks.
+**Pricing question** (honest): At $259 AH, AMZN is mid-range ($240-280 trading). The AWS reaccel is the bull thesis core — if Q2 confirms, multiple expands. Bears: free cash flow fell 95% YoY on capex, $200B+ FY26 AI capex commitment. Q2 will be the operating-leverage proof point.
+**Key risk**: AWS Q2 decelerates back below +25% OR retail margins compress on tariff passthrough.
+**Change trigger**: Q2 AWS growth <25% OR Q2 op income misses $20B floor.
+**Primary source**: Amazon Q1 release Apr 29; CNBC AWS earnings coverage.
 
 ---
 
 ### Free-style Picks (5) — sorted #1 best → #5 most speculative
-_Key change: LLY IN at #1 (replaces RTX, whose April 21 earnings catalyst completed today)._
 
-#### #1 — LLY — Eli Lilly and Company  (~$903.54) — **HALF WEIGHT (downgraded from full per Lesson 16 review)**
-| Metric         | Value       | Signal                        |
-|----------------|-------------|-------------------------------|
-| Q1 2026 earnings | **April 30 BMO** | **9 days away** |
-| EPS consensus  | $7.55 (+126.1% YoY) | Strong operating leverage setup |
-| Revenue consensus | $17.56B  | GLP-1 scale              |
-| Analyst avg PT | $1,216.93 (updated)   | **+34.8% upside from $903** — may not yet reflect pricing pressures |
-| Analyst breakdown | 24 Buy / 6 Hold / 1 Sell | Consensus still bullish but less than before |
-| 30-day price trajectory | **-13% ($1,020 → $903)** | **DOWNTREND — not a dip** |
-| Pharma tariff  | Effective July 31 (post-earnings) | No Q1 headwind, but FY guide commentary risk |
-| Kelonia deal   | $7B cash acquisition (Apr 20 AMC) | -3.5% reaction was latest bar in a downtrend, not a one-off |
-| GLP-1 pricing pressure | "Low-to-mid teens drag" on 2026 top-line | TrumpRx, MFN pricing, Medicare coverage undecided |
-| CVS Medicare opt-out | Access challenge for obesity drugs | Structural (not sentiment) |
-| Novo oral Wegovy | FDA approved late Dec 2025 | Direct competitor to orforglipron launch narrative |
-| India market share | 61% → 56% (Feb → March) | Erosion in generic-heavy market |
-
-**Thesis** (revised): The April 30 BMO earnings remains a binary catalyst, but the set-up is NOT a buy-the-dip scenario. LLY is in a ~13% 30-day downtrend driven by structural concerns — GLP-1 pricing pressure, Medicare access uncertainty, Novo Nordisk oral competition, and India market share erosion. The Kelonia $7B cash outlay was the latest aggravation, not the cause of the decline. Per Lesson 16, framing $903 as "improved entry from $950" is wrong — the trend started at $1,020. A Q1 EPS beat may not produce a rally if 2026 guidance commentary addresses the pricing pressures; per Lesson 15, clean beats are failing to rally on macro-hostile days.
-
-**Hot spot**: Pharma earnings cluster April 29 (ABBV) + April 30 (LLY). LLY remains the nearest-catalyst HC pick, but conviction should match the downtrend risk.
-**Catalyst**: Q1 2026 earnings April 30 BMO — Q1 EPS vs $7.55 consensus + Mounjaro/Zepbound revenue + Orforglipron launch timeline + **critical: 2026 FY guidance commentary on MFN/TrumpRx/Medicare access**. The FY commentary is now the key variable, not just the Q1 number.
-**Target window**: 2–3 weeks (today → April 30 earnings + 1-week reaction).
-**Pricing question** (honest answer): The market has already priced in *some* of the structural pricing concerns — that's why the stock is down 13% in 30 days, not 30%. But the question is whether management's April 30 guidance will *validate* the bear case ("Yes, MFN pricing is a 10-15% headwind; we're maintaining EPS") or *invalidate* it ("We have offsets; 2026 guide is raised"). If consensus PT $1,216 doesn't yet reflect the bear case and management confirms it, those PTs drop — the 35% upside narrows. This is a Lesson 7 territory risk (structural economics), not a clean Lesson 3 (sentiment fear with intact fundamentals).
-**Key risk**: FY2026 guidance cut on pricing pressures OR Q1 EPS <$7.55 OR orforglipron launch delay confirmed.
-**Change trigger**: Q1 EPS <$7.00 OR FY guidance cut >5% OR management confirms >10% pricing drag to 2026 top line.
-**Rank rationale**: Stays at #1 free-style because catalyst timing is favorable (9 days) and the setup is a genuine binary — but WEIGHT is halved because the downtrend is a signal the market sees real structural risk that my prior framing undersold.
-**Better execution plan** (per Lesson 16): If executing, consider waiting for post-earnings confirmation rather than pre-earnings entry. A Q1 EPS beat + maintained/raised FY guide = enter at ~$940-$970 (still ~25-30% upside to $1,216 PT). A Q1 beat with cut guide = stay out (falling knife confirmed). This gives up some upside but avoids the classic trap.
-**Primary source**: LLY IR (April 30 BMO); tickeron 30-day return; Motley Fool Apr 21 ("why LLY dropped"); tradingkey Apr 21 market movers; public.com analyst consensus $1,216.93 (24 Buy / 6 Hold / 1 Sell); Seeking Alpha on 2026 pricing drag estimates.
+#### #1 — NVDA — NVIDIA Corporation  (~$215)
+[See Big Tech #1 above for full thesis]
+**Rank rationale**: My single highest-conviction call globally. Today's hyperscaler capex confirmation is the cleanest possible setup heading into May 20 earnings. Catalyst is 21 days away, fundamentals fully validated by today's prints, valuation has not yet repriced.
 
 ---
 
-#### #2 — META — Meta Platforms, Inc.  (~$673)
+#### #2 — AVGO — Broadcom Inc.  (~$405.54)
 | Metric         | Value       | Signal                        |
 |----------------|-------------|-------------------------------|
-| Ad impressions | +18% YoY Q4 | Accelerating                  |
-| Q1 guidance    | $53.5–56.5B | Floor set by management       |
-| META AI MAU    | ~1B         | Largest consumer AI platform  |
-| Broadcom deal  | 1GW MTIA through 2029, 2nm | AI capex structural |
-| UBS PT (Apr 21) | **$908 (raised from $872)** | +35% upside from $673 |
-| 52-week range  | $479.80 – $796.25 | 15% below 52-wk high  |
-| P/E fwd        | ~24x        | Reasonable for ad+AI setup    |
-| Q1 earnings    | April 29 AHC | Primary catalyst             |
+| META 1GW deal | through 2029, 2nm | Locked multi-year |
+| Google TPU deal | through 2031 | Decade commitment |
+| AMZN AWS reaccel today | +28% AWS growth | Direct AVGO networking demand readthrough |
+| Q2 FY26 earnings | **June 4** | First MTIA revenue quantification |
+| Mean PT | $464 | +14% upside |
+| Bernstein PT | $525 | +29% upside |
+| Macro overlay | LOW hostility | All four hyperscalers raised capex today |
 
-**Thesis**: April 29 AHC earnings + Broadcom 1GW deal through 2029 = AI capex structural commitment. Q1 ad revenue is locked ($53.5-56.5B guidance floor). UBS raised PT to $908 TODAY (from $872) — confirming institutional conviction with fresh upgrade. META essentially unchanged from Apr 17 ($677 → $673) despite market pullback — stability suggests pre-earnings accumulation.
-**Hot spot**: April 29 triple-earnings day + AI ad revenue structural confirmation.
-**Catalyst**: Q1 2026 earnings April 29 AHC — revenue vs. $53.5–56.5B guidance + AI engagement data + FY2026 tone.
-**Target window**: 2–3 weeks (today → April 29 + 1-week post).
-**Pricing question**: At $673, UBS PT $908 = +35% upside and UBS just RAISED it today. META has not rallied into earnings (flat for a week) — pre-earnings consolidation before a binary. If Q1 beats $53.5B floor and FY guide maintains, stock re-rates toward prior 52-wk high ($796). The AI ad revenue flywheel (bear thesis = "AI commoditizes ads") remains contested — Q1 data will prove or deny.
-**Key risk**: Q1 revenue misses $53.5B floor OR FY guidance implies growth <12%.
-**Change trigger**: Q1 revenue <$53.5B OR FY2026 guidance growth <12%.
-**Rank rationale**: #2 — behind LLY (timing + defensive sector on noisy days); ahead of AMZN (no consumer tariff wildcard in META, UBS fresh upgrade signal).
-**Primary source**: Meta Q4 2025 transcript; META-Broadcom CNBC April 14; UBS April 21 PT raise to $908.
+**Thesis**: Today's Big Tech earnings cluster directly validated AVGO's locked-in custom ASIC contracts — META raised capex to $125-145B, GOOGL to $180-190B. AMZN's AWS +28% reacceleration drives networking-chip demand. June 4 earnings is 36 days out — a clean 5-week swing window through the AI capex narrative.
+**Hot spot**: Today's Big Tech capex confirmation = direct ASIC volume read.
+**Catalyst**: June 4 Q2 FY26 earnings — first MTIA revenue quantification.
+**Target window**: 5 weeks (today → June 4 + post-print).
+**Pricing question** (honest): At $405, AVGO has held the $394-$410 range for 3 weeks despite chop. That's accumulation. Bears: Rubin platform from NVDA might compress some custom-ASIC value capture. Bulls: META and Google explicitly committed to ASIC architectures through 2029-2031 — those contracts don't unwind. Today's capex raises are the actual revenue read.
+**Key risk**: META or Google reduces ASIC commitment OR delays MTIA timeline.
+**Change trigger**: Any META/Google capex cut >15% OR consensus PT drops below $430.
+**Rank rationale**: #2 — slightly behind NVDA on catalyst proximity (3 weeks vs 5 weeks) but with the same hyperscaler-capex tailwind. June 4 catalyst is far enough to absorb noise but near enough to swing for.
+**Primary source**: AVGO IR June 4 confirmed; META Apr 29 release; GOOGL Apr 29 release; AMZN Apr 29 release.
 
 ---
 
-#### #3 — AMZN — Amazon.com, Inc.  (~$249)
-| Metric         | Value       | Signal                        |
-|----------------|-------------|-------------------------------|
-| AWS AI revenue | $15B+ annualized | CEO letter de-risking (Lesson 6) |
-| AWS growth     | +24% YoY    | Accelerating                  |
-| Q1 op income guidance | $16.5–21.5B | Floor is high            |
-| Price today    | ~$249 (-2.4% from $255 Apr 17) | Pulled back with market |
-| Citizens target | $315       | **+27% upside from $249**     |
-| Globalstar deal | $11.6B strategic satellite | Long-term positive |
-| Q1 earnings    | April 29–30 | Primary catalyst             |
-
-**Thesis**: AWS $15B AI run rate (Lesson 6 two-catalyst structure: CEO letter April 9 + April 29-30 earnings confirmation). AMZN pulled back -2.4% with market from Apr 17 → $249 is a better entry than $255. Citizens $315 PT = +27% upside. Consumer spending narrative improving but tariff exposure on retail side is a real wildcard.
-**Hot spot**: AWS AI confirmation + April 29 triple-earnings day.
-**Catalyst**: Q1 2026 earnings April 29–30 — AWS growth confirmation + AI revenue + operating income vs. $16.5B floor.
-**Target window**: 2–3 weeks (today → April 29–30 + 1-week post).
-**Pricing question**: The pullback from $255 to $249 improved the entry modestly. The $249→$315 path (+27%) is intact; April 29 is the driver. The bear thesis: retail tariff exposure compresses gross margins. Bulls: AWS AI quantification silences the ROI concern from Jassy's April 9 letter.
-**Key risk**: Q1 op income misses $16.5B floor OR retail gross margins compress from tariff-driven price increases.
-**Change trigger**: AWS growth <20% YoY for 2 consecutive quarters OR Q1 op income <$16.5B.
-**Rank rationale**: #3 — behind META (no tariff binary in META); ahead of AVGO (nearer catalyst by 5+ weeks).
-**Primary source**: CEO Jassy 2025 Annual Letter April 9; Citizens $315 PT; Amazon IR April 29–30 confirmed.
+#### #3 — GOOGL — Alphabet Inc.  (~$360 AH)
+[See Big Tech #2 above for full thesis]
+**Rank rationale**: #3 in free-style — slightly behind AVGO because GOOGL has already moved +7% AH whereas AVGO is unrepriced. But within free-style, GOOGL still ranks above CEG (more specific catalyst) and ABBV (cleaner tape). Post-earnings continuation 1-3 weeks → I/O.
 
 ---
 
-#### #4 — AVGO — Broadcom Inc.  (~$400)
+#### #4 — CEG — Constellation Energy Corporation  (~$305.71)
 | Metric         | Value       | Signal                        |
 |----------------|-------------|-------------------------------|
-| META deal      | 1GW custom AI chips through 2029, 2nm | Locked |
-| Google deal    | TPU through 2031 | Decade-long commitment         |
-| Price today    | ~$400 (range $394-404 Apr 21) | Slightly below $402 Apr 17 |
-| Analyst mean   | $464        | **+16% upside from $400**     |
-| Bernstein      | $525 target | +31% upside from $400          |
-| Q2 FY2026 earnings | June 4 | First MTIA revenue quantification |
+| 2026 hyperscaler capex | $600B+ confirmed today | Direct power demand readthrough |
+| MSFT Three Mile Island | Restart partnership signed | Long-term nuclear baseload locked |
+| US nuclear fleet | Largest, 24/7 baseload | Irreplaceable for 100% uptime AI compute |
+| Q1 2026 earnings | Reported May 7-8 (next week) | Imminent catalyst |
+| Macro overlay | LOW hostility | AI capex tailwind structural |
+| Sector | Utilities | Diversification from IT-heavy lineup |
 
-**Thesis**: META+Google custom ASIC multi-year contracts locked. June 4 = first earnings to quantify MTIA revenue contribution. Positive GOOGL/META AI capex commentary on April 29 will be an AVGO tailwind. At $400, mean target $464 = +16% upside; Bernstein $525 = +31% upside.
-**Hot spot**: AI custom silicon infrastructure + ASIC market expansion + April 29 triple-earnings readthrough.
-**Catalyst**: April 29 GOOGL/MSFT/META earnings (indirect capex confirmation) → June 4 Q2 FY2026 earnings (direct MTIA quantification).
-**Target window**: 6–8 weeks (today → April 29 indirect → June 4 direct).
-**Pricing question**: AVGO has held in $394-$404 range over the past week despite market choppiness — accumulation zone. Confirmed META/Google ASIC deals mean the stock is no longer dependent on a single catalyst; every positive AI capex print lifts the AVGO thesis. Bear case: META or Google cuts AI capex by >25%, compressing MTIA volume — the opposite of what April 29 should show.
-**Key risk**: META or Google cuts AI capex >25% before MTIA ramps.
-**Change trigger**: META or Google announces >25% AI capex reduction OR consensus target drops below $400.
-**Rank rationale**: #4 — June 4 is at upper edge of swing horizon (7 weeks); viable but less near-term than LLY/META/AMZN.
-**Primary source**: META-Broadcom CNBC April 14; Google-AVGO CoinCentral April 15; Bernstein $525 target.
+**Thesis**: $600B+ hyperscaler capex confirmed today means data center power demand is going parabolic over 2026-2030. Constellation has the largest US nuclear fleet, signed Three Mile Island restart with MSFT, and is the cleanest play on baseload power for AI. Q1 earnings expected next week (May 7-8) provides near-term catalyst. Less catalyst-binary than tech earnings but with secular structural support.
+**Hot spot**: AI infrastructure power play; today's $600B capex confirmation directly raises Constellation's 5-year revenue trajectory.
+**Catalyst**: Q1 2026 earnings (May 7-8 expected) + ongoing hyperscaler power-deal announcements.
+**Target window**: 4–6 weeks.
+**Pricing question** (honest): At $305, CEG is up ~30% YTD on AI-power thesis. Some catch-up is done. Bears: any successful natural-gas/renewables-only data center deployment dilutes nuclear's premium. Bulls: 24/7 reliability + zero-carbon for AI is unmatched, and TMI restart is locked.
+**Key risk**: Q1 results show weaker-than-expected pricing OR a hyperscaler announces large gas deal that signals nuclear is not preferred.
+**Change trigger**: Q1 EPS miss OR major hyperscaler announces non-nuclear baseload deal.
+**Rank rationale**: #4 — secular thesis with imminent catalyst (Q1 next week) but less binary than NVDA/AVGO. Provides Utilities sector diversification that is rarely available in cinvest's typical IT-heavy lineup.
+**Primary source**: CEG IR; MSFT Three Mile Island deal disclosure; today's Big Tech capex prints.
 
 ---
 
-#### #5 — NOW — ServiceNow, Inc.  (~$100) — HALF WEIGHT
+#### #5 — ABBV — AbbVie Inc.  (~$204.66) — HALF WEIGHT
 | Metric         | Value       | Signal                        |
 |----------------|-------------|-------------------------------|
-| Price          | ~$100 (+4% today on Armis close) | Recovered from $96.84 Apr 17 |
-| 52-week low    | $81.24      | Now 23% above 52-week low     |
-| YTD decline    | ~40%        | AI displacement fear-driven   |
-| Q1 earnings    | **April 22 AHC (tomorrow)** | Near-term binary |
-| Armis acquisition | **Closed today ($7.75B cash/debt)** | Triples security TAM, positive strategic |
-| Analyst avg    | ~$228 (Strong Buy majority) | Implied 128% upside if bear wrong |
-| Q1 subscription rev consensus | $3.75B | +21% YoY growth test |
-| EPS consensus  | $0.97 | 100% EPS beat rate last 2 years |
+| Q1 2026 revenue | $15.0B (+12.4% YoY) | **BEAT** $14.72B est |
+| Q1 EPS | $2.65 | -0.7% below $2.66 consensus (slight miss) |
+| Skyrizi revenue | $4.5B (+29.2% op) | Above expectations |
+| Rinvoq revenue | $2.12B (+23.3%) | Solid acceleration |
+| FY26 EPS guide | RAISED to $14.08-$14.28 (from $13.96-$14.16) | +$0.12 raise |
+| Stock Apr 29 close | ~$204.66 (+3.14%) | Post-beat positive reaction |
+| Pharma tariff | Effective July 31 | Q1 results pre-tariff frame |
+| Macro overlay | LOW hostility | Healthcare = defensive sector |
 
-**Thesis**: April 22 AHC earnings is the binary trigger. Armis $7.75B acquisition closed TODAY (April 21) — adds cybersecurity/OT/medical device asset management to ServiceNow's AI platform. Triples security TAM per management. Stock +4% today on deal completion suggests investor approval. Half-weight per Lesson 7 (AI displacement risk still contested). If Q1 confirms $3.75B subscription revenue with guidance maintained/raised AND management provides clear Armis integration plan, bounce to $108-115. If guidance cut OR subscription miss, drops to $85.
-**Hot spot**: Beaten-down enterprise software + fresh M&A strategic expansion.
-**Catalyst**: Q1 2026 earnings April 22 AHC — subscription revenue vs. $3.75B; guidance; Armis integration plan; AI workflow adoption data.
-**Target window**: 1–2 days post-April 22 → April 23 morning reaction. HALF WEIGHT. Exit immediately on trigger hit.
-**Pricing question**: $100 vs analyst avg ~$228 = extreme divergence. The +4% intraday move today on Armis close suggests some pre-earnings accumulation. Entry has degraded vs Apr 17 ($97), BUT the Armis close is a positive strategic signal. Risk/reward: ~$100 entry, $110-115 upside = ~10-15%, $85 downside = ~15%. Balanced with slightly positive skew. Half-weight protects against binary downside.
-**Key risk**: Q1 misses $3.75B OR guidance cut confirms AI displacement accelerating OR Armis integration concerns surface on call.
-**Change trigger**: Q1 subscription revenue <$3.75B (exit immediately) OR guidance cut OR Armis one-time charges >$500M.
-**Rank rationale**: #5 most speculative — half weight, AI structural risk (Lesson 7) still unresolved, fresh Armis acquisition adds integration wildcard alongside earnings binary.
-**Primary source**: ServiceNow Q1 April 22 AHC confirmed from official IR; Armis deal close April 21; analyst consensus Strong Buy at ~$228.
+**Thesis**: ABBV beat Q1 revenue, raised FY26 EPS guidance, and Skyrizi/Rinvoq are growing 24-29%. The post-earnings positive reaction (+3.14% to $204.66) confirms the market is rewarding the immunology platform. With pharma tariff effective July 31 (still 92 days away), Q1 was a clean pre-tariff print. Provides Healthcare sector diversification on a day with strong tech picks. Half weight given EPS slight miss and the structural pharma tariff overhang.
+**Hot spot**: Pharma earnings cluster + pre-tariff frame; sector diversification on Iran-shock day.
+**Catalyst**: Post-earnings continuation 2-4 weeks; Skyrizi Crohn's FDA decision later this year (late 2026).
+**Target window**: 3–5 weeks.
+**Pricing question** (honest): At $204, ABBV trades at a defensive multiple (~14x FY EPS). Bears: EPS slightly missed; pharma tariff July 31 will be 2026 H2 headwind even at 0% MFN rate (regulatory uncertainty); Humira biosimilar erosion continues. Bulls: Skyrizi/Rinvoq doubled their FY26 trajectory; analyst PT $249 = +22% upside; clean post-earnings momentum tape.
+**Key risk**: Skyrizi or Rinvoq Q2 decel below 20% growth OR pharma tariff implementation more punitive than 0% MFN suggests.
+**Change trigger**: Q2 immunology growth <20% combined OR FY guide cut >2%.
+**Rank rationale**: #5 most speculative — but for the RIGHT reason: it's a different-sector hedge (Healthcare) into a tech-heavy lineup. Half weight reflects the slight EPS miss + pharma-tariff uncertainty.
+**Primary source**: AbbVie Q1 2026 release Apr 29; AbbVie press release.
 
 ---
 
 ### Stocks to Avoid (3)
 
 #### INTC — Intel Corporation (~$22)
-**Concern**: Structural IDM 2.0 foundry turnaround with no confirmed major external customer at 18A node. AMD gaining CPU share, NVDA dominates AI GPU. TSMC Q1 $35.7B beat confirms demand flowing to established leaders, not Intel.
+**Concern**: Structural foundry turnaround stalled; no major external customer at 18A. Today's hyperscaler capex confirmation flowed to NVDA/AVGO, not Intel — the demand isn't reaching Intel's products.
 **Noise check**: Structural execution problem. Not noise.
 **Reversal trigger**: Confirmed major foundry customer win (MSFT, Google, Apple) at 18A with production volume commitment.
-**Re-evaluate in**: Q2 2026 earnings (~June 2026).
-
-#### SMCI — Super Micro Computer (~$40)
-**Concern**: SEC accounting investigation + governance risk persists. META/Google custom silicon integrates directly with hyperscaler infrastructure, potentially reducing SMCI server assembly intermediary layer.
-**Noise check**: Accounting controversy is structural governance risk. Not noise.
-**Reversal trigger**: SEC investigation closed with no material findings + gross margin sustainably >16% + direct hyperscaler AI server contract at scale.
-**Re-evaluate in**: May 2026 when SEC status and Q1 earnings available.
+**Re-evaluate in**: Q2 2026 earnings (~late July).
 
 #### TSLA — Tesla, Inc. (~$300)
-**Concern**: Q1 deliveries missed (358K vs 372K consensus). Q1 2026 earnings **April 22 AHC (TOMORROW)** — likely to confirm delivery miss with potentially weak guidance. 50K inventory overhang reported per TradingKey preview. Margins make-or-break: auto gross margin at 17-18% floor is the key metric. Musk will pivot conversation to robotaxi/Optimus. Record-low consumer confidence + tariff-driven price inflation = real EV demand headwind.
+**Concern**: Q1 delivery miss confirmed Apr 22 AHC. Auto gross margin compression continuing. Robotaxi/Optimus narrative pivot intact but FSD commercial milestones absent. Iran oil shock raises gas prices and pushes EV demand modestly higher, but tariff exposure on China components offsets.
 **Noise check**: Multi-factor structural headwind. Not noise.
-**Reversal trigger**: Q1 EPS beat + FY2026 delivery guidance raise + auto gross margin >18% + FSD/Optimus major commercial milestone.
-**Re-evaluate in**: After April 22 AHC Q1 earnings — watch for guidance and FSD/Optimus commentary.
+**Reversal trigger**: FSD commercial deployment confirmed at scale OR Optimus revenue line item OR auto gross margin >19% sustainably.
+**Re-evaluate in**: Q2 2026 earnings (~July).
+
+#### SMCI — Super Micro Computer (~$40)
+**Concern**: SEC investigation persists. ASIC integration directly into hyperscaler infrastructure (META 1GW, Google TPU through 2031) reduces SMCI's intermediary layer over time. Today's META and GOOGL capex raises went into ASIC + power, not server-assembly.
+**Noise check**: Governance + structural disintermediation. Not noise.
+**Reversal trigger**: SEC closed with no material findings + gross margin sustainably >16% + direct hyperscaler AI server contract at scale.
+**Re-evaluate in**: After May 2026 SEC status update + Q1 earnings.
 
 ---
 
@@ -300,51 +268,61 @@ _Key change: LLY IN at #1 (replaces RTX, whose April 21 earnings catalyst comple
 ---
 
 ## Sources
-- Fed Funds 3.50–3.75%, April 28–29 FOMC: Federal Reserve / CME FedWatch (83% no-change probability)
-- 10Y Treasury ~4.27%: FRED / Advisor Perspectives
-- S&P 500 7,109.14, NASDAQ 24,404.39, DJIA 49,442.56 (all -0.6%): Yahoo Finance April 21
-- VIX 19.50 (+3.34%): Yahoo Finance April 21
-- RTX Q1 2026 results (EPS $1.78, revenue $22.1B, FY guide raised to $6.70-$6.90): RTX IR April 21; SignalBloom
-- GE Aerospace Q1 2026 results ($12.4B revenue +25%, EPS $1.83 vs $1.68): GE press release April 21; gurufocus
-- Iran ceasefire extended by Trump at Pakistan's request: NPR / CNN / CBS News April 21
-- MSFT $424.16 (+1.46%): Yahoo Finance / tradersunion April 21
-- META $673 (1:54 PM): UBS PT raised from $872 to $908 April 21
-- GOOGL $336.40: GOOG stock quote April 21; KeyBanc "Top Pick" note
-- NVDA ~$201: Yahoo Finance (Friday close $201.68)
-- AMZN ~$249: CNBC quote April 21 (Friday $250.56)
-- AVGO $394-$404 range: Yahoo Finance April 21
-- LLY $903.54 (-2.5%): Motley Fool April 21; CNBC Kelonia $7B deal April 20
-- GE $285.17 (-6.1%): Stock Analysis April 21
-- ABBV $208.99: Yahoo Finance April 22 (Q1 earnings CORRECTED to April 29 BMO, consensus $2.59 EPS)
-- NOW ~$100 (+4.05%): Tradingkey market movers April 21; Armis deal close confirmed
-- TSLA Q1 April 22 AHC preview: AOL / Electrek; revenue consensus $22.27B, EPS $0.25-$0.40 range
-- NOW Q1 April 22 AHC preview: Yahoo Finance / MarketBeat; revenue consensus $3.75B (+21.4% YoY), EPS $0.97
-- LLY Q1 April 30 BMO confirmed: LLY IR
-- Google Cloud Next April 22–24: "Agentic Cloud" focus
-- Pharma tariff Section 232 effective July 31 (large companies): Crowell & Moring / White House proclamation
+- FOMC April 28-29 HOLD with 8-4 dissent: CNBC Apr 29; CBS News; Kiplinger
+- S&P 500 7,137.90 (+1.05%), NASDAQ 24,657.57 (+1.64%), DJIA 49,490.03 (+0.69%): TradingEconomics; Yahoo Finance
+- VIX 18.92 (-2.97%): Yahoo Finance Apr 29
+- Brent oil $118 (+6%): CNBC; CBS News Apr 29
+- CPI 3.3% YoY (March, gas-driven): BLS; CNBC
+- Initial claims 214K (Apr 18 wk): DOL; tradingeconomics
+- Microsoft Q3 FY26: Revenue $82.89B, EPS $4.27 vs $4.06 exp, Azure +40% cc, $190B FY capex, OpenAI no-longer-exclusive: CNBC; tradingkey; news.microsoft.com Apr 29
+- Alphabet Q1 2026: Revenue $109.9B (+22%), Cloud +63%, Search +19%, $460B backlog, capex raised $180-190B, +7% AH: 9to5google; CNBC; finance.yahoo.com Apr 29
+- Meta Q1 2026: Revenue $56.31B beat $55.45B est, EPS $7.31 adj, capex raised $125-145B (-6% AH): siliconangle; CNBC Apr 29
+- Amazon Q1 2026: Revenue $181.52B beat, AWS $37.59B (+28%), advertising +24%, Q2 guide $194-199B, +4% AH: stocktitan; finance.yahoo.com; CNBC Apr 29
+- AbbVie Q1 2026: Revenue $15.0B (+12.4%), EPS $2.65, FY guide raised $14.08-14.28, +3.14% close: stocktitan; news.abbvie.com Apr 29
+- ServiceNow Q1 (Apr 22): Subscription rev $3.671B (below $3.75B trigger), guidance lowered margin, -14% to -17.7%: CNBC; gurufocus
+- LLY at $852.79 (-2.43%, continuation of $1,020 → $903 → $852 downtrend): tickeron; meyka
+- LLY Q1 Apr 30 BMO consensus: $7.26-$7.55 EPS, $17.6-17.78B revenue: TipRanks; FinancialContent; meyka
+- AAPL Q2 FY26 Apr 30 AHC consensus: EPS $1.95, revenue $109.69B: AppleInsider; S&P Global
+- AAPL price $270.35: Yahoo Finance Apr 29
+- NVDA at $215 area, Q1 FY27 May 20 5pm ET, $78B guide: NVDA IR; stocktitan; perspectives.nvidia.com
+- AVGO at $405.54: Yahoo Finance Apr 29; June 4 Q2 FY26: AVGO IR
+- CEG at $305.71: Investing.com Apr 29
+- VST at $159.60 (Apr 28): perspectives
+- RTX at $172.73 (-1.68%): finviz
+- CVX at $190.59, XOM ~$147: 24/7 Wall St; Yahoo Finance
+- Iran blockade reaffirmed by Trump: CNBC Apr 29; CBS News
+- Pharma tariff Sec 232 effective July 31 (Annex III): Crowell & Moring; whitehouse.gov
+- Hyperscaler 2026 capex >$600B: dell'oro; Introl; mufgamericas
+- NVDA Q1 FY27 details: stocktitan May 20 confirmation
+- ABBV current $204.66 reaction: stockstory; investing.com
 
 ---
 
 ## Current Portfolio
-_As of 20260421-1030_
+_As of 20260429-1530_
 
-_**No cinvest-initiated positions. Execution has been BLOCKED across all 8 prior runs** (20260410-0930 through 20260421-1030) due to missing `~/.schwab/config.json`. RTX's April 21 BMO catalyst has now fully expired — the trade is off the table regardless of credential resolution. Eight other planned trades remain executable if credentials are provided._
+_**No cinvest-initiated positions. This is the 9th consecutive run with no executed trades** — all blocked by missing `~/.schwab/config.json`. RTX's April 21 catalyst expired (off-table). Today the April 29 Big Tech earnings cluster catalyst fired — GOOGL +7% AH, AMZN +4% AH, MSFT flat, META -6% AH — all of those swings are now lost too. NOW April 22 catalyst broke through change trigger (Lesson 7 confirmed; subscription rev <$3.75B triggered immediate exit signal — but no entry occurred). LLY April 30 catalyst still ahead, but Lesson 16 says wait for post-earnings confirmation, not pre-entry on falling knife._
 
 | Ticker | Company | Shares | Entry price | Change trigger |
 |--------|---------|--------|-------------|----------------|
 | — | — | — | — | — |
 
-**Pending picks (updated for April 21 prices; RTX dropped, LLY added):**
+**Pending picks (April 29 prices):**
 
-| Ticker | Company | Planned action | Size | Change from Apr 17 |
-|--------|---------|----------------|------|------------------------|
-| GOOGL | Alphabet Inc. | BUY equal weight | Full | Entry: $336.40 (from $334.91) — marginal drift |
-| MSFT  | Microsoft Corporation | BUY equal weight | Full | Entry: $424.16 (from $426.92) — slightly improved |
-| NVDA  | NVIDIA Corporation | BUY equal weight | Full | Entry: ~$201 — flat |
-| **LLY** | **Eli Lilly and Company** | **BUY half weight (REVISED per Lesson 16)** | **Half** | **Replaces RTX. $903 is continuation of 30-day -13% downtrend, NOT a dip. Structural GLP-1 pricing pressure active. Consider post-earnings entry instead.** |
-| META  | Meta Platforms | BUY equal weight | Full | Entry $673 (from $677) — marginal |
-| AMZN  | Amazon.com, Inc. | BUY equal weight | Full | Entry ~$249 (from $255.09) — improved on market pullback |
-| AVGO  | Broadcom Inc. | BUY equal weight | Full | Entry ~$400 (from $402.43) — marginal |
-| NOW   | ServiceNow, Inc. | BUY half weight | Half | Entry ~$100 (from $96.84) — degraded but Armis close is strategic positive |
+| Ticker | Company | Planned action | Size | Priority rationale |
+|--------|---------|----------------|------|--------------------|
+| **NVDA** | NVIDIA Corporation | BUY equal weight | Full | Best setup globally; May 20 earnings 21d; today's $600B capex confirmation |
+| **GOOGL** | Alphabet Inc. | BUY equal weight | Full | Post-earnings momentum (+7% AH), 1-3 wk continuation + I/O May 19 |
+| **AMZN** | Amazon.com, Inc. | BUY equal weight | Full | AWS reacceleration to +28% (+4% AH), strong Q2 guide |
+| **AVGO** | Broadcom Inc. | BUY equal weight | Full | June 4 catalyst, ASIC story validated by today's META/GOOGL capex raises |
+| **CEG** | Constellation Energy Corporation | BUY equal weight | Full | Utilities/AI-power, Q1 next week, $600B capex secular tailwind |
+| **ABBV** | AbbVie Inc. | BUY half weight | Half | Healthcare diversification, post-Q1 beat momentum, slight EPS miss + tariff overhang |
 
-**Dropped**: RTX — April 21 BMO earnings catalyst completed today (beat + guidance raise, stock weak on tariff/geopolitical noise). Moved to watchlist for observation.
+**Dropped from prior plan**:
+- **RTX** — April 21 catalyst expired; stock down to $172 post-earnings; not re-entered
+- **MSFT** — Today's Q3 FY26 in-line Azure (40%) + OpenAI exclusivity ended → muted reaction; alternative tech setups stronger
+- **META** — Today's earnings beat capex raise → -6% AH; momentum negative; thesis on hold
+- **LLY** — Lesson 16: stock continued falling $903 → $852 (-5.6% in 8 days); Apr 30 BMO is binary on falling knife — POST-EARNINGS entry only
+- **NOW** — April 22 catalyst hit change trigger (sub rev $3.671B < $3.75B floor) → would have exited immediately; no re-entry signal
+
+**Watchlist additions** (for post-earnings monitoring): AAPL (Apr 30 AHC binary), LLY (post-Apr 30 BMO), MSFT (track for $190B capex absorption), META (track for capex narrative reversal).

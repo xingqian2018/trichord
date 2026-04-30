@@ -1,6 +1,6 @@
 # Captioning quality stress testing via iterative refinement and judging system
 
-_Stress test of the `golden_caption` pipeline, v2 → v15, on `CosCapBenchImage/V1`._
+_Stress test of the `golden_caption` pipeline, v2 → v16, on `CosCapBenchImage/V1`._
 
 ---
 
@@ -69,6 +69,7 @@ image ──► STAGE 1: entity search
 | v13   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | `q235bg3p`; qwen gen, pro judge      |
 | v14   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | S1 from v13; identifier-location fix |
 | v15   | gemini-3.1-pro   | qwen3-vl-235b             | qwen3-235b   | Fully agent self-improved prompting system |
+| v16   | gemini-3.1-pro   | gemini-3.1-pro            | same         | `g3pg3p`; v15-style agentic prompts swapped onto gemini-3.1-pro gen+judge |
 
 ---
 
@@ -124,6 +125,9 @@ Model abbreviations: **g3.1p** = gemini-3.1-pro, **g3f** = gemini-3-flash, **q23
 | v15   | q235b | q235b  | dense   | 0.9409    | 0.6034 | 0.7353     | 22,137  | 298    | 292    |
 | v15   | q235b | q235b  | struct  | 0.9410    | 0.5889 | 0.7244     | 23,646  | 296    | 292    |
 | v15   | q235b | q235b  | s4      | 0.9341    | 0.6370 | 0.7575     | 32,049  | 298    | 292    |
+| v16   | g3.1p | g3.1p  | dense   | 0.9754    | 0.6218 | 0.7595     | 18,438  | 300    | 294    |
+| v16   | g3.1p | g3.1p  | struct  | 0.9725    | 0.6037 | 0.7449     | 25,938  | 293    | 294    |
+| v16   | g3.1p | g3.1p  | s4      | 0.9736    | 0.6481 | 0.7782     | 28,382  | 299    | 294    |
 
 † v9's "S2–S4" is heterogeneous: S2 grounding ran on gemini-3-flash, but the final S3 dense-rewriter batch (144 images) was redone with gemini-3.1-pro, and S4 (camera+style) ran end-to-end on gemini-3.1-pro. Treat v9's high precision (≈0.97) as a g3p-tail effect, not as pure-flash performance.
 
@@ -138,6 +142,7 @@ Per-version best F1 (stage-4 variant, sorted):
 | v4    | 0.7820     | 0.9742 | 0.6531 |
 | v9    | 0.7792     | 0.9724 | 0.6500 |
 | v11   | 0.7792     | 0.9349 | 0.6680 |
+| v16   | 0.7782     | 0.9736 | 0.6481 |
 | v12   | 0.7768     | 0.9581 | 0.6532 |
 | v7    | 0.7705     | 0.8758 | 0.6877 |
 | v6    | 0.7688     | 0.8719 | 0.6875 |

@@ -50,5 +50,11 @@ _Last updated: 2026-04-10_
 | Date       | Action  | Ticker | Reason |
 |------------|---------|--------|--------|
 | 2026-04-10 | Created | —      | Initial pool established |
+| 2026-04-25 | Added   | LRCX   | AI supply chain Stage 2 — semiconductor equipment; picks-and-shovels for TSMC/NVDA capex cycle |
+| 2026-04-25 | Added   | KLAC   | AI supply chain Stage 2 — process control moat; upstream AI capex beneficiary |
+| 2026-04-25 | Added   | ANET   | AI supply chain Stage 4 — dominant AI data center networking; surpassed Cisco; $11.25B 2026 outlook |
+| 2026-04-25 | Added   | VRT    | AI supply chain Stage 1/4 — power + liquid cooling; $15B backlog; +170% past year; most undercovered AI name |
+| 2026-04-25 | Added   | MU     | AI supply chain Stage 3 — HBM memory is the physical bandwidth bottleneck; 25% HBM market share |
+| 2026-04-25 | Updated | AMAT   | Re-labeled as Stage 2 for supply chain classification (Lesson 19) |
 
 _When a company is added or removed, log it here with reason so future runs understand the history._

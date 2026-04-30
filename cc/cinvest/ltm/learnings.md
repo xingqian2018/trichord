@@ -277,3 +277,212 @@ Read the White House proclamation or a legal analysis of the specific proclamati
 - Is the tariff subject to legal challenge that could delay implementation (compare IEEPA ruling pattern from Lesson 9)?
 
 **Condition**: Every time a tariff or regulation is cited in a thesis, ask: "Is this *signed* or *in effect*?" If signed but not yet effective, estimate the impact timeline correctly. A tariff effective in 3+ months is a medium-term headwind, not an immediate one — and for a 4–8 week swing trade, it may be effectively irrelevant to the current earnings catalyst.
+
+---
+
+## Lesson 17 — Drug scheduling reclassifications are structural tax inflections that create 15–20% sector-wide moves — track the DEA calendar
+_Added: 20260425_
+
+### What happened
+- Week of April 21–25, 2026: Trump's acting AG signed an order reclassifying state-licensed medical marijuana from Schedule I to Schedule III under the DEA's controlled substances framework. Cannabis stocks — Canopy Growth (CGC), Curaleaf (CURLF), Trulieve (TCNNF), and the AdvisorShares Pure US Cannabis ETF (MSOS) — surged 15–20%+ on the news.
+- The move was NOT a surprise: Trump had signed an executive order in December 2025 directing the reclassification, and the DEA's June 29, 2026 scheduling hearing had already been on the calendar for months. The 2–4 week window before the formal signature was the entry window cinvest missed.
+- cinvest had no position. Cannabis stocks were not in the universe, and the DEA calendar was not part of the standard policy scan.
+
+### Why it happened
+The DEA/DOJ administrative rescheduling calendar was not part of cinvest's standard policy scan. The missed insight: **drug rescheduling (Schedule I → III) eliminates IRC Section 280E tax liability**, which prohibits Schedule I/II cannabis businesses from deducting ordinary business expenses (cost of goods, payroll, rent). The 280E removal is a **structural earnings uplift of 15–25% for the average multi-state operator (MSO)** — not a sentiment move. It is quantifiable, durable, and directly analogous to a surprise tax cut for an entire sector. The December 2025 executive order and publicly scheduled DEA hearing were clear advance signals that cinvest's policy scan was not reading.
+
+### What should have been done
+- Track the **DEA administrative rescheduling calendar** alongside the FDA PDUFA calendar (already in Lesson 4). Key signals: White House executive orders directing scheduling review, DEA notice of proposed rulemaking (NPRM), and scheduled public hearings.
+- Pre-position in **MSOS ETF** (NYSE-listed; avoids OTC/Canadian stock risk while capturing sector-wide catalyst) 2–4 weeks before the expected formal signature date.
+- The entry window is after a definitive White House/DOJ signal but before formal implementation. Do not wait for the official signing announcement — the rally front-runs the news by days.
+
+### Going forward
+**Rule**: When the White House, DOJ, or DEA issues a concrete scheduling-change signal for a major controlled substance:
+1. **Identify the structural impact**: Not all rescheduling events affect tax treatment. Schedule I → III removes 280E for cannabis. Medicare/Medicaid reimbursement eligibility changes are the equivalent for healthcare. Ask: *"Does this reclassification change the fundamental cost structure or revenue access of the affected sector?"*
+2. **Quantify the EPS uplift**: For cannabis, 280E removal historically represents ~15–25% bottom-line improvement for the average MSO. Model it as a structural earnings re-rate, not a narrative play.
+3. **Use the ETF when the catalyst is sector-wide**: MSOS (cannabis), XBI (broad biotech), XOP (energy policy plays) are better vehicles than individual names when the catalyst benefits the entire sector but single-stock execution risk is high (OTC issues, Canadian listing, binary company risk). **Sector ETFs are valid cinvest instruments** for regulatory plays — they are now explicitly in the universe.
+4. **Exit framework**: After the formal signing/announcement, the "news is out" — take 50–75% off the table in the first 48 hours. Hold the remaining 25–50% for the secondary catalyst (e.g., June 29, 2026 DEA hearing on *broader* cannabis rescheduling beyond just medical — a second potential 10–15% leg for MSOS).
+
+**Condition**: This lesson applies to any regulatory action that structurally changes the tax treatment, insurance reimbursement access, or competitive legality of an entire sector. Drug scheduling changes are the most common template; the SAFE Banking Act (cannabis + federal banking access) is the next relevant one to watch in Congress.
+
+**Upcoming signal**: DEA public hearing scheduled **June 29, 2026** on broader (non-medical) cannabis rescheduling. If the hearing confirms broad Schedule III classification, a second leg rally in MSOS and MSO names is likely. Monitor as a potential re-entry or add catalyst in late June 2026.
+
+---
+
+## Lesson 18 — Geopolitical oil chokepoint disruptions create structural multi-week energy re-ratings — enter on physical supply data, not headlines
+_Added: 20260425_
+
+### What happened
+- January–April 2026: US-Iran war → Hormuz Strait blockade → global oil supply plummeted 10.1M barrels/day (IEA: "largest disruption in history") → oil moved from low-$70s → ~$120 peak → settled ~$103
+- XOP (S&P Oil & Gas E&P ETF) up ~30% YTD; energy sector +37.91% in April alone — best-performing S&P 500 sector by a wide margin (Materials +10.68% was a distant second)
+- cinvest had no energy positions throughout. The setup was visible from the moment ship traffic through Hormuz collapsed — but cinvest was not tracking physical supply data as an entry signal. It was watching headlines and ceasefire signals instead.
+
+### Why it happened
+cinvest's existing energy framework (Lessons 1, 5, 8) focused entirely on the **EXIT** side of energy trades — when to get out on ceasefire/peace news. There was no **ENTRY** framework for identifying when a supply disruption crosses from "transient geopolitical risk premium" (prices in fear of disruption) to "structural physical supply gap" (disruption is actually happening, barrels are actually missing).
+
+This distinction is everything:
+- **Transient risk premium**: market prices in the *possibility* of disruption. Deflates on ceasefire. Lessons 1 and 8 warn against holding through this.
+- **Structural supply gap**: ships are *actually not moving* through Hormuz. Physical barrels are missing from global supply. This cannot be solved by a ceasefire announcement alone — it requires tankers to actually resume movement and disrupted infrastructure to recover. THIS is what drove the 30%+ XOP move, and it lasted months, not days.
+
+cinvest was tracking ceasefire headlines, not the physical supply data (IEA monthly reports, tanker traffic, EIA STEO). The result: it held all the exit-side logic but entered no positions to exit from.
+
+### What should have been done
+1. When active military conflict threatens a critical oil chokepoint, **immediately check physical ship traffic** (IEA reports, EIA STEO). If ships are actually stopping (>30% reduction from baseline), the trade is structural — not a narrative.
+2. Position in **XOP** (highest oil-price beta, pure E&P) on the *first confirmation* of physical supply disruption — before the IEA monthly report quantifies the full impact (markets move faster than monthly reports; the ship-count drop is the leading signal).
+3. Size proportionally: < 3M barrels/day disrupted = sentiment trade, apply Lessons 1/8 caution; **> 5M barrels/day with no near-term resolution = structural energy long, full weight**.
+4. Apply the existing exit framework from Lesson 1 once the position is on.
+
+### Going forward
+
+**Entry framework — the chokepoint supply shock checklist:**
+
+| Signal | Threshold for action | Data source |
+|--------|---------------------|-------------|
+| Active military conflict near chokepoint | Confirmed hostilities within 200 miles of Hormuz / Suez / Bosphorus | AP / Reuters / CNBC |
+| Hormuz ship traffic reduction | < 90 ships/day (baseline ~129/day) = actionable | IEA Oil Market Report, MarineTraffic |
+| Global supply disruption confirmed | > 3M barrels/day missing from global supply | IEA monthly report, EIA STEO |
+| Oil price structure (backwardation) | Spot > futures (near > far) = physical tightness confirmed, not just fear | CME futures curve |
+| E&P cash flow positive at current price | XOP constituents FCF-positive at current oil price? | EIA STEO, company filings |
+
+**All 5 signals active = highest-conviction energy long. 3–4 active = half weight. < 3 = Lessons 1/8 caution, no entry.**
+
+**Vehicle selection:**
+- **XOP** (NYSE): pure E&P, highest oil-price beta — best for active Hormuz-type physical disruptions early in the trade. Add to the universe now.
+- **XLE** (NYSE): broader energy (includes midstream, utilities, integrated majors) — more defensive, lower beta. Use when the oil rally is mature (> 8 weeks in) and mean-reversion risk is rising. Also in universe.
+- **Individual names (high conviction)**: XOM — Exxon Mobil (~$35-40/bbl break-even, strongest FCF at $90+ oil), CVX — Chevron, COP — ConocoPhillips. Use if single-stock analysis confirms structural FCF improvement. All three are S&P 500 constituents (in default scope).
+
+**Prediction framework — how to anticipate the NEXT energy supply-shock trade:**
+
+Watch for these forward-looking setups. When ≥ 3 of the 5 checklist signals activate, enter:
+1. **Houthi/Red Sea escalation**: Suez Canal disruption (10% of global oil) — already partially active 2024-2025. A full Suez closure would rival the Hormuz impact. Monitor: Houthi attack frequency on Red Sea shipping.
+2. **Bosphorus / Russia-Turkey**: Disrupts Russian Black Sea oil exports (~1.5M barrels/day). Escalation scenario if NATO-Russia tensions intensify.
+3. **OPEC+ surprise cut > 2M barrels/day**: Not a chokepoint play but same structural impact. Watch OPEC+ meeting dates (typically June and December).
+4. **Nigeria / Libya production collapse**: Repeat of 2022-pattern infrastructure disruptions in major African producers.
+
+**Pairs with Lessons 1, 5, 8**: This lesson handles the ENTRY. Those three lessons handle the EXIT. Together they form a complete round-trip energy trade framework:
+- Lesson 18: Enter when physical supply data confirms structural disruption (> 5M barrels/day, ships not moving)
+- Lesson 1: Exit when ceasefire/peace narrative gains credibility (before confirmation — the market prices future mean-reversion)
+- Lesson 8: Re-enter if ceasefire proves hollow within 7 days and physical disruption resumes
+
+---
+
+## Lesson 19 — The AI market is a multi-stage supply chain — scan every node before picking, because the highest upside is often in the overlooked upstream stages
+_Added: 20260425_
+
+### The core insight
+cinvest has been treating AI as a handful of familiar names (NVDA, GOOGL, MSFT, META). But the AI market is an **industrial supply chain** — from raw power generation through to the end-user application — and every node in that chain is an investable opportunity with its own timing window, risk profile, and entry signal. The highest upside plays are often NOT the most-covered names. In 2025-2026, the biggest runners were infrastructure names that most "AI stock" lists never mentioned:
+- **VRT (Vertiv)**: +170% past year, +64% YTD 2026. Power and cooling — every GPU cluster requires liquid cooling (AI racks now draw 120-150 kW vs. 10-15 kW for traditional servers; water holds heat 3,000× more efficiently than air). $15B order backlog, up 109% in two years.
+- **ANET (Arista Networks)**: Surpassed Cisco as the dominant AI data center switch. $9B revenue in 2025 (+28.6% YoY), raised 2026 outlook to $11.25B at 46% operating margin. Crossed $1B quarterly net income.
+- **LRCX/AMAT/KLAC (semiconductor equipment)**: Wafer fab equipment spending projected to exceed $110B in 2026 (up from $95B in 2024). TSMC alone guided $52-56B capex for 2026 — those dollars go to equipment first, before a single chip ships.
+- **MU (Micron)**: HBM (high-bandwidth memory) is the physical bottleneck between GPU and compute throughput. Micron captured ~25% HBM market share with HBM3E/HBM4.
+
+These names were systematically undervalued because they were classified as "industrial," "networking," "energy," or "semiconductor equipment" — not "AI stocks" — while institutional AI-theme money flowed to the more obvious names.
+
+### The 5-stage AI supply chain map
+
+```
+Stage 1 — Power & Physical Substrate
+├── Who:  CEG (Constellation Energy), VST (Vistra), ETN (Eaton), VRT (Vertiv),
+│         EQIX (Equinix), DLR (Digital Realty)
+├── What: Power generation, cooling, data center real estate
+├── Why:  AI racks draw 10× the power of traditional servers; only nuclear/gas
+│         can provide 24/7 baseload for hyperscaler SLAs; liquid cooling
+│         is now mandatory for GPU clusters; $1.4T needed for AI data center
+│         electrification by 2030 (est.)
+├── Timing: Moves on POWER PURCHASE AGREEMENT (PPA) announcements between
+│           hyperscalers and power/nuclear operators
+└── Often overlooked: classified as "energy" or "REIT" — AI-thesis funds
+                      don't hold energy/industrial names despite direct exposure
+
+Stage 2 — Semiconductor Equipment (the furthest-upstream "picks and shovels")
+├── Who:  AMAT (Applied Materials), LRCX (Lam Research), KLAC (KLA),
+│         ASML (lithography — the single chokepoint for advanced chips, non-US)
+├── What: The machines that build the chips — ordered 12-18 months before
+│         chips ship; equipment revenue leads chip revenue by 1-2 quarters
+├── Why:  TSMC capex $52-56B in 2026 (+32%); ~70-80% going to 2nm/A16 ramp.
+│         AMAT: +20% equipment revenue growth in 2026. LRCX: ~40% growth.
+│         Wafer fab equipment industry: $110B+ in 2026.
+├── Timing: Moves on TSMC or NVDA capex guidance raises — equipment orders
+│           are placed immediately, revenue recognized over 12-18 months
+└── Entry signal: any hyperscaler or foundry capex raise → AMAT/LRCX next day
+
+Stage 3 — AI Silicon (chips themselves — most covered, highest short-term beta)
+├── Who:  NVDA (training + inference GPUs), AVBO (custom ASICs: TPU/MTIA),
+│         AMD (MI300X inference challenger), QCOM (edge AI), ARM (IP royalties),
+│         ALAB (AI connectivity silicon), MU (HBM memory — physical bottleneck)
+├── What: The compute engine itself
+├── Why:  $660-690B hyperscaler AI capex in 2026 → GPU + ASIC orders flow here
+│         immediately. MU's HBM is the bandwidth bottleneck — every AI server
+│         needs HBM; without it, GPUs sit idle.
+├── Timing: Moves within 48 hours of hyperscaler capex announcement
+│           (Pattern A from this lesson set)
+└── Key risk: Custom ASIC share shift (AVBO gaining vs NVDA at inference)
+
+Stage 4 — Data Center Infrastructure & Networking
+├── Who:  ANET (Arista — AI data center switching, surpassed Cisco),
+│         VRT (Vertiv — power management + liquid cooling),
+│         MU (memory), PSTG (Pure Storage — flash storage for AI workloads),
+│         CLS (Celestica — EMS/server assembly), SMCI (SMCI — GPU server assembly)
+├── What: The physical plumbing of the data center — switches, power mgmt,
+│         cooling, storage, server assembly
+├── Why:  AI networking requires 4-8× the bandwidth of traditional workloads;
+│         ANET is the dominant spine switch in AI clusters;
+│         VRT's $15B backlog (+109% in 2 years) shows years of locked demand
+├── Timing: Lags Stage 3 by 1-3 quarters; moves on data center buildout
+│           announcements and quarterly backlog/order data
+└── Often overlooked: same problem as Stage 1 — classified outside of "AI"
+
+Stage 5 — Cloud Platforms, AI Models & Applications
+├── Who:  AMZN AWS, GOOGL GCP, MSFT Azure (cloud platforms);
+│         META, GOOGL, MSFT (AI model + app layer);
+│         PLTR, SNOW, DDOG (AI development tools);
+│         APP, ADBE (AI-enhanced applications)
+├── What: Where enterprises and consumers actually USE AI — the monetization layer
+├── Why:  This is where AI ROI gets proven; "first revenue quantification" events
+│         (Lesson 6) are Stage 5 signals; developer conferences (Lesson 13) de-risk
+│         the adoption thesis
+├── Timing: Moves on earnings beats that prove AI monetization — lags Stages 1-4
+│           by 1-3 years in the cycle
+└── KEY SPLIT: AI-enhanced (GOOGL Search, META ads, MSFT Copilot → revenue UP)
+               vs. AI-threatened (NOW, CRM workflow → revenue at risk from agents)
+               Apply Lesson 7 displacement test before ANY Stage 5 pick.
+```
+
+### The capital rotation pattern (how money flows through the supply chain)
+
+The AI investment cycle follows a predictable rotation — capital flows **downstream** as the buildout matures:
+
+| Phase | Active stage | Key names | Signal |
+|-------|-------------|-----------|--------|
+| Phase 1 (2023-early 2024) | Stage 3: Silicon | NVDA, AMD | "Who makes the GPU for the AI rush?" |
+| Phase 2 (2024-2025) | Stage 2+4: Equipment + Networking | AMAT, ANET, VRT | "Who builds the factories and plumbing?" |
+| Phase 3 (2025-2026) | Stage 1+4: Power + Infrastructure | CEG, VST, VRT, MU | "The physical bottleneck has moved upstream" |
+| Phase 4 (2025-2026) | Stage 5: Cloud + Platform monetization | AMZN, GOOGL, MSFT | "Who proves AI ROI?" |
+| Phase 5 (2026+) | Stage 5: Application layer | META, APP, PLTR, AI-native verticals | "Who monetizes AI for end users?" |
+
+**The critical insight**: by the time a stage becomes consensus ("everyone knows NVDA is the AI play"), the easy money is already made. The edge is in identifying the **next** stage before institutional capital rotates into it. The "overlooked stage" always has lower valuation multiples because it's classified in a non-AI sector.
+
+### The "picks and shovels" test — run before every AI pick
+
+Before selecting any AI-related name, ask:
+> *"In the 1849 California gold rush, Levi Strauss (sold jeans to miners) made more money than most miners. Who is the Levi Strauss of this AI sub-theme?"*
+
+The answer is almost always a Stage 1-2-4 infrastructure name that:
+- Has **direct, contracted exposure** to the AI buildout (PPA, equipment order, backlog)
+- Is **classified in a non-AI sector** (energy, industrial, networking) so AI funds underweight it
+- Has **multi-year order backlog visibility** that makes revenue more predictable than chip names
+
+Examples: VRT (cooling — industrial), CEG (power — utility), ANET (networking — IT infrastructure), AMAT (equipment — semiconductor equipment), EQIX (data center REIT — real estate).
+
+### Going forward — the supply chain sweep (run this for every AI pick)
+
+When evaluating any AI-related candidate, classify it by supply chain stage first:
+
+1. **What stage is this company in?** (1-5 above)
+2. **What is the current "hot stage"** — where is the physical bottleneck in the AI buildout right now? (In April 2026: Stage 1/Power and Stage 4/Networking are the active constraints — power grid and liquid cooling are the binding constraints on new data center openings)
+3. **Are there overlooked upstream stages** with high exposure but wrong-sector classification (energy, industrial, REIT) that AI-focused funds are underweighting?
+4. **Apply the displacement test for Stage 5 names**: AI-enhanced (revenue goes up) or AI-threatened (revenue goes down)? (Lesson 7)
+
+**The current bottleneck signal (April 2026)**: The binding constraint on AI buildout is now **power** (Stage 1) and **cooling/networking** (Stage 4) — not chips (Stage 3). Data centers cannot open without power permits and liquid cooling infrastructure. This means Stage 1 (CEG, VST, VRT) and Stage 4 (ANET, VRT, PSTG) are the high-conviction infrastructure plays for the next 6-18 months, while Stage 3 (NVDA) faces custom ASIC headwinds on inference share.
+
+**Condition**: This framework applies any time a major technology platform cycle is active (AI, cloud, mobile, internet). The supply chain structure is similar across cycles. The overlooked upstream nodes are always the ones with "boring" sector classifications (equipment, power, REIT) relative to the headline technology theme.

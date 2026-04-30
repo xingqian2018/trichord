@@ -153,6 +153,8 @@ Fire all macro searches simultaneously so Steps 1–3 need no new queries:
 - `"Fed speech <month> <year>"`, `"FOMC minutes"`, `"rate cut expectations CME FedWatch"`
 - `"tariff announcement <month> <year>"`, `"trade policy impact sectors"`
 - `"geopolitical risk market impact <month> <year>"`
+- `"DEA drug scheduling <year>"`, `"controlled substance reclassification <year>"`, `"cannabis rescheduling <month> <year>"`
+- `"IEA oil market report <month> <year>"`, `"Hormuz tanker traffic <year>"`, `"global oil supply disruption barrels"`
 
 Process all results together before moving to Step 0D.
 
@@ -233,11 +235,13 @@ Beyond the standard macro indicators, actively scan for **policy-driven market f
 - **Trade and tariff policy**: Active tariff announcements, reversals, exemptions, or negotiations; which sectors are most exposed (semiconductors, autos, retail, agriculture).
   - Query: `"tariff announcement <month> <year>"`, `"trade policy impact sectors"`
 
-- **Regulatory shifts**: Antitrust actions (Big Tech, banking, healthcare); SEC, FDA, FTC major rulings; energy/environment regulatory changes.
-  - Query: `"SEC ruling <month>"`, `"FDA approval rejection <month>"`, `"antitrust tech <year>"`
+- **Regulatory shifts**: Antitrust actions (Big Tech, banking, healthcare); SEC, FDA, FTC major rulings; energy/environment regulatory changes; **DEA drug scheduling decisions** — reclassification of controlled substances can trigger structural tax changes (280E elimination = 15–25% sector-wide EPS uplift for cannabis; see Lesson 17). Track the DEA hearing calendar alongside the FDA PDUFA calendar.
+  - Query: `"SEC ruling <month>"`, `"FDA approval rejection <month>"`, `"antitrust tech <year>"`, `"DEA drug scheduling <year>"`, `"controlled substance reclassification <year>"`, `"cannabis rescheduling update <month> <year>"`
 
 - **Geopolitical events**: Escalations or de-escalations in active conflicts; sanctions, export controls (especially semiconductors); energy supply disruptions.
   - Query: `"geopolitical risk market impact <month> <year>"`, `"export controls semiconductors"`
+  - **Energy chokepoint sub-check (run when any active conflict involves the Middle East, Red Sea, or Black Sea)**: Apply the Lesson 18 checklist — check physical ship traffic at Hormuz / Suez, IEA supply disruption barrels, and oil futures curve structure (backwardation = physical tightness). If ≥ 3 of 5 signals are active, flag XOP as a candidate in Step 5B. If all 5 signals are active, XOP is a high-conviction free-style pick.
+    - Query: `"IEA oil market report <month> <year>"`, `"Hormuz tanker traffic <month> <year>"`, `"global oil supply disruption barrels <year>"`, `"WTI Brent oil futures curve backwardation"`
 
 **Key analytical rule**: Policy events are high-signal but often create **temporary mispricings**. A tariff announcement may crater a sector for days — but if the underlying business is strong and the policy is likely to be walked back or negotiated, that's an opportunity, not a reason to avoid. Always ask: *"Is this policy shock permanent or transient? Who benefits structurally, who is hurt structurally?"*
 
@@ -323,6 +327,22 @@ Before picking individual stocks, identify **where institutional money is curren
 
 Identify **2–3 hot spots** before selecting candidates. Then deliberately source picks from those hot spots — because the combination of quality + catalyst + hot theme is where swing trades deliver the most.
 
+**AI supply chain sweep — run this when the dominant macro theme involves AI capex (which it has been since 2023):**
+
+Before selecting any AI-related candidate, classify it by supply chain stage (Lesson 19):
+
+| Stage | What it covers | Key names | Entry signal |
+|-------|---------------|-----------|--------------|
+| 1 — Power & Physical | Power generation, cooling, data center real estate | CEG, VST, VRT, ETN, EQIX, DLR | Hyperscaler signs PPA (power purchase agreement) |
+| 2 — Semiconductor Equipment | Machines that build chips; leads chip revenue by 12-18 months | AMAT, LRCX, KLAC | TSMC or NVDA raises capex guidance |
+| 3 — AI Silicon | GPUs, custom ASICs, HBM memory | NVDA, AVBO, AMD, MU, ALAB, ARM | Hyperscaler capex announcement → within 48 hrs |
+| 4 — Data Center Infrastructure | Networking, power mgmt, cooling, server assembly | ANET, VRT, PSTG, CLS | Quarterly backlog/order data; data center buildout announcements |
+| 5 — Cloud + Applications | Cloud platforms, AI models, apps | AMZN, GOOGL, MSFT, META, APP, PLTR | First AI revenue quantification (Lesson 6); earnings beat on AI metric |
+
+Ask: *"What is the current physical bottleneck in the AI buildout?"* The stage with the active constraint is where the highest near-term upside sits. In early 2026, the binding constraint has shifted to **power and cooling (Stage 1/4)** — not chips (Stage 3). The overlooked stages (1 and 4) are classified as "energy/industrial/networking" and systematically underweighted by AI-theme funds.
+
+Apply the displacement test for every Stage 5 name: *"Does AI make this company's product better (revenue UP) or unnecessary (revenue DOWN)?"* (Lesson 7)
+
 **Now load the universe**: read `~/.claude/skills/cinvest/ltm/universe.md`. This defines your stock scope:
 - All S&P 500 constituents (default scope)
 - The 28 extended watchlist companies listed in `universe.md` (smaller / non-index names)
@@ -354,7 +374,7 @@ Before gravitating toward familiar names, sweep all 11 GICS sectors. For each se
 **Output structure for today's recommendations:**
 - **8 total accumulation picks**, split as:
   - **3 Big Tech** — chosen from the **Big Tech Pool** at `~/.claude/skills/cinvest/ltm/bigtech_pool.md` (~30 names spanning Mag-7, semiconductors, enterprise SaaS, cybersecurity, fintech, streaming, and platform companies). Pick the 3 with the best current fundamental + macro setup. Do not default to the same 3 daily — rotate based on valuation, recent earnings, and macro conditions. If a company should be added or removed from the pool based on today's findings, update `bigtech_pool.md` and log the change in its removal/addition log.
-  - **5 Free-style** — anything from the full universe (S&P 500 or extended watchlist), **including names already in the Big Tech Pool**. Overlap is fine and often appropriate — if a big tech name is your single best call, it should also appear as #1 in the free-style ranking. **Sort these 5 from highest to lowest expected profitability** (i.e., your single best call first, your most speculative last).
+  - **5 Free-style** — anything from the full universe (S&P 500 or extended watchlist), **including names already in the Big Tech Pool** and **sector ETFs in the universe** (e.g., MSOS for DEA rescheduling plays, XOP for energy supply shocks) when the catalyst is sector-wide rather than company-specific. Overlap is fine and often appropriate — if a big tech name is your single best call, it should also appear as #1 in the free-style ranking. **Sort these 5 from highest to lowest expected profitability** (i.e., your single best call first, your most speculative last).
 - **3 Avoids** — as before.
 
 Form a research shortlist of ~14 candidates (8 picks + avoid candidates + buffer for cuts). Sources:

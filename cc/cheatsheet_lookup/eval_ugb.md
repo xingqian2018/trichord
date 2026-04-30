@@ -79,21 +79,3 @@ slaunch cpu 1x1 ugb_score_<some_run_name> \
 ```
 
 Note: Stage 2 `--input_folder` and `<benchmark_name>` must match what Stage 1 wrote.
-
-## Local run
-
-To run any of the above locally instead of through `slaunch`, swap the prefix:
-
-```bash
-slaunch cpu 1x4 <slurm_job_name> \
-```
-
-with:
-
-```bash
-.venv/bin/python \
-```
-
-All other arguments stay the same.
-
----

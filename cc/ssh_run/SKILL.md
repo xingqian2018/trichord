@@ -16,6 +16,25 @@ Pick the host from the user's phrasing:
 - Mentions "gcp", "on gcp", "gcpcode" → `gcpcode`
 - Ambiguous → ask the user which one; do not guess.
 
+## Pre-flight: dedupe check (before submitting jobs)
+
+**Before any Slurm submission (`slaunch`, `sbatch`, or any wrapper), check whether the same job is already running on the target host.** Repeated runs waste cluster time, clobber outputs in shared `output_dir`s / `--signature` namespaces, and force a `scancel` cleanup afterward. This matters especially when **multiple Claude agents may be operating in parallel** — each one is unaware of the others' submissions and can independently re-launch the same job. The remote `squeue` is the only shared source of truth.
+
+The check:
+
+```
+ssh <host> 'squeue -u $USER -o "%i %j %T %R" | grep <job_name>'
+```
+
+Match by job name (the `<slurm_job_name>` you're about to pass) and/or by script + identifying args (`--signature`, output path, etc.). When launching a multi-variant batch (e.g. several evaluations at once), pre-check **each** variant's job name — don't just check one and assume the rest are clear.
+
+If a duplicate is found, **stop and ask the user**. Do not blindly resubmit. Acceptable resolutions:
+- "skip" → don't submit; report the existing job id.
+- "cancel and re-run" → `scancel <jobid>` first, then submit.
+- "submit anyway" → proceed.
+
+The check is cheap. The cleanup after a duplicate-launch incident is not.
+
 ## Default behavior — plain SSH
 
 For ANY request of the form "run X on the cluster" / "kick off X" / "submit X", default to plain SSH. Do not invent wrappers. The shape is always:
@@ -29,31 +48,65 @@ Examples of what "plain SSH" covers:
 - Slurm submissions via `slaunch` or `sbatch`: `ssh awscode 'cd ~/Project/... && slaunch small 1 <job_name> <script> ...'`
 - Cron-related work (installing/listing/removing crontab entries, status checks): `ssh gcpcode 'crontab -l'`
 
-Quote the remote command with **single quotes** so the local shell doesn't expand `$` / `` ` ``. If the remote command itself contains single quotes, escape using `'"'"'` or switch to a heredoc via `ssh <host> bash -s <<'EOF' ... EOF`.
+Quote the remote command with **single quotes** so the local shell doesn't expand `$` / `` ` ``. If the remote command itself contains single quotes, escape using `'"'"'`. **Do not** reach for heredoc syntax as a fallback — see the absolute ban below.
 
 If the remote command needs a specific working directory, chain it: `cd <dir> && <cmd>`. Do NOT assume `$HOME` is the right cwd for Slurm submissions.
 
-**Load the user profile by default.** Most remote commands rely on aliases, shell functions, `$PATH` entries, conda/venv activation, or env vars that only exist once `~/.bashrc` / `~/.profile` is sourced. Non-interactive SSH does **not** source these by default, so the safe default is to wrap the remote command in a login shell:
+**Load the user profile by default.** Most remote commands rely on aliases, shell functions, `$PATH` entries, conda/venv activation, or env vars that only exist once `~/.bashrc` / `~/.profile` is sourced. Non-interactive SSH does **not** source these by default. The safe default is:
 
 ```
-ssh <host> 'bash -lc "cd <dir> && <cmd>"'
-# or
-ssh <host> 'source ~/.bashrc && cd <dir> && <cmd>'
+ssh <host> 'bash -c "shopt -s expand_aliases && source ~/.bashrc && cd <dir> && <cmd>"'
 ```
 
-This matters especially for `slaunch` — it is a shell function / alias defined in `~/.bashrc` (via `bashrc.sh`), not a binary on `$PATH`, so a plain `ssh <host> 'slaunch ...'` will fail with "command not found". The same pitfall hits conda envs, `s3_omni.py` wrappers, custom `PATH` additions, and any other bashrc-defined tooling.
+Three things this incantation gets right that simpler forms get wrong:
+
+1. **Outer `bash -c`.** The default SSH login shell on `gcpcode` is **csh**, not bash. So `ssh gcpcode 'source ~/.bashrc && ...'` fails with `Illegal variable name` (csh trying to interpret bash syntax). Wrapping in `bash -c "..."` forces a bash subshell regardless of what the user's login shell is.
+2. **`shopt -s expand_aliases`.** `slaunch` (and similar tooling) is a **bash alias**, not a function or `$PATH` binary — e.g. `alias slaunch="bash $HOME/Project/bashrc/sbatch_launch/main.sh"`. Non-interactive bash has alias expansion **disabled by default**. So even after `source ~/.bashrc` defines the alias, typing `slaunch ...` still fails with "command not found" until `expand_aliases` is on. `shopt -s expand_aliases` must come **before** `source`.
+3. **`source ~/.bashrc`** (rather than `bash -lc`). `-lc` triggers a login shell, which on Debian/Ubuntu reads `~/.profile` / `~/.bash_profile` — neither of which is guaranteed to chain into `~/.bashrc`. Sourcing `~/.bashrc` directly is more reliable for picking up aliases / `$PATH` additions / conda activation.
+
+This matters especially for `slaunch` — a plain `ssh <host> 'slaunch ...'` will fail with "command not found". The same pitfall hits conda envs, `s3_omni.py` wrappers, custom `PATH` additions, and any other bashrc-defined tooling.
+
+**Escape hatch — bypass the alias entirely.** When the alias-expansion path is fragile (or you want to keep the script independent of the user's bashrc state), call the alias *target* directly. For `slaunch`, that's:
+
+```
+bash $HOME/Project/bashrc/sbatch_launch/main.sh <args...>
+```
+
+Useful inside `~/tmp/<name>.sh` scripts launched via the scp pattern below.
 
 Skip the profile load only for trivial built-ins where you are certain nothing custom is needed (e.g. `ls`, `cat`, `crontab -l`).
 
+### Remote scratch location: always `~/tmp/`
+
+**Any time a script (or any temporary file) needs to live on the remote node, put it under `~/tmp/` — never `/tmp/`, never the cwd, never `~/`.** This applies regardless of how the file got there (scp, `cat >`, generated by another command, etc.) and regardless of why it's there (heredoc replacement, staging input data, capturing output for inspection, etc.).
+
+Rationale:
+- `~/tmp/` is under the user's home, so it's on persistent / quota-tracked storage they own.
+- `/tmp/` on cluster head/login nodes is often small, shared, and wiped aggressively — files can vanish mid-job.
+- Keeping all remote scratch in one place makes cleanup and inspection trivial: `ssh <host> 'ls ~/tmp/'`.
+
+If `~/tmp/` may not exist, create it first: `ssh <host> 'mkdir -p ~/tmp'`. Leave files in place after use — no auto-cleanup needed.
+
 ### Tmp-file trick for complex commands
 
-When the remote command has awkward quoting (nested quotes, multi-line scripts, long pipelines, heredocs inside the command, etc.), avoid fighting the escaping. Instead:
+**Absolute rule: never use heredoc syntax in this skill.** No `<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, no custom terminators — none of it, anywhere. Not for building remote files, not for sending commands, not for "just this once because it's simple". The ban is total. If you find yourself typing `<<` in any tool call this skill drives, stop.
 
-1. Write the command to a temporary script under `~/tmp/` on the **remote** host (e.g. `~/tmp/ssh_run_<timestamp>.sh`).
-2. `chmod +x` it and run it: `ssh <host> 'bash ~/tmp/ssh_run_<timestamp>.sh'`.
-3. **Clean up on success** — remove the tmp file once the command completes successfully (`rm ~/tmp/ssh_run_<timestamp>.sh`). On failure, leave it so the user can inspect.
+When the remote command has awkward quoting (nested quotes, multi-line scripts, long pipelines, etc.), use the **write-locally → scp → ssh-execute** pattern. Always.
 
-Use `~/tmp/` specifically (not `/tmp/`) so the scratch file lives under the user's home and is easy to find. Create the directory if missing (`mkdir -p ~/tmp`).
+1. Write the script to a **local** file (e.g. `/tmp/sshrun/<name>.sh`) using the Write tool.
+2. `scp` it to the remote `~/tmp/` directory: `scp /tmp/sshrun/<name>.sh <host>:~/tmp/<name>.sh`.
+3. Execute it: `ssh <host> 'bash ~/tmp/<name>.sh'`.
+
+The remote path is `~/tmp/` per the **Remote scratch location** rule above — applies to this pattern and any other case where a file needs to land on the remote node.
+
+#### Why the heredoc ban is absolute
+
+The pattern `ssh host "cat > foo.sh <<'EOF' ... EOF; bash foo.sh"` looks tempting and seems equivalent to scp. It is not. Two things go wrong together:
+
+1. The whole multi-line string is one double-quoted local arg. Backslash-newline continuations (`\\` in the source → `\<newline>` after local processing) get **eaten as line continuation by the remote shell's tokenizer before heredoc body collection completes**, collapsing lines.
+2. With the heredoc body collapsed, the `EOF` terminator may not be recognized on its own line, so `cat` slurps **everything** including the trailing `chmod +x ... && bash foo.sh` lines into the script body. The resulting script is **self-recursive** — running it submits one slaunch, errors on the literal `EOF` line, then re-invokes itself via the embedded `bash foo.sh`. This causes a runaway: tens of slurm jobs submitted in seconds before you notice.
+
+**This bit us on `golden_caption_v14s2` — 29 stray Slurm jobs were submitted before being caught and `scancel`'d.** That incident is the reason for the absolute ban. There is no version of "but I'll be careful this time" that is worth re-litigating. Use scp.
 
 ## Composing with other skills
 

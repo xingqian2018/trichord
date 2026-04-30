@@ -111,20 +111,42 @@ slaunch cpu 1x4 coscapbench_recall_<SIGNATURE> \
 
 ---
 
-## Local run
+## Reporting performance / status
 
-To run any of the above locally instead of through `slaunch`, swap the prefix:
+When the user asks "is X done?", "what's the result?", "check the precision/recall run", or any similar status/performance question, **read the result JSON from S3** — do **not** parse the slurm `.e` log tail.
 
-```bash
-slaunch cpu 1x4 <slurm_job_name> \
+The result JSONs live under the same `results/` folder the eval writes into:
+
+```
+s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION_LONG>/results/precision_eval_result_<SIGNATURE>.json
+s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION_LONG>/results/recall_eval_result_<SIGNATURE>.json
 ```
 
-with:
+Download via the `s3io` skill (`dl ... /tmp/s3io_<basename>`) and read with the `Read` tool. If a file is **missing**, the run hasn't reached the write step yet — report it as `running` / `queued` (cross-check with `squeue` on the cluster if needed) and **do not** fall back to log scraping.
 
-```bash
-.venv/bin/python \
-```
+### Precision — fields to report
 
-All other arguments stay the same.
+From `precision_eval_result_<SIGNATURE>.json`:
 
----
+1. **Precision** — `total_stats.accuracy`
+2. **Precision claim count** — second pair in `success_cnt` (e.g. `success_cnt = "297/298, 1318/1318"` → claim count = `1318/1318`)
+3. **Evaluation success image count** — first pair in `success_cnt` (e.g. `297/298`)
+
+### Recall — fields to report
+
+From `recall_eval_result_<SIGNATURE>.json`:
+
+1. **Recall** — `recall`
+2. **Recall success image count** — first pair in `success_cnt` (e.g. `success_cnt = "293/293, 2976/4780"` → image count = `293/293`)
+
+### Report to file:
+
+1. ~/Project/trichord/reports/golden_caption_analysis_long_version.md (long version)
+2. ~/Project/trichord/reports/golden_caption_analysis.md (summary version)
+
+### Rules
+
+- **Be concise — one table is usually the entire response.** No preamble, no per-variant prose paragraphs, no recap of the commands that were launched. Just the table, plus at most one short line if something is genuinely off (e.g. a job failed).
+- One compact table when multiple variants are reported together (`v*s3d`, `v*s3s`, `v*s4s`). Columns: variant / signature / the metric fields above / status.
+- Mark missing-JSON variants as `running` (job in `squeue`) or `queued` (not yet started). Do not invent partial numbers.
+- Do not paste the full JSON, the `Params:` block, progress bars, or per-rank `[R0]/[R1]/...` lines unless the user explicitly asks.

@@ -1,6 +1,6 @@
 ---
 name: cschedule
-description: Schedule a shell command to fire on a recurring or one-shot schedule, with safe per-entry add/list/cancel by tag and a built-in Slack-posting + @-mention-creator convention. Two backends — OS crontab (default) and a self-contained Python loop runner (`loop_runner.py`) used as a fallback when the host periodically wipes user crontabs or has no cron daemon. Use for recurring Slack pings, periodic script runs, deferred reminders — anything where reliability matters more than having Claude reasoning per fire. Schedules survive Claude session exit and logout regardless of backend.
+description: Set up a **repeating Claude query** tied to a launch. Agent mental model — cschedule schedules a query (a Claude prompt) that fires on a recurring cron schedule, until cancelled. Implementation — every cron line cschedule installs invokes `channels/slack_callback.py`, which dispatches the query to a fresh Claude session and exits. What the Claude session does after that, including any Slack posting via `slack.py`, is **out of cschedule's scope**. Use right after starting a long-running job/run/build to get periodic Claude-generated updates. NOT a general cron wrapper. Includes a `loop_runner.py` fallback when the host wipes user crontabs.
 user_invocable: true
 allowed-tools:
   - Bash
@@ -10,19 +10,35 @@ allowed-tools:
 
 ## Purpose
 
-Add or remove entries in the user's **OS crontab** so a shell command fires on a real schedule. The cron daemon ticks regardless of whether Claude is running — schedules survive session exit, harness restarts, and logout. This is the reliable scheduling backend.
+**Agent mental model: cschedule sets up a repeating Claude query.** The user gives you (a) a question or instruction they want Claude to handle periodically and (b) a cadence; you install a cron entry that fires that query, repeatedly, until cancelled.
 
-Typical uses:
-- **Recurring Slack ping** — "every minute, post X to #channel"
-- **Periodic script** — "every weekday at 9:10am, run ~/bin/standup.sh"
-- **Deferred reminder** — "in 30 min, post 'check the deploy' to #ops"
-- **Long-running monitor** — "every 15 min, run my_script.py and Slack the result if it changed"
+Concretely, the skill does **one thing**: install / list / cancel OS cron entries that fire `channels/slack_callback.py`. Every cron line cschedule installs is a slack_callback.py invocation — nothing else.
 
-## Why not the REPL `CronCreate` tool?
+What slack_callback.py does on each fire:
+1. Dispatches the `--message` argument — i.e. the query — to a fresh Claude session, with the identity arguments attached.
+2. Exits.
 
-`CronCreate` claims to fire callbacks back into the same Claude session, which would let the agent reason about each fire. In practice, this harness has been observed to silently drop those jobs — they register, then disappear from `CronList` without ever firing visibly. **Do not rely on `CronCreate` for anything that needs to actually happen.** This skill uses OS cron exclusively.
+That's all cschedule needs to know. **Slack posting is not cschedule's concern.** Whatever the Claude session does with the query — including any messaging via `slack.py` — is downstream of this skill. Do not document, modify, or reason about Slack-posting mechanics in cschedule.
 
-The cost: Claude isn't in the loop on each fire. Whatever the cron does has to be a self-contained shell/python invocation. If the user wants "look at output, decide, do next thing", encode that decision logic in a shell or python script the cron runs — not in a Claude prompt.
+Canonical workflow:
+1. User launches a long-running thing (Slurm job, training run, build, deploy).
+2. They invoke `/cschedule …` to set up a periodic query: cadence + the question Claude should handle each fire.
+3. Cron fires the query on schedule.
+4. When the launch is done, the user runs `/cschedule cancel <tag>`; the termination protocol calls `slack_callback.py --terminate` so the callback can clean up its own state.
+
+**Out of scope.** Do not use cschedule for arbitrary periodic scripts, deferred reminders, standalone monitors, or any cron entry that does not call slack_callback.py. If a request doesn't fit the "repeating Claude query" pattern, push back — direct the user to `crontab -e` or another tool. The skill used to be generic; that scope was a mistake and has been removed.
+
+The cron daemon ticks regardless of whether Claude is running — schedules survive session exit, harness restarts, and logout.
+
+## PROHIBITED: the REPL `CronCreate` / `CronList` / `CronDelete` tools
+
+**Do not call `CronCreate`, `CronList`, or `CronDelete`. They do not work in this environment. Do not attempt them, not even once, not even to "verify" — they are a dead end.**
+
+Symptom: jobs appear to register, then silently disappear from `CronList` without ever firing. Past sessions have wasted significant time retrying these tools or trying to diagnose them. Don't.
+
+This skill uses **OS cron exclusively** (Backend B), with the user-space loop runner (Backend C) as the only fallback. If you find yourself reaching for `CronCreate`, stop and re-read this section.
+
+The cost of OS cron: Claude isn't in the loop on each fire. The cron line just hands off to slack_callback.py, which dispatches the query to a fresh Claude session — that's the contract.
 
 ## Two backends, picked by environment
 
@@ -52,17 +68,15 @@ Multiple Claude sessions can run at the same time, all wanting to manage the sam
 <schedule> <command>
 ```
 
-Insert/update/delete operations preserve every other crontab line. The unique tag must be specific enough that no two schedules collide — include the action being scheduled (e.g. `tag=ping-good-gsb`, `tag=watch-DAITR007`, `tag=standup-9am`).
+Insert/update/delete operations preserve every other crontab line. The unique tag must be specific enough that no two schedules collide — include the launch being watched (e.g. `tag=watch-job-12345`, `tag=pulse-train-run-A`).
 
 ## Invocation
 
 ```
-/cschedule every minute, post "Good" to #gsb_scheduled_event
-/cschedule every weekday at 9:10am, run ~/bin/standup.sh
-/cschedule in 30 min, post "check the deploy" to #ops
-/cschedule list                 # show all cschedule-managed entries
-/cschedule cancel <tag>         # delete one by tag
-/cschedule cancel-all           # delete every cschedule-managed entry
+/cschedule every minute, run query "<prompt>"          # set up a recurring callback for the current launch
+/cschedule list                                        # show all cschedule-managed entries
+/cschedule cancel <tag>                                # delete one by tag (runs --terminate first)
+/cschedule cancel-all                                  # delete every cschedule-managed entry
 ```
 
 ### Parsing the request
@@ -71,21 +85,14 @@ Insert/update/delete operations preserve every other crontab line. The unique ta
    - `every N min` → `*/N * * * *` (use `*/N` only when `60 % N == 0`; otherwise pick an off-minute pattern like `7,22,37,52`)
    - `every N hours` → `0 */N * * *`
    - `every weekday at H:M` → `M H * * 1-5`
-   - `at H:M` (one-shot) → see "One-shots" below
    - When the user is approximate ("around 9am", "hourly"), nudge the minute off `:00` and `:30` to spread load (e.g. `7 9 * * *` instead of `0 9 * * *`).
-2. **Command** → what to run. For Slack posts, use the helper (see "Slack convention"). For arbitrary scripts, use absolute paths and `/usr/bin/python` (cron's PATH is minimal).
-3. **Tag** → a unique slug derived from the action. Default format: lowercase-hyphenated, ≤ 30 chars (e.g. `ping-good-gsb`, `standup-weekday-9am`).
+2. **Query** (`--message`) → the prompt Claude should run each fire. Always frame as an instruction or question.
+3. **Tag** → a unique slug derived from the launch being watched. Default format: lowercase-hyphenated, ≤ 30 chars (e.g. `watch-job-12345`, `pulse-train-run-A`).
 4. **Log path** → `/tmp/cschedule_<tag>.log`. Logs survive across fires; tail to debug.
 
-## Slack convention — use `channels/slack_callback.py`
+## The slack_callback.py invocation
 
-Every Slack-posting cschedule entry should go through `channels/slack_callback.py` (in the user's trichord project), **not** `slack_client.py reply` directly. The callback wraps `slack_client.py` and adds:
-
-1. **Thread-per-schedule**: the first fire creates one anchor message in the channel, and every subsequent fire posts as a reply in that same thread. This keeps the channel tidy instead of flooding it with N top-level messages.
-
-All other state (thread lookup by `(owner, topic)`, routing replies back to a Claude session) is managed internally by the callback — cschedule doesn't need to know about those files.
-
-The posting channel is not a CLI flag — it's read from `credentials/slack.json` at import time.
+Every cschedule cron entry calls `channels/slack_callback.py`. From cschedule's perspective the callback does one thing: take a query plus identity arguments, dispatch to a Claude session, exit. Anything beyond that — Slack threads, anchors, @-mentions, message posting — is handled by `slack.py` and is **not** documented or managed here.
 
 Schedule-time command:
 
@@ -94,13 +101,13 @@ Schedule-time command:
   --owner-slack-id <creator_slack_uid> \
   --topic <unique-topic> \
   --createtime <iso-datetime> \
-  --message "<message>"
+  --message "<query for Claude>"
 ```
 
-- **`--owner-slack-id`**: raw Slack user ID of the **person invoking `/cschedule`** (the creator) — names, handles, and emails are rejected by the CLI validator. Resolve it dynamically at install time via `cslack` (`users.lookupByEmail` requires the bot's OAuth to include `users:read.email`); never resolve at fire time. The `<@UID>` render only works with real IDs — Slack will not resolve plain `@handle` text sent via the API.
-- **`--topic`**: unique identifier for this schedule. Same `(owner, topic)` always resolves to the same thread — this is the idempotency key.
-- **`--createtime`**: datetime string in the format `YYYY/mm/dd HH:MM`, captured **at schedule time** (not fire time) and baked into the cron command. Combined with `(owner, topic)` this forms the full identity of the schedule — same triple always resolves to the same thread; a different createtime is treated as a different schedule. Use `$(date '+%Y/%m/%d %H:%M')` at install time.
-- **`--message`**: the text to post on this fire.
+- **`--owner-slack-id`**: raw Slack user ID of the **person invoking `/cschedule`** (the creator). Resolve dynamically at install time via `cslack`; never resolve at fire time. Names, handles, and emails are rejected by the CLI validator — pass the raw UID.
+- **`--topic`**: unique identifier for this schedule. Same `(owner, topic)` always resolves to the same downstream state — this is the idempotency key.
+- **`--createtime`**: datetime string in the format `YYYY/mm/dd-HH:MM`, captured **at schedule time** (not fire time) and baked into the cron command. Combined with `(owner, topic)` this forms the full identity of the schedule. Use `$(date '+%Y/%m/%d %H:%M')` at install time.
+- **`--message`**: the **query** (a Claude prompt) dispatched to a fresh Claude session on each fire. Write it as an instruction or question for Claude. Where Claude's response ends up is `slack.py`'s domain, not cschedule's.
 
 ## Operations
 
@@ -109,15 +116,19 @@ All operations below assume `bash` is available. Each is a single composable sni
 ### Install or update an entry by tag (idempotent)
 
 ```bash
-TAG='<unique-tag>'                 # e.g. ping-good-gsb
-SCHEDULE='* * * * *'               # any valid cron expression
-CMD='<command>'                    # full command, single-quote-safe
+TAG='<unique-tag>'
+SCHEDULE='* * * * *'
+OWNER='<creator slack UID, resolved via cslack at install time>'
+TOPIC='<unique topic, often == TAG>'
+CREATETIME=$(date '+%Y/%m/%d %H:%M')
+PROMPT='<the Claude query for each fire>'
+CMD="/usr/bin/python /home/xingqianx/Project/trichord/channels/slack_callback.py --owner-slack-id ${OWNER} --topic ${TOPIC} --createtime '${CREATETIME}' --message '${PROMPT}'"
 LOG="/tmp/cschedule_${TAG}.log"
 
 (
   crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '
-    $0 ~ t {skip=2; next}          # drop the comment line
-    skip>0 {skip--; next}          # and the cron line directly below
+    $0 ~ t {skip=2; next}
+    skip>0 {skip--; next}
     {print}
   '
   printf '# cschedule:tag=%s\n' "${TAG}"
@@ -142,20 +153,17 @@ crontab -l 2>/dev/null | awk '
 
 ### Cancel one entry by tag
 
-**Important:** if the entry posts to Slack via `slack_callback.py`, run a final `--terminate` invocation **before** removing the crontab line. This closes the thread on the Slack side: it edits the anchor message badge from "Live" to "Closed" and clears the topic-index entry. See the "Termination protocol for Slack-callback schedules" section below.
+**Important:** run `slack_callback.py --terminate` **before** removing the crontab line so the callback can clean up its own state. See "Termination protocol" below.
 
 ```bash
 TAG='<unique-tag>'
 
-# 1. Pull the existing slack_callback.py invocation out of the cron line and
-#    re-run it verbatim with --terminate appended (same owner/topic/createtime/message).
 LINE=$(crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '$0 ~ t {found=1; next} found {print; exit}')
 PY_CMD=$(echo "$LINE" | sed -nE 's|.*(/usr/bin/python [^;}]*slack_callback\.py[^;}]*).*|\1|p')
 if [ -n "$PY_CMD" ]; then
   eval "$PY_CMD --terminate"
 fi
 
-# 2. Remove the crontab block.
 crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '
   $0 ~ t {skip=2; next}
   skip>0 {skip--; next}
@@ -165,7 +173,7 @@ crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '
 
 ### Cancel every cschedule-managed entry (leaves user's other cron lines intact)
 
-Iterate so each Slack-callback entry gets its own termination ping before its crontab block is removed:
+Iterate so each entry gets its own termination call before its crontab block is removed:
 
 ```bash
 for TAG in $(crontab -l 2>/dev/null | awk '/^# cschedule:tag=/ {sub(/^# cschedule:tag=/, ""); print}'); do
@@ -183,25 +191,9 @@ crontab -l 2>/dev/null | awk '
 ' | crontab -
 ```
 
-### Termination protocol for Slack-callback schedules
+### Termination protocol
 
-Schedules that post via `slack_callback.py` have **state on the Slack side** that outlives the crontab entry: an anchor message in the channel and an entry in `cschedule_topic_index.json`. Cancelling the cron without telling the callback leaves the anchor showing "Live" forever and leaves a stale topic-index entry that will collide if the same `(owner, topic, createtime)` triple is ever reused.
-
-`slack_callback.py --terminate` is the cleanup hook:
-- (a) Posts the final `--message` into the existing thread.
-- (b) Edits the anchor message — green-circle "Live" → red-circle "Closed".
-- (c) Removes the topic-index entry.
-
-Always run terminate **before** removing the crontab line — once the line is gone, you've lost `--owner-slack-id`, `--topic`, and `--createtime`, and the callback can no longer find the thread.
-
-## One-shots
-
-OS cron doesn't natively express "fire once". Pick:
-
-1. **`at`** if available — `echo '<cmd>' | at HH:MM` is the cleanest. Check `command -v at` first; on minimal containers it isn't always installed.
-2. **Self-deleting cron line** — date-pin the cron expression (e.g. `9 14 23 4 *` for "April 23 at 14:09") and append `&& <cancel-by-tag-snippet>` to the command so it removes itself after firing successfully. Heavier but works without `at`.
-
-Prefer `at` when available. When using cron-with-self-delete, the tag must be unique because the self-delete uses the same tag-based awk filter.
+Cancelling the crontab line alone is not enough — call `slack_callback.py --terminate` *before* removing the line so the callback can do its own cleanup (whatever downstream state it tracks; not cschedule's concern). Once the crontab line is gone, the `--owner-slack-id`, `--topic`, and `--createtime` triple is lost and the callback can no longer locate its state.
 
 ## Health checks
 
@@ -225,12 +217,11 @@ After install, report:
    Note: persists across Claude sessions and logout — actively running on the OS.
 ```
 
-For Slack-posting entries, also confirm: target channel, @-mentioned user, and that the bot has been invited to the channel (otherwise posts will fail with `not_in_channel`).
-
 ## Constraints
 
+- **Never** install a cschedule cron entry that runs anything other than `channels/slack_callback.py`. Every line this skill installs must be a slack_callback.py invocation. If the user wants a non-callback cron, refuse and direct them to `crontab -e`.
 - **Never** call `crontab <file>` with a file that doesn't preserve unrelated existing lines. Always read the current crontab first and merge — multiple Claude sessions may be managing different tags simultaneously.
-- **Never** schedule a Slack-posting entry without `--owner-slack-id <creator_user_id>` so the anchor message mentions someone.
+- **Never** schedule a slack_callback.py entry without `--owner-slack-id <creator_user_id>`.
 - **Never** resolve a user at fire time when the schedule could resolve it once at install time. Cron-run shells have minimal env; bake fully-resolved IDs into the command.
 - **Never** assume cron's PATH includes anything beyond `/usr/bin:/bin`. Use absolute paths for `python`, custom binaries, and any script invocation.
 - **Never** report "scheduled" without verifying with `crontab -l`. Some environments restrict `crontab` writes — surface that as an error, not a success.
@@ -248,7 +239,7 @@ Some sandboxed environments wipe `/var/spool/cron/crontabs/` periodically (every
 ```bash
 TAG='<unique-tag>'
 PERIOD=60                    # seconds between fires; aligns to wall-clock
-CMD='<command>'              # passed to /bin/sh -c on each fire
+CMD='<slack_callback.py invocation>'
 
 nohup /usr/bin/python /home/xingqianx/.claude/skills/cschedule/loop_runner.py \
   --tag "${TAG}" \
@@ -256,7 +247,6 @@ nohup /usr/bin/python /home/xingqianx/.claude/skills/cschedule/loop_runner.py \
   --cmd "${CMD}" \
   > /dev/null 2>&1 &
 
-# Verify it's alive
 sleep 1
 ps -fp "$(cat /tmp/cschedule_${TAG}.pid)"
 ```
@@ -308,55 +298,45 @@ done
 
 ## Examples
 
-### Example 1 — recurring Slack ping (the canonical case)
+### Example 1 — repeating Claude query on a launch (the canonical case)
 
-User: `/cschedule every minute, post "Good" to #gsb_scheduled_event`
+User: `/cschedule every minute, run query "Briefly check status of my Slurm jobs and report any state change."`
+
+*(Typical context: the user just kicked off a long Slurm job / training run and wants Claude to periodically check on it. `--message` is the query Claude runs each fire; what Claude does with the answer is slack.py's job.)*
 
 Agent:
 1. Resolve inputs once at schedule time:
-   - **Tag** = `ping-good-gsb`
+   - **Tag** = `watch-slurm-status`
    - **Schedule** = `* * * * *`
    - **Owner UID** = the current invoker's Slack UID, resolved dynamically via `cslack` from their email/username (do NOT hardcode). The resolved ID is then baked into the cron command.
    - **Createtime** = `$(date '+%Y/%m/%d %H:%M')` captured now
-2. Install the cron line that calls `slack_callback.py` (which handles thread creation on first fire, thread-reply on subsequent fires):
+2. Install the cron line:
    ```bash
-   TAG='ping-good-gsb'
+   TAG='watch-slurm-status'
    SCHEDULE='* * * * *'
    OWNER='<resolve via cslack from current user — e.g. U01ABCDEFGH>'
-   TOPIC='ping-good-gsb'
+   TOPIC='watch-slurm-status'
    CREATETIME=$(date '+%Y/%m/%d %H:%M')
-   CMD="/usr/bin/python /home/xingqianx/Project/trichord/channels/slack_callback.py --owner-slack-id ${OWNER} --topic ${TOPIC} --createtime '${CREATETIME}' --message 'Good'"
+   PROMPT='Briefly check status of my Slurm jobs and report any state change.'
+   CMD="/usr/bin/python /home/xingqianx/Project/trichord/channels/slack_callback.py --owner-slack-id ${OWNER} --topic ${TOPIC} --createtime '${CREATETIME}' --message '${PROMPT}'"
    LOG="/tmp/cschedule_${TAG}.log"
    (crontab -l 2>/dev/null | awk -v t="cschedule:tag=${TAG}" '$0 ~ t {skip=2; next} skip>0 {skip--; next} {print}'; \
     printf '# cschedule:tag=%s\n' "${TAG}"; \
     printf '%s { echo "--- $(/bin/date -Iseconds) cron-fire ---"; %s; } >> %s 2>&1\n' "${SCHEDULE}" "${CMD}" "${LOG}") | crontab -
    ```
-3. Verify: `crontab -l | grep -A1 ping-good-gsb`.
-4. Wait 75s, then `cat /tmp/cschedule_ping-good-gsb.log` — first entry should be `"stage": "created"`, subsequent entries `"stage": "reply"`.
-5. Confirm to user with the standard report block, plus the Slack thread link from the callback's first-fire output so they can jump straight to the thread.
+3. Verify: `crontab -l | grep -A1 watch-slurm-status`.
+4. Wait 75s, then `cat /tmp/cschedule_watch-slurm-status.log` — should show at least one cron fire entry.
+5. Confirm to user with the standard report block.
 
-### Example 2 — weekday standup script
-
-User: `/cschedule every weekday at 9:07am, run ~/bin/standup.sh and Slack the output to #standup`
-
-Agent:
-1. Tag: `standup-weekday`. Cron: `7 9 * * 1-5`. The script + Slack post composes nicely as one shell command.
-2. Install with:
-   ```
-   CMD='/home/xingqianx/bin/standup.sh 2>&1 | head -c 3000 | xargs -0 -I{} /usr/bin/python /home/xingqianx/.claude/skills/cslack/slack_client.py reply --channel "#standup" --mention "U0AT5LD6E9Y" --text {}'
-   ```
-3. (Note: complex pipelines like the above benefit from a tiny wrapper script — write it to `~/bin/standup_and_post.sh` and have cron run that, instead of cramming everything into the crontab line.)
-
-### Example 3 — listing & cancelling
+### Example 2 — listing & cancelling
 
 User: `/cschedule list`
 
 Agent runs the list snippet:
 ```
-ping-good-gsb | * * * * * { echo "--- $(...) cron-fire ---"; /usr/bin/python ... ; } >> /tmp/cschedule_ping-good-gsb.log 2>&1
-standup-weekday | 7 9 * * 1-5 { echo "--- ..." ...
+watch-slurm-status | * * * * * { echo "--- $(...) cron-fire ---"; /usr/bin/python ... ; } >> /tmp/cschedule_watch-slurm-status.log 2>&1
 ```
 
-User: `/cschedule cancel ping-good-gsb`
+User: `/cschedule cancel watch-slurm-status`
 
-Agent runs the cancel-by-tag snippet, then verifies `crontab -l` no longer contains the tag.
+Agent runs the cancel-by-tag snippet (which calls `--terminate` first), then verifies `crontab -l` no longer contains the tag.

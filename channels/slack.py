@@ -22,9 +22,13 @@ from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from slack_bolt.async_app import AsyncApp
 
 CREDS = json.loads((Path(__file__).parent.parent / "credentials" / "slack.json").read_text())
+SYSTEM_PROMPT = (Path(__file__).parent / "slack_gsb_system_prompt.md").read_text()
 
 SLACK_ROLLOVER_AT = 3000  # Seal current message and start a fresh one before hitting the limit
 MAX_VISIBLE_TOOLS = 3  # How many in-flight tools to render before collapsing the rest
+
+SCHEDULE_ANCHOR_PREFIX = ":robot_face::calendar:"
+SCHEDULE_TERMINATE_WORDS = {"terminate", "cancel", "stop"}
 
 YES_ALWAYS = {"always", "always yes", "always_yes"}
 YES = {"yes", "y", "allow", "approve", "ok", "sure"}
@@ -119,6 +123,10 @@ class SlackClaudeSession:
         self.pending_tool_tracker: dict[str, ToolUseBlock] = {}
         self.always_allow_pending_tool_flag = False
 
+        self.terminated: bool = False
+        self.client: ClaudeSDKClient | None = None
+        self.run_task: asyncio.Task | None = None
+
     def has_pending(self) -> bool:
         return bool(self.pending)
 
@@ -185,7 +193,11 @@ class SlackClaudeSession:
         }.get(verdict, ":grey_question: Error")
 
     async def update_main(self):
+        if self.terminated:
+            return
         async with self.lock:
+            if self.terminated:
+                return
             if self.main_ts is None:
                 await self.post_fresh_thinking()
 
@@ -218,7 +230,11 @@ class SlackClaudeSession:
         return
 
     async def update_main_with_verdict(self, verdict: str, message: Optional[str] = None):
+        if self.terminated:
+            return
         async with self.lock:
+            if self.terminated:
+                return
             body = self.response_str
             body += self.create_pending_tool_message()
             body += self.create_permission_verdict_message(verdict, message)
@@ -234,6 +250,8 @@ class SlackClaudeSession:
 
     async def post_fresh_thinking(self):
         assert self.main_ts is None
+        if self.terminated:
+            return
         if self.lock:
             try:
                 msg = await app.client.chat_postMessage(
@@ -282,27 +300,26 @@ class SlackClaudeSession:
         return True
 
     async def terminate(self) -> None:
+        self.terminated = True
         async with self.lock:
             self.always_allow_pending_tool_flag = False
+            self.pending_tool_tracker.clear()
+            self.pending_tool_verdicts.clear()
             for tid in list(self.pending.keys()):
                 fut = self.pending.pop(tid)
                 if not fut.done():
                     fut.set_result(("deny", "user terminated session"))
-            self.pending_tool_verdicts.clear()
-        if self.session_id is not None:
+        if self.client is not None:
             try:
-                options = ClaudeAgentOptions(
-                    resume=self.session_id,
-                    can_use_tool=self.can_use_tool,
-                )
-                async with ClaudeSDKClient(options=options) as client:
-                    await client.interrupt()
+                await self.client.interrupt()
             except Exception:
-                self.logger.exception("failed to interrupt claude session")
+                self.logger.exception("failed to interrupt active claude client")
+        if self.run_task is not None and not self.run_task.done():
+            self.run_task.cancel()
         try:
             await app.client.chat_postMessage(
                 channel=self.channel, thread_ts=self.thread_ts,
-                text=":octagonal_sign: _terminated by user — always-allow cleared, interrupt sent_",
+                text=":octagonal_sign: _terminated by user — always-allow cleared, session interrupted, no further messages_",
             )
         except Exception:
             self.logger.exception("failed to post terminate notice")
@@ -343,6 +360,8 @@ class SlackClaudeSession:
         return PermissionResultDeny(message=message or "user denied")
 
     async def run(self, text: str, user_id: str) -> None:
+        self.terminated = False
+        self.run_task = asyncio.current_task()
         async with self.lock:
             self.main_ts = None
             self.response_str = ""
@@ -372,28 +391,56 @@ class SlackClaudeSession:
         options = ClaudeAgentOptions(
             resume=self.session_id,
             can_use_tool=self.can_use_tool,
+            system_prompt=SYSTEM_PROMPT,
         )
 
-        async with ClaudeSDKClient(options=options) as client:
-            await client.query(f"[UserID: {user_id}] {text}")
-            async for msg in client.receive_response():
-                if isinstance(msg, SystemMessage):
-                    sid = msg.data.get('session_id')
-                    if sid and self.session_id is None:
-                        self.session_id = sid
-                        await save_cached_session_id(self.key, sid)
-                await self.try_finalize_gear(msg)
-                if isinstance(msg, ResultMessage):
-                    await self.update_main()
-                    async with self.lock:
-                        self.response_str = ""
-                        self.main_ts = None
-                    break
-                fragment = self.render_message(msg)
-                if fragment:
-                    async with self.lock:
-                        self.response_str += "\n" + fragment
-                await self.update_main()
+        try:
+            async with ClaudeSDKClient(options=options) as client:
+                self.client = client
+                await client.query(f"[UserID: {user_id}] {text}")
+                async for msg in client.receive_response():
+                    if self.terminated:
+                        break
+                    if isinstance(msg, SystemMessage):
+                        sid = msg.data.get('session_id')
+                        if sid and self.session_id is None:
+                            self.session_id = sid
+                            await save_cached_session_id(self.key, sid)
+                    await self.try_finalize_gear(msg)
+                    if isinstance(msg, ResultMessage):
+                        if not self.terminated:
+                            await self.update_main()
+                        async with self.lock:
+                            self.response_str = ""
+                            self.main_ts = None
+                        break
+                    fragment = self.render_message(msg)
+                    if fragment and not self.terminated:
+                        async with self.lock:
+                            self.response_str += "\n" + fragment
+                    if not self.terminated:
+                        await self.update_main()
+        except asyncio.CancelledError:
+            self.logger.info("claude run task cancelled by terminate")
+        finally:
+            self.client = None
+            self.run_task = None
+
+
+def parse_schedule_anchor(text: str) -> dict | None:
+    # format: ":bot::calendar: <@UID> topic | createtime | badge"
+    body = text[len(SCHEDULE_ANCHOR_PREFIX):].strip()
+    if not body.startswith("<@"):
+        return None
+    close = body.find(">")
+    if close < 0:
+        return None
+    owner_slack_id = body[2:close]
+    rest = body[close + 1:].strip()
+    parts = rest.split(" | ", 2)
+    if len(parts) < 2:
+        return None
+    return {"owner_slack_id": owner_slack_id, "topic": parts[0].strip(), "createtime": parts[1].strip()}
 
 
 @app.event("message")
@@ -426,12 +473,23 @@ async def handle_message_events(event, logger):
                 parent_mentions_bot = bool(BOT_USER_ID) and f"<@{BOT_USER_ID}>" in parent.get("text", "")
                 if not (parent_by_bot or parent_mentions_bot):
                     return
+                if parent.get("text", "").startswith(SCHEDULE_ANCHOR_PREFIX):
+                    if text.strip().lower() not in SCHEDULE_TERMINATE_WORDS:
+                        return
+                    info = parse_schedule_anchor(parent["text"])
+                    if info is None:
+                        return
+                    text = (
+                        f"Please cancel the scheduled event with '--owner-slack-id {info['owner_slack_id']}' "
+                        f"'--topic {info['topic']}' and '--createtime {info['createtime']}'. "
+                        f"Use the cschedule skill to find and cancel it."
+                    )
             except Exception:
                 logger.exception("failed to fetch thread parent")
                 return
 
     if is_mention:
-        text = text.replace(f"<@{BOT_USER_ID}>", "", 1).strip()
+        text = text.replace(f"<@{BOT_USER_ID}>", " @you ").strip()
 
     session = ACTIVE_CLAUDE_SESSION.get(key)
 

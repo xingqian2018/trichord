@@ -40,7 +40,7 @@ Go the credentials from JSON `~/Project/trichord/credentials/gateway.json`, usua
 | v4 | golden_caption_v4_g3pg3p | | gemini-3.1-pro |  |  |
 | v5 | golden_caption_v5_g3fg3p |  | gemini-3.1-flash |  |  |
 | v6 | golden_caption_v6_q235g3p |  | qwen235b |  |  |
-| v7 | golden_caption_v7_q235g3p |  | gemini-3-flash |  | New structure grounding involved. Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p (qwen235b) |
+| v7 | golden_caption_v7_q235g3p |  | qwen235b |  | New structure grounding involved. Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p (qwen235b) |
 | v8 | golden_caption_v8_q235g3p |  | gemini-3-flash |  | New structure grounding involved. Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p (gemini-3.1-flash) |
 | v9 | golden_caption_v9_g3fg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p (gemini-3.1-flash) |
 | v10 | v10_mixg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v6_q235g3p (qwen235b) |
@@ -48,9 +48,9 @@ Go the credentials from JSON `~/Project/trichord/credentials/gateway.json`, usua
 | v11 | v11_mixg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v5_g3fg3p (gemini-3.1-flash) |
 | v12 | v12_g3fg3p |  | gemini-3-flash |  | A full new stage 1 and 2 prompting design, YAML I/O |
 | v13 | v13_q235bg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | |
-| v14 | v14_mixg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v12_g3fg3p |
-| v15 | v15_mixg3p |  | gemini-3-flash |  | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v13_q235bg3p |
-
+| v14 | v14_q235bg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v13_q235bg3p, fixing the ignore issue on identifier location |
+| v15 | v15_q235bg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Fully agent self improved prompting system |
+| v16 | v16_g3pg3p |  | gemini-3.1-pro | | Same v15 different model |
 ---
 
 ## Stage 1 — Entity Search Template
@@ -117,6 +117,7 @@ slaunch cpu 1x1 golden_caption_<VERSION>s3 \
     --output_credential credentials/gcs.secret \
     --num_concurrency 32 \
     --batch_size 100 \
+    --timeout 400 \
     --max_retry 3 \
     --force_gen_model <STAGE3_GEN_MODEL>
 ```
@@ -161,20 +162,14 @@ slaunch cpu 1x1 golden_caption_convert_<VERSION_SHORT> \
 
 ---
 
-## Local run
+## Checking status:
 
-To run any of the above locally instead of through `slaunch`, swap the prefix:
+The trick to check status don't need to go find program logs. The logs are long so too long don't read. A much reliable way are checking folder cnt with the following command.
 
-```bash
-slaunch cpu 1x4 <slurm_job_name> \
-```
-
-with:
+Output as to user as concise as possible.
 
 ```bash
-.venv/bin/python \
+s3 s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION>/stage<...>/ cnt
 ```
 
-All other arguments stay the same.
-
----
+_(P.S. check your s3io skill)_

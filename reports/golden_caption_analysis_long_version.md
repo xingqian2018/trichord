@@ -195,6 +195,7 @@ Three tables, one per caption variant. P = precision, R = recall, F1 = 2·P·R /
 | v14 (q235bg3p)| 0.942 | 0.607 | 0.738 |
 | v15 (q235bg3p)| 0.941 | 0.603 | 0.735 |
 | v16 (g3pg3p)  | 0.975 | 0.622 | 0.760 |
+| v17 (g3pg3p)  | _pending_ | 0.622 | _pending_ |
 
 \* v3 dense/structured recall never finished (only v3 s4s recall was run); numbers for the
 v3 paragraph are backed by the s4 row below.
@@ -220,6 +221,7 @@ v13 image-success counts (every variant): precision 298 / 298 images, recall 292
 | v14 (q235bg3p)| 0.938 | 0.580 | 0.717 |
 | v15 (q235bg3p)| 0.941 | 0.589 | 0.724 |
 | v16 (g3pg3p)  | 0.973 | 0.604 | 0.745 |
+| v17 (g3pg3p)  | _pending_ | 0.599 | _pending_ |
 
 ### 4.3 Stage-4 structured caption (Stage 3 structured + camera + style)
 
@@ -240,6 +242,7 @@ v13 image-success counts (every variant): precision 298 / 298 images, recall 292
 | v14 (q235bg3p)| 0.936 | 0.637 | 0.758 |
 | v15 (q235bg3p)| 0.934 | 0.637 | 0.758 |
 | v16 (g3pg3p)  | 0.974 | 0.648 | 0.778 |
+| v17 (g3pg3p)  | 0.972 | 0.666 | 0.790 |
 
 ---
 

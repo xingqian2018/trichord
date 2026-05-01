@@ -51,6 +51,7 @@ Go the credentials from JSON `~/Project/trichord/credentials/gateway.json`, usua
 | v14 | v14_q235bg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Only a stage 2-to-4 run, grabbing stage 1 result from golden_caption_v13_q235bg3p, fixing the ignore issue on identifier location |
 | v15 | v15_q235bg3p |  | qwen3-vl-235b-a22b-instruct | qwen3-235b-a22b-instruct | Fully agent self improved prompting system |
 | v16 | v16_g3pg3p |  | gemini-3.1-pro | | Same v15 different model |
+| v17 | v17_g3pg3p |  | gemini-3.1-pro | | A very special run that only have stage4 and use v16 stage3 result (because we only updated the stage4 prompt) |
 ---
 
 ## Stage 1 — Entity Search Template

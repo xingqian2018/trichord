@@ -404,6 +404,50 @@ Watch for these forward-looking setups. When ≥ 3 of the 5 checklist signals ac
 
 ---
 
+## Lesson 20 — After-hours earnings reactions can fully reverse in the next regular session — never use AH prices as entry references
+_Added: 20260430-1700_
+
+### What happened
+On April 29, 2026, four Big Tech mega-caps reported in the same evening with the following AH price action:
+- GOOGL +7%, AMZN +4%, MSFT flat, META -6%
+
+The April 29 plan documented these as direct readouts and built positioning around them — including listing the AH price as the planned entry reference (e.g., "GOOGL ~$360 AH", "AMZN ~$259 AH"). This implicitly assumed the AH gains would survive into next-day regular trading.
+
+What actually happened in the April 30 regular session:
+- GOOGL **+9.7% close** (extended the AH gain even further — clean Lesson 17 winner)
+- AMZN **-2%** (gave back the entire AH +4% gain plus more — net flat-to-down vs Apr 29 close)
+- MSFT **-5%** (sold off harder than the flat AH suggested)
+- META **-9%** (extended the AH -6% loss into a deeper rout)
+- NVDA **-4%** (pre-earnings, but caught in the broader AI selloff)
+
+The dispersion between AH and next-day regular session was substantial: AMZN moved 6% from AH high to regular-session close; META extended 3% deeper. Only GOOGL, the cleanest Lesson 17 winner, held its AH gain.
+
+### Why it happened
+AH liquidity is thin (estimated 5-10% of regular-session volume on earnings nights). The institutions that drive next-day price action — the multi-billion-dollar systematic funds and the active managers who actually move the tape — overwhelmingly trade in regular session. AH price action reflects the marginal trader's snap reaction; regular-session price action reflects considered institutional positioning across all comps.
+
+The other dynamic is the **next-morning forced comparison**. When 4-5 names report the same evening, traders open the next day with a comp set in mind: who beat best, who raised guide best, whose capex/revenue ratio (Lesson 17) is most favorable. The AH reactions individually may have been kind to several names, but in the morning all four are compared against each other and the worst one or two get amplified shorts while the best one or two get amplified buying. This makes AH dispersion smaller than next-day dispersion.
+
+### What should have been done
+Two specific changes:
+1. **Never enter on AH prices.** Wait for the next regular session open (or first 30-60 minutes of trading) to see whether institutional flow confirms the AH direction. The cost of this discipline is occasional missed gains on names that gap UP from AH and never give back; the benefit is avoiding the names that gap UP in AH but then crater 5-10% in regular session.
+2. **Refresh the planning prices each morning before finalizing entry levels.** Yesterday's plan should have been validated today with the actual regular-session opening or 30-min snapshot — not committed to using AH prices as entry refs. Lesson 10 already established this for execution-blocked runs; this lesson extends it to AH-pricing.
+
+### Going forward
+**Rule**: For any earnings-night AH reaction, treat the AH price as INDICATIVE only — never as the entry reference. Wait until the next regular session opens AND for the first 30-60 minutes of regular trading to see institutional confirmation. Specifically:
+
+1. If AH up >5% → wait for confirmation in regular session before entering. Common pattern: clean Lesson 17 winners extend (GOOGL pattern); ambiguous winners give back the AH gain.
+2. If AH up 0-5% → expect the move to fade; don't chase.
+3. If AH down >5% → expect continuation lower in regular session, NOT a bounce. The "buy the dip on AH selloff" trade fails more than it works because institutional positioning lags.
+4. If AH down 0-5% → expect mixed; could fade either way.
+
+**Anti-pattern to catch**: "Yesterday's earnings tape was good, AH +X%, plan to buy at ~$Y price" — where $Y is the AH price. The plan should be: "wait for regular-session confirmation; if it holds above $Y by 10:30am, entry signal is valid."
+
+**Condition**: This lesson applies to all earnings-night AH reactions, but is especially important on cluster nights when 3+ peers report simultaneously (forced-comparison dynamic amplifies the regular-session dispersion).
+
+**Pairs with Lesson 17**: Lesson 17 says capex-without-revenue-acceleration gets punished. Lesson 20 adds: that punishment often plays out across the AH-to-regular-session boundary, and the AH reaction is only the first half of the move. Watch for the second half before entering.
+
+---
+
 ## Lesson 19 — The AI market is a multi-stage supply chain — scan every node before picking, because the highest upside is often in the overlooked upstream stages
 _Added: 20260425_
 
@@ -524,3 +568,73 @@ When evaluating any AI-related candidate, classify it by supply chain stage firs
 **The current bottleneck signal (April 2026)**: The binding constraint on AI buildout is now **power** (Stage 1) and **cooling/networking** (Stage 4) — not chips (Stage 3). Data centers cannot open without power permits and liquid cooling infrastructure. This means Stage 1 (CEG, VST, VRT) and Stage 4 (ANET, VRT, PSTG) are the high-conviction infrastructure plays for the next 6-18 months, while Stage 3 (NVDA) faces custom ASIC headwinds on inference share.
 
 **Condition**: This framework applies any time a major technology platform cycle is active (AI, cloud, mobile, internet). The supply chain structure is similar across cycles. The overlooked upstream nodes are always the ones with "boring" sector classifications (equipment, power, REIT) relative to the headline technology theme.
+
+
+---
+
+## Lesson 21 — The skill is currently a trend-follower, not a predictor — earnings-catalyst framework biases toward reactive entries
+_Added: 20260430-1730_
+
+### What happened
+On April 30, 2026, the user (Xingqian) reviewed the day's plan and pushed back: "I know we should avoid META like 9% drop today, the key for this skill is to predict... Seemingly you are just a trend follower." This was a sharp, fair critique that the cinvest skill responded to honestly. The lesson is what that honest review revealed.
+
+Today's lineup contained six picks. Auditing them:
+
+| Pick | Predictive or reactive? | Why |
+|------|------------------------|-----|
+| LLY entry at $932 | **Reactive** — chasing the +9-10% post-blowout pop | Lesson 16 said "wait for post-earnings confirmation" — defensive discipline, not alpha. The genuinely predictive call was: "Mounjaro +125% destroys the pricing-collapse thesis — enter at $852 pre-print." We didn't take that view. |
+| CAT entry at $416 | **Reactive** — post-blowout chase | The +9.96% move had already happened. Predictive would have been: "industrial backlog accelerating + tariff cost-absorption visible in Q4 commentary — enter pre-print." |
+| GOOGL continuation | **Mostly reactive** | The +9.7% close move was already done. The forward leg (I/O May 19-20) is predictive, but the bulk of the entry is post-event. |
+| META avoid (-9% today) | **Useless prediction** | Saying "avoid META" *after* it dropped 9% provides zero alpha. The actually-predictive call was Apr 28: "capex/revenue ratio will deteriorate — lighten or short into the print." We didn't make that call. |
+| NVDA half-weight | **Somewhat predictive** | Lesson 15 macro hostility hedge — anticipating the catalyst could fail to rally. Defensive but forward-looking. |
+| AVGO hold | **Reactive** — held flat today, so we kept it | Relative strength signal is a tape read, not a thesis. |
+| XOP via Lesson 18 | **Genuinely predictive** | Physical Hormuz traffic data (Goldman: 4% of normal) is a signal that institutions have not fully priced. Entering before consensus is the framework's predictive use case. |
+
+**Score: 1 of 7 picks (XOP) was clearly predictive. ~5 of 7 were reactive trend-following.** The skill is currently producing the equivalent of "yesterday's winners are tomorrow's holds" — a 1-day momentum strategy at a 4-8 week timescale. That's not the goal.
+
+### Why it happened
+The lesson framework (Lessons 16, 17) explicitly biases toward **post-event confirmation**:
+- Lesson 16 ("falling knife") → wait for post-earnings confirmation before entry
+- Lesson 17 (capex/revenue dispersion) → identified by reading the tape after earnings, not before
+- Lesson 15 (macro hostility) → defensive sizing, not directional alpha
+
+These lessons were each written in response to a *bad outcome* (ServiceNow Apr 22 disaster, LLY falling-knife scare, RTX/GE failed-rally on geopolitics). Each lesson teaches "what to avoid by being patient." None teaches "what to predict by leaning in." The aggregate effect: the framework optimizes for not-losing more than for catching upside before consensus.
+
+This is asymmetric in a bad way. In a swing-trading horizon (4-8 weeks), the alpha is in the prediction window — when the thesis is still controversial and the entry is contrarian. By the time the framework "confirms" via post-earnings continuation, the easy first leg of the move (the most asymmetric part) is gone, and what remains is incremental beta-with-slightly-more-momentum.
+
+The deeper anti-pattern: **"X happened today, therefore X is the trade"** is the cognitive shortcut the framework keeps falling into. It feels safe because it's data-driven, but the data is yesterday's data, and the market has already priced it in.
+
+### What should have been done
+For every catalyst within the swing window, the skill must produce a **forward thesis** — a specific call about what the market is wrong about — and stake out a position *before* the event resolves. The right structure for each pick is:
+
+1. **Forward thesis**: What specific aspect of consensus will be revealed wrong by this catalyst?
+   - LLY pre-Apr 30 example: "Consensus prices a 10-15% pricing collapse risk into LLY's multiple. Mounjaro/Zepbound prescription data through April shows volume +60% YoY — pricing collapse is being more than offset by demand. Q1 will be a clean beat with FY guide raise."
+   - META pre-Apr 29 example: "Consensus prices META as a Lesson 17 winner because Q4 capex was efficient. But Reality Labs is still a $20B+ FY drag and Iran disruption hit user numbers in March. Capex raise without LlamaCloud monetization quantification = -5% to -10% post-print."
+
+2. **Pre-event entry/avoid**: Stake the position based on the forward thesis, sized to the conviction level.
+
+3. **Confirmation criteria**: Define before the event what would prove the thesis right vs. wrong — and act on it the moment the event resolves, not 24-48 hours later when the move is already priced.
+
+The defensive lessons (16, 17, 18) become *risk management overlays*, not *pick generators*. Their role: "if my forward thesis is wrong by X amount, exit immediately." They prevent disasters but don't generate alpha by themselves.
+
+### Going forward
+
+**Rule (new generator)**: Every pick must lead with a forward thesis stating *what the market is wrong about*. Specifically, the pick template now requires this section BEFORE thesis/catalyst/risk:
+
+```
+**Market consensus**: <one-line statement of what the market currently believes about this name>
+**Where I disagree**: <one specific claim that contradicts consensus, with evidence>
+**Pre-event positioning**: <what I'm doing before the catalyst, sized to conviction>
+**Post-event re-evaluation**: <what evidence would confirm or refute the disagreement>
+```
+
+If the "Where I disagree" line is absent, vague, or simply restates consensus, the pick is reactive — not actionable, send it to watchlist or drop entirely.
+
+**Anti-pattern to catch**: When tempted to write "stock X rallied/fell Y% today, therefore the trade is to buy/avoid X for next week" — stop. Ask: "What was I saying about X *before* it moved Y%?" If nothing, this is trend-following, not prediction.
+
+**Condition**: This applies to every catalyst within the 4-8 week swing window. The defensive lessons (16, 17, 18) still apply as risk management — but they cannot be the primary reason for a pick. The primary reason must always be a forward disagreement with consensus.
+
+**Self-test before submitting any plan**: Score each pick predictive/reactive. Aim for at least 4 of 5-8 picks to be predictive (forward thesis with explicit consensus disagreement). If fewer, the plan is closer to a momentum overlay than a swing-trading strategy.
+
+**Current learning stage acknowledgment**: The user has explicitly framed the current period as "market learning stages" — execution is blocked, plans are paper trades. This is the right window to fix the predictive deficit before real capital is at risk. The Apr 30 plan would have been profitable as a 1-day momentum trade, but a real swing strategy needs forward thesis. Subsequent runs should aggressively prioritize predictive picks even if some prove wrong — being wrong on a forward thesis is informative; being right on a trend-following call is not.
+

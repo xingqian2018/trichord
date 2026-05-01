@@ -128,6 +128,9 @@ Model abbreviations: **g3.1p** = gemini-3.1-pro, **g3f** = gemini-3-flash, **q23
 | v16   | g3.1p | g3.1p  | dense   | 0.9754    | 0.6218 | 0.7595     | 18,438  | 300    | 294    |
 | v16   | g3.1p | g3.1p  | struct  | 0.9725    | 0.6037 | 0.7449     | 25,938  | 293    | 294    |
 | v16   | g3.1p | g3.1p  | s4      | 0.9736    | 0.6481 | 0.7782     | 28,382  | 299    | 294    |
+| v17   | g3.1p | g3.1p  | dense   | _pending_ | 0.6217 | _pending_  | _pending_ | _pending_ | 293 |
+| v17   | g3.1p | g3.1p  | struct  | _pending_ | 0.5994 | _pending_  | _pending_ | _pending_ | 293 |
+| v17   | g3.1p | g3.1p  | s4      | 0.9718    | 0.6658 | 0.7902     | 28,246  | 300    | 293 |
 
 † v9's "S2–S4" is heterogeneous: S2 grounding ran on gemini-3-flash, but the final S3 dense-rewriter batch (144 images) was redone with gemini-3.1-pro, and S4 (camera+style) ran end-to-end on gemini-3.1-pro. Treat v9's high precision (≈0.97) as a g3p-tail effect, not as pure-flash performance.
 

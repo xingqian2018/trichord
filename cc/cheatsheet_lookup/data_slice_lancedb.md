@@ -90,15 +90,15 @@ These are the canonical per-dataset slices that have already been carved out of 
 
 | `source_dataset` | Output Lance URI |
 |---|---|
-| `screen2words_rico` | `gs://nv-00-10206-lancedb/prod/image/text_related/screen2words_rico_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `slide_audit`       | `gs://nv-00-10206-lancedb/prod/image/text_related/slide_audit_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `voxel51_rico`      | `gs://nv-00-10206-lancedb/prod/image/text_related/voxel51_rico_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `zennodo10k`        | `gs://nv-00-10206-lancedb/prod/image/text_related/zennodo10k_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `synthetic_scene_text_v0`                     | `gs://nv-00-10206-lancedb/prod/image/synthetic_scene_text/synthetic_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `synthetic_chinese_scene_text_v0`             | `gs://nv-00-10206-lancedb/prod/image/synthetic_scene_text/synthetic_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `synthetic_traditional_chinese_scene_text_v0` | `gs://nv-00-10206-lancedb/prod/image/synthetic_scene_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `screen2words_rico` | `gs://nv-00-10206-vfm/lancedb/image/text_related/screen2words_rico_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `slide_audit`       | `gs://nv-00-10206-vfm/lancedb/image/text_related/slide_audit_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `voxel51_rico`      | `gs://nv-00-10206-vfm/lancedb/image/text_related/voxel51_rico_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `zennodo10k`        | `gs://nv-00-10206-vfm/lancedb/image/text_related/zennodo10k_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `synthetic_scene_text_v0`                     | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `synthetic_chinese_scene_text_v0`             | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `synthetic_traditional_chinese_scene_text_v0` | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
 
-Naming convention: `<dataset>_slice_from_maintable_<MMDD>.lance`. When you re-cut from a fresher main table, bump the date suffix — don't overwrite the previous slice in place.
+Naming convention: `<dataset>_slice_from_maintable_<YYYYmmdd>.lance`. When you re-cut from a fresher main table, bump the date suffix — don't overwrite the previous slice in place.
 
 ## Quick example: extract `zennodo10k` only
 

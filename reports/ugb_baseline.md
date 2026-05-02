@@ -50,16 +50,3 @@ Sorted by All (1170L) accuracy, descending. Bold = top score in column.
 | World Knowledge   |  327 |  310 |  296 |  296 |  302 |  285 |  238 |  249 |
 | **Overall**       | **8193** | **7443** | **6982** | **6912** | **6800** | **6355** | **5567** | **5218** |
 
-## Run Provenance
-
-| Model              | Slurm Job ID |
-|--------------------|--------------|
-| flux_1_kontext_dev | 1028621 |
-| flux_2_klein_9b    | 1028656 |
-| nano_banana_pro    | 1028734 |
-| qwen_image         | 1028735 |
-| qwen_image_2512    | 1028835 |
-| sd_v3p5_large      | 1028836 |
-| z_image_turbo      | 1028837 |
-
-Logs on gcpcode at `~/log/slurm/ugb_score_<name>.<jobid>.{e,o}`.

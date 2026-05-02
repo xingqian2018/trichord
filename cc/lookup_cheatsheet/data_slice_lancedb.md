@@ -99,18 +99,3 @@ These are the canonical per-dataset slices that have already been carved out of 
 | `synthetic_traditional_chinese_scene_text_v0` | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
 
 Naming convention: `<dataset>_slice_from_maintable_<YYYYmmdd>.lance`. When you re-cut from a fresher main table, bump the date suffix — don't overwrite the previous slice in place.
-
-## Quick example: extract `zennodo10k` only
-
-```bash
-CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
-slaunch cpu 1x1 slice_zennodo10k \
-    pipelines/image/text_rendering/slice_lancedb.py \
-    --input_lancedb_path gs://nv-00-10206-lancedb/prod/image/image_meta_table_full.lance \
-    --output_lancedb_path gs://nv-00-10206-lancedb/prod/image/text_related/zennodo10k.lance \
-    --dataset_name zennodo10k \
-    --max_concurrency 32 \
-    --batch_size 4096
-```
-
-After this completes, the resulting `zennodo10k.lance` is a drop-in input for `shard_full_dbinfo.py` (see `data_sharding_to_webdataset` cheatsheet) — and the downstream sharder no longer wastes a scan on every other dataset in the joint table.

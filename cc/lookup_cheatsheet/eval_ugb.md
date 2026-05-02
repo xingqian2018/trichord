@@ -80,3 +80,28 @@ slaunch cpu 1x1 ugb_score_<some_run_name> \
 ```
 
 Note: Stage 2 `--input_folder` and `<benchmark_name>` must match what Stage 1 wrote.
+
+Note: if the user supplies a `gcs:<path>` for `--input_folder`, auto-convert it to `s3://<path>` before running.
+
+## Some quick tables:
+
+### Stage-1 image folders in training
+
+Path template:
+```
+gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/t2i_mot_expDAITR/<run>/EveryNEvalUGB/unigenbench-on-<benchmark>/iter_<NNNNNNNNN>/
+```
+
+Available runs under `t2i_mot_expDAITR/`:
+
+| Run | Notes |
+|---|---|
+| `t2i_mot_expDAITR005_000_mixv0` | mix v0 |
+
+Available iters for `t2i_mot_expDAITR005_000_mixv0` × `v2_1170L_G3F`: `0`, `20000`, `40000`, `60000`, `80000`, `100000` (zero-padded to 9 digits in path, e.g. `iter_000080000`).
+
+Example — feed into Stage 2 as `--input_folder`:
+```
+gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/t2i_mot_expDAITR/t2i_mot_expDAITR005_000_mixv0/EveryNEvalUGB/unigenbench-on-v2_1170L_G3F/iter_000080000/
+```
+

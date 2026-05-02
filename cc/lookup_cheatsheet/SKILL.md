@@ -1,10 +1,10 @@
 ---
-name: cheatsheet_lookup
-description: Look up a named cheatsheet and show its contents. Each cheatsheet is a sibling .md file in this skill's folder describing a specific recipe or workflow. Invoke as /cheatsheet_lookup <name>. This skill only reads and displays — it does not run anything.
+name: lookup_cheatsheet
+description: Look up a named cheatsheet and show its contents. Each cheatsheet is a sibling .md file in this skill's folder describing a specific recipe or workflow. Invoke as /lookup_cheatsheet <name>. This skill only reads and displays — it does not run anything.
 user_invocable: true
 ---
 
-# cheatsheet_lookup
+# lookup_cheatsheet
 
 Sibling `.md` files (except `SKILL.md`) are cheatsheets. Filename without `.md` is the name.
 

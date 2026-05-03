@@ -21,7 +21,7 @@ For each existing `{webds_path}/resolution_*/aspect_ratio_*/{old_meta_key}/<shar
 | `--logged_meta_path` | _omit_, or `s3://...` root | **Required only when `--logged_meta_source=logged_meta`.** Root URI to walk for `*.tar` files containing logged-meta JSONs. Ignored otherwise. |
 | `--dataset_name` | `<dataset_name_that_to_process>` | Filter — only rows where `source_dataset == <dataset_name>` are loaded into the lookup. |
 | `--lancedb_webds_filekey_lookup_col` | `<uuid_or_sdg_original_index>` | Lance column used to key the in-tar entry name back to a Lance row. Default `uuid`. Use `sdg_original_index` for the synthetic SDG datasets where filenames are SDG indices, not UUIDs. |
-| `--logged_meta_sample_filekey_lookup_field` | `<field_in_logged_meta_json>` or omit | Bridge between the logged-meta tar's member key and the WebDS tar's member key. **Omit / leave `None`** when the two systems already share the same member key — the script does a direct key match. **Set** when they differ: pass the JSON field name inside each logged-meta entry; the script will parse the meta JSON, read this field, and use its value as the WebDS member key. Example: synthetic SDG datasets store the logged-meta tar keyed by one id but the WebDS tar keyed by `image_id`, so this is set to `image_id`. |
+| `--logged_meta_webds_filekey_lookup_field` | `<field_in_logged_meta_json>` or omit | Bridge between the logged-meta tar's member key and the WebDS tar's member key. **Omit / leave `None`** when the two systems already share the same member key — the script does a direct key match. **Set** when they differ: pass the JSON field name inside each logged-meta entry; the script will parse the meta JSON, read this field, and use its value as the WebDS member key. Example: synthetic SDG datasets store the logged-meta tar keyed by a UUID but the WebDS tar keyed by the 12-digit zero-padded SDG id, so this is set to `sdg_id` (the field in each logged-meta JSON whose value is already that 12-digit string). |
 | `--old_meta_key` | `metas` | Existing meta subdir under each `aspect_ratio_*/` to read entry order from. |
 | `--new_meta_key` | **ASK USER** | New sibling meta subdir to write. Common patterns: `metas_<date>`, `metas_<feature>` (e.g. `metas_recap_v2`). |
 | `--mode` | `append` | `append` (default): skip tars already present under `/{new_meta_key}/` — safe to resume an interrupted run. `replace`: delete everything under `/{new_meta_key}/` first, then re-do all shards. |
@@ -58,17 +58,17 @@ Three tables, all keyed on `--dataset_name`. Table A is the WebDS path; Table B 
 
 ### Table C — logged meta
 
-| `--dataset_name` | `--logged_meta_source` | `--logged_meta_path` | `--logged_meta_sample_filekey_lookup_field` |
+| `--dataset_name` | `--logged_meta_source` | `--logged_meta_path` | `--logged_meta_webds_filekey_lookup_field` |
 |---|---|---|---|
 | `screen2words_rico` | `logged_meta` | `s3://nv-00-10206-images/logged_metas/screen2words_rico/` | |
 | `slide_audit` | `logged_meta` | `s3://nv-00-10206-images/logged_metas/slide_audit/` | |
 | `voxel51_rico` | `logged_meta` | `s3://nv-00-10206-images/logged_metas/voxel51_rico/` | |
 | `zennodo10k` | `logged_meta` | `s3://nv-00-10206-images/logged_metas/zennodo10k/` | |
-| `synthetic_scene_text_v0` | `logged_meta` | `s3://nv-00-10206-images/logged_metas/synthetic_scene_text_v0/` | `image_id` |
+| `synthetic_scene_text_v0` | `logged_meta` | `s3://nv-00-10206-images/logged_metas/synthetic_scene_text_v0/` | `sdg_id` |
 | `synthetic_chinese_scene_text_v0` | `logged_meta` | `s3://nv-00-10206-images/logged_metas/synthetic_chinese_scene_text_v0/` | `image_id` |
 | `synthetic_traditional_chinese_scene_text_v0` | `logged_meta` | `s3://nv-00-10206-images/logged_metas/synthetic_traditional_chinese_scene_text_v0/` | `image_id` |
 
-When a row is filled in, the cheatsheet substitutes `--webds_path`, `--lancedb_path`, `--lancedb_webds_filekey_lookup_col`, `--logged_meta_source`, `--logged_meta_path`, and `--logged_meta_sample_filekey_lookup_field` directly — the user only has to supply `--new_meta_key`.
+When a row is filled in, the cheatsheet substitutes `--webds_path`, `--lancedb_path`, `--lancedb_webds_filekey_lookup_col`, `--logged_meta_source`, `--logged_meta_path`, and `--logged_meta_webds_filekey_lookup_field` directly — the user only has to supply `--new_meta_key`.
 
 ## Template — `slaunch`
 
@@ -84,7 +84,7 @@ slaunch cpu 2x4 reload_meta_<dataset_name> \
     --logged_meta_path <logged_meta_path> \
     --dataset_name <dataset_name_that_to_process> \
     --lancedb_webds_filekey_lookup_col <uuid_or_sdg_original_index> \
-    --logged_meta_sample_filekey_lookup_field <field_in_logged_meta_json> \
+    --logged_meta_webds_filekey_lookup_field <field_in_logged_meta_json> \
     --old_meta_key metas \
     --new_meta_key <new_meta_key> \
     --mode append \

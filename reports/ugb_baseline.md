@@ -50,3 +50,29 @@ Sorted by All (1170L) accuracy, descending. Bold = top score in column.
 | World Knowledge   |  327 |  310 |  296 |  296 |  302 |  285 |  238 |  249 |
 | **Overall**       | **8193** | **7443** | **6982** | **6912** | **6800** | **6355** | **5567** | **5218** |
 
+## Reasoner-Upsampler v1 (apr27) — qwen_image_2512
+
+- Model: `qwen_image_2512` (guidance 4.0, 50 steps, 1328x1328, auto-applied Chinese negative prompt)
+- Judge model: `gemini-3.1-pro` (signature `gemini-3p1-pro`)
+- Stage 2 input root: `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/unigenbench/<benchmark>/qwen_image_2512/`
+- Same 1170 prompts as `v2_1170L_G3F`, but rewritten by different upsamplers (Opus / Qwen3VL8B / pre_exp015_372_ft8b)
+
+| Gen-Benchmark            | Eval-Benchmark           | All (1170L) | Orig (600L) | Phi (570Phi) | Success |
+|--------------------------|--------------------------|------------:|------------:|-------------:|:-------:|
+| v2_1170L_G3F             | v2_1170L_G3F             | **84.36%**  | **87.53%**  | **81.47%**   | 1170/1170 |
+| v2_1170L_qwen3vl8b       | v2_1170L_qwen3vl8b       | 76.96%      | 79.90%      | 74.26%       | 1170/1170 |
+| v2_1170L_qwen3vl8b       | v2_1170L_G3F             | 76.52%      | 79.82%      | 73.48%       | 1170/1170 |
+| v2_1170L_opus            | v2_1170L_opus            | 74.11%      | 79.80%      | 68.90%       | 1170/1170 |
+| v2_1170L_opus            | v2_1170L_G3F             | 73.77%      | 79.87%      | 68.17%       | 1170/1170 |
+| v2_1170L_preexp015ft8b   | v2_1170L_preexp015ft8b   | 70.73%      | 75.20%      | 66.63%       | 1170/1170 |
+| v2_1170L_preexp015ft8b   | v2_1170L_G3F             | 70.85%      | 75.82%      | 66.30%       | 1170/1170 |
+
+Grouped by Gen-Benchmark, with the `gen = eval` row first and the `eval = v2_1170L_G3F` row second within each group. Bold = top score in column. *Gen-Benchmark* = prompt set fed to the image generator; *Eval-Benchmark* = prompt set the judge model sees alongside the image.
+
+For each upsampler, the two eval variants land within ~0.5pt of each other — re-judging the same image against the original short prompt instead of the upsampled long prompt barely shifts the score. So the drop relative to the all-G3F baseline (84.36% → ~74%) is *not* mostly a stricter-judge effect; it's the generator producing weaker images when conditioned on a longer/more specific prompt.
+
+Result files (one per row, alongside the gen images):
+- `unigenbench_result_gemini-3p1-pro.json` — `gen = eval` rows
+- `unigenbench_result_using_eval_prompt_v2_1170L.json` — `eval = v2_1170L_G3F` rows
+- The original Stage 1 config snapshot now lives at `config_gen.json` (renamed from `config.json`) so the Stage 2 script falls through to the `--benchmark_name` flag.
+

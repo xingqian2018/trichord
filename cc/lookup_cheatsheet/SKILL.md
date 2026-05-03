@@ -25,13 +25,25 @@ If the user asks to run any cheatsheet's `slaunch ...` command **locally** (on `
 
 This rule applies to every current and future cheatsheet — pipeline-specific files do not need to repeat the local-run instructions.
 
+## Remote-run via `ssh_run` (cross-cutting)
+
+> **Important — read before launching anything.**
+>
+> Most cheatsheet commands (`slaunch ...`, `slurm` submissions, file writes that land in a project repo, etc.) must execute on a **remote cluster** (GCP or AWS), **not** on `n0`. Whenever the user asks to **launch** a command, **submit** a job, or **write** a file that belongs on the remote repo:
+>
+> 1. **Always consult the `ssh_run` skill first** — it documents the canonical remote-launch recipe (host selection, command wrapping, slurm-id capture, log path resolution).
+> 2. **Ask the user which cluster** (`awscode` / `gcpcode`) if they have not already specified one. Do not guess.
+> 3. Use `ssh_run` to dispatch the command — never paste a raw `ssh <host> '...'` command unless `ssh_run` cannot express it.
+>
+> This rule applies to every current and future cheatsheet — pipeline-specific files do not need to repeat the remote-launch instructions.
+
 ## Conversion to `.vscode/launch.json` for debug purpose
 
 If the user asks to set up a VSCode debug config for one of the cheatsheet runs (e.g. golden caption, version15 stage3, …):
 
 - The target is `<project_repo>/.vscode/launch.json`, which is a symlink to `<project_repo>/.vscode/launch_gsb.json`. Writing through the symlink is fine — both paths refer to the same file.
 - If `<project_repo>/.vscode/launch.json` is not a symlink to `<project_repo>/.vscode/launch_gsb.json`, you need to symlink it yourself.
-- This file lives on a **remote cluster** (GCP or AWS), not on `n0`. The user must specify which one; use the `ssh_run` skill to write the file on the chosen host.
+- This file lives on a **remote cluster** (GCP or AWS), not on `n0` — see the **Remote-run via `ssh_run`** section above. Ask the user which cluster, then use `ssh_run` to read/write the file on the chosen host.
 - **Append, do not overwrite.** The file accumulates a history of recent debug sessions so the user can switch back to an earlier config in one click. Procedure:
   1. **Read** the existing `launch_gsb.json` first (via `ssh <host> 'cat ...'`). If the file is empty or missing, start from the skeleton below.
   2. **Comment out only the currently-live entry/entries.** Wrap each live `{ ... }` object in a `/* ... */` block comment. Leave the `"version"` field, the array brackets, and **all already-commented entries** untouched — never re-format, merge, or clean up the existing mothball blocks. They pipeline up: each successive update just appends one more `/* ===== superseded ===== */` block on top of the existing ones. VSCode's `launch.json` parser tolerates `/* ... */` the same way it tolerates the `//` dividers, so an arbitrarily long stack is fine.

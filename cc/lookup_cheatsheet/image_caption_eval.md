@@ -47,18 +47,18 @@ If more than one folder matches `<VERSION>`, ask the user which one. If none mat
 
 For each `<VERSION_LONG>`, three caption variants are evaluated. Each variant maps to a `<CAPTION_STAGE>` sub-folder and a `<SIGNATURE>` tag that feeds both the slurm job name and the `--signature` flag.
 
-| Variant | `<CAPTION_STAGE>` | `<SIGNATURE>` |
-|---|---|---|
-| Stage 3 dense | `stage3_dense_caption` | `<VERSION>s3d` |
+| Variant            | `<CAPTION_STAGE>`           | `<SIGNATURE>`  |
+|--------------------|-----------------------------|----------------|
+| Stage 3 dense      | `stage3_dense_caption`      | `<VERSION>s3d` |
 | Stage 3 structured | `stage3_structured_caption` | `<VERSION>s3s` |
 | Stage 4 structured | `stage4_structured_caption` | `<VERSION>s4s` |
 
 ## Default settings for fast lookup.
 
-| Version | Version_Long | Judge Model | Notes |
-|---|---|---|---|
-| default |  | gemini-3.1-pro | Precision: `num_concurrency=32`, `batch_size=64`, `max_claims_per_call=16`. Recall: `num_concurrency=32`, `batch_size=64`, `max_retry=3`, `max_assertions_per_call=16`. |
-| v9 | v9_g3fg3p | gemini-3.1-pro |  |
+| Version | Version_Long | Judge Model    | Notes                                                                                                                                                                   |
+|---------|--------------|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| default |              | gemini-3.1-pro | Precision: `num_concurrency=32`, `batch_size=64`, `max_claims_per_call=16`. Recall: `num_concurrency=32`, `batch_size=64`, `max_retry=3`, `max_assertions_per_call=16`. |
+| v9      | v9_g3fg3p    | gemini-3.1-pro |                                                                                                                                                                         |
 
 ---
 

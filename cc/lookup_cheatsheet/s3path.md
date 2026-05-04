@@ -14,12 +14,12 @@ All S3/GCS paths use the form:
 
 Supported profiles (from `s3_omni.py`):
 
-| Profile | Endpoint | Notes |
-|---|---|---|
-| `s3-training` | s3.amazonaws.com | AWS — checkpoints |
-| `team-dir` / `team-dir-share` | pbss.s8k.io | PBSS us-east |
-| `team-cosmos` / `team-cosmos-benchmark` / `team-dir-pdx` | pdx.s8k.io | PBSS PDX |
-| `gcs` | storage.googleapis.com | GCS |
+| Profile                                                  | Endpoint               | Notes             |
+|----------------------------------------------------------|------------------------|-------------------|
+| `s3-training`                                            | s3.amazonaws.com       | AWS — checkpoints |
+| `team-dir` / `team-dir-share`                            | pbss.s8k.io            | PBSS us-east      |
+| `team-cosmos` / `team-cosmos-benchmark` / `team-dir-pdx` | pdx.s8k.io             | PBSS PDX          |
+| `gcs`                                                    | storage.googleapis.com | GCS               |
 
 Examples:
 - `gcs:nv-00-10206-vfm/debug/xingqianx/foo.png`
@@ -36,36 +36,36 @@ Curated from `s3hint`. When the user asks about one of these by short name (e.g.
 
 When the user asks "where did my latest data shard to?" / "where's my newest webdataset?", `ls` these two roots and pick the most recent `<dataset_name>` (often dated, e.g. `wordnet_captions_20260224`).
 
-| Purpose | Path | Comment |
-|---|---|---|
-| Eval bench | `gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/image_captioning/CosCapBench/v1/general/xingqianx_x0` | CosCapBench image-captioning eval outputs |
-| Eval bench | `gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/cvtg/` | CVTG text-to-image eval |
-| Eval bench | `gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/unigenbench/v2_1170L_G3F/` | Unigenbench v2 (1170L_G3F) eval |
-| Experiment | `gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/t2i_mot_expDAITR/` | T2I MOT expDAITR run series (e.g. `004`, `005`) |
-| Debug | `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation/` | Personal debug eval outputs |
-| Debug | `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/` | CosCapBench debug images |
-| Debug | `gcs:nv-00-10206-vfm/debug/xingqianx/synthetic_scene_text/` | Synthetic scene-text debug |
-| Debug | `gcs:nv-00-10206-vfm/debug/xingqianx/synthetic_chinese_scene_text_v0/` | Chinese synthetic scene-text debug |
-| Debug | `gcs:nv-00-10206-vfm/debug/xingqianx/vfm_aid/` | VFM AID debug |
-| Logged | `gcs:nv-00-10206-images/logged_images/synthetic_scene_text_v0/` | Logged synthetic scene-text images |
-| Logged | `gcs:nv-00-10206-images/logged_metas/synthetic_scene_text_v0/` | Logged synthetic scene-text metadata |
-| Logged | `gcs:nv-00-10206-images/debug/logged_images/synthetic_scene_text_v0` | Debug variant of logged scene-text images |
-| LanceDB | `gcs:nv-00-10206-lancedb/prod/image/synthetic_scene_text/synthetic_scene_text_v0.lance/` | Prod LanceDB for synthetic scene-text v0 |
-| Webdataset | `gcs:nv-00-10206-webdataset-images/webdataset_image_text_related/` | Image-text-related webdataset |
-| Webdataset | `gcs:nv-00-10206-webdataset-images/webdataset_image_v5/coyo_700m/` | COYO-700M webdataset (v5) |
-| Webdataset | `gcs:nv-00-10206-webdataset-images/webdataset_image_v5_filter_highquality_ablation_40M/` | High-quality 40M ablation webdataset |
-| Webdataset | `gcs:nv-00-10206-webdataset-images/webdataset_synthetic/synthetic_scene_text/` | Synthetic scene-text webdataset |
-| Webdataset | `gcs:nv-00-10206-webdataset-images/webdataset_synthetic/synthetic_chinese_scene_text_v0/` | Chinese synthetic scene-text webdataset |
-| Text webdataset real data root path | `gcs:nv-00-10206-vfm/webdataset_image_text_related/` | This is our latest text webdataset location |
-| Text webdataset sgd data root path | `gcs:nv-00-10206-vfm/webdataset_synthetic/` | This is our latest text webdataset location |
-| PBSS bench | `team-cosmos-benchmark:datasets/cvtg/cvtg_2kl/` | CVTG 2k-L benchmark dataset |
-| PBSS bench | `team-cosmos-benchmark:datasets/unigenbench/` | Unigenbench dataset |
-| PBSS bench | `team-cosmos-benchmark:datasets/vfm_aid/` | VFM AID benchmark dataset |
-| PBSS train | `team-cosmos:cosmos_generation/animal/webdataset/full_v2_train_1219/v0/` | Animal training webdataset |
-| PBSS train | `team-cosmos:cosmos_generation/faces/ohv/data/20260117_720p_16fps_qwen3_235b_fp8/` | OHV faces training data |
-| PBSS train | `team-cosmos:cosmos_generation/faces/pexels/data/20260106_720p_16fps_qwen3_235b_fp8/` | Pexels faces training data |
-| PBSS train | `team-cosmos:cosmos_generation/food_cutting_v2/search_with_curation_20251125_235012/` | Food-cutting v2 training data |
-| PBSS train | `team-cosmos:cosmos_generation/sports/sports_curated/sharded_qwen3/v0/` | Curated sports training data |
+| Purpose                             | Path                                                                                                                 | Comment                                         |
+|-------------------------------------|----------------------------------------------------------------------------------------------------------------------|-------------------------------------------------|
+| Eval bench                          | `gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/image_captioning/CosCapBench/v1/general/xingqianx_x0` | CosCapBench image-captioning eval outputs       |
+| Eval bench                          | `gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/cvtg/`                                  | CVTG text-to-image eval                         |
+| Eval bench                          | `gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/unigenbench/v2_1170L_G3F/`              | Unigenbench v2 (1170L_G3F) eval                 |
+| Experiment                          | `gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/t2i_mot_expDAITR/`                                               | T2I MOT expDAITR run series (e.g. `004`, `005`) |
+| Debug                               | `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation/`                                                                    | Personal debug eval outputs                     |
+| Debug                               | `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/`                                                   | CosCapBench debug images                        |
+| Debug                               | `gcs:nv-00-10206-vfm/debug/xingqianx/synthetic_scene_text/`                                                          | Synthetic scene-text debug                      |
+| Debug                               | `gcs:nv-00-10206-vfm/debug/xingqianx/synthetic_chinese_scene_text_v0/`                                               | Chinese synthetic scene-text debug              |
+| Debug                               | `gcs:nv-00-10206-vfm/debug/xingqianx/vfm_aid/`                                                                       | VFM AID debug                                   |
+| Logged                              | `gcs:nv-00-10206-images/logged_images/synthetic_scene_text_v0/`                                                      | Logged synthetic scene-text images              |
+| Logged                              | `gcs:nv-00-10206-images/logged_metas/synthetic_scene_text_v0/`                                                       | Logged synthetic scene-text metadata            |
+| Logged                              | `gcs:nv-00-10206-images/debug/logged_images/synthetic_scene_text_v0`                                                 | Debug variant of logged scene-text images       |
+| LanceDB                             | `gcs:nv-00-10206-lancedb/prod/image/synthetic_scene_text/synthetic_scene_text_v0.lance/`                             | Prod LanceDB for synthetic scene-text v0        |
+| Webdataset                          | `gcs:nv-00-10206-webdataset-images/webdataset_image_text_related/`                                                   | Image-text-related webdataset                   |
+| Webdataset                          | `gcs:nv-00-10206-webdataset-images/webdataset_image_v5/coyo_700m/`                                                   | COYO-700M webdataset (v5)                       |
+| Webdataset                          | `gcs:nv-00-10206-webdataset-images/webdataset_image_v5_filter_highquality_ablation_40M/`                             | High-quality 40M ablation webdataset            |
+| Webdataset                          | `gcs:nv-00-10206-webdataset-images/webdataset_synthetic/synthetic_scene_text/`                                       | Synthetic scene-text webdataset                 |
+| Webdataset                          | `gcs:nv-00-10206-webdataset-images/webdataset_synthetic/synthetic_chinese_scene_text_v0/`                            | Chinese synthetic scene-text webdataset         |
+| Text webdataset real data root path | `gcs:nv-00-10206-vfm/webdataset_image_text_related/`                                                                 | This is our latest text webdataset location     |
+| Text webdataset sgd data root path  | `gcs:nv-00-10206-vfm/webdataset_synthetic/`                                                                          | This is our latest text webdataset location     |
+| PBSS bench                          | `team-cosmos-benchmark:datasets/cvtg/cvtg_2kl/`                                                                      | CVTG 2k-L benchmark dataset                     |
+| PBSS bench                          | `team-cosmos-benchmark:datasets/unigenbench/`                                                                        | Unigenbench dataset                             |
+| PBSS bench                          | `team-cosmos-benchmark:datasets/vfm_aid/`                                                                            | VFM AID benchmark dataset                       |
+| PBSS train                          | `team-cosmos:cosmos_generation/animal/webdataset/full_v2_train_1219/v0/`                                             | Animal training webdataset                      |
+| PBSS train                          | `team-cosmos:cosmos_generation/faces/ohv/data/20260117_720p_16fps_qwen3_235b_fp8/`                                   | OHV faces training data                         |
+| PBSS train                          | `team-cosmos:cosmos_generation/faces/pexels/data/20260106_720p_16fps_qwen3_235b_fp8/`                                | Pexels faces training data                      |
+| PBSS train                          | `team-cosmos:cosmos_generation/food_cutting_v2/search_with_curation_20251125_235012/`                                | Food-cutting v2 training data                   |
+| PBSS train                          | `team-cosmos:cosmos_generation/sports/sports_curated/sharded_qwen3/v0/`                                              | Curated sports training data                    |
 
 If the user asks for a short name not in this table, run `python ~/Project/bashrc/s3_omni.py hint` to refresh — the live list may have grown.
 
@@ -79,13 +79,13 @@ When an S3 path points at a webdataset-formatted image dataset (any of the "Webd
 
 Segment meanings:
 
-| Segment | What it is | Example |
-|---|---|---|
-| `<root>` | Collection root holding many datasets side-by-side | `gcs:nv-00-10206-vfm/webdataset_image_text_related/`, `gcs:nv-00-10206-vfm/webdataset_synthetic/` |
-| `<dataset_name>` | One dataset (often dated) | `wordnet_captions_20260224`, `synthetic_scene_text_v0` |
-| `<bucket-path>` | Bucketed split — **one or more** path components. Axes: category / resolution / aspect-ratio / (duration, for video). For image webdatasets the duration axis is absent. | `landscape/720p/16x9/`, `general/480p/1x1/` |
-| `<keys>` | The data keys themselves. For image webdatasets the keys are images (and their sidecar captions) packed inside tars. | `keys/` |
-| `<subpath>/<tarid>.tar` | Remaining path to the addressable tar shard, **one or more** path components, typically `partXXXXX/XXXXX.tar` | `part00003/00042.tar` |
+| Segment                 | What it is                                                                                                                                                               | Example                                                                                           |
+|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `<root>`                | Collection root holding many datasets side-by-side                                                                                                                       | `gcs:nv-00-10206-vfm/webdataset_image_text_related/`, `gcs:nv-00-10206-vfm/webdataset_synthetic/` |
+| `<dataset_name>`        | One dataset (often dated)                                                                                                                                                | `wordnet_captions_20260224`, `synthetic_scene_text_v0`                                            |
+| `<bucket-path>`         | Bucketed split — **one or more** path components. Axes: category / resolution / aspect-ratio / (duration, for video). For image webdatasets the duration axis is absent. | `landscape/720p/16x9/`, `general/480p/1x1/`                                                       |
+| `<keys>`                | The data keys themselves. For image webdatasets the keys are images (and their sidecar captions) packed inside tars.                                                     | `keys/`                                                                                           |
+| `<subpath>/<tarid>.tar` | Remaining path to the addressable tar shard, **one or more** path components, typically `partXXXXX/XXXXX.tar`                                                            | `part00003/00042.tar`                                                                             |
 
 Quick orientation:
 - **Find a dataset's buckets**: `ls <root>/<dataset_name>/` and walk down (each level peels off one bucket axis).
@@ -119,18 +119,18 @@ python ~/Project/bashrc/s3_omni.py <op> <args...> [--maxjob 64]
 
 ### Operations
 
-| Op | Usage | What it does |
-|---|---|---|
-| `ls` | `ls [profile:bucket/prefix]` | List buckets / prefixes / files. No arg → list profiles. |
-| `cnt` | `cnt profile:bucket/prefix` | Count entries under prefix (caps at ~11k, prints `11000+`). |
-| `dl` | `dl <s3_src> <local_dest>` | Download file or folder. Same-size files skipped. |
-| `autodl` | `autodl <s3_src>` | Download to `~/.cache/imaginaire4/<auto-category>/` based on src pattern. |
-| `ul` | `ul <local_src> <s3_dest>` | Upload file or folder. Same-size files skipped. |
-| `cp` | `cp <s3_src> <s3_dest>` | Copy S3→S3. Same profile: server-side `copy()`. Cross profile (e.g. `team-cosmos:...` → `gcs:...`): streams via `get_object` → `put_object`, with multipart for files >8MB. Same-size keys are skipped; non-empty destinations trigger an overwrite prompt. |
-| `rm` | `rm <s3_src>` | Delete file or all keys under prefix. **Prompts for confirmation.** |
-| `hint` | `hint` | Print the curated hint list (`s3_omni_hint.txt`). Good starting point for "where do X live?" |
-| `hintadd` / `hintrm` | `hintadd <path>` / `hintrm <path>` | Manage the hint list. |
-| `auto <path>` | `auto profile:...` | Best-effort: treat arg as a path and run `ls`. Useful when unsure. |
+| Op                   | Usage                              | What it does                                                                                                                                                                                                                                                |
+|----------------------|------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ls`                 | `ls [profile:bucket/prefix]`       | List buckets / prefixes / files. No arg → list profiles.                                                                                                                                                                                                    |
+| `cnt`                | `cnt profile:bucket/prefix`        | Count entries under prefix (caps at ~11k, prints `11000+`).                                                                                                                                                                                                 |
+| `dl`                 | `dl <s3_src> <local_dest>`         | Download file or folder. Same-size files skipped.                                                                                                                                                                                                           |
+| `autodl`             | `autodl <s3_src>`                  | Download to `~/.cache/imaginaire4/<auto-category>/` based on src pattern.                                                                                                                                                                                   |
+| `ul`                 | `ul <local_src> <s3_dest>`         | Upload file or folder. Same-size files skipped.                                                                                                                                                                                                             |
+| `cp`                 | `cp <s3_src> <s3_dest>`            | Copy S3→S3. Same profile: server-side `copy()`. Cross profile (e.g. `team-cosmos:...` → `gcs:...`): streams via `get_object` → `put_object`, with multipart for files >8MB. Same-size keys are skipped; non-empty destinations trigger an overwrite prompt. |
+| `rm`                 | `rm <s3_src>`                      | Delete file or all keys under prefix. **Prompts for confirmation.**                                                                                                                                                                                         |
+| `hint`               | `hint`                             | Print the curated hint list (`s3_omni_hint.txt`). Good starting point for "where do X live?"                                                                                                                                                                |
+| `hintadd` / `hintrm` | `hintadd <path>` / `hintrm <path>` | Manage the hint list.                                                                                                                                                                                                                                       |
+| `auto <path>`        | `auto profile:...`                 | Best-effort: treat arg as a path and run `ls`. Useful when unsure.                                                                                                                                                                                          |
 
 Cross-profile `cp` works (streams through this machine — not server-side), so you no longer need to `dl` → `ul` manually for the `team-cosmos:...` ↔ `gcs:...` case.
 
@@ -149,17 +149,17 @@ There is no CLI `cpf` op anymore. For force-overwrite, call from Python: `s3cp([
 
 ## Parsing examples
 
-| User says | Run |
-|---|---|
-| "list gcs:nv-00-10206-vfm/debug/xingqianx/" | `python ~/Project/bashrc/s3_omni.py ls gcs:nv-00-10206-vfm/debug/xingqianx/` |
-| "how many files in <path>" | `python ~/Project/bashrc/s3_omni.py cnt <path>` |
-| "download <s3> to ./out/" | `python ~/Project/bashrc/s3_omni.py dl <s3> ./out/` |
-| "autodl <s3>" | `python ~/Project/bashrc/s3_omni.py autodl <s3>` |
-| "upload ./model.pt to <s3-folder>/" | `python ~/Project/bashrc/s3_omni.py ul ./model.pt <s3-folder>/` |
-| "copy s3 folder A to folder B (same or different profile)" | `python ~/Project/bashrc/s3_omni.py cp <A> <B>` |
-| "copy <s3-A> to <s3-B> across profiles" | `python ~/Project/bashrc/s3_omni.py cp <A> <B>`  (streams through local machine — slower than intra-profile) |
-| "delete <s3-prefix>" | `python ~/Project/bashrc/s3_omni.py rm <s3-prefix>` (confirm at prompt) |
-| "show me the hint list" / "common paths" | `python ~/Project/bashrc/s3_omni.py hint` |
+| User says                                                           | Run                                                                                                                              |
+|---------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| "list gcs:nv-00-10206-vfm/debug/xingqianx/"                         | `python ~/Project/bashrc/s3_omni.py ls gcs:nv-00-10206-vfm/debug/xingqianx/`                                                     |
+| "how many files in <path>"                                          | `python ~/Project/bashrc/s3_omni.py cnt <path>`                                                                                  |
+| "download <s3> to ./out/"                                           | `python ~/Project/bashrc/s3_omni.py dl <s3> ./out/`                                                                              |
+| "autodl <s3>"                                                       | `python ~/Project/bashrc/s3_omni.py autodl <s3>`                                                                                 |
+| "upload ./model.pt to <s3-folder>/"                                 | `python ~/Project/bashrc/s3_omni.py ul ./model.pt <s3-folder>/`                                                                  |
+| "copy s3 folder A to folder B (same or different profile)"          | `python ~/Project/bashrc/s3_omni.py cp <A> <B>`                                                                                  |
+| "copy <s3-A> to <s3-B> across profiles"                             | `python ~/Project/bashrc/s3_omni.py cp <A> <B>`  (streams through local machine — slower than intra-profile)                     |
+| "delete <s3-prefix>"                                                | `python ~/Project/bashrc/s3_omni.py rm <s3-prefix>` (confirm at prompt)                                                          |
+| "show me the hint list" / "common paths"                            | `python ~/Project/bashrc/s3_omni.py hint`                                                                                        |
 | "read <s3-file>" / "open <s3-file>" / "show me what's in <s3-file>" | `python ~/Project/bashrc/s3_omni.py dl <s3-file> /tmp/s3io_<basename>` then `Read` that local path. **Do not use the `vim` op.** |
 
 ## Python use from code

@@ -31,14 +31,14 @@ slaunch cpu 1x1 <slurm_job_name> \
 
 substitute the parts as follows:
 
-| slurm element | local-docker equivalent |
-|---|---|
-| `CONTAINER_WORKDIR=...` (env in shell) | `-e CONTAINER_WORKDIR=...` flag on `docker exec` |
-| `LEPTON_API_QWEN3_VL_235B=<cred>` | `-e LEPTON_API_QWEN3_VL_235B=<resolved-credential>` flag on `docker exec` |
-| `slaunch cpu 1x1 <slurm_job_name>` | `tmux new-session -d -s <TAG> "docker exec -w <workdir> -e ... i4 ..."` |
-| `<python_relative_code_path>` | `.venv/bin/python <python_relative_code_path>` (inside docker) |
-| `<args...>` | unchanged |
-| (no equivalent) | `2>&1 | tee $LOG` to keep a host-side log after tmux closes |
+| slurm element                          | local-docker equivalent                                                   |                                                     |
+|----------------------------------------|---------------------------------------------------------------------------|-----------------------------------------------------|
+| `CONTAINER_WORKDIR=...` (env in shell) | `-e CONTAINER_WORKDIR=...` flag on `docker exec`                          |                                                     |
+| `LEPTON_API_QWEN3_VL_235B=<cred>`      | `-e LEPTON_API_QWEN3_VL_235B=<resolved-credential>` flag on `docker exec` |                                                     |
+| `slaunch cpu 1x1 <slurm_job_name>`     | `tmux new-session -d -s <TAG> "docker exec -w <workdir> -e ... i4 ..."`   |                                                     |
+| `<python_relative_code_path>`          | `.venv/bin/python <python_relative_code_path>` (inside docker)            |                                                     |
+| `<args...>`                            | unchanged                                                                 |                                                     |
+| (no equivalent)                        | `2>&1                                                                     | tee $LOG` to keep a host-side log after tmux closes |
 
 `<TAG>` is a short identifier (e.g. `gc_v13s4`) — used as both the tmux session name and (optionally) for the log filename. Reuse the slurm job name with `_` instead of `-`/spaces.
 

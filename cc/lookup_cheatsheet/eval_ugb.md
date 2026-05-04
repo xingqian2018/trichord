@@ -49,15 +49,15 @@ Baseline options:
 
 Default parameters per baseline (use these unless the user overrides):
 
-| Model | Guidance Scale | Resolution (1:1) | Num Steps | Positive Magic | Negative Prompt | Special Notes |
-|-------|----------------|------------------|-----------|----------------|-----------------|---------------|
-| **glm_image** | 1.5 | 1024 × 1024 | 50 | None | None | Must be divisible by 32. Text in quotes for rendering |
-| **sd_v3p5_large** | 3.5 | 1024 × 1024 | 28 | None | None | Can use 4.5 for complex prompts. max_sequence_length=512 |
-| **flux_1_kontext_dev** | 2.5 | 1024 × 1024 | 30 | None | None | Flexible resolutions. max_sequence_length=512 |
-| **flux_2_klein_9b** | 1.0 | 1024 × 1024 | 4 | None | None | Fast distilled model. Step-distilled to 4 steps |
-| **qwen_image** | 4.0 (true_cfg_scale) | 1328 × 1328 | 50 | `", Ultra HD, 4K, cinematic composition."` | `" "` (single space) | Different resolution! |
-| **qwen_image_2512** | 4.0 (true_cfg_scale) | 1328 × 1328 | 50 | `""` (empty) | `"低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲。"` | Different resolution! Comprehensive Chinese negative prompt |
-| **z_image_turbo** | 0.0 | 1024 × 1024 | 9 | None | None | Must be 0 for turbo. Results in 8 NFEs. Bilingual support |
+| Model                  | Guidance Scale       | Resolution (1:1) | Num Steps | Positive Magic                             | Negative Prompt                                                   | Special Notes                                               |
+|------------------------|----------------------|------------------|-----------|--------------------------------------------|-------------------------------------------------------------------|-------------------------------------------------------------|
+| **glm_image**          | 1.5                  | 1024 × 1024      | 50        | None                                       | None                                                              | Must be divisible by 32. Text in quotes for rendering       |
+| **sd_v3p5_large**      | 3.5                  | 1024 × 1024      | 28        | None                                       | None                                                              | Can use 4.5 for complex prompts. max_sequence_length=512    |
+| **flux_1_kontext_dev** | 2.5                  | 1024 × 1024      | 30        | None                                       | None                                                              | Flexible resolutions. max_sequence_length=512               |
+| **flux_2_klein_9b**    | 1.0                  | 1024 × 1024      | 4         | None                                       | None                                                              | Fast distilled model. Step-distilled to 4 steps             |
+| **qwen_image**         | 4.0 (true_cfg_scale) | 1328 × 1328      | 50        | `", Ultra HD, 4K, cinematic composition."` | `" "` (single space)                                              | Different resolution!                                       |
+| **qwen_image_2512**    | 4.0 (true_cfg_scale) | 1328 × 1328      | 50        | `""` (empty)                               | `"低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲。"` | Different resolution! Comprehensive Chinese negative prompt |
+| **z_image_turbo**      | 0.0                  | 1024 × 1024      | 9         | None                                       | None                                                              | Must be 0 for turbo. Results in 8 NFEs. Bilingual support   |
 
 
 ## Image width and height
@@ -144,8 +144,8 @@ gcs:nv-00-10206-checkpoint-experiments/cosmos3_vfm/t2i_mot_expDAITR/<run>/EveryN
 
 Available runs under `t2i_mot_expDAITR/`:
 
-| Run | Notes |
-|---|---|
+| Run                             | Notes  |
+|---------------------------------|--------|
 | `t2i_mot_expDAITR005_000_mixv0` | mix v0 |
 
 Available iters for `t2i_mot_expDAITR005_000_mixv0` × `v2_1170L_G3F`: `0`, `20000`, `40000`, `60000`, `80000`, `100000` (zero-padded to 9 digits in path, e.g. `iter_000080000`).

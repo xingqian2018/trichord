@@ -104,8 +104,8 @@ The `///` and `/* ... */` markers are non-standard JSON, but VSCode's `launch.js
 
 Repo lookup table:
 
-| Repo | Branch | Purpose |
-|---|---|---|
-| `~/Project/imaginaire4` | `xingqianx/cosmos3_aid` | golden caption, image caption evaluation |
-| `~/Project/imaginaire4_sila` | `xingqianx/pipe_text_render` | wedds sharding, dataset creation |
+| Repo                         | Branch                       | Purpose                                  |
+|------------------------------|------------------------------|------------------------------------------|
+| `~/Project/imaginaire4`      | `xingqianx/cosmos3_aid`      | golden caption, image caption evaluation |
+| `~/Project/imaginaire4_sila` | `xingqianx/pipe_text_render` | wedds sharding, dataset creation         |
 

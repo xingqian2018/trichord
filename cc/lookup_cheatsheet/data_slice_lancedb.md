@@ -2,7 +2,7 @@
 
 Use this when you have a big joint LanceDB table (e.g. `image_meta_table_full.lance`) and want to extract one or more per-dataset sub-tables, written out as new Lance datasets.
 
-The script does **single scan, multi output** — one read pass over the input fan-outs into N independent output `.lance` datasets, paired by position with the dataset names. Streaming end-to-end: rows flow scanner → bounded queue → writer, with `--max_rows_per_file` controlling output file rotation. No full materialization.
+The script does **distributed single-pass slicing**: every rank scans a disjoint shard of input fragments, filters by `source_dataset IN (...)`, and accumulates rows in a per-rank `LanceDBBuffer` keyed by source_dataset. Every read round is followed by a collective `sync` that gathers all ranks' rows onto rank 0; rank 0 then drains as many full `MAX_ROW_PER_FILE`-sized segments as it can per output Lance. After the loop, rank 0 flushes any remainder rows.
 
 Lives at `pipelines/image/text_rendering/slice_lancedb.py` in `imaginaire4_sila`.
 
@@ -16,63 +16,81 @@ Lives at `pipelines/image/text_rendering/slice_lancedb.py` in `imaginaire4_sila`
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
-slaunch cpu 1x1 slice_<dataset_name> \
+slaunch cpu 4x1 slice_<dataset_name> \
     pipelines/image/text_rendering/slice_lancedb.py \
     --input_lancedb_path gs://nv-00-10206-lancedb/prod/image/image_meta_table_full.lance \
     --output_lancedb_path gs://nv-00-10206-lancedb/prod/image/text_related/<dataset_name>.lance \
-    --dataset_name <dataset_name> \
-    --max_concurrency 32 \
-    --batch_size 4096 \
-    --max_rows_per_file 100000
+    --dataset_name <dataset_name>
 ```
 
 ## Template — multiple slices in one pass
 
-`--dataset_name` and `--output_lancedb_path` both take `nargs="+"` and are paired positionally (1st ↔ 1st, 2nd ↔ 2nd, …). Lengths must match.
+`--dataset_name` and `--output_lancedb_path` both take `nargs="+"` and are paired positionally (1st ↔ 1st, 2nd ↔ 2nd, …). Lengths must match; duplicate dataset names are rejected.
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
-slaunch cpu 1x1 slice_multi \
+slaunch cpu 1x8 slice_multi \
     pipelines/image/text_rendering/slice_lancedb.py \
     --input_lancedb_path gs://nv-00-10206-lancedb/prod/image/image_meta_table_full.lance \
     --dataset_name dsetA dsetB dsetC \
     --output_lancedb_path \
         gs://nv-00-10206-lancedb/prod/image/text_related/dsetA.lance \
         gs://nv-00-10206-lancedb/prod/image/text_related/dsetB.lance \
-        gs://nv-00-10206-lancedb/prod/image/text_related/dsetC.lance \
-    --max_concurrency 32 \
-    --batch_size 4096
+        gs://nv-00-10206-lancedb/prod/image/text_related/dsetC.lance
 ```
 
 ## Arguments
 
-- `--input_lancedb_path` *(required)* — source Lance URI (use `gs://...`). `.lance` suffix is auto-appended. The input must have a `source_dataset` column (script errors out otherwise).
-- `--output_lancedb_path` *(required, `nargs="+"`)* — one or more output Lance URIs, paired with `--dataset_name`.
-- `--dataset_name` *(required, `nargs="+"`)* — one or more `source_dataset` values to slice. Duplicates are rejected; `len(dataset_name) == len(output_lancedb_path)` is enforced.
-- `--max_concurrency` *(default 256)* — number of parallel scanner threads. Each owns one fragment per task; work-stealing across threads. Bump higher (e.g. 64) on cloud storage if your bandwidth allows.
-- `--batch_size` *(default 100000)* — rows per scanner batch. Larger → fewer Python boundary crossings but coarser progress / higher peak memory per batch. 4096 is a good cloud-storage working point.
-- `--max_rows_per_file` *(default 100000)* — rows per output Lance datafile. Lance rotates datafiles when this fills. Drop (e.g. 10k) if you want more downstream parallelism on the read; raise (e.g. 1M) for fewer files on huge slices.
+That's it — only three. Everything else is a module-level constant.
 
-## Architecture / why it's fast
+- `--input_lancedb_path` *(required)* — source Lance URI (use `gs://...`). `.lance` suffix is auto-appended. The input must have a `source_dataset` column.
+- `--dataset_name` *(required, `nargs="+"`)* — one or more `source_dataset` values to slice. Duplicates are rejected.
+- `--output_lancedb_path` *(required, `nargs="+"`)* — one or more output Lance URIs, paired positionally with `--dataset_name`. `len(...)` must match `--dataset_name`. Existing datasets at these URIs are wiped at startup.
+
+## Module constants (edit the script to change)
+
+- `MAX_ROW_PER_FILE = 100_000` — both the segment size used by rank 0 to decide when to flush a full chunk **and** the `max_rows_per_file` passed to `lance.write_dataset`. Each Lance write is exactly this many rows.
+
+## Architecture
 
 ```
-                          ┌──────────► queue[A] ──► writer A ──► output_lance_A
-N scanner threads ──split─┼──────────► queue[B] ──► writer B ──► output_lance_B
-                          └──────────► queue[C] ──► writer C ──► output_lance_C
+                       per-rank read           collective                rank 0 only
+                       (1 fragment / round)    sync                      drain
+   ┌─ rank 0 ─────► LanceDBBuffer ──┐                                  ┌─ pop_fullsize_segment
+   │   reads its                    │                                  │     (MAX_ROW_PER_FILE @ a time)
+   │   fragment_ids                 │                                  │
+   ├─ rank 1 ─────► LanceDBBuffer ──┼──► gather_object on rank 0 ──►  ─┤   ─► lance.write_dataset(...)
+   │                                │       (in strict rank order)     │      mode=create | append
+   ├─ rank 2 ─────► LanceDBBuffer ──┤                                  │      max_rows_per_file=
+   │     ...                        │                                  │       MAX_ROW_PER_FILE
+   └─ rank N-1 ───► LanceDBBuffer ──┘                                  └─ remainder kept in buffer
+                                                                          for next round
 ```
 
-- Scanner-side parallelism: `--max_concurrency` threads each open their own `lance.dataset(...)` and run `scanner(filter="source_dataset IN (...)", fragments=[one_fragment], scan_in_order=False)`. True per-fragment IO parallelism.
-- Per-batch routing: each scanner splits batches by `source_dataset` value (via `pyarrow.compute.equal` masks) and pushes sub-batches to per-output queues.
-- Stream write: each output runs **one** `lance.write_dataset(reader=…)` call backed by a `pa.RecordBatchReader` over its queue. Lance pulls lazily and rotates datafiles per `--max_rows_per_file`. Read and write happen concurrently (Lance / pyarrow release the GIL during S3/GCS IO).
-- Bounded queues (size `2 × max_concurrency`) provide backpressure both ways — scanners stall when writers are slow, writers stall when scanners are slow.
+Per-rank task schedule (every rank runs the same number of `sync` tasks → collective stays in lockstep):
+
+```
+<read fragment 0, sync, read fragment 1, sync, ..., read fragment K-1, sync, sync, sync ...>
+                                                                       └─── padding syncs
+                                                                            on ranks with
+                                                                            fewer fragments
+```
+
+`n_rounds = ceil(N_fragments / world_size)`. Ranks short by ±1 fragment pad with sync-only rounds at the tail.
+
+Why per-segment writes are exactly `MAX_ROW_PER_FILE`:
+- `pop_fullsize_segment()` on rank 0 picks the webdsname with the most buffered rows and pops exactly `MAX_ROW_PER_FILE` of them, leaving the remainder. So every mid-run Lance write is one file of exactly `MAX_ROW_PER_FILE` rows.
+- The final flush handles only the trailing under-`MAX_ROW_PER_FILE` remainder per webdsname, written once at end.
 
 ## Notes
 
-- **Empty slices are tolerated.** If a particular `dataset_name` matches zero rows, the corresponding writer logs a warning and skips creating an output (no empty `.lance`). The job only fails if **all** slices come up empty.
-- **Schema is preserved exactly** — no column projection. The output schema matches the input schema.
-- **No `--max-rows` flag.** Slicing is supposed to be exhaustive over matching rows; if you want a sample, post-process with another scanner.
-- **Single rank.** This script does not use `slaunch`'s distributed init; one task is enough since parallelism is internal. Do not request `1xN`.
-- **Verification.** The completion log re-opens each output and reports `Rows written / Output rows / Datafiles / URI` per slice — quick sanity check that rotation and counts match.
+- **Distributed.** Use `slaunch cpu 1xN` to scale read/sync throughput. Reading scales near-linearly in N (each rank handles its own fragments); writing is rank 0 only. With many small fragments and few ranks the read side dominates, so 1x8 or 1x16 is usually a sweet spot.
+- **Output cleanup at startup.** Rank 0 calls `clean_lance_path` on every output URI before any task runs (recursive `fs.rm` via `fsspec`). Anything previously at those paths is gone.
+- **Mode selection.** First write per output URI in this run uses `mode="create"`; subsequent writes use `mode="append"`. Implemented by probing `lance.dataset(uri)` — once cleanup wipes the path, the first probe fails so the first write is `create`.
+- **Empty slices.** If a `dataset_name` matches zero rows, no output dataset is ever created at the corresponding URI — the buffer simply never gets a key for that name. No empty `.lance` placeholder.
+- **Schema.** Preserved exactly — all columns from the input row are forwarded. Per-segment `pa.Table.from_pylist(rows)` is used (schema inferred per write); if you ever hit "schema mismatch" on append, the inferred type drifted between segments — fix by reading the input dataset's schema once and passing it explicitly.
+- **Sync count must match across ranks.** `LanceDBBuffer.sync()` calls `distributed.gather_object`, which is collective. The schedule (`n_rounds` syncs on every rank) guarantees this; don't break it by editing the task list.
+- **Failure swallowing.** A failing read task is logged and the loop continues — the matching sync still fires so the collective doesn't deadlock, but those rows are lost. Treat persistent task-failed log lines as a real bug.
 
 ## Default input — the big joint table
 
@@ -86,20 +104,40 @@ Use this as `--input_lancedb_path` by default. Override only when slicing from a
 
 ## Known slice outputs (2026-04-27 cut from `image_meta_table_full.lance`)
 
-These are the canonical per-dataset slices that have already been carved out of the joint table. Reuse these URIs as `--input-lancedb-path` for downstream sharding instead of re-running the slice.
+These are the canonical per-dataset slices that have already been carved out of the joint table. Reuse these URIs as `--input_lancedb_path` for downstream sharding instead of re-running the slice.
 
-| `source_dataset` | Output Lance URI |
-|---|---|
-| `screen2words_rico` | `gs://nv-00-10206-vfm/lancedb/image/text_related/screen2words_rico_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `slide_audit`       | `gs://nv-00-10206-vfm/lancedb/image/text_related/slide_audit_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `voxel51_rico`      | `gs://nv-00-10206-vfm/lancedb/image/text_related/voxel51_rico_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `zennodo10k`        | `gs://nv-00-10206-vfm/lancedb/image/text_related/zennodo10k_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `synthetic_scene_text_v0`                     | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `synthetic_chinese_scene_text_v0`             | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `synthetic_traditional_chinese_scene_text_v0` | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `red` | `gs://nv-00-10206-vfm/lancedb/image/regular/red_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `MMC4` | `gs://nv-00-10206-vfm/lancedb/image/synthetic/MMC4_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `generations_qwen_image_2512_filtered_photoreal` | `gs://nv-00-10206-vfm/lancedb/image/synthetic/generations_qwen_image_2512_filtered_photoreal_slice_from_maintable_<YYYYmmdd>.lance/` |
-| `wordnet_captions_20260224` | `gs://nv-00-10206-vfm/lancedb/image/synthetic/wordnet_captions_20260224_slice_from_maintable_<YYYYmmdd>.lance/` |
+### Common Image LanceDB Root Path:
+
+`<root>` = `gs://nv-00-10206-vfm/lancedb/image/`
+
+### Text dataset (Real + SGD)
+
+| `source_dataset`                              | Output Lance URI                                                                                                 |
+|-----------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| `screen2words_rico`                           | `<root>/regular_text/screen2words_rico_slice_from_maintable_<YYYYmmdd>.lance/`                                   |
+| `slide_audit`                                 | `<root>/regular_text/slide_audit_slice_from_maintable_<YYYYmmdd>.lance/`                                         |
+| `voxel51_rico`                                | `<root>/regular_text/voxel51_rico_slice_from_maintable_<YYYYmmdd>.lance/`                                        |
+| `zennodo10k`                                  | `<root>/regular_text/zennodo10k_slice_from_maintable_<YYYYmmdd>.lance/`                                          |
+| `synthetic_scene_text_v0`                     | `<root>/synthetic_text/synthetic_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/`                     |
+| `synthetic_chinese_scene_text_v0`             | `<root>/synthetic_text/synthetic_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/`             |
+| `synthetic_traditional_chinese_scene_text_v0` | `<root>/synthetic_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
+
+### Regular dataset (Real)
+
+| `source_dataset` | Output Lance URI                                                  |
+|------------------|-------------------------------------------------------------------|
+| `red`            | `<root>/regular/red_slice_from_maintable_<YYYYmmdd>.lance/`       |
+| `coyo_700m`      | `<root>/regular/coyo_700m_slice_from_maintable_<YYYYmmdd>.lance/` |
+
+### Synthetic dataset (SGD)
+
+| `source_dataset`                                 | Output Lance URI                                                                                         |
+|--------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `MMC4`                                           | `<root>/synthetic/mmc4_slice_from_maintable_<YYYYmmdd>.lance/`                                           |
+| `generations_qwen_image_2512_filtered_photoreal` | `<root>/synthetic/generations_qwen_image_2512_filtered_photoreal_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `wordnet_captions_20260224`                      | `<root>/synthetic/wordnet_captions_20260224_slice_from_maintable_<YYYYmmdd>.lance/`                      |
+| `datacomp_1b`                                    | `<root>/synthetic/datacomp_1b_slice_from_maintable_<YYYYmmdd>.lance/`                                    |
+| `midjourney`                                     | `<root>/synthetic/midjourney_slice_from_maintable_<YYYYmmdd>.lance/`                                     |
+| `midjourney_v6_20240703`                         | `<root>/synthetic/midjourney_v6_20240703_slice_from_maintable_<YYYYmmdd>.lance/`                         |
 
 Naming convention: `<dataset>_slice_from_maintable_<YYYYmmdd>.lance`. When you re-cut from a fresher main table, bump the date suffix — don't overwrite the previous slice in place.

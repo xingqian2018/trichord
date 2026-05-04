@@ -19,14 +19,14 @@ For each existing `{webds_path}/<multiple/bucket/paths>/{key}/<shard>.tar` group
 
 ## Quick-check inputs
 
-| Arg | Value | Notes |
-|---|---|---|
-| `--webds_path` | `<the_existed_webdataset_path>` | Existing WebDS root to walk. Script writes `wdinfo*.json` in place; does NOT touch the data tars themselves. |
-| `--webds_cred` | `credentials/gcs.secret` | Credential file for the WebDS bucket. Default is `credentials/gcs.secret`. |
-| `--webds_key` | `<list_of_keys>` | Space-separated keys to keep in wdinfo (e.g. `images metas metas_<some_postfix>`). **Omit to auto-include every key discovered under each leaf bucket group** — the script logs the auto-detected list. |
-| `--num_concurrency` | `256` | Async download concurrency for streaming meta tars. 256 is a good working point. |
-| `--batch_size` | `256` | Per-rank batch size when fetching meta tars in each round. 256 keeps the network busy. |
-| `--max_try` | `3` | Retries per failed meta-tar download. Job aborts with `RuntimeError` if any tar still fails after this many tries (no wdinfo is written). |
+| Arg                 | Value                           | Notes                                                                                                                                                                                                   |
+|---------------------|---------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--webds_path`      | `<the_existed_webdataset_path>` | Existing WebDS root to walk. Script writes `wdinfo*.json` in place; does NOT touch the data tars themselves.                                                                                            |
+| `--webds_cred`      | `credentials/gcs.secret`        | Credential file for the WebDS bucket. Default is `credentials/gcs.secret`.                                                                                                                              |
+| `--webds_key`       | `<list_of_keys>`                | Space-separated keys to keep in wdinfo (e.g. `images metas metas_<some_postfix>`). **Omit to auto-include every key discovered under each leaf bucket group** — the script logs the auto-detected list. |
+| `--num_concurrency` | `256`                           | Async download concurrency for streaming meta tars. 256 is a good working point.                                                                                                                        |
+| `--batch_size`      | `256`                           | Per-rank batch size when fetching meta tars in each round. 256 keeps the network busy.                                                                                                                  |
+| `--max_try`         | `3`                             | Retries per failed meta-tar download. Job aborts with `RuntimeError` if any tar still fails after this many tries (no wdinfo is written).                                                               |
 
 ## Known dataset lookup
 
@@ -34,14 +34,14 @@ Single table keyed on `--dataset_name`. Look up the row to fill `--webds_path`; 
 
 ### Table A — WebDS
 
-| `--dataset_name` | `--webds_path` |
-|---|---|
-| `screen2words_rico` | `s3://nv-00-10206-vfm/webdataset_image_text_related/screen2words_rico/` |
-| `slide_audit` | `s3://nv-00-10206-vfm/webdataset_image_text_related/slide_audit/` |
-| `voxel51_rico` | `s3://nv-00-10206-vfm/webdataset_image_text_related/voxel51_rico/` |
-| `zennodo10k` | `s3://nv-00-10206-vfm/webdataset_image_text_related/zennodo10k/` |
-| `synthetic_scene_text_v0` | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_scene_text_v0/` |
-| `synthetic_chinese_scene_text_v0` | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_chinese_scene_text_v0/` |
+| `--dataset_name`                              | `--webds_path`                                                                           |
+|-----------------------------------------------|------------------------------------------------------------------------------------------|
+| `screen2words_rico`                           | `s3://nv-00-10206-vfm/webdataset_image_text_related/screen2words_rico/`                  |
+| `slide_audit`                                 | `s3://nv-00-10206-vfm/webdataset_image_text_related/slide_audit/`                        |
+| `voxel51_rico`                                | `s3://nv-00-10206-vfm/webdataset_image_text_related/voxel51_rico/`                       |
+| `zennodo10k`                                  | `s3://nv-00-10206-vfm/webdataset_image_text_related/zennodo10k/`                         |
+| `synthetic_scene_text_v0`                     | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_scene_text_v0/`                     |
+| `synthetic_chinese_scene_text_v0`             | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_chinese_scene_text_v0/`             |
 | `synthetic_traditional_chinese_scene_text_v0` | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_traditional_chinese_scene_text_v0/` |
 
 When a row is filled in, the cheatsheet substitutes `--webds_path` directly — the user only has to supply `--webds_key` (and confirm `<dataset_name>` for the slaunch job tag).

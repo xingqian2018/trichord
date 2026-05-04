@@ -97,5 +97,9 @@ These are the canonical per-dataset slices that have already been carved out of 
 | `synthetic_scene_text_v0`                     | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
 | `synthetic_chinese_scene_text_v0`             | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
 | `synthetic_traditional_chinese_scene_text_v0` | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `red` | `gs://nv-00-10206-vfm/lancedb/image/regular/red_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `MMC4` | `gs://nv-00-10206-vfm/lancedb/image/synthetic/MMC4_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `generations_qwen_image_2512_filtered_photoreal` | `gs://nv-00-10206-vfm/lancedb/image/synthetic/generations_qwen_image_2512_filtered_photoreal_slice_from_maintable_<YYYYmmdd>.lance/` |
+| `wordnet_captions_20260224` | `gs://nv-00-10206-vfm/lancedb/image/synthetic/wordnet_captions_20260224_slice_from_maintable_<YYYYmmdd>.lance/` |
 
 Naming convention: `<dataset>_slice_from_maintable_<YYYYmmdd>.lance`. When you re-cut from a fresher main table, bump the date suffix — don't overwrite the previous slice in place.

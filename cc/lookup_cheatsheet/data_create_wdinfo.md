@@ -34,15 +34,15 @@ Single table keyed on `--dataset_name`. Look up the row to fill `--webds_path`; 
 
 ### Table A — WebDS
 
-| `--dataset_name`                              | `--webds_path`                                                                           |
-|-----------------------------------------------|------------------------------------------------------------------------------------------|
-| `screen2words_rico`                           | `s3://nv-00-10206-vfm/webdataset_image_text_related/screen2words_rico/`                  |
-| `slide_audit`                                 | `s3://nv-00-10206-vfm/webdataset_image_text_related/slide_audit/`                        |
-| `voxel51_rico`                                | `s3://nv-00-10206-vfm/webdataset_image_text_related/voxel51_rico/`                       |
-| `zennodo10k`                                  | `s3://nv-00-10206-vfm/webdataset_image_text_related/zennodo10k/`                         |
-| `synthetic_scene_text_v0`                     | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_scene_text_v0/`                     |
-| `synthetic_chinese_scene_text_v0`             | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_chinese_scene_text_v0/`             |
-| `synthetic_traditional_chinese_scene_text_v0` | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_traditional_chinese_scene_text_v0/` |
+| `--dataset_name`                              | `--webds_path`                                                                                      |
+|-----------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `screen2words_rico`                           | `s3://nv-00-10206-vfm/webdataset_image_regular_text/screen2words_rico/`                             |
+| `slide_audit`                                 | `s3://nv-00-10206-vfm/webdataset_image_regular_text/slide_audit/`                                   |
+| `voxel51_rico`                                | `s3://nv-00-10206-vfm/webdataset_image_regular_text/voxel51_rico/`                                  |
+| `zennodo10k`                                  | `s3://nv-00-10206-vfm/webdataset_image_regular_text/zennodo10k/`                                    |
+| `synthetic_scene_text_v0`                     | `s3://nv-00-10206-vfm/webdataset_image_synthetic_text/synthetic_scene_text_v0/`                     |
+| `synthetic_chinese_scene_text_v0`             | `s3://nv-00-10206-vfm/webdataset_image_synthetic_text/synthetic_chinese_scene_text_v0/`             |
+| `synthetic_traditional_chinese_scene_text_v0` | `s3://nv-00-10206-vfm/webdataset_image_synthetic_text/synthetic_traditional_chinese_scene_text_v0/` |
 
 When a row is filled in, the cheatsheet substitutes `--webds_path` directly — the user only has to supply `--webds_key` (and confirm `<dataset_name>` for the slaunch job tag).
 

@@ -32,7 +32,7 @@ Reasoner-upsampler v1 (apr27) extras (prompts root `team-cosmos-benchmark:datase
 
 
 ## Experiment Name (`--experiment_name`)
-- `t2i_mot_expDAITR005_debug` (default)
+- `t2i_mot_expDAITR006_debug` (default)
 
 Baseline options:
 - `sd_v3p5_large`
@@ -74,7 +74,13 @@ Default parameters per baseline (use these unless the user overrides):
 | gt_2048 | 5464×5464  | 6304×4728  | 4728×6304  | 7280×4096  | 4096×7280  |
 
 
-## Checkpoint path (`--checkpoint_path`) and output path (`--output_path`)
+## Checkpoint path (`--checkpoint_path`), credential path (`--credential_path`) and output path (`--output_path`)
+
+Credential path should be:
+```bash
+--credential_path credentials/gcs.secret
+--output_credential_path credentials/gcs.secret
+```
 
 An example of our naming rules are as following:
 
@@ -93,7 +99,7 @@ slaunch <cluster> 1 ugb_gen_<some_run_name> \
     projects/cosmos3/vfm/evaluation/text_to_image/inference_unigenbench_distributed.py \
     --experiment_name <experiment_name> \
     --checkpoint_path <checkpoint_path> \
-    --credential_path credentials/gcp_checkpoint.secret \
+    --credential_path <credential_path> \
     --benchmark_name <benchmark_name> \
     --num_batch_size 32 \
     --guidance 4.0 \
@@ -103,7 +109,7 @@ slaunch <cluster> 1 ugb_gen_<some_run_name> \
     --use_ema \
     --use_cosmos3_negative_prompt \
     --output_path s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/unigenbench/<benchmark_name>/<folder_close_to_model_name_and_iter> \
-    --output_credential_path credentials/gcs.secret
+    --output_credential_path <output_credential_path>
 ```
 
 Note: `--output_credential_path credentials/gcs.secret` is required to write to the GCS-backed output bucket. The script's default (`credentials/gcp_checkpoint.secret`) lacks write permission and yields a 403 on the pre-write `easy_io.exists()` HEAD probe.

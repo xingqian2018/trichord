@@ -4,6 +4,23 @@ description: Run a command on a remote cluster over SSH. Default hosts are `awsc
 user_invocable: true
 ---
 
+## ⚠️ ABSOLUTE RULE — `scancel` REQUIRES EXPLICIT USER CONSENT ⚠️
+
+> **NEVER run `scancel` on any Slurm job without first asking the user and getting an explicit "yes" for the specific job id(s).** This applies to *every* invocation, including:
+>
+> - "relaunch" / "re-run" / "fix and re-submit" requests — even if the user implied the prior submission is broken, you still must ask before cancelling. Phrase it as: *"This will require `scancel <jobids>` — confirm?"*
+> - Cancelling **your own** previous submissions in the same thread — still ask.
+> - Cancelling jobs that look like duplicates from the dedupe check — still ask (the existing dedupe-check section already says this; this banner reinforces it).
+> - Cancelling "obviously wrong" jobs (wrong cluster, wrong cred, wrong nodes) — still ask.
+>
+> **Never assume the user wants the prior job killed.** A re-launch may be intended to coexist (e.g. the user wants to keep the broken one running for inspection while a fixed one is launched in parallel). Always confirm.
+>
+> When listing job ids in the confirmation, paste the *exact* ids you intend to cancel so the user can sanity-check — do not summarize as "the previous three" or similar. The user must be able to spot a stray id (especially their training jobs) before granting consent.
+>
+> **Why this matters.** Killing the wrong job — especially a long training run — costs hours-to-days of compute and can wipe partial progress. A typo, a stale memory of which jobs are "yours", or a wrong assumption about scope of "re-run" can all lead to a destroyed run. Asking takes one short Slack turn; the cleanup after a wrong scancel does not exist (the run is gone).
+>
+> This rule overrides any inference from the user's phrasing. "Relaunch" ≠ "scancel and relaunch" unless the user spells it out.
+
 ## Hosts
 
 Two SSH aliases are pre-configured in `~/.ssh/config`:

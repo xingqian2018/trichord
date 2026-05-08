@@ -24,30 +24,32 @@ Lives at `pipelines/image/text_rendering/create_caption_pickle.py` in `imaginair
 
 ## Quick-check inputs
 
-| Arg                 | Value                           | Notes                                                                                                                                                                                |
-|---------------------|---------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--webds_path`      | `<the_existed_webdataset_path>` | Existing WebDS root. The script walks every `*.tar` under it and keeps the ones whose path contains `/{meta_key}/`. Output is written under the same root with the key swapped.     |
-| `--webds_credential`| `credentials/gcs.secret`        | Credential file for the WebDS bucket. Default is `credentials/gcs.secret`.                                                                                                           |
-| `--meta_key`        | **ASK USER**                    | Source key under which meta tars live, e.g. `metas_20260502`. Used both as the discovery filter (`/{meta_key}/`) and the substring to swap when computing the output path.           |
-| `--out_key`         | `captions_cosmos_captioner_v1p1`| Destination key for the caption-pickle tars. Override only if the downstream loader expects a different folder name.                                                                 |
-| `--num_concurrency` | `8`                             | MSC worker pool size. The main loop is single-threaded (one tar at a time); this only affects per-call download/upload concurrency.                                                  |
-| `--overwrite`       | _flag_                          | Off by default — tars already present under `/{out_key}/` are skipped (safe to resume an interrupted run). Pass to force re-upload.                                                  |
+| Arg                  | Value                            | Notes                                                                                                                                                                           |
+|----------------------|----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--webds_path`       | `<the_existed_webdataset_path>`  | Existing WebDS root. The script walks every `*.tar` under it and keeps the ones whose path contains `/{meta_key}/`. Output is written under the same root with the key swapped. |
+| `--webds_credential` | `credentials/gcs.secret`         | Credential file for the WebDS bucket. Default is `credentials/gcs.secret`.                                                                                                      |
+| `--meta_key`         | **ASK USER**                     | Source key under which meta tars live, e.g. `metas_20260502`. Used both as the discovery filter (`/{meta_key}/`) and the substring to swap when computing the output path.      |
+| `--out_key`          | `captions_cosmos_captioner_v1p1` | Destination key for the caption-pickle tars. Override only if the downstream loader expects a different folder name.                                                            |
+| `--num_concurrency`  | `8`                              | MSC worker pool size. The main loop is single-threaded (one tar at a time); this only affects per-call download/upload concurrency.                                             |
+| `--overwrite`        | _flag_                           | Off by default — tars already present under `/{out_key}/` are skipped (safe to resume an interrupted run). Pass to force re-upload.                                             |
 
 ## Known dataset lookup
 
 Two tables, both keyed on `--dataset_name`. Table A fills `--webds_path`; Table B fills `--meta_key` with the latest dated meta tar set discovered on GCS. The slaunch job tag also reuses `<dataset_name>`.
 
+- **Check `./data_common_root.md` for some common root path settings** 
+
 ### Table A — WebDS
 
-| `--dataset_name`                              | `--webds_path`                                                                                      |
-|-----------------------------------------------|-----------------------------------------------------------------------------------------------------|
-| `screen2words_rico`                           | `s3://nv-00-10206-vfm/webdataset_image_regular_text/screen2words_rico/`                             |
-| `slide_audit`                                 | `s3://nv-00-10206-vfm/webdataset_image_regular_text/slide_audit/`                                   |
-| `voxel51_rico`                                | `s3://nv-00-10206-vfm/webdataset_image_regular_text/voxel51_rico/`                                  |
-| `zennodo10k`                                  | `s3://nv-00-10206-vfm/webdataset_image_regular_text/zennodo10k/`                                    |
-| `synthetic_scene_text_v0`                     | `s3://nv-00-10206-vfm/webdataset_image_synthetic_text/synthetic_scene_text_v0/`                     |
-| `synthetic_chinese_scene_text_v0`             | `s3://nv-00-10206-vfm/webdataset_image_synthetic_text/synthetic_chinese_scene_text_v0/`             |
-| `synthetic_traditional_chinese_scene_text_v0` | `s3://nv-00-10206-vfm/webdataset_image_synthetic_text/synthetic_traditional_chinese_scene_text_v0/` |
+| `--dataset_name`                              | `--webds_path`                                                        |
+|-----------------------------------------------|-----------------------------------------------------------------------|
+| `screen2words_rico`                           | `<webds_image_reg_text>/screen2words_rico/`                           |
+| `slide_audit`                                 | `<webds_image_reg_text>/slide_audit/`                                 |
+| `voxel51_rico`                                | `<webds_image_reg_text>/voxel51_rico/`                                |
+| `zennodo10k`                                  | `<webds_image_reg_text>/zennodo10k/`                                  |
+| `synthetic_scene_text_v0`                     | `<webds_image_sgd_text>/synthetic_scene_text_v0/`                     |
+| `synthetic_chinese_scene_text_v0`             | `<webds_image_sgd_text>/synthetic_chinese_scene_text_v0/`             |
+| `synthetic_traditional_chinese_scene_text_v0` | `<webds_image_sgd_text>/synthetic_traditional_chinese_scene_text_v0/` |
 
 ### Table B — latest `--meta_key`
 

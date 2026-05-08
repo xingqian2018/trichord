@@ -32,49 +32,53 @@ For each existing `{webds_path}/resolution_*/aspect_ratio_*/{old_meta_key}/<shar
 
 Three tables, all keyed on `--dataset_name`. Table A is the WebDS path; Table B is the LanceDB config; Table C is everything logged-meta. Look up the same row in all three when filling the template.
 
+- **Check `./data_common_root.md` for some common root path settings** 
+- `<table_postfix>` = `slice_from_maintable_20260506` or `slice_from_maintable_YYYYmmdd` the newest slice
+
+
 ### Table A — WebDS
 
-| `--dataset_name`                              | `--webds_path`                                                                           |
-|-----------------------------------------------|------------------------------------------------------------------------------------------|
-| `screen2words_rico`                           | `s3://nv-00-10206-vfm/webdataset_image_text_related/screen2words_rico/`                  |
-| `slide_audit`                                 | `s3://nv-00-10206-vfm/webdataset_image_text_related/slide_audit/`                        |
-| `voxel51_rico`                                | `s3://nv-00-10206-vfm/webdataset_image_text_related/voxel51_rico/`                       |
-| `zennodo10k`                                  | `s3://nv-00-10206-vfm/webdataset_image_text_related/zennodo10k/`                         |
-| `synthetic_scene_text_v0`                     | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_scene_text_v0/`                     |
-| `synthetic_chinese_scene_text_v0`             | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_chinese_scene_text_v0/`             |
-| `synthetic_traditional_chinese_scene_text_v0` | `s3://nv-00-10206-vfm/webdataset_synthetic/synthetic_traditional_chinese_scene_text_v0/` |
+| `--dataset_name`                              | `--webds_path`                                                        |
+|-----------------------------------------------|-----------------------------------------------------------------------|
+| `screen2words_rico`                           | `<webds_image_reg_text>/screen2words_rico/`                           |
+| `slide_audit`                                 | `<webds_image_reg_text>/slide_audit/`                                 |
+| `voxel51_rico`                                | `<webds_image_reg_text>/voxel51_rico/`                                |
+| `zennodo10k`                                  | `<webds_image_reg_text>/zennodo10k/`                                  |
+| `synthetic_scene_text_v0`                     | `<webds_image_sgd_text>/synthetic_scene_text_v0/`                     |
+| `synthetic_chinese_scene_text_v0`             | `<webds_image_sgd_text>/synthetic_chinese_scene_text_v0/`             |
+| `synthetic_traditional_chinese_scene_text_v0` | `<webds_image_sgd_text>/synthetic_traditional_chinese_scene_text_v0/` |
 
 ### Table B — LanceDB
 
-| `--dataset_name`                              | `--lancedb_path`                                                                                                                                 | `--lancedb_webds_filekey_lookup_col` |
-|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------|
-| `screen2words_rico`                           | `gs://nv-00-10206-vfm/lancedb/image/text_related/screen2words_rico_slice_from_maintable_<table_postfix>.lance`                                   | `uuid`                               |
-| `slide_audit`                                 | `gs://nv-00-10206-vfm/lancedb/image/text_related/slide_audit_slice_from_maintable_<table_postfix>.lance`                                         | `uuid`                               |
-| `voxel51_rico`                                | `gs://nv-00-10206-vfm/lancedb/image/text_related/voxel51_rico_slice_from_maintable_<table_postfix>.lance`                                        | `uuid`                               |
-| `zennodo10k`                                  | `gs://nv-00-10206-vfm/lancedb/image/text_related/zennodo10k_slice_from_maintable_<table_postfix>.lance`                                          | `uuid`                               |
-| `synthetic_scene_text_v0`                     | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_scene_text_v0_slice_from_maintable_<table_postfix>.lance`                     | `sdg_original_index`                 |
-| `synthetic_chinese_scene_text_v0`             | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_chinese_scene_text_v0_slice_from_maintable_<table_postfix>.lance`             | `sdg_original_index`                 |
-| `synthetic_traditional_chinese_scene_text_v0` | `gs://nv-00-10206-vfm/lancedb/image/synthetic_scene_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<table_postfix>.lance` | `sdg_original_index`                 |
+| `--dataset_name`                              | `--lancedb_path`                                                                                  | `--lancedb_webds_filekey_lookup_col`   |
+|-----------------------------------------------|---------------------------------------------------------------------------------------------------|----------------------------------------|
+| `screen2words_rico`                           | `<lancedb_image_root_reg_text>/screen2words_rico_slice_from_maintable_<table_postfix>.lance`      | `uuid`                                 |
+| `slide_audit`                                 | `<lancedb_image_root_reg_text>slide_audit_<table_postfix>.lance`                                  | `uuid`                                 |
+| `voxel51_rico`                                | `<lancedb_image_root_reg_text>voxel51_rico_<table_postfix>.lance`                                 | `uuid`                                 |
+| `zennodo10k`                                  | `<lancedb_image_root_reg_text>zennodo10k_<table_postfix>.lance`                                   | `uuid`                                 |
+| `synthetic_scene_text_v0`                     | `<lancedb_image_root_sgd_text>/synthetic_scene_text_v0_<table_postfix>.lance`                     | `sdg_original_index`                   |
+| `synthetic_chinese_scene_text_v0`             | `<lancedb_image_root_sgd_text>/synthetic_chinese_scene_text_v0_<table_postfix>.lance`             | `sdg_original_index`                   |
+| `synthetic_traditional_chinese_scene_text_v0` | `<lancedb_image_root_sgd_text>/synthetic_traditional_chinese_scene_text_v0_<table_postfix>.lance` | `sdg_original_index`                   |
 
 ### Table C — logged meta
 
-| `--dataset_name`                              | `--logged_meta_source` | `--logged_meta_path`                                                                | `--logged_meta_webds_filekey_lookup_field` |
-|-----------------------------------------------|------------------------|-------------------------------------------------------------------------------------|--------------------------------------------|
-| `screen2words_rico`                           | `logged_meta`          | `s3://nv-00-10206-images/logged_metas/screen2words_rico/`                           |                                            |
-| `slide_audit`                                 | `logged_meta`          | `s3://nv-00-10206-images/logged_metas/slide_audit/`                                 |                                            |
-| `voxel51_rico`                                | `logged_meta`          | `s3://nv-00-10206-images/logged_metas/voxel51_rico/`                                |                                            |
-| `zennodo10k`                                  | `logged_meta`          | `s3://nv-00-10206-images/logged_metas/zennodo10k/`                                  |                                            |
-| `synthetic_scene_text_v0`                     | `logged_meta`          | `s3://nv-00-10206-images/logged_metas/synthetic_scene_text_v0/`                     | `sdg_id`                                   |
-| `synthetic_chinese_scene_text_v0`             | `logged_meta`          | `s3://nv-00-10206-images/logged_metas/synthetic_chinese_scene_text_v0/`             | `image_id`                                 |
-| `synthetic_traditional_chinese_scene_text_v0` | `logged_meta`          | `s3://nv-00-10206-images/logged_metas/synthetic_traditional_chinese_scene_text_v0/` | `image_id`                                 |
+| `--dataset_name`                              | `--logged_meta_source`   | `--logged_meta_path`                                                                | `--logged_meta_webds_filekey_lookup_field`   |
+|-----------------------------------------------|--------------------------|-------------------------------------------------------------------------------------|----------------------------------------------|
+| `screen2words_rico`                           | `old_meta`            | `<logged_meta_root>/screen2words_rico/`                           |                                              |
+| `slide_audit`                                 | `old_meta`            | `<logged_meta_root>/slide_audit/`                                 |                                              |
+| `voxel51_rico`                                | `old_meta`            | `<logged_meta_root>/voxel51_rico/`                                |                                              |
+| `zennodo10k`                                  | `old_meta`            | `<logged_meta_root>/zennodo10k/`                                  |                                              |
+| `synthetic_scene_text_v0`                     | `old_meta`            | `<logged_meta_root>/synthetic_scene_text_v0/`                     | `sdg_id`                                     |
+| `synthetic_chinese_scene_text_v0`             | `old_meta`            | `<logged_meta_root>/synthetic_chinese_scene_text_v0/`             | `image_id`                                   |
+| `synthetic_traditional_chinese_scene_text_v0` | `old_meta`            | `<logged_meta_root>/synthetic_traditional_chinese_scene_text_v0/` | `image_id`                                   |
 
-When a row is filled in, the cheatsheet substitutes `--webds_path`, `--lancedb_path`, `--lancedb_webds_filekey_lookup_col`, `--logged_meta_source`, `--logged_meta_path`, and `--logged_meta_webds_filekey_lookup_field` directly — the user only has to supply `--new_meta_key`.
+When a row is filled in, the cheatsheet substitutes `--webds_path`, `--lancedb_path`, `--lancedb_webds_filekey_lookup_col`, `--logged_meta_source`, `--logged_meta_path`, and `--logged_meta_webds_filekey_lookup_field` directly — the user only has to supply `--new_meta_key`, usually with a format of `metas_YYYYmmdd`.
 
 ## Template — `slaunch`
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
-slaunch cpu 2x4 reload_meta_<dataset_name> \
+slaunch cpu 1x1 reload_meta_<dataset_name> \
     pipelines/image/text_rendering/shard_full_dbinfo_meta_reload.py \
     --lancedb_path <lancedb_to_work_on> \
     --webds_path <the_existed_webdataset_path> \

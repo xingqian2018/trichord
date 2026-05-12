@@ -9,7 +9,7 @@ Stage 1 needs a GPU cluster. Valid `slaunch` cluster: `small` | `small_aws` | `l
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_alt \
-slaunch <cluster> 1 cvtg_gen_<some_run_name> \
+slaunch <cluster> 2 cvtg_gen_<some_run_name> \
     projects/cosmos3/vfm/evaluation/text_to_image/inference_cvtg_distributed.py \
     --experiment_name <experiment_name> \
     --checkpoint_path <checkpoint_path> \
@@ -21,11 +21,14 @@ slaunch <cluster> 1 cvtg_gen_<some_run_name> \
     --height <height> \
     --width <width> \
     --use_ema \
+    --use_cosmos3_negative_prompt \
     --output_path s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/cvtg/<benchmark_name>/<folder_close_to_model_name_and_iter> \
     --output_credential_path credentials/gcs.secret
 ```
-
-For a baseline run (no checkpoint), drop `--checkpoint_path`, `--credential_path`, and `--use_ema`. Example matching the user's reference command:
+Notes:
+- `--use_cosmos3_negative_prompt`: injects a long English Cosmos3-style negative prompt. Without it, an empty negative prompt is used. Only meaningful for generators that honor `neg_prompt` (Cosmos3 + diffusers backends like SD3.5 / Flux / GLM); ignored by the gateway baselines (`nano_banana*`).
+- `--checkpoint_path`, when providing a in-house checkpoint, sometimes the users is lasy, so by default the checkpoint path should ends for `/model/`
+- For a baseline run (no checkpoint), drop `--checkpoint_path`, `--credential_path`, and `--use_ema`. Example matching the user's reference command:
 
 ```bash
 slaunch small 1 cvtg0_qwen_image_2512 \
@@ -35,25 +38,25 @@ slaunch small 1 cvtg0_qwen_image_2512 \
     --benchmark_name cvtg102ch \
     --height 1328 --width 1328 --guidance 4.0 --num_inference_steps 30
 ```
-
-Note: `--output_credential_path credentials/gcs.secret` is required to write to the GCS-backed output bucket. The script's default (`credentials/gcp_checkpoint.secret`) lacks write permission and yields a 403 on the pre-write `easy_io.exists()` HEAD probe.
-
-Note: `--regenerate` is *not* in the default template — add it explicitly only when you want to wipe and redo an existing output dir. Without it, an existing run is resumed (skipping already-written prompts).
+- `--regenerate` is *not* in the default template — add it explicitly only when you want to wipe and redo an existing output dir. Without it, an existing run is resumed (skipping already-written prompts).
+- See other `Stage 1 —` instructions below
 
 ## Stage 1 — Benchmark name (`--benchmark_name`)
 
-Default: `cvtg2kL`
+Default: `cvtg500L_opus` for English and `cvtg102ch_opus` for Chinese
 
 Canonical (in `BENCHMARK_CHOICE` of `inference_cvtg_distributed.py`, prompts root `s3://datasets/cvtg/`):
 
-| Key          | JSON path                                       | Prompt field used | OCR language | Notes              |
-|--------------|-------------------------------------------------|-------------------|--------------|--------------------|
-| `cvtg2k`     | `cvtg_2kl/testing_prompt_2kl.json`              | `prompt`          | English      | raw prompt         |
-| `cvtg2kL`    | `cvtg_2kl/testing_prompt_2kl.json`              | `prompt_upsampled`| English      | default, upsampled |
-| `cvtg500L`   | `cvtg_500l/testing_prompt_500l.json`            | `prompt_upsampled`| English      | upsampled          |
-| `cvtg102ch`  | `cvtg_102ch/testing_prompt_102ch.json`          | `prompt`          | Chinese      | Chinese OCR        |
+| Key               | JSON path                                                         | Prompt field used  | OCR language |
+|-------------------|-------------------------------------------------------------------|--------------------|--------------|
+| `cvtg2k`          | `cvtg_2kl/testing_prompt_2kl.json`                                | `prompt`           | English      |
+| `cvtg2kL`         | `cvtg_2kl/testing_prompt_2kl.json`                                | `prompt_upsampled` | English      |
+| `cvtg500L`        | `cvtg_500l/testing_prompt_500l.json`                              | `prompt_upsampled` | English      |
+| `cvtg500L_opus`   | `cvtg_500l/testing_prompt_500l_opus_4p7_720p_1to1.json`           | `prompt_upsampled` | English      |
+| `cvtg102ch`       | `cvtg_102ch/testing_prompt_102ch.json`                            | `prompt`           | Chinese      |
+| `cvtg102ch_opus`  | `cvtg_102ch/testing_prompt_102ch_opus_4p7_720p_1to1.json`         | `prompt_upsampled` | Chinese      |
 
-Note: Stage 2's language switch is automatic — `cvtg102ch` triggers Chinese OCR rules; everything else is English.
+Note: Stage 2's language switch is automatic — any benchmark starting with `cvtg102ch` triggers Chinese OCR rules; everything else is English.
 
 
 ## Stage 1 — Experiment Name (`--experiment_name`)
@@ -72,7 +75,6 @@ When `--experiment_name` matches the following:
 - `glm_image`
 - `nano_banana`
 - `nano_banana_pro`
-- `gemini_image`
 
 It means we are trying to inference a baseline model (`is_benchmark_exp=True`, no checkpoint needed).
 

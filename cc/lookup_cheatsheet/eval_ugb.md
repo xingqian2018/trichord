@@ -9,7 +9,7 @@ Stage 1 needs a GPU cluster. Valid `slaunch` cluster: `small` | `small_aws` | `l
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_alt \
-slaunch <cluster> 1 ugb_gen_<some_run_name> \
+slaunch <cluster> 4 ugb_gen_<some_run_name> \
     projects/cosmos3/vfm/evaluation/text_to_image/inference_unigenbench_distributed.py \
     --experiment_name <experiment_name> \
     --checkpoint_path <checkpoint_path> \
@@ -32,7 +32,7 @@ Note: `--regenerate` is *not* in the default template — add it explicitly only
 
 ## Stage 1 — Benchmark name (`--benchmark_name`)
 
-Default: `v2_1170L_G3F`
+Default: `v2_1170L_opus`
 
 Canonical (in `BENCHMARK_CHOICE` of `inference_unigenbench_distributed.py`, prompts root `s3://datasets/unigenbench/`):
 

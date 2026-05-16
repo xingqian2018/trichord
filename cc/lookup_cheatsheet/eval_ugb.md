@@ -66,10 +66,11 @@ When `--experiment_name` matches the following:
 - `sd_v3p5_large`
 - `flux_1_kontext_dev`
 - `flux_2_klein_9b`
+- `flux_2_dev`
 - `qwen_image`
 - `qwen_image_2512`
 - `z_image_turbo`
-- `hunyuan_image_3p0`
+- `hunyuan_image_3`
 - `glm_image`
 - `nano_banana`
 - `nano_banana_pro`
@@ -85,6 +86,8 @@ The we need to auto figure out the default inference parameters per baseline (us
 | **sd_v3p5_large**      | 3.5                  | 1024 × 1024      | 28        | None                                       | None                                                              | Can use 4.5 for complex prompts. max_sequence_length=512    |
 | **flux_1_kontext_dev** | 2.5                  | 1024 × 1024      | 30        | None                                       | None                                                              | Flexible resolutions. max_sequence_length=512               |
 | **flux_2_klein_9b**    | 1.0                  | 1024 × 1024      | 4         | None                                       | None                                                              | Fast distilled model. Step-distilled to 4 steps             |
+| **flux_2_dev**         | 4.0                  | 1024 × 1024      | 50        | None                                       | None                                                              | Full FLUX.2 dev model (non-distilled). Uses Flux2Pipeline   |
+| **hunyuan_image_3**    | N/A (ignored)        | 1024 × 1024      | 50        | None                                       | None                                                              | No CFG; `--guidance` arg is ignored. Uses HunyuanImage-3.0  |
 | **qwen_image**         | 4.0 (true_cfg_scale) | 1328 × 1328      | 50        | `", Ultra HD, 4K, cinematic composition."` | `" "` (single space)                                              | Different resolution!                                       |
 | **qwen_image_2512**    | 4.0 (true_cfg_scale) | 1328 × 1328      | 50        | `""` (empty)                               | `"低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲。"` | Different resolution! Comprehensive Chinese negative prompt |
 | **z_image_turbo**      | 0.0                  | 1024 × 1024      | 9         | None                                       | None                                                              | Must be 0 for turbo. Results in 8 NFEs. Bilingual support   |

@@ -22,9 +22,10 @@ slaunch <cluster> 2 cvtg_gen_<some_run_name> \
     --width <width> \
     --use_ema \
     --use_cosmos3_negative_prompt \
-    --output_path s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/cvtg/<benchmark_name>/<folder_close_to_model_name_and_iter> \
+    --output_path s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/<benchmark_name>/<folder_close_to_model_name_and_iter> \
     --output_credential_path credentials/gcs.secret
 ```
+
 Notes:
 - `--use_cosmos3_negative_prompt`: injects a long English Cosmos3-style negative prompt. Without it, an empty negative prompt is used. Only meaningful for generators that honor `neg_prompt` (Cosmos3 + diffusers backends like SD3.5 / Flux / GLM); ignored by the gateway baselines (`nano_banana*`).
 - `--checkpoint_path`, when providing a in-house checkpoint, sometimes the users is lasy, so by default the checkpoint path should ends for `/model/`
@@ -68,10 +69,11 @@ When `--experiment_name` matches the following:
 - `sd_v3p5_large`
 - `flux_1_kontext_dev`
 - `flux_2_klein_9b`
+- `flux_2_dev`
 - `qwen_image`
 - `qwen_image_2512`
 - `z_image_turbo`
-- `hunyuan_image_3p0`
+- `hunyuan_image_3`
 - `glm_image`
 - `nano_banana`
 - `nano_banana_pro`
@@ -86,11 +88,13 @@ Then we need to auto figure out the default inference parameters per baseline (u
 | **sd_v3p5_large**      | 3.5                  | 1024 × 1024      | 28        | None                                       | None                                                              | Can use 4.5 for complex prompts. max_sequence_length=512    |
 | **flux_1_kontext_dev** | 2.5                  | 1024 × 1024      | 30        | None                                       | None                                                              | Flexible resolutions. max_sequence_length=512               |
 | **flux_2_klein_9b**    | 1.0                  | 1024 × 1024      | 4         | None                                       | None                                                              | Fast distilled model. Step-distilled to 4 steps             |
+| **flux_2_dev**         | 4.0                  | 1024 × 1024      | 50        | None                                       | None                                                              | Full FLUX.2 dev model (non-distilled). Uses Flux2Pipeline   |
+| **hunyuan_image_3**    | N/A (ignored)        | 1024 × 1024      | 50        | None                                       | None                                                              | No CFG; `--guidance` arg is ignored. Uses HunyuanImage-3.0  |
 | **qwen_image**         | 4.0 (true_cfg_scale) | 1328 × 1328      | 50        | `", Ultra HD, 4K, cinematic composition."` | `" "` (single space)                                              | Different resolution!                                       |
 | **qwen_image_2512**    | 4.0 (true_cfg_scale) | 1328 × 1328      | 50        | `""` (empty)                               | `"低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲。"` | Different resolution! Bilingual (use this for `cvtg102ch`)  |
 | **z_image_turbo**      | 0.0                  | 1024 × 1024      | 9         | None                                       | None                                                              | Must be 0 for turbo. Results in 8 NFEs. Bilingual support   |
 
-For `cvtg102ch`, prefer a model with strong Chinese-text rendering (`qwen_image_2512`, `z_image_turbo`, `hunyuan_image_3p0`).
+For `cvtg102ch`, prefer a model with strong Chinese-text rendering (`qwen_image_2512`, `z_image_turbo`, `hunyuan_image_3`).
 
 ### Pretrained models (ours)
 
@@ -125,11 +129,12 @@ Credential path should be:
 --output_credential_path credentials/gcs.secret
 ```
 
-When `--output_path` is omitted, Stage 1 auto-derives:
+When `--output_path` is not provided by user, for baseline
+- `s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/<benchmark_name>/<user>_<baseline_name>/`
 
-```
-s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/cvtg/<benchmark_name>/<user>_<experiment_name>[_<iter>][_<signature>]/
-```
+For our pretrained model
+- `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/cvtg/<benchmark_name>/<user>_<experiment_name>[_<iter>][_<signature>]/`
+
 
 For baselines (no checkpoint), `<iter>` is dropped (e.g. `xingqianx_qwen_image_2512`). For Cosmos3 checkpoints, `<iter>` is the parent folder name of the checkpoint (e.g. `iter_000100000`).
 

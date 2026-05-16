@@ -76,3 +76,35 @@ Result files (one per row, alongside the gen images):
 - `unigenbench_result_using_eval_prompt_v2_1170L.json` — `eval = v2_1170L_G3F` rows
 - The original Stage 1 config snapshot now lives at `config_gen.json` (renamed from `config.json`) so the Stage 2 script falls through to the `--benchmark_name` flag.
 
+---
+
+# UGB Newer Round — G3.1-Pro Judge
+
+Date: 2026-05-14
+Judge: gemini-3.1-pro (signature: gemini-3p1-pro_G3F)
+Benchmark: v2_1170L_G3F
+Stage 2 input root: `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/unigenbench/v2_1170L_G3F/`
+
+---
+
+## v2_1170L_G3F — Baselines
+
+| Model                       | benchmark     |   All (1170L) |   Orig (600L) |   Phi (570Phi) |  Success  |
+|-----------------------------|---------------|---------------|---------------|----------------|-----------|
+| cosmos3_image_v1p5_iter108k | v2_1170L_opus |     **91.26** |     **93.34** |      **89.35** | 1170/1170 |
+| nano_banana_pro             | v2_1170L_G3F  |         90.85 |         92.91 |          88.95 | 1170/1170 |
+| flux_2_klein_9b             | v2_1170L_G3F  |         85.22 |         88.01 |          82.66 | 1170/1170 |
+| qwen_image_2512             | v2_1170L_G3F  |         84.36 |         87.53 |          81.47 | 1170/1170 |
+| qwen_image                  | v2_1170L_G3F  |            83 |         86.48 |           79.8 | 1170/1170 |
+| z_image_turbo               | v2_1170L_G3F  |         77.57 |         81.12 |           74.3 | 1170/1170 |
+| flux_1_kontext_dev          | v2_1170L_G3F  |         67.95 |          72.4 |          63.87 | 1170/1170 |
+| sd_v3p5_large               | v2_1170L_G3F  |         63.69 |         68.78 |          59.02 | 1170/1170 |
+
+## v2_1170L_G3F — Cosmos3
+
+| Model                              | benchmark     |   All (1170L) |   Orig (600L) |   Phi (570Phi) |  Success  |
+|------------------------------------|---------------|---------------|---------------|----------------|-----------|
+| cosmos3_image_v1p5_iter108k        | v2_1170L_opus |     **91.26** |     **93.34** |      **89.35** | 1170/1170 |
+| cosmos3_image_v1p4_iter100k        | v2_1170L_opus |         89.38 |          91.3 |          87.62 | 1170/1170 |
+| cosmos3_image_text_focused_iter20k | v2_1170L_opus |         88.33 |         90.31 |          86.52 | 1170/1170 |
+

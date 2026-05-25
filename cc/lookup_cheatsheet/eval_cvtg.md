@@ -15,7 +15,7 @@ slaunch <cluster> 2 cvtg_gen_<some_run_name> \
     --checkpoint_path <checkpoint_path> \
     --credential_path credentials/gcs.secret \
     --benchmark_name <benchmark_name> \
-    --num_batch_size 32 \
+    --num_batch_size 4 \
     --guidance 4.0 \
     --num_inference_steps 50 \
     --height <height> \
@@ -48,14 +48,17 @@ Default: `cvtg500L_opus` for English and `cvtg102ch_opus` for Chinese
 
 Canonical (in `BENCHMARK_CHOICE` of `inference_cvtg_distributed.py`, prompts root `s3://datasets/cvtg/`):
 
-| Key               | JSON path                                                         | Prompt field used  | OCR language |
-|-------------------|-------------------------------------------------------------------|--------------------|--------------|
-| `cvtg2k`          | `cvtg_2kl/testing_prompt_2kl.json`                                | `prompt`           | English      |
-| `cvtg2kL`         | `cvtg_2kl/testing_prompt_2kl.json`                                | `prompt_upsampled` | English      |
-| `cvtg500L`        | `cvtg_500l/testing_prompt_500l.json`                              | `prompt_upsampled` | English      |
-| `cvtg500L_opus`   | `cvtg_500l/testing_prompt_500l_opus_4p7_720p_1to1.json`           | `prompt_upsampled` | English      |
-| `cvtg102ch`       | `cvtg_102ch/testing_prompt_102ch.json`                            | `prompt`           | Chinese      |
-| `cvtg102ch_opus`  | `cvtg_102ch/testing_prompt_102ch_opus_4p7_720p_1to1.json`         | `prompt_upsampled` | Chinese      |
+| Key                    | Prompt field used   | OCR language              |
+|------------------------|---------------------|---------------------------|
+| `cvtg2k`               | `prompt`            | English                   |
+| `cvtg2kL`              | `prompt_upsampled`  | English                   |
+| `cvtg500L`             | `prompt_upsampled`  | English                   |
+| `cvtg500L_opus`        | `prompt_upsampled`  | English                   |
+| `cvtg102ch`            | `prompt`            | Chinese                   |
+| `cvtg102ch_ascii`      | `prompt`            | Chinese With Ascii Escape |
+| `cvtg102ch_opus`       | `prompt_upsampled`  | Chinese                   |
+| `cvtg102ch_opus_ascii` | `prompt_upsampled`  | Chinese With Ascii Escape |
+
 
 Note: Stage 2's language switch is automatic — any benchmark starting with `cvtg102ch` triggers Chinese OCR rules; everything else is English.
 
@@ -133,17 +136,10 @@ When `--output_path` is not provided by user, for baseline
 - `s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/<benchmark_name>/<user>_<baseline_name>/`
 
 For our pretrained model
-- `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/cvtg/<benchmark_name>/<user>_<experiment_name>[_<iter>][_<signature>]/`
+- `s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/<benchmark_name>/<folder_close_to_model_name_and_iter>/`
 
 
 For baselines (no checkpoint), `<iter>` is dropped (e.g. `xingqianx_qwen_image_2512`). For Cosmos3 checkpoints, `<iter>` is the parent folder name of the checkpoint (e.g. `iter_000100000`).
-
-An example of our naming rules are as following:
-
-```bash
---checkpoint_path s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/cosmos3_vfm_ablations/cosmos3_ga_16bm8b_v1_image_only_json_prompts_resume1/checkpoints/iter_000100000/model/
---output_path s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/cvtg/cvtg2kL/cosmos3_ga_16bm8b_v1_image_only_json_prompts_resume1_iter100k/
-```
 
 
 ## Stage 2 — Score Base Template

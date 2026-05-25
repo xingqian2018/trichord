@@ -83,13 +83,22 @@ Three things this incantation gets right that simpler forms get wrong:
 
 This matters especially for `slaunch` — a plain `ssh <host> 'slaunch ...'` will fail with "command not found". The same pitfall hits conda envs, `s3_omni.py` wrappers, custom `PATH` additions, and any other bashrc-defined tooling.
 
-**Escape hatch — bypass the alias entirely.** When the alias-expansion path is fragile (or you want to keep the script independent of the user's bashrc state), call the alias *target* directly. For `slaunch`, that's:
+**Escape hatch — bypass the alias entirely.** On `gcpcode`, `source ~/.bashrc` does NOT chain into `~/Project/bashrc/bashrc_my.sh` where `slaunch` is defined, so `shopt -s expand_aliases && source ~/.bashrc` still fails with "command not found". The reliable path is always to call the alias target directly:
 
 ```
 bash $HOME/Project/bashrc/sbatch_launch/main.sh <args...>
 ```
 
-Useful inside `~/tmp/<name>.sh` scripts launched via the scp pattern below.
+For `gcpcode` Slurm submissions, always use this form — do not attempt the `source ~/.bashrc` path for `slaunch`. Useful inside `~/tmp/<name>.sh` scripts launched via the scp pattern below.
+
+**Preserve env var prefixes.** The substitution is `slaunch` → `bash $HOME/Project/bashrc/sbatch_launch/main.sh` only. Any env var prefixes from the cheatsheet template (e.g. `CONTAINER_WORKDIR=...`) must be carried over verbatim:
+
+```
+CONTAINER_WORKDIR=/path/to/workdir \
+bash $HOME/Project/bashrc/sbatch_launch/main.sh <args...>
+```
+
+Do not drop env vars when applying this substitution.
 
 Skip the profile load only for trivial built-ins where you are certain nothing custom is needed (e.g. `ls`, `cat`, `crontab -l`).
 

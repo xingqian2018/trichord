@@ -2,63 +2,49 @@
 
 Two stages: Stage 1 generates images on GPU, Stage 2 scores them with an VLM/LLM judge.
 
-The skill need to gather information from user when necessary.
+---
 
-## Stage 1 — Inference Bash Template
-Stage 1 needs a GPU cluster. Valid `slaunch` cluster: `small` | `small_aws` | `long` | `aws`.
+## Step 1 — Which stage?
+
+- Ask user which stage, stage 1 or stage 2, should be executed
+
+---
+
+## Step 2 — compose the cmd, and display to user.
+
+At this stage, you need to show a full cmd to user.
+
+### Stage 1 UGB Image Generation
+
+- Our target is to filling all placeholders and show user the following:
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_alt \
-slaunch <cluster> 4 ugb_gen_<some_run_name> \
+slaunch small 2 ugb_gen_<some_run_name_close_to_model_name_and_iter> \
     projects/cosmos3/vfm/evaluation/text_to_image/inference_unigenbench_distributed.py \
     --experiment_name <experiment_name> \
     --checkpoint_path <checkpoint_path> \
-    --credential_path <credential_path> \
+    --credential_path credentials/gcs.secret \
     --benchmark_name <benchmark_name> \
-    --num_batch_size 32 \
+    --num_batch_size 4 \
     --guidance 4.0 \
     --num_inference_steps 50 \
     --height <height> \
     --width <width> \
     --use_ema \
     --use_cosmos3_negative_prompt \
-    --output_path s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/unigenbench/<benchmark_name>/<folder_close_to_model_name_and_iter> \
-    --output_credential_path <output_credential_path>
+    --output_path s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench/<benchmark_name>/<folder_close_to_model_name_and_iter> \
+    --output_credential_path credentials/gcs.secret
 ```
 
-Note: `--output_credential_path credentials/gcs.secret` is required to write to the GCS-backed output bucket. The script's default (`credentials/gcp_checkpoint.secret`) lacks write permission and yields a 403 on the pre-write `easy_io.exists()` HEAD probe.
+- Understand the `--experiment_name` and `--checkpoint_path`
+    - When a s3 model path is given, it usually means we are testing our in-house pretrained model.
+    - If user gives a location `gcs:<path>` convert it automatically to `s3:\\<path>`
+    - Otherwise it is like a baseline model. (see Baseline models)
+- Figure out `--height` and `--width` (see below)
+- Stage 1 `--benchmark_name` is usually `v2_1170L_opus`
+- `--regenerate` is *not* in the by default, add it explicitly only when user requested.
 
-Note: `--regenerate` is *not* in the default template — add it explicitly only when you want to wipe and redo an existing output dir. Without it, an existing run is resumed (skipping already-written prompts).
-
-## Stage 1 — Benchmark name (`--benchmark_name`)
-
-Default: `v2_1170L_opus`
-
-Canonical (in `BENCHMARK_CHOICE` of `inference_unigenbench_distributed.py`, prompts root `s3://datasets/unigenbench/`):
-
-| Key                | CSV path (relative to prompts root)               | Notes                          |
-|--------------------|---------------------------------------------------|--------------------------------|
-| `v1`               | `v1/unigenbench_v1.csv`                           |                                |
-| `ori_600ls`        | `original/unigenbench_full600_long_and_short.csv` |                                |
-| `ori_600l`         | `original/unigenbench_full600_long.csv`           |                                |
-| `ori_600s`         | `original/unigenbench_full600_short.csv`          |                                |
-| `v2_1170L_G3F`     | `v2/v2_1170L_G3F.csv`                             | default                        |
-| `v2_1170Lsu_G3F`   | `v2/v2_1170L_G3F_8b_t2i_structured_upsampled.csv` | structure caption              |
-| `v2_1170Lsurc_G3F` | `v2/v2_1170L_G3F_recaptioned.csv`                 | structure to dense recaption   |
-
-Reasoner-upsampler v1 (apr27) extras (prompts root `team-cosmos-benchmark:datasets/unigenbench/v2/reasoner_upsampler_v1_apr27/`):
-
-| Key                          | CSV file                                |
-|------------------------------|-----------------------------------------|
-| `v2_1170L_opus`              | `Opus_v2_1170L_G3F.csv`                 |
-| `v2_1170L_qwen3vl8b`         | `Qwen3VL8B_v2_1170L_G3F.csv`            |
-| `v2_1170L_qwen3vl32b`        | `Qwen3VL32B_v2_1170L_G3F.csv`           |
-| `v2_1170L_preexp015ft8b`     | `pre_exp015_372_ft8b_v2_1170L_G3F.csv`  |
-| `v2_1170L_preexp015ft32b`    | `pre_exp015_373_ft32b_v2_1170L_G3F.csv` |
-
-
-## Stage 1 — Experiment Name (`--experiment_name`)
-A string tells us what experiment we are running, some are baseline models, some are our freshing trained checkpoints
 
 ### Baseline models
 
@@ -94,13 +80,9 @@ The we need to auto figure out the default inference parameters per baseline (us
 
 ### Pretrained models (ours)
 
-When the user mentioned a checkpoint path, it means this is a inference on a pretrained model. Based on the name of the path, you can locate the correct model size and thus map to the correct `--experiment_name`:
-- `cosmos3_ga_64bm32b_t2ionly_base` (default for 64bm32b model)
-- `cosmos3_ga_64bm32b_t2ionly_base` (default for 64bm32b model)
+- `--experiment_name` = `cosmos3_ga_64bm32b_t2ionly_base` (default for 64bm32b model)
 
-If user doesn't mentioned the resolution, you may ask user for the detail resolution and aspect ratio.
-
-Then follows the table below to get the correct `--width` and `--height`:
+Ask user and follows the table below to get the correct `--width` and `--height`:
 
 `--width` / `--height` by resolution tier × aspect ratio (e.g. 720p 1:1 → 960×960 [w x h] ):
 
@@ -114,31 +96,12 @@ Then follows the table below to get the correct `--width` and `--height`:
 | 2048    | 2728×2728  | 3160×2368  | 2368×3160  | 3640×2048  | 2048×3640  |
 | gt_2048 | 5464×5464  | 6304×4728  | 4728×6304  | 7280×4096  | 4096×7280  |
 
-We always use `--guidance 4.0` and `--num_inference_steps 50` when evaluating our pretrained model.
 
+### Stage 2 UGB Score Computation
 
-## Stage 1 — Checkpoint path (`--checkpoint_path`) and output path (`--output_path`), and their credentials.
-
-These inputs are only needed if the experiment is not a baseline model experiment.
-
-*Note: if the user supplies a `gcs:<path>` for `--input_folder`, auto-convert it to `s3://<path>` before running.*
-
-Credential path should be:
-```bash
---credential_path credentials/gcs.secret
---output_credential_path credentials/gcs.secret
-```
-
-An example of our naming rules are as following:
-
-```bash
---checkpoint_path s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/cosmos3_vfm_ablations/cosmos3_ga_16bm8b_v1_image_only_json_prompts_resume1/checkpoints/iter_000100000/model/
---output_path s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluation/text_to_image/unigenbench/v2_1170Lsurc_G3F/cosmos3_ga_16bm8b_v1_image_only_json_prompts_resume1_iter100k/
-```
-
-## Stage 2 — Score Base Template
-
-Stage 2 needs CPU, the default is already in the template
+- Stage 2 only needs CPU, the default is already in the template
+- The `--input_folder` must match what Stage 1 wrote or provided by user.
+- The `--benchmark_name`, default is `v2_1170L_G3F` unless user mentioned otherwise.
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_alt \
@@ -150,16 +113,19 @@ slaunch cpu 1x1 ugb_score_<some_run_name> \
     --batch_size 1170 \
     --judge_model gemini-3.1-pro \
     --num_concurrency 128 \
-    --signature gemini-3p1-pro_<small_captial_of_benchmark_name> \
     --extension webp \
     --force_rescore
 ```
 
-- The `--input_folder` must match what Stage 1 wrote or provided by user.
-- The `--benchmark_name`, same set of benchmarks like in stage 1. Default is `v2_1170L_G3F` unless user mentioned otherwise.
+---
 
+## Step 3 — Launch the cmd
 
-## Reporting performance / status
+- Use your skill ssh_run, and launch the cmd when user approved.
+
+---
+
+## Step 4 — Reporting performance / status
 
 When the user asks "is X done?", "what's the result?", or "check the ugb run", **read the result JSON from S3** — do **not** parse the slurm log tail.
 

@@ -104,6 +104,7 @@ Stage 2 input root: `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluat
 
 | Model                              | benchmark     | All (1170L)   | Orig (600L)   | Phi (570Phi)   | Success   |
 |------------------------------------|---------------|---------------|---------------|----------------|-----------|
+| cosmos3-nano                       | v2_1170L_opus | 84.22         | 86.17         | 82.42          | 1170/1170 |
 | cosmos3-frozen-midtrain-v3p1       | v2_1170L_opus | 86.23         | 88.16         | 84.46          | 1170/1170 |
 | cosmos3-frozen-midtrain-v3         | v2_1170L_opus | 86.61         | 88.24         | 85.12          | 1170/1170 |
 | cosmos3_image_v2_v1_iter1k         | v2_1170L_opus | 88.92         | 90.46         | 87.50          | 1170/1170 |
@@ -113,22 +114,39 @@ Stage 2 input root: `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluat
 | cosmos3_image_v2_v1p2_iter33k      | v2_1170L_opus | 91.26         | 93.70         | 89.02          | 1170/1170 |
 | cosmos3-image_v2_v1p4_iter40k      | v2_1170L_opus | **91.32**     | **93.37**     | **89.45**      | 1170/1170 |
 
+
 ## v2_1170L_G3F — Cosmos3 T2I-Only SFT
 
-| Model                                           | benchmark     | All (1170L)   | Orig (600L)   | Phi (570Phi)   | Success   |
-|-------------------------------------------------|---------------|---------------|---------------|----------------|-----------|
-| cosmos3_t2i_exp000_text_only_iter4k             | v2_1170L_opus | 85.87         | 90.23         | 81.86          | 1170/1170 |
-| cosmos3_t2i_exp000_text_only_iter1p5k           | v2_1170L_opus | 88.55         | 91.30         | 86.03          | 1170/1170 |
-| cosmos3_t2i_exp001_text_mix_iter1k              | v2_1170L_opus | **90.35**     | **92.24**     | **88.60**      | 1170/1170 |
-| cosmos3_t2i_exp001_text_mix_iter1p5k            | v2_1170L_opus | 89.70         | 91.71         | 87.85          | 1170/1170 |
-| cosmos3_t2i_exp002_text_only_from_frozen_iter1k | v2_1170L_opus | 84.62         | 87.37         | 82.10          | 1170/1170 |
-| cosmos3_t2i_exp003_text_mix2_iter1k             | v2_1170L_opus | 87.71         | 90.03         | 85.58          | 1170/1170 |
-| cosmos3_t2i_exp003_text_mix2_iter2k             | v2_1170L_opus | 87.57         | 89.85         | 85.49          | 1170/1170 |
-| cosmos3_t2i_exp004_text_mix2_from_frozen_iter2k | v2_1170L_opus | 83.23         | 85.97         | 80.72          | 1170/1170 |
-| cosmos3_t2i_exp005_text_mix3_iter1k             | v2_1170L_opus | 87.46         | 90.64         | 84.55          | 1170/1170 |
-| cosmos3_t2i_exp006_text_mix3_from_frozen_iter500 | v2_1170L_opus |               |               |                |           |
-| cosmos3_t2i_exp007_text_mix4_iter4k             | v2_1170L_opus | 88.26         | 90.43         | 86.26          | 1170/1170 |
-| cosmos3_t2i_exp008_text_mix4_from_frozen_iter4k | v2_1170L_opus | 87.20         | 89.36         | 85.21          | 1170/1170 |
-| cosmos3_t2i_exp009_union5_from_frozen_iter4k    | v2_1170L_opus | 89.69         | 91.28         | 88.23          | 1170/1170 |
-| cosmos3_t2i_exp009_union5_from_frozen_iter10k   | v2_1170L_opus |               |               |                |           |
+| Model                                                       | benchmark     | All (1170L)   | Orig (600L)   | Phi (570Phi)   | Success   |
+|-------------------------------------------------------------|---------------|---------------|---------------|----------------|-----------|
+| cosmos3_t2i_exp000_text_only_iter4k                         | v2_1170L_opus | 85.87         | 90.23         | 81.86          | 1170/1170 |
+| cosmos3_t2i_exp000_text_only_iter1p5k                       | v2_1170L_opus | 88.55         | 91.30         | 86.03          | 1170/1170 |
+| cosmos3_t2i_exp001_text_mix_iter1k                          | v2_1170L_opus | 90.35         | 92.24         | 88.60          | 1170/1170 |
+| cosmos3_t2i_exp001_text_mix_iter1p5k                        | v2_1170L_opus | 89.70         | 91.71         | 87.85          | 1170/1170 |
+| cosmos3_t2i_exp002_text_only_from_frozen_iter1k             | v2_1170L_opus | 84.62         | 87.37         | 82.10          | 1170/1170 |
+| cosmos3_t2i_exp003_text_mix2_iter1k                         | v2_1170L_opus | 87.71         | 90.03         | 85.58          | 1170/1170 |
+| cosmos3_t2i_exp003_text_mix2_iter2k                         | v2_1170L_opus | 87.57         | 89.85         | 85.49          | 1170/1170 |
+| cosmos3_t2i_exp004_text_mix2_from_frozen_iter2k             | v2_1170L_opus | 83.23         | 85.97         | 80.72          | 1170/1170 |
+| cosmos3_t2i_exp005_text_mix3_iter1k                         | v2_1170L_opus | 87.46         | 90.64         | 84.55          | 1170/1170 |
+| cosmos3_t2i_exp006_text_mix3_from_frozen_iter500            | v2_1170L_opus |               |               |                |           |
+| cosmos3_t2i_exp007_text_mix4_iter4k                         | v2_1170L_opus | 88.26         | 90.43         | 86.26          | 1170/1170 |
+| cosmos3_t2i_exp008_text_mix4_from_frozen_iter4k             | v2_1170L_opus | 87.20         | 89.36         | 85.21          | 1170/1170 |
+| cosmos3_t2i_exp009_union5_from_frozen_iter4k                | v2_1170L_opus | 89.69         | 91.28         | 88.23          | 1170/1170 |
+| cosmos3_t2i_exp009_union5_from_frozen_iter10k               | v2_1170L_opus | 90.57         | 92.19         | 89.07          | 1170/1170 |
+| cosmos3_t2i_exp009_union5_from_frozen_iter15k               | v2_1170L_opus | 90.97         | 93.14         | 88.98          | 1170/1170 |
+| cosmos3_t2i_exp009_union5_from_frozen_iter20k               | v2_1170L_opus | 91.10         | 93.01         | 89.35          | 1170/1170 |
+| cosmos3_t2i_exp009_union5_from_frozen_iter25k               | v2_1170L_opus | 91.14         | 93.29         | 89.16          | 1170/1170 |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter26k  | v2_1170L_opus | 91.50         | 93.75         | 89.45          | 1170/1170 |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter28k  | v2_1170L_opus | 91.41         | **94.06**     | 88.98          | 1170/1170 |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter30k  | v2_1170L_opus | 91.25         | 93.44         | 89.23          | 1170/1170 |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter35k  | v2_1170L_opus | 89.83         | 92.14         | 87.71          | 1170/1170 |
+| cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter26k | v2_1170L_opus | 91.24         | 93.21         | 89.42          | 1170/1170 |
+| cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter28k | v2_1170L_opus | 91.33         | 93.24         | 89.59          | 1170/1170 |
+| cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter30k | v2_1170L_opus | 90.92         | 93.01         | 89.00          | 1170/1170 |
+| cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter35k | v2_1170L_opus | 90.11         | 92.24         | 88.16          | 1170/1170 |
+| cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter40k | v2_1170L_opus | 90.26         | 92.55         | 88.16          | 1170/1170 |
+| cosmos3_t2i_merged_000                                      | v2_1170L_opus | 91.20         | 93.37         | 89.21          | 1170/1170 |
+| cosmos3_t2i_merged_003                                      | v2_1170L_opus | **91.98**     | 94.03         | 90.10          | 1170/1170 |
+| cosmos3_t2i_merged_006                                      | v2_1170L_opus | 91.63         | 93.95         | 89.49          | 1170/1170 |
+| cosmos3_t2i_merged_007                                      | v2_1170L_opus | **91.98**     | 94.01         | **90.12**      | 1170/1170 |
 

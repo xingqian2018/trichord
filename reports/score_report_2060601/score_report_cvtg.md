@@ -80,6 +80,8 @@ Images: s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/
 | cosmos3_image_v2_v1p2_iter33k                               | cvtg500L_opus   | 0.8565       | 0.8936       | 497/500     |
 | cosmos3_image_v2_v1p4_iter40k                               | cvtg500L_opus   | 0.8508       | 0.8869       | 494/500     |
 | cosmos3_image_only_v3p3_iter22k                             | cvtg500L_opus   | 0.8251       | 0.8939       | 498/500     |
+| cosmos3_image_only_v3_merged_t04g06_iter0                   | cvtg500L_opus   | 0.8618       | 0.9054       | 499/500     |
+| cosmos3_image_only_v4_merged_t05g05_iter0                   | cvtg500L_opus   | 0.8663       | 0.9134       | 500/500     |
 
 | cosmos3_t2i_exp000_text_only_iter1p5k                       | cvtg500L_opus   | 0.8034       | 0.8877       | 500/500     |
 | cosmos3_t2i_exp000_text_only_iter4k                         | cvtg500L_opus   | 0.7658       | 0.8726       | 499/500     |
@@ -100,6 +102,7 @@ Images: s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter26k  | cvtg500L_opus   | 0.8561       | 0.9002       | 500/500     |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter28k  | cvtg500L_opus   | 0.8566       | 0.8984       | 500/500     |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter30k  | cvtg500L_opus   | 0.8378       | 0.8908       | 500/500     |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k  | cvtg500L_opus   | 0.8088       | 0.8730       | 500/500     |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter35k  | cvtg500L_opus   |              |              |             |
 | cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter26k | cvtg500L_opus   | 0.8608       | 0.9002       | 499/500     |
 | cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter28k | cvtg500L_opus   | 0.8699       | 0.9065       | 496/500     |
@@ -110,6 +113,7 @@ Images: s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/
 | cosmos3_t2i_merged_003                                      | cvtg500L_opus   | 0.8579       | 0.8991       | 496/500     |
 | cosmos3_t2i_merged_006                                      | cvtg500L_opus   | 0.8662       | 0.9097       | 497/500     |
 | cosmos3_t2i_merged_007                                      | cvtg500L_opus   | 0.8683       | 0.9104       | 500/500     |
+| cosmos3_t2i_exp010_sft0_union6_from_merge007_iter9k         | cvtg500L_opus   | 0.7285       | 0.8403       | 497/500     |
 
 ---
 
@@ -145,6 +149,8 @@ Images: s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/
 | cosmos3_image_v2_v1p2_iter33k                               | cvtg102ch_opus_ascii   | 0.4618       | 0.5988       | 100/102     |
 | cosmos3_image_v2_v1p4_iter40k                               | cvtg102ch_opus_ascii   | 0.4645       | 0.6249       | 101/102     |
 | cosmos3_image_only_v3p3_iter22k                             | cvtg102ch_opus_ascii   | 0.4675       | 0.5983       | 100/102     |
+| cosmos3_image_only_v3_merged_t04g06_iter0                   | cvtg102ch_opus_ascii   | 0.4396       | 0.5567       | 101/102     |
+| cosmos3_image_only_v4_merged_t05g05_iter0                   | cvtg102ch_opus_ascii   | 0.4507       | 0.5890       | 102/102     |
 
 | cosmos3_t2i_exp000_text_only_iter1p5k                       | cvtg102ch_opus         | 0.5103       | 0.6889       | 102/102     |
 | cosmos3_t2i_exp000_text_only_iter4k                         | cvtg102ch_opus         | 0.5063       | 0.6887       | 101/102     |
@@ -165,6 +171,7 @@ Images: s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter26k  | cvtg102ch_opus_ascii   | 0.3750       | 0.4760       | 101/102     |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter28k  | cvtg102ch_opus_ascii   | 0.3522       | 0.4656       | 101/102     |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter30k  | cvtg102ch_opus_ascii   | 0.3236       | 0.4361       | 102/102     |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k  | cvtg102ch_opus_ascii   | 0.3202       | 0.4122       | 101/102     |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter35k  | cvtg102ch_opus_ascii   | 0.2539       | 0.3594       | 99/102      |
 | cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter26k | cvtg102ch_opus_ascii   | 0.3860       | 0.4823       | 102/102     |
 | cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter28k | cvtg102ch_opus_ascii   | 0.4173       | 0.5255       | 100/102     |
@@ -175,6 +182,7 @@ Images: s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/
 | cosmos3_t2i_merged_003                                      | cvtg102ch_opus_ascii   | 0.3936       | 0.5038       | 102/102     |
 | cosmos3_t2i_merged_006                                      | cvtg102ch_opus_ascii   | 0.4335       | 0.5692       | 102/102     |
 | cosmos3_t2i_merged_007                                      | cvtg102ch_opus_ascii   | 0.4489       | 0.5836       | 100/102     |
+| cosmos3_t2i_exp010_sft0_union6_from_merge007_iter9k         | cvtg102ch_opus_ascii   | 0.4448       | 0.6003       | 101/102     |
 
 ---
 

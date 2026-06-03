@@ -66,6 +66,10 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench/`
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter26k              | 1170       | unigenbench_result.json                                                                      |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter28k              | 1170       | unigenbench_result.json                                                                      |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter30k              | 1170       | unigenbench_result.json                                                                      |
+| cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k              | 1172       | unigenbench_result.json                                                                      |
+| cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_16to9        | 1172       |                                                                                              |
+| cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_4to3         | 1172       |                                                                                              |
+| cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_3to4         | 1172       |                                                                                              |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter35k              | 1170       | unigenbench_result.json                                                                      |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft1_text_from_exp009_25k_lr1em5_iter26k             | 1170       | unigenbench_result.json                                                                      |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft1_text_from_exp009_25k_lr1em5_iter28k             | 1170       | unigenbench_result.json                                                                      |
@@ -76,6 +80,7 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench/`
 | cosmos3_ga_64bm32b_t2ionly_merged_003                                                  | 1170       | unigenbench_result.json                                                                      |
 | cosmos3_ga_64bm32b_t2ionly_merged_006                                                  | 1170       | unigenbench_result.json                                                                      |
 | cosmos3_ga_64bm32b_t2ionly_merged_007                                                  | 1170       | unigenbench_result.json                                                                      |
+| cosmos3_ga_64bm32b_t2ionly_exp010_sft0_union6_from_merge007_lr5em5_iter9k              |            |                                                                                              |
 
 ### aa_opus/
 | Run                                                                                    | Images   | Result JSON              |
@@ -153,6 +158,8 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/`
 | cosmos3_ga_64bm32b_t2ionly_base_iter_000040000_v1p4                                    | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_base_iter_000033000_v1p2                                    | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_image_only_v3p3_iter22k                                             | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
+| cosmos3_ga_64bm32b_image_only_v3_merged_text_0_4_general_0_6_iter0                    | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
+| cosmos3_ga_64bm32b_image_only_v4_merged_text_0_5_general_0_5_iter0                    | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 
 | cosmos3_ga_64bm32b_t2ionly_exp005_text_mixture3_sft_iter1k                             | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp006_text_mixture3_sft_from_frozen_midtrain_iter500       | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
@@ -166,6 +173,7 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/`
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter26k              | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter28k              | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter30k              | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
+| cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k              | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter35k              | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft1_text_from_exp009_25k_lr1em5_iter26k             | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft1_text_from_exp009_25k_lr1em5_iter28k             | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
@@ -176,6 +184,7 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/`
 | cosmos3_ga_64bm32b_t2ionly_merged_003                                                  | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_merged_006                                                  | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_merged_007                                                  | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
+| cosmos3_ga_64bm32b_t2ionly_exp010_sft0_union6_from_merge007_lr5em5_iter9k              | 102        | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json   |
 
 ### cvtg500L/
 | Run                | Images   | Result JSON                                                                       |
@@ -207,6 +216,8 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/`
 | cosmos3_ga_64bm32b_t2ionly_base_iter_000033000_v1p2                                    | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_base_v2_v1_iter1k                                           | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_image_only_v3p3_iter22k                                             | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
+| cosmos3_ga_64bm32b_image_only_v3_merged_text_0_4_general_0_6_iter0                    | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
+| cosmos3_ga_64bm32b_image_only_v4_merged_text_0_5_general_0_5_iter0                    | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 
 | cosmos3_ga_64bm32b_t2ionly_exp000_text_only_sft_iter1p5k                               | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp000_text_only_sft_iter4k                                 | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
@@ -227,6 +238,7 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/`
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter26k              | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter28k              | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter30k              | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
+| cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k              | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter35k              |            |                                        |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft1_text_from_exp009_25k_lr1em5_iter26k             | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_exp009_sft1_text_from_exp009_25k_lr1em5_iter28k             | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
@@ -237,3 +249,4 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/`
 | cosmos3_ga_64bm32b_t2ionly_merged_003                                                  | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_merged_006                                                  | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
 | cosmos3_ga_64bm32b_t2ionly_merged_007                                                  | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |
+| cosmos3_ga_64bm32b_t2ionly_exp010_sft0_union6_from_merge007_lr5em5_iter9k              | 500        | result_cvtg_cvtg500L_opus_g3p1p.json   |

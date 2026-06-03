@@ -139,6 +139,7 @@ Stage 2 input root: `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluat
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter26k  | v2_1170L_opus | 91.50         | 93.75         | 89.45          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter28k  | v2_1170L_opus | 91.41         | **94.06**     | 88.98          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter30k  | v2_1170L_opus | 91.25         | 93.44         | 89.23          | 1170/1170 |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k  | v2_1170L_opus | 91.36         | 93.34         | 89.54          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter35k  | v2_1170L_opus | 89.83         | 92.14         | 87.71          | 1170/1170 |
 | cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter26k | v2_1170L_opus | 91.24         | 93.21         | 89.42          | 1170/1170 |
 | cosmos3_t2i_exp009_sft1_text_from_exp009_25k_lr1em5_iter28k | v2_1170L_opus | 91.33         | 93.24         | 89.59          | 1170/1170 |
@@ -149,4 +150,5 @@ Stage 2 input root: `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/evaluat
 | cosmos3_t2i_merged_003                                      | v2_1170L_opus | **91.98**     | 94.03         | 90.10          | 1170/1170 |
 | cosmos3_t2i_merged_006                                      | v2_1170L_opus | 91.63         | 93.95         | 89.49          | 1170/1170 |
 | cosmos3_t2i_merged_007                                      | v2_1170L_opus | **91.98**     | 94.01         | **90.12**      | 1170/1170 |
+| cosmos3_t2i_exp010_sft0_union6_from_merge007_iter9k         | v2_1170L_opus |               |               |                |           |
 

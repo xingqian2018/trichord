@@ -52,6 +52,7 @@ Two tables, both keyed on `--dataset_name`. Table A is the WebDS path; Table B i
 | **Regular dataset (Real)**                       |                                                                       |                         |
 | `red`                                            | `<webds_image_reg>/red`                                               | `jpg`                   |
 | `coyo_700m`                                      | `<webds_image_reg>/coyo_700m`                                         | `webp`                  |
+| `pexels_residual_trustedK1_v2`                   | `<webds_image_reg>/pexels_residual_trustedK1_v2`                      | `jpg`                   |
 | **Synthetic dataset (SGD)**                      |                                                                       |                         |
 | `MMC4`                                           | `<webds_image_sgd>/mmc4`                                              | `webp`                  |
 | `generations_qwen_image_2512_filtered_photoreal` | `<webds_image_sgd>/generations_qwen_image_2512_filtered_photoreal`    | `webp`                  |
@@ -74,8 +75,9 @@ Two tables, both keyed on `--dataset_name`. Table A is the WebDS path; Table B i
 | `synthetic_traditional_chinese_scene_text_v0`    | `<lancedb_root>/synthetic_text/synthetic_traditional_chinese_scene_text_v0_slice_from_maintable_<table_postfix>.lance` |
 |                                                  |                                                                                                                        |
 | **Regular dataset (Real)**                       |                                                                                                                        |
-| `red`                                            | `<lancedb_root>/regular/red_slice_from_maintable_<table_postfix>.lance`                                                |
-| `coyo_700m`                                      | `<lancedb_root>/regular/coyo_700m_slice_from_maintable_<table_postfix>.lance`                                          |
+| `red`                                            | `<lancedb_root_reg>/red_slice_from_maintable_<table_postfix>.lance`                                                |
+| `coyo_700m`                                      | `<lancedb_root_reg>/coyo_700m_slice_from_maintable_<table_postfix>.lance`                                          |
+| `pexels_residual_trustedK1_v2`                   | `<lancedb_root_reg>/pexels_residual_trustedK1_v2_slice_from_maintable_<table_postfix>.lance`                       |
 |                                                  |                                                                                                                        |
 | **Synthetic dataset (SGD)**                      |                                                                                                                        |
 | `MMC4`                                           | `<lancedb_root>/synthetic/MMC4_slice_from_maintable_<table_postfix>.lance`                                             |

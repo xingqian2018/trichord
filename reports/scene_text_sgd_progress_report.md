@@ -2,7 +2,7 @@
 
 **RawData Base Path:** `gcs:nv-00-10206-vfm/debug/xingqianx/synthetic_data`
 **WebDS Base Path:** `gcs:nv-00-10206-webdataset-images/webdataset_image_synthetic_text`
-**Last Updated:** 2026-06-03 (refreshed x32)
+**Last Updated:** 2026-06-08 (refreshed x33)
 
 ---
 
@@ -44,14 +44,14 @@ When user is asking to update the report, it usually means to update this main p
 |-------------------------------------|-----------|------------|--------:|-------:|-----------------|--------|-------|
 | synthetic_scene_text_v1             | 0-100     | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1             | 100-200   | part000000 |     100 |    100 | —               | ✅     | ✅    |
-| synthetic_scene_text_v1             | 200-300   | part000000 |      59 |     52 | ⚠️              |        |       |
-| synthetic_scene_text_v1             | 300-400   | part000000 |     100 |      7 | 1352859         |        |       |
-| synthetic_scene_text_v1             | 400-500   | part000000 |     100 |      1 | 1352865         |        |       |
+| synthetic_scene_text_v1             | 200-300   | part000000 |     100 |     52 | 1396335         |        |       |
+| synthetic_scene_text_v1             | 300-400   | part000000 |     100 |     45 | 1396337         |        |       |
+| synthetic_scene_text_v1             | 400-500   | part000000 |     100 |    100 | —               | ✅     |       |
 | synthetic_scene_text_v1             | 500-600   | part000001 |     100 |    100 | —               | ✅     |       |
 | synthetic_scene_text_v1             | 600-700   | part000001 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_v1             | 700-800   | part000001 |     100 |     63 | 1352878         |        |       |
-| synthetic_scene_text_v1             | 800-900   | part000001 |     100 |     83 | 1352879         |        |       |
-| synthetic_scene_text_v1             | 900-1000  | part000001 |     100 |      1 | 1352881         |        |       |
+| synthetic_scene_text_v1             | 700-800   | part000001 |     100 |    100 | —               | ✅     |       |
+| synthetic_scene_text_v1             | 800-900   | part000001 |     100 |    100 | —               | ✅     |       |
+| synthetic_scene_text_v1             | 900-1000  | part000001 |     100 |    100 | —               | ✅     |       |
 | synthetic_scene_text_v1             | 1000-1100 | part000001 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1             | 1100-1200 | part000001 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1             | 1200-1300 | part000001 |     100 |    100 | —               | ✅     | ✅    |
@@ -59,9 +59,9 @@ When user is asking to update the report, it usually means to update this main p
 | synthetic_scene_text_v1             | 1400-1500 | part000001 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1_phi         | 0-100     | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1_phi         | 100-200   | part000000 |     100 |    100 | —               | ✅     | ✅    |
-| synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |     91 | 1352882         |        |       |
-| synthetic_scene_text_v1_phi         | 300-400   | part000000 |     100 |     96 | 1352883         |        |       |
-| synthetic_scene_text_v1_phi         | 400-500   | part000000 |     100 |      1 | 1352884         |        |       |
+| synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |    100 | —               | ✅     |       |
+| synthetic_scene_text_v1_phi         | 300-400   | part000000 |     100 |    100 | —               | ✅     |       |
+| synthetic_scene_text_v1_phi         | 400-500   | part000000 |     100 |    100 | —               | ✅     |       |
 | synthetic_scene_text_chinese_v1     | 0-100     | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1     | 100-200   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1     | 200-300   | part000000 |     100 |    100 | —               | ✅     | ✅    |
@@ -72,7 +72,7 @@ When user is asking to update the report, it usually means to update this main p
 | synthetic_scene_text_chinese_v1_phi | 100-200   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1_phi | 200-300   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1_phi | 300-400   | part000000 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_chinese_v1_phi | 400-500   | part000000 |     100 |     82 | 1352896         |        |       |
+| synthetic_scene_text_chinese_v1_phi | 400-500   | part000000 |     100 |    100 | —               | ✅     |       |
 | synthetic_scene_text_chinese_v1_phi | 500-600   | part000000 |      21 |      0 | ⚠️              |        |       |
 
 ---
@@ -104,22 +104,22 @@ This table is only updated upon special request.
 |-------------------------------------|-----------|------------|--------:|-------:|------:|---------------------:|------------------|
 | synthetic_scene_text_v1             | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | —                |
 | synthetic_scene_text_v1             | 100-200   | part000000 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_v1             | 200-300   | part000000 |      59 |     52 |       |                      | ⚠️               |
+| synthetic_scene_text_v1             | 200-300   | part000000 |     100 |     52 |       |                      | ⚠️               |
 | synthetic_scene_text_v1             | 500-600   | part000001 |     100 |    100 |       |                      | ⚠️               |
 | synthetic_scene_text_v1             | 600-700   | part000001 |     100 |    100 |       |                      | ⚠️               |
 | synthetic_scene_text_v1             | 1000-1100 | part000001 |     100 |    100 |   100 |                   ✅ | —                |
 | synthetic_scene_text_v1             | 1100-1200 | part000001 |     100 |    100 |   100 |                   ✅ | —                |
 | synthetic_scene_text_v1             | 1200-1300 | part000001 |     100 |    100 |   100 |                   ✅ | —                |
-| synthetic_scene_text_v1             | 1300-1400 | part000001 |     100 |    100 |       |                      | 1353293          |
-| synthetic_scene_text_v1             | 1400-1500 | part000001 |     100 |    100 |       |                      | 1353296          |
+| synthetic_scene_text_v1             | 1300-1400 | part000001 |     100 |    100 |       |                   ✅ | —                |
+| synthetic_scene_text_v1             | 1400-1500 | part000001 |     100 |    100 |       |                   ✅ | —                |
 | synthetic_scene_text_v1_phi         | 0-100     | part000000 |     100 |    100 |       |                      | ⚠️               |
 | synthetic_scene_text_v1_phi         | 100-200   | part000000 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |     90 |       |                      | ⚠️               |
+| synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |    100 |       |                      | ⚠️               |
 | synthetic_scene_text_chinese_v1     | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | —                |
-| synthetic_scene_text_chinese_v1     | 100-200   | part000000 |     100 |    100 |       |                      | 1353298          |
-| synthetic_scene_text_chinese_v1     | 200-300   | part000000 |     100 |    100 |       |                      | 1353300          |
-| synthetic_scene_text_chinese_v1     | 300-400   | part000000 |     100 |    100 |       |                      | 1353301          |
-| synthetic_scene_text_chinese_v1     | 400-500   | part000000 |     100 |    100 |       |                      | 1353302          |
+| synthetic_scene_text_chinese_v1     | 100-200   | part000000 |     100 |    100 |       |                   ✅ | —                |
+| synthetic_scene_text_chinese_v1     | 200-300   | part000000 |     100 |    100 |       |                   ✅ | —                |
+| synthetic_scene_text_chinese_v1     | 300-400   | part000000 |     100 |    100 |       |                   ✅ | —                |
+| synthetic_scene_text_chinese_v1     | 400-500   | part000000 |     100 |    100 |       |                   ✅ | —                |
 | synthetic_scene_text_chinese_v1_phi | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | —                |
 | synthetic_scene_text_chinese_v1_phi | 100-200   | part000000 |     100 |    100 |       |                      | ⚠️               |
 | synthetic_scene_text_chinese_v1_phi | 200-300   | part000000 |     100 |    100 |       |                      | ⚠️               |

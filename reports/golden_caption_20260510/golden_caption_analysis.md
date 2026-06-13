@@ -53,23 +53,25 @@ image ──► STAGE 1: entity search
 
 **Version / model sweep.** Judge VLM is held at `gemini-3.1-pro` from v3 onwards (only v2 mixes judges); generator side changes per row.
 
-| Ver   | Judge VLM        | Gen VLM (S1/S2/S4)        | Gen LLM (S3) | Notes                                |
-|-------|------------------|---------------------------|--------------|--------------------------------------|
-| v2    | mixed            | mixed                     | same         | First looping-refinement version     |
-| v3    | gemini-3.1-pro   | mixed                     | same         | —                                    |
-| v4    | gemini-3.1-pro   | gemini-3.1-pro            | same         | Pure "pro"                           |
-| v5    | gemini-3.1-pro   | gemini-3-flash            | same         | Pure "flash"                         |
-| v6    | gemini-3.1-pro   | qwen3-vl-235b             | same         | Pure qwen                            |
-| v7    | gemini-3.1-pro   | gemini-3-flash (S2–S4)    | same         | S1 from v6; new structured prompts   |
-| v8    | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | S1 from v6; new structured prompts   |
-| v9    | gemini-3.1-pro   | gemini-3-flash S2; mixed S3 / g3p S4 | g3f → g3p tail | S1 from v5; S3 last 144-img batch + S4 reran on gemini-3.1-pro |
-| v10p1 | gemini-3.1-pro   | gemini-3.1-pro (S2–S4)    | same         | S1 from v6                           |
-| v11   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | S1 from v5                           |
-| v12   | gemini-3.1-pro   | gemini-3-flash            | same         | New S1+S2 prompting design (YAML I/O)|
-| v13   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | `q235bg3p`; qwen gen, pro judge      |
-| v14   | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)     | qwen3-235b   | S1 from v13; identifier-location fix |
-| v15   | gemini-3.1-pro   | qwen3-vl-235b             | qwen3-235b   | Fully agent self-improved prompting system |
-| v16   | gemini-3.1-pro   | gemini-3.1-pro            | same         | `g3pg3p`; v15-style agentic prompts swapped onto gemini-3.1-pro gen+judge |
+| Ver   | Version_Long              | Judge VLM        | Gen VLM (S1/S2/S4)                   | Gen LLM (S3)   | Notes                                                                        |
+|-------|---------------------------|------------------|---------------------------------------|----------------|------------------------------------------------------------------------------|
+| v2    | golden_caption_v2         | mixed            | mixed                                 | same           | First looping-refinement version                                             |
+| v3    | golden_caption_v3         | gemini-3.1-pro   | mixed                                 | same           | —                                                                            |
+| v4    | golden_caption_v4_g3pg3p  | gemini-3.1-pro   | gemini-3.1-pro                        | same           | Pure "pro"                                                                   |
+| v5    | golden_caption_v5_g3fg3p  | gemini-3.1-pro   | gemini-3-flash                        | same           | Pure "flash"                                                                 |
+| v6    | golden_caption_v6_q235g3p | gemini-3.1-pro   | qwen3-vl-235b                         | same           | Pure qwen                                                                    |
+| v7    | golden_caption_v7_q235g3p | gemini-3.1-pro   | gemini-3-flash (S2–S4)                | same           | S1 from v6; new structured prompts                                           |
+| v8    | golden_caption_v8_q235g3p | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)                 | qwen3-235b     | S1 from v6; new structured prompts                                           |
+| v9    | golden_caption_v9_g3fg3p  | gemini-3.1-pro   | gemini-3-flash S2; mixed S3 / g3p S4  | g3f → g3p tail | S1 from v5; S3 last 144-img batch + S4 reran on gemini-3.1-pro              |
+| v10   | v10_mixg3p                | gemini-3.1-pro   | gemini-3-flash (S2–S4)                | same           | S1 from v6                                                                   |
+| v10p1 | v10p1_mixg3p              | gemini-3.1-pro   | gemini-3.1-pro (S2–S4)                | same           | S1 from v6                                                                   |
+| v11   | v11_mixg3p                | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)                 | qwen3-235b     | S1 from v5                                                                   |
+| v12   | v12_g3fg3p                | gemini-3.1-pro   | gemini-3-flash                        | same           | New S1+S2 prompting design (YAML I/O)                                        |
+| v13   | v13_q235bg3p              | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)                 | qwen3-235b     | `q235bg3p`; qwen gen, pro judge                                              |
+| v14   | v14_q235bg3p              | gemini-3.1-pro   | qwen3-vl-235b (S2–S4)                 | qwen3-235b     | S1 from v13; identifier-location fix                                         |
+| v15   | v15_q235bg3p              | gemini-3.1-pro   | qwen3-vl-235b                         | qwen3-235b     | Fully agent self-improved prompting system                                   |
+| v16   | v16_g3pg3p                | gemini-3.1-pro   | gemini-3.1-pro                        | same           | `g3pg3p`; v15-style agentic prompts swapped onto gemini-3.1-pro gen+judge   |
+| v17   | v17_g3pg3p                | gemini-3.1-pro   | gemini-3.1-pro                        | same           | Stage4 only; uses v16 stage3 result (stage4 prompt update only)              |
 
 ---
 

@@ -4,180 +4,120 @@ description: Run a command on a remote cluster over SSH. Default hosts are `awsc
 user_invocable: true
 ---
 
-## ⚠️ ABSOLUTE RULE — `scancel` REQUIRES EXPLICIT USER CONSENT ⚠️
+# Step 1: Read the Rules! ⚠️
 
-> **NEVER run `scancel` on any Slurm job without first asking the user and getting an explicit "yes" for the specific job id(s).** This applies to *every* invocation, including:
->
-> - "relaunch" / "re-run" / "fix and re-submit" requests — even if the user implied the prior submission is broken, you still must ask before cancelling. Phrase it as: *"This will require `scancel <jobids>` — confirm?"*
-> - Cancelling **your own** previous submissions in the same thread — still ask.
-> - Cancelling jobs that look like duplicates from the dedupe check — still ask (the existing dedupe-check section already says this; this banner reinforces it).
-> - Cancelling "obviously wrong" jobs (wrong cluster, wrong cred, wrong nodes) — still ask.
->
-> **Never assume the user wants the prior job killed.** A re-launch may be intended to coexist (e.g. the user wants to keep the broken one running for inspection while a fixed one is launched in parallel). Always confirm.
->
-> When listing job ids in the confirmation, paste the *exact* ids you intend to cancel so the user can sanity-check — do not summarize as "the previous three" or similar. The user must be able to spot a stray id (especially their training jobs) before granting consent.
->
-> **Why this matters.** Killing the wrong job — especially a long training run — costs hours-to-days of compute and can wipe partial progress. A typo, a stale memory of which jobs are "yours", or a wrong assumption about scope of "re-run" can all lead to a destroyed run. Asking takes one short Slack turn; the cleanup after a wrong scancel does not exist (the run is gone).
->
-> This rule overrides any inference from the user's phrasing. "Relaunch" ≠ "scancel and relaunch" unless the user spells it out.
+## ⚠️ Don't Directly `ssh ...` or `scp ...`. It will not Work
+
+Use `/usr/bin/ssh ...` and `/usr/bin/scp ...`
+
+## Rule for `scancel` on ANY Slurm Job
+
+- NEVER run `scancel` on any Slurm job without first asking the user and getting an explicit "yes" for the specific job id(s).** This applies to *every* invocation, including:
+- "relaunch" / "re-run" / "fix and re-submit" requests — even if the user implied the prior submission is broken, still ask. Phrase it as: *"This will require `scancel <jobids>` — confirm?"*
+- Cancelling **your own** previous submissions in the same thread — still ask.
+- Duplicates found by the dedupe check — still ask.
+- "Obviously wrong" jobs (wrong cluster, wrong cred, wrong nodes) — still ask.
+
+**Never assume the user wants the prior job killed.** A re-launch may be intended to coexist. Always confirm. Paste the *exact* job ids so the user can sanity-check.
+
+**Why this matters.** Killing the wrong job costs hours-to-days of compute. A typo or wrong assumption about scope can destroy a run with no recovery. "Relaunch" ≠ "scancel and relaunch" unless the user spells it out.
 
 ## Hosts
-
-Two SSH aliases are pre-configured in `~/.ssh/config`:
 
 - `awscode` — AWS cluster head node
 - `gcpcode` — GCP cluster head node
 
-Pick the host from the user's phrasing:
-- Mentions "aws", "on aws", "awscode" → `awscode`
-- Mentions "gcp", "on gcp", "gcpcode" → `gcpcode`
-- Ambiguous → ask the user which one; do not guess.
+Pick from the user's phrasing: "aws" / "awscode" → `awscode`; "gcp" / "gcpcode" → `gcpcode`; ambiguous → ask.
 
-## Pre-flight: dedupe check (before submitting jobs)
+## `slurm` / `slaunch` Pre-flight Dedupe Check Required
 
-**Before any Slurm submission (`slaunch`, `sbatch`, or any wrapper), check whether the same job is already running on the target host.** Repeated runs waste cluster time, clobber outputs in shared `output_dir`s / `--signature` namespaces, and force a `scancel` cleanup afterward. This matters especially when **multiple Claude agents may be operating in parallel** — each one is unaware of the others' submissions and can independently re-launch the same job. The remote `squeue` is the only shared source of truth.
+**Before any Slurm submission, check whether the same job is already running on the target host.**
 
-The check:
-
-```
-ssh <host> 'squeue -u $USER -o "%i %j %T %R" | grep <job_name>'
+```bash
+/usr/bin/ssh <host> 'squeue -u $USER -o "%i %j %T %R" | grep <job_name>'
 ```
 
-Match by job name (the `<slurm_job_name>` you're about to pass) and/or by script + identifying args (`--signature`, output path, etc.). When launching a multi-variant batch (e.g. several evaluations at once), pre-check **each** variant's job name — don't just check one and assume the rest are clear.
+- Match by job name and/or identifying args (`--signature`, output path, etc.).
+- For multi-variant batches, check **each** variant — don't check one and assume the rest are clear.
+- If a duplicate is found, **stop and ask**. Acceptable resolutions: skip / cancel-and-rerun / submit-anyway.
 
-If a duplicate is found, **stop and ask the user**. Do not blindly resubmit. Acceptable resolutions:
-- "skip" → don't submit; report the existing job id.
-- "cancel and re-run" → `scancel <jobid>` first, then submit.
-- "submit anyway" → proceed.
 
-The check is cheap. The cleanup after a duplicate-launch incident is not.
+# Step 2: How to Run SSH! (There Are Customized Things So Please READ! ⚠️)
 
-## Default behavior — plain SSH
+## For Simple One Line Command
 
-For ANY request of the form "run X on the cluster" / "kick off X" / "submit X", default to plain SSH. Do not invent wrappers. The shape is always:
+Default shape for any simple "run X on cluster" request.
 
-```
-ssh <host> '<remote command>'
+```bash
+/usr/bin/ssh <host> '<remote command>'
 ```
 
-Examples of what "plain SSH" covers:
-- One-shot shell commands: `ssh awscode 'ls ~/log/slurm | head'`
-- Slurm submissions via `slaunch` or `sbatch`: `ssh awscode 'cd ~/Project/... && slaunch small 1 <job_name> <script> ...'`
-- Cron-related work (installing/listing/removing crontab entries, status checks): `ssh gcpcode 'crontab -l'`
+- Quote remote commands with **single quotes** so the local shell doesn't expand `$` / `` ` ``.
+- If the remote command contains single quotes, escape with `'"'"'`.
+- Chain a `cd` when the script needs a specific working directory: `cd <dir> && <cmd>`.
 
-Quote the remote command with **single quotes** so the local shell doesn't expand `$` / `` ` ``. If the remote command itself contains single quotes, escape using `'"'"'`. **Do not** reach for heredoc syntax as a fallback — see the absolute ban below.
+## For `slurm` and `slaunch` and Other Long Multi-line Command
 
-If the remote command needs a specific working directory, chain it: `cd <dir> && <cmd>`. Do NOT assume `$HOME` is the right cwd for Slurm submissions.
+- Scratch a shell at a local temporary folder `~/tmp/<name_at_your_choice>.sh`
+- `~/tmp/` is persistent, quota-tracked, and easy to inspect: `/usr/bin/ssh <host> 'ls ~/tmp/'`.
+- Use `/usr/bin/scp ...` copy local `~/tmp/<name_at_your_choice>.sh` to remote `~/tmp/<name_at_your_choice>.sh`.
+  - i.e. `/usr/bin/scp ~/tmp/sshrun/<name_at_your_choice>.sh <host>:~/tmp/<name_at_your_choice>.sh`
+- Create if needed: `/urs/bin/ssh <host> 'mkdir -p ~/tmp'`. Leave files in place after use.
+- DON'T use `/tmp/` as your temporary folder.
 
-**Load the user profile by default.** Most remote commands rely on aliases, shell functions, `$PATH` entries, conda/venv activation, or env vars that only exist once `~/.bashrc` / `~/.profile` is sourced. Non-interactive SSH does **not** source these by default. The safe default is:
+### Heredoc ban (absolute)
+
+**Never use heredoc syntax.** No `<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, no custom terminators — anywhere, ever.
+
+When the remote command has complex quoting, use **write-locally → scp → ssh-execute**:
+
+- Write the script locally to `/tmp/sshrun/<name>.sh` using the Write tool.
+- `/usr/bin/scp /tmp/sshrun/<name>.sh <host>:~/tmp/<name>.sh`
+- `/usr/bin/ssh <host> 'bash ~/tmp/<name>.sh'`
+
+**Why the ban is absolute.** The pattern `/usr/bin/ssh host "cat > foo.sh <<'EOF' ... EOF; bash foo.sh"` causes two failure modes together:
+
+- The heredoc body is a double-quoted local arg. Backslash-newline continuations get eaten by the remote shell's tokenizer before heredoc collection completes, collapsing lines.
+- With lines collapsed the `EOF` terminator isn't recognized, so `cat` slurps the trailing `bash foo.sh` into the script body — making it self-recursive. The script then re-invokes itself in a runaway loop.
+
+---
+
+## Composing with other Skills
+
+`ssh_run` can carry another skill's work onto the remote host. Trigger: the user names another skill alongside `ssh_run` (e.g. "ssh_run meow on awscode").
+
+- Read the inner skill's SKILL.md from `cc/<skill_name>/SKILL.md` to get the exact shell command.
+- Run that command on the remote via `/usr/bin/ssh <host> '<cmd>'` — do **not** invoke the inner skill locally.
+- Slurm job id reporting still applies.
+- If the inner skill's steps are non-trivial to translate into a single remote command, say so and ask.
+
+Counter-case: if the user invokes the other skill without mentioning `ssh_run`, run it locally as normal.
+
+---
+
+# Step 3: Reporting
+
+After the ssh command returns:
+
+- **Announce launch:** one short line — `Launched on <host>: <short description>`.
+- **Do NOT stream or summarize remote stdout** beyond extracting a Slurm job id.
+- **If a Slurm job id is found** (look for `Submitted batch job <N>` or a bare numeric id), report:
 
 ```
-ssh <host> 'bash -c "shopt -s expand_aliases && source ~/.bashrc && cd <dir> && <cmd>"'
-```
-
-Three things this incantation gets right that simpler forms get wrong:
-
-1. **Outer `bash -c`.** The default SSH login shell on `gcpcode` is **csh**, not bash. So `ssh gcpcode 'source ~/.bashrc && ...'` fails with `Illegal variable name` (csh trying to interpret bash syntax). Wrapping in `bash -c "..."` forces a bash subshell regardless of what the user's login shell is.
-2. **`shopt -s expand_aliases`.** `slaunch` (and similar tooling) is a **bash alias**, not a function or `$PATH` binary — e.g. `alias slaunch="bash $HOME/Project/bashrc/sbatch_launch/main.sh"`. Non-interactive bash has alias expansion **disabled by default**. So even after `source ~/.bashrc` defines the alias, typing `slaunch ...` still fails with "command not found" until `expand_aliases` is on. `shopt -s expand_aliases` must come **before** `source`.
-3. **`source ~/.bashrc`** (rather than `bash -lc`). `-lc` triggers a login shell, which on Debian/Ubuntu reads `~/.profile` / `~/.bash_profile` — neither of which is guaranteed to chain into `~/.bashrc`. Sourcing `~/.bashrc` directly is more reliable for picking up aliases / `$PATH` additions / conda activation.
-
-This matters especially for `slaunch` — a plain `ssh <host> 'slaunch ...'` will fail with "command not found". The same pitfall hits conda envs, `s3_omni.py` wrappers, custom `PATH` additions, and any other bashrc-defined tooling.
-
-**Escape hatch — bypass the alias entirely.** On `gcpcode`, `source ~/.bashrc` does NOT chain into `~/Project/bashrc/bashrc_my.sh` where `slaunch` is defined, so `shopt -s expand_aliases && source ~/.bashrc` still fails with "command not found". The reliable path is always to call the alias target directly:
-
-```
-bash $HOME/Project/bashrc/sbatch_launch/main.sh <args...>
-```
-
-For `gcpcode` Slurm submissions, always use this form — do not attempt the `source ~/.bashrc` path for `slaunch`. Useful inside `~/tmp/<name>.sh` scripts launched via the scp pattern below.
-
-**Preserve env var prefixes.** The substitution is `slaunch` → `bash $HOME/Project/bashrc/sbatch_launch/main.sh` only. Any env var prefixes from the cheatsheet template (e.g. `CONTAINER_WORKDIR=...`) must be carried over verbatim:
-
-```
-CONTAINER_WORKDIR=/path/to/workdir \
-bash $HOME/Project/bashrc/sbatch_launch/main.sh <args...>
-```
-
-Do not drop env vars when applying this substitution.
-
-Skip the profile load only for trivial built-ins where you are certain nothing custom is needed (e.g. `ls`, `cat`, `crontab -l`).
-
-### Remote scratch location: always `~/tmp/`
-
-**Any time a script (or any temporary file) needs to live on the remote node, put it under `~/tmp/` — never `/tmp/`, never the cwd, never `~/`.** This applies regardless of how the file got there (scp, `cat >`, generated by another command, etc.) and regardless of why it's there (heredoc replacement, staging input data, capturing output for inspection, etc.).
-
-Rationale:
-- `~/tmp/` is under the user's home, so it's on persistent / quota-tracked storage they own.
-- `/tmp/` on cluster head/login nodes is often small, shared, and wiped aggressively — files can vanish mid-job.
-- Keeping all remote scratch in one place makes cleanup and inspection trivial: `ssh <host> 'ls ~/tmp/'`.
-
-If `~/tmp/` may not exist, create it first: `ssh <host> 'mkdir -p ~/tmp'`. Leave files in place after use — no auto-cleanup needed.
-
-### Tmp-file trick for complex commands
-
-**Absolute rule: never use heredoc syntax in this skill.** No `<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, no custom terminators — none of it, anywhere. Not for building remote files, not for sending commands, not for "just this once because it's simple". The ban is total. If you find yourself typing `<<` in any tool call this skill drives, stop.
-
-When the remote command has awkward quoting (nested quotes, multi-line scripts, long pipelines, etc.), use the **write-locally → scp → ssh-execute** pattern. Always.
-
-1. Write the script to a **local** file (e.g. `/tmp/sshrun/<name>.sh`) using the Write tool.
-2. `scp` it to the remote `~/tmp/` directory: `scp /tmp/sshrun/<name>.sh <host>:~/tmp/<name>.sh`.
-3. Execute it: `ssh <host> 'bash ~/tmp/<name>.sh'`.
-
-The remote path is `~/tmp/` per the **Remote scratch location** rule above — applies to this pattern and any other case where a file needs to land on the remote node.
-
-#### Why the heredoc ban is absolute
-
-The pattern `ssh host "cat > foo.sh <<'EOF' ... EOF; bash foo.sh"` looks tempting and seems equivalent to scp. It is not. Two things go wrong together:
-
-1. The whole multi-line string is one double-quoted local arg. Backslash-newline continuations (`\\` in the source → `\<newline>` after local processing) get **eaten as line continuation by the remote shell's tokenizer before heredoc body collection completes**, collapsing lines.
-2. With the heredoc body collapsed, the `EOF` terminator may not be recognized on its own line, so `cat` slurps **everything** including the trailing `chmod +x ... && bash foo.sh` lines into the script body. The resulting script is **self-recursive** — running it submits one slaunch, errors on the literal `EOF` line, then re-invokes itself via the embedded `bash foo.sh`. This causes a runaway: tens of slurm jobs submitted in seconds before you notice.
-
-**This bit us on `golden_caption_v14s2` — 29 stray Slurm jobs were submitted before being caught and `scancel`'d.** That incident is the reason for the absolute ban. There is no version of "but I'll be careful this time" that is worth re-litigating. Use scp.
-
-## Composing with other skills
-
-`ssh_run` is a **wrapper** — it can carry any other skill's work onto the remote host.
-
-Trigger: the user's message names another skill alongside `ssh_run` (e.g. "ssh_run meow on awscode", "/ssh_run /meow gcp", "run meow on the cluster via ssh_run"). In that case:
-
-1. Resolve what the named skill would execute **locally** — read its SKILL.md from `cc/<skill_name>/SKILL.md` to determine the exact shell command(s) it runs.
-2. Run that same command on the remote host via `ssh <host> '<cmd>'` instead of locally. Pass through any args the user gave.
-3. Do NOT invoke the inner skill's local execution path. The inner skill's SKILL.md is read as a **recipe**, not executed in this environment.
-4. Report using the rules below (Slurm job id parsing still applies).
-
-Counter-case — if the user invokes the other skill **without** mentioning `ssh_run` (e.g. just `/meow`), run it locally as that skill normally would. `ssh_run` only engages when the user explicitly names it.
-
-Example:
-- User: `/meow` → run meow locally, cat on local console.
-- User: `ssh_run meow on awscode` → read `cc/meow/SKILL.md`, find the shell command it runs, then `ssh awscode '<that command>'`.
-
-If the inner skill's SKILL.md describes multiple steps or is non-trivial to translate into a single remote command, say so and ask the user how to proceed rather than guessing.
-
-## Reporting
-
-After running the ssh command:
-
-1. **Announce it launched.** One short line: `Launched on <host>: <short description>`.
-2. **Do NOT stream or summarize remote stdout** beyond what's needed to extract a Slurm job id. The user will check status separately.
-3. **If the output contains a Slurm job id** (look for `Submitted batch job <N>` or a bare numeric id returned by `slaunch`/`sbatch`), report:
-
-   ```
-   Launched on <host>: <job name or command>
-   Slurm job id: <jobid>
-   Remote log: ~/log/slurm/*.<jobid>.e  (stderr)
+Launched on <host>: <job name or command>
+Slurm job id: <jobid>
+Remote log:   ~/log/slurm/*.<jobid>.e  (stderr)
                ~/log/slurm/*.<jobid>.o  (stdout)
-   To tail:    ssh <host> 'tail -f ~/log/slurm/*.<jobid>.e'
-   ```
+To tail:      ssh <host> 'tail -f ~/log/slurm/*.<jobid>.e'
+```
 
-   The number parsed out is the **Slurm job id** (the long-lived scheduler-assigned id that persists for the whole run and names the log files). It is **not** the short-lived OS PID of the `slaunch`/`sbatch` wrapper process — that PID exits as soon as submission completes and is useless for tailing logs or checking status. Always label it as "Slurm job id", never as "pid".
+The parsed number is the **Slurm job id** — not the short-lived OS PID of the `slaunch`/`sbatch` wrapper. Always label it "Slurm job id". Log files are on the **remote** machine.
 
-   The log files are on the **remote** machine, not local. Do not try to read them from the local filesystem.
-
-4. If ssh exits non-zero, report the exit code and the last few lines of stderr so the user can diagnose. Do not retry automatically.
+- **If ssh exits non-zero**, report the exit code and last few lines of stderr. Do not retry automatically.
 
 ## What this skill does NOT do
 
 - Does not edit files locally or remotely.
-- Does not poll job status in a loop — for status, the user invokes `/checkrun` (local) or asks explicitly.
-- Does not install or modify crontab entries without the user spelling out the exact schedule and command; if the user is vague, ask before `crontab -l | ... | crontab -`.
-- Does not choose between `awscode` and `gcpcode` when the request is ambiguous — ask.
+- Does not poll job status — for status, the user invokes `/checkrun` or asks explicitly.
+- Does not install or modify crontab entries without the user spelling out the exact schedule and command; if vague, ask first.
+- Does not choose between `awscode` and `gcpcode` when ambiguous — ask.

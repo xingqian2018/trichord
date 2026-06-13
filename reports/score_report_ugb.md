@@ -62,7 +62,7 @@
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k | v2_1170L_gpt5p5_v6p5 | 89.56         | 92.73         | 86.66          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k | v2_1170L_gpt5p5_v6p6 | 89.75         | 92.40         | 87.32          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k | v2_1170L_gpt5p5_v6p7 | 89.54         | 92.76         | 86.59          | 1170/1170 |
-| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k | v2_1170L_gpt5p5_v6p8 | pending       | pending       | pending        | pending   |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k | v2_1170L_gpt5p5_v6p8 | 89.81         | 92.24         | 87.57          | 1170/1170 |
 
 ## GPT5.5 Benchmark Version Ablation (markdown) — cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k
 
@@ -77,7 +77,7 @@
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_markdown | v2_1170L_gpt5p5_v6p5 | 89.78         | 92.58         | 87.22          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_markdown | v2_1170L_gpt5p5_v6p6 | 89.26         | 92.32         | 86.45          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_markdown | v2_1170L_gpt5p5_v6p7 | 89.80         | 93.06         | 86.80          | 1170/1170 |
-| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_markdown | v2_1170L_gpt5p5_v6p8 | pending       | pending       | pending        | pending   |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_markdown | v2_1170L_gpt5p5_v6p8 | 89.42         | 92.19         | 86.87          | 1170/1170 |
 
 ## GPT5.5 Benchmark Version Ablation (xml) — cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k
 
@@ -92,4 +92,4 @@
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_xml  | v2_1170L_gpt5p5_v6p5 | 89.83         | 92.50         | 87.39          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_xml  | v2_1170L_gpt5p5_v6p6 | 89.25         | 92.07         | 86.66          | 1170/1170 |
 | cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_xml  | v2_1170L_gpt5p5_v6p7 | 90.04         | 92.42         | 87.85          | 1170/1170 |
-| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_xml  | v2_1170L_gpt5p5_v6p8 | pending       | pending       | pending        | pending   |
+| cosmos3_t2i_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k_xml  | v2_1170L_gpt5p5_v6p8 | 89.65         | 92.60         | 86.94          | 1170/1170 |

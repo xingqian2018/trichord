@@ -33,4 +33,4 @@ slaunch cpu 1x8 slice_<dataset_name> \
 
 ## Step 3 — Launch the cmd
 
-- Ask user which cluster and node it want to run. Use your skill `ssh_run` to launch the cmd when user approved.
+- Ask user which cluster it want to run. Use your skill `ssh_run` to launch the cmd when user approved.

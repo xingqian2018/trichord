@@ -4,7 +4,32 @@ Four-stage captioning pipeline (`stage1 → stage2 → stage3 → stage4`) plus 
 
 ## General
 
-Remote launch command is usually looks like:
+
+## Step 1: Information Collection
+
+- Get the stage number the user is working with via user input, or ask user when uncertain.
+- Common settings:
+  - `<EXPNAME> = exp_20260612`
+  - `<JUDGE_MODEL>`, `<GEN_MODEL>` when not mentioned, ask the user if we should use `gemini-3.1-pro`
+- Collect the necessary argument from input, or ask user when uncertain.
+  - Stage 1: `<VERSION>`, `<JUDGE_MODEL>`, `<GEN_MODEL>`
+  - Stage 2: `<VERSION>`, `<JUDGE_MODEL>`, `<GEN_MODEL>` `<STAGE1_VERSION>`
+  - Stage 3: 
+  - Stage 4: 
+- Understand whether the user want to launch remotely or locally
+
+This skill should collect some basic information **angle-bracket placeholders** (`<VERSION>`, `<JUDGE_MODEL>`, `<GEN_MODEL>`, some times `<STAGE1_REF_VERSION>` for stage2) in able to create a final commend. **Do not guess or default silently.**
+Enviornment variable (usually for credentials) should be resolved fully as plan text...
+Go the credentials from JSON `~/Project/trichord/credentials/gateway.json`, usually they key is the same name as the environment variable we want (i.e. LEPTON_API_QWEN3_VL_235B).
+
+
+## Step 2: Compose Command and Show User
+
+Now we have all target information, we should show the user the command (cmd) it asked for. When there are still place uncertain, ask user.
+
+### Template for `remote` vs. `local` Launch
+
+- Remote launch command is usually looks like:
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
@@ -14,7 +39,7 @@ slaunch cpu 1x1 <slurm_job_name> \
     <nicely_organized_argument>
 ```
 
-For local-run command, launch through:
+- For local-run command, launch through:
 
 ```bash
 <some one time environment variables> \
@@ -23,16 +48,7 @@ For local-run command, launch through:
     <nicely_organized_argument>
 ```
 
-## Information Collection
-
-This skill should collect some basic information **angle-bracket placeholders** (`<VERSION>`, `<JUDGE_MODEL>`, `<GEN_MODEL>`, some times `<STAGE1_REF_VERSION>` for stage2) in able to create a final commend. **Do not guess or default silently.**
-Enviornment variable (usually for credentials) should be resolved fully as plan text...
-Go the credentials from JSON `~/Project/trichord/credentials/gateway.json`, usually they key is the same name as the environment variable we want (i.e. LEPTON_API_QWEN3_VL_235B).
-
-
-## Stage 1 — Entity Search Template
-
-The command template is the following...
+### Stage 1 — Entity Search Template
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
@@ -41,45 +57,41 @@ slaunch cpu 1x1 golden_caption_<VERSION>_s1 \
     projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage1_entity_search.py \
     --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/V1/ \
     --input_credential credentials/gcs.secret \
-    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/golden_caption/exp_20260612/<VERSION>/stage1/ \
+    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage1/ \
     --output_credential credentials/gcs.secret \
-    --num_concurrency 32 \
-    --batch_size 100 \
-    --timeout 400 \
+    --num_concurrency 128 \
+    --batch_size 300 \
+    --timeout 200 \
     --max_retry 3 \
     --max_battle_rounds 5 \
     --force_judge_model <JUDGE_MODEL> \
     --force_gen_model <GEN_MODEL>
 ```
 
----
 
-## Stage 2 — Entity Structured Grounding
-
-The command template is the following...
+### Stage 2 — Entity Structured Captioning
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
 LEPTON_API_QWEN3_VL_235B=<credential> \
 slaunch cpu 1x1 golden_caption_<VERSION>s2 \
-    projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage2_entity_structured_grounding.py \
+    projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage2_structured_captioning.py \
     --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/V1/ \
     --input_credential credentials/gcs.secret \
-    --input_entity_list_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/<STAGE1_REF_VERSION>/stage1/ \
-    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION_LONG>/stage2/ \
+    --input_entity_list_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<STAGE1_VERSION>/stage1/ \
+    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage2/ \
     --output_credential credentials/gcs.secret \
-    --num_concurrency 32 \
-    --batch_size 100 \
-    --timeout 400 \
+    --num_concurrency 128 \
+    --batch_size 1000 \
+    --timeout 200 \
     --max_retry 3 \
     --max_battle_rounds 5 \
     --force_judge_model <JUDGE_MODEL> \
     --force_gen_model <GEN_MODEL>
 ```
 
----
 
-## Stage 3 — Entity Dense Grounding
+### Stage 3 — Entity Dense Grounding
 
 The command template is the following...
 
@@ -99,7 +111,6 @@ slaunch cpu 1x1 golden_caption_<VERSION>s3 \
     --force_gen_model <STAGE3_GEN_MODEL>
 ```
 
----
 
 ## Stage 4 — Camera and Style
 

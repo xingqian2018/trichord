@@ -1,6 +1,6 @@
 # Golden Caption Pipeline
 
-Four-stage captioning pipeline (`stage1 → stage2 → stage3 → stage4`) plus a final conversion step that turns the entity list into dense + structured captions.
+Five-stage captioning pipeline (`stage1 → stage2 → stage3 → stage4 → stage5`) that collects entities, produces structured/dense captions, adds camera/lighting/style attributes, then merges everything into a final caption.
 
 ## General
 
@@ -52,7 +52,6 @@ slaunch cpu 1x1 <slurm_job_name> \
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
-LEPTON_API_QWEN3_VL_235B=<credential> \
 slaunch cpu 1x1 golden_caption_<VERSION>_s1 \
     projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage1_entity_search.py \
     --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/V1/ \
@@ -73,8 +72,7 @@ slaunch cpu 1x1 golden_caption_<VERSION>_s1 \
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
-LEPTON_API_QWEN3_VL_235B=<credential> \
-slaunch cpu 1x1 golden_caption_<VERSION>s2 \
+slaunch cpu 1x1 golden_caption_<VERSION>_s2 \
     projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage2_structured_captioning.py \
     --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/V1/ \
     --input_credential credentials/gcs.secret \
@@ -91,64 +89,65 @@ slaunch cpu 1x1 golden_caption_<VERSION>s2 \
 ```
 
 
-### Stage 3 — Entity Dense Grounding
+### Stage 3 — Entity Dense Captioning
 
 The command template is the following...
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
-LEPTON_API_QWEN3_VL_235B=<credential> \
-slaunch cpu 1x1 golden_caption_<VERSION>s3 \
-    projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage3_entity_dense_grounding.py \
-    --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION_LONG>/stage2/ \
+slaunch cpu 1x1 golden_caption_<VERSION>_s3 \
+    projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage3_dense_captioning.py \
+    --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage2/ \
     --input_credential credentials/gcs.secret \
-    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION_LONG>/stage3/ \
+    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage3/ \
     --output_credential credentials/gcs.secret \
-    --num_concurrency 32 \
-    --batch_size 100 \
-    --timeout 400 \
-    --max_retry 3 \
-    --force_gen_model <STAGE3_GEN_MODEL>
-```
-
-
-## Stage 4 — Camera and Style
-
-The command template is the following...
-
-```bash
-CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
-LEPTON_API_QWEN3_VL_235B=<credential> \
-slaunch cpu 1x1 golden_caption_<VERSION>s4 \
-    projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage4_camera_and_style.py \
-    --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/V1/ \
-    --input_credential credentials/gcs.secret \
-    --input_json_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION_LONG>/stage3/ \
-    --input_json_credential credentials/gcs.secret \
-    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION_LONG>/stage4/ \
-    --output_credential credentials/gcs.secret \
-    --num_concurrency 32 \
-    --batch_size 100 \
+    --num_concurrency 128 \
+    --batch_size 1000 \
+    --timeout 200 \
     --max_retry 3 \
     --force_gen_model <GEN_MODEL>
 ```
 
----
 
-## Conversion — Entity List → Dense + Structured Captions
+## Stage 4 — Camera Lighting and Style
 
 The command template is the following...
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
-slaunch cpu 1x1 golden_caption_convert_<VERSION_SHORT> \
-    projects/cosmos3/vfm/evaluation/captioning/golden_caption/convertion_v2.py \
-    --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/golden_caption_<VERSION> \
+slaunch cpu 1x1 golden_caption_<VERSION>_s4 \
+    projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage4_camera_lighting_style_and_quality.py \
+    --input_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation/CosCapBenchImage/V1/ \
     --input_credential credentials/gcs.secret \
-    --num_concurrency 32
+    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage4/ \
+    --output_credential credentials/gcs.secret \
+    --num_concurrency 128 \
+    --batch_size 300 \
+    --max_retry 3 \
+    --force_gen_model <GEN_MODEL>
 ```
 
----
+## Stage 5 — Merge into Final Structured Caption
+
+The command template is the following...
+
+```bash
+CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4 \
+slaunch cpu 1x1 golden_caption_<VERSION>_s5 \
+    projects/cosmos3/vfm/evaluation/captioning/golden_caption/stage5_finalize_caption.py \
+    --stage1_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage1/ \
+    --stage1_credential credentials/gcp_checkpoint.secret \
+    --stage2_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage2/ \
+    --stage2_credential credentials/gcp_checkpoint.secret \
+    --stage3_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage3/ \
+    --stage3_credential credentials/gcp_checkpoint.secret \
+    --stage4_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage4/ \
+    --stage4_credential credentials/gcp_checkpoint.secret \
+    --output_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/golden_caption/<EXPNAME>/<VERSION>/stage5/ \
+    --output_credential credentials/gcp_checkpoint.secret \
+    --num_concurrency 4
+```
+
 
 ## Checking status:
 

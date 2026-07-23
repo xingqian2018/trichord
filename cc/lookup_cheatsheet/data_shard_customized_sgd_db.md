@@ -94,7 +94,7 @@ Lives at `pipelines/image/text_rendering/shard_customized_sgd_db.py` in `imagina
 | `synthetic_scene_text_traditional_chinese_v1`     | `<sgd_datagen_root>/synthetic_scene_text_traditional_chinese_v1/image/`             | `webp`                  |
 | `synthetic_scene_text_traditional_chinese_v1_phi` | `<sgd_datagen_root>/synthetic_scene_text_traditional_chinese_v1_phi/image/`         | `webp`                  |
 
-## Template — `slaunch`
+## Template — `slaunch` (base images)
 
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
@@ -110,9 +110,41 @@ slaunch cpu 1x4 shard_customized_sgd_db_<dataset_name> \
     --target_image_format <target_image_format> \
     --num_concurrency 64 \
     --prompt_json_range <prompt_json_range> \
-    --metadata_convertion_type <metadata_convertion_type> \
     --part_of_after_key_path <part_of_after_key_path>
 ```
+
+## Template — `slaunch` (edit images, e.g. `image_distorted_text`)
+
+Same script, same prompt JSONs and output WebDS root. Change:
+- `--input_image_path` → point to `image_<purpose>/` subfolder
+- `--output_webds_image_key` → `images_<purpose>` (e.g. `images_distorted_text`)
+- `--output_webds_meta_key NULL` → skip re-emitting metas (already written by base run)
+
+```bash
+CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
+slaunch cpu 1x4 shard_customized_sgd_db_<dataset_name>_<purpose> \
+    pipelines/image/text_rendering/shard_customized_sgd_db.py \
+    --input_prompt_json_path <path_to_prompt_json_dir> \
+    --input_prompt_json_credential credentials/gcs.secret \
+    --input_image_path <path_to_image_<purpose>_dir> \
+    --input_image_credential credentials/gcs.secret \
+    --output_webds_path <the_existed_webdataset_path> \
+    --output_webds_credential credentials/gcs.secret \
+    --metadata_convertion_type <sgdv1_aspect_ratio> \
+    --target_image_format <target_image_format> \
+    --num_concurrency 64 \
+    --prompt_json_range <prompt_json_range> \
+    --part_of_after_key_path <part_of_after_key_path> \
+    --output_webds_image_key images_<purpose> \
+    --output_webds_meta_key metas_ebc
+```
+
+The output lands alongside the base images under the same resolution/aspect_ratio bucket:
+```
+{output_webds_path}/<res>/<ar>/images_<purpose>/<part>/<NNNNNNNNN>.tar
+{output_webds_path}/<res>/<ar>/metas_ebc/<part>/<NNNNNNNNN>.tar
+```
+`metas_ebc` contains the EBC-converted metadata (`entity_based_structured_caption` injected by `sgdv1_to_ebc_*`). The base `metas/` from the original run is unchanged and still used for the base images.
 
 > **No cleanup on start**: unlike `shard_full_db`, this script does *not* wipe the output root. Instead it *refuses to overwrite* — if a target tar already exists it raises `RuntimeError`. Safe to resume a partial run by re-submitting the same range; completed tars are skipped automatically.
 

@@ -21,7 +21,7 @@ At this stage, you need to show a full cmd to user.
 ```bash
 CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_alt \
 slaunch small 2 ugb_gen_<some_run_name_close_to_model_name_and_iter> \
-    projects/cosmos3/vfm/evaluation/text_to_image/inference_unigenbench_distributed.py \
+    projects/cosmos3/vfm/evaluation/text_to_image/inference_ugb_i4.py \
     --experiment_name <experiment_name> \
     --checkpoint_path <checkpoint_path> \
     --credential_path credentials/gcs.secret \
@@ -44,6 +44,7 @@ slaunch small 2 ugb_gen_<some_run_name_close_to_model_name_and_iter> \
 - Figure out `--height` and `--width` (see below)
 - Stage 1 `--benchmark_name` is usually `v2_1170L_opus`
 - `--regenerate` is *not* in the by default, add it explicitly only when user requested.
+- `--is_distill_model` — add this flag when the model is a distilled variant. It auto-forces `--guidance 1.0` and disables `--use_cosmos3_negative_prompt` (those two args become irrelevant when this flag is set).
 
 
 ### Baseline models

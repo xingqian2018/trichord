@@ -2,7 +2,7 @@
 
 **RawData Base Path:** `gcs:nv-00-10206-vfm/debug/xingqianx/synthetic_data`
 **WebDS Base Path:** `gcs:nv-00-10206-webdataset-images/webdataset_image_synthetic_text`
-**Last Updated:** 2026-06-08 (refreshed x33)
+**Last Updated:** 2026-07-16 (refreshed x35)
 
 ---
 
@@ -34,24 +34,25 @@ When user is asking to update the report, it usually means to update this main p
 **Step 5 — Request by user, show run command for image gen, image edit, or WebDS creation**
 - If asked about **image gen**, read `cc/lookup_cheatsheet/data_scene_text_gen_image_gen.md`.
 - If asked about **image edit**, read `cc/lookup_cheatsheet/data_scene_text_gen_image_edit.md`.
-- If asked about **WebDataset / sharding**, read `cc/lookup_cheatsheet/data_shard_customized_sgd_db.md`.
+- If asked about **WebDataset / sharding (base images)**, read `cc/lookup_cheatsheet/data_shard_customized_sgd_db.md`.
+- If asked about **WebDataset / sharding (edit images, i.e. `image_distorted_text`)**, read `cc/lookup_cheatsheet/data_shard_customized_sgd_db.md` — use the edit template with `--input_image_path` pointing to `image_distorted_text/`, `--output_webds_image_key images_distorted_text`, and `--output_webds_meta_key NULL or meta_ebc (entity-based-caption)`.
 
 ---
 
-### The main report
+### The main report (finished)
 
 | Dataset                             | Range     | Part       | Prompts | Images | ImageGen Job ID | RawData | WebDS |
 |-------------------------------------|-----------|------------|--------:|-------:|-----------------|--------|-------|
 | synthetic_scene_text_v1             | 0-100     | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1             | 100-200   | part000000 |     100 |    100 | —               | ✅     | ✅    |
-| synthetic_scene_text_v1             | 200-300   | part000000 |     100 |     52 | 1396335         |        |       |
-| synthetic_scene_text_v1             | 300-400   | part000000 |     100 |     45 | 1396337         |        |       |
-| synthetic_scene_text_v1             | 400-500   | part000000 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_v1             | 500-600   | part000001 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_v1             | 600-700   | part000001 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_v1             | 700-800   | part000001 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_v1             | 800-900   | part000001 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_v1             | 900-1000  | part000001 |     100 |    100 | —               | ✅     |       |
+| synthetic_scene_text_v1             | 200-300   | part000000 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1             | 300-400   | part000000 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1             | 400-500   | part000000 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1             | 500-600   | part000001 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1             | 600-700   | part000001 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1             | 700-800   | part000001 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1             | 800-900   | part000001 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1             | 900-1000  | part000001 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1             | 1000-1100 | part000001 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1             | 1100-1200 | part000001 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1             | 1200-1300 | part000001 |     100 |    100 | —               | ✅     | ✅    |
@@ -59,21 +60,19 @@ When user is asking to update the report, it usually means to update this main p
 | synthetic_scene_text_v1             | 1400-1500 | part000001 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1_phi         | 0-100     | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_v1_phi         | 100-200   | part000000 |     100 |    100 | —               | ✅     | ✅    |
-| synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_v1_phi         | 300-400   | part000000 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_v1_phi         | 400-500   | part000000 |     100 |    100 | —               | ✅     |       |
+| synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1_phi         | 300-400   | part000000 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_v1_phi         | 400-500   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1     | 0-100     | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1     | 100-200   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1     | 200-300   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1     | 300-400   | part000000 |     100 |    100 | —               | ✅     | ✅    |
-| synthetic_scene_text_chinese_v1     | 400-500   | part000000 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_chinese_v1     | 500-600   | part000000 |       9 |      0 | ⚠️              |        |       |
+| synthetic_scene_text_chinese_v1     | 400-500   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1_phi | 0-100     | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1_phi | 100-200   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 | synthetic_scene_text_chinese_v1_phi | 200-300   | part000000 |     100 |    100 | —               | ✅     | ✅    |
-| synthetic_scene_text_chinese_v1_phi | 300-400   | part000000 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_chinese_v1_phi | 400-500   | part000000 |     100 |    100 | —               | ✅     |       |
-| synthetic_scene_text_chinese_v1_phi | 500-600   | part000000 |      21 |      0 | ⚠️              |        |       |
+| synthetic_scene_text_chinese_v1_phi | 300-400   | part000000 |     100 |    100 | —               | ✅     | ✅    |
+| synthetic_scene_text_chinese_v1_phi | 400-500   | part000000 |     100 |    100 | —               | ✅     | ✅    |
 
 ---
 
@@ -93,44 +92,37 @@ This table is only updated upon special request.
 - Each entry is a folder `XXXXXXXXX/` (same global index as the main image folder). Group by floor-of-100 and count.
 - Update the `image_distorted_text` column. Mark ✅ if count = 100.
 
-**Step C — Update ImageEdit Job ID column**
-- Run `ssh gcpcode 'squeue -u xingqianx -o "%.10i %.100j"'` and match job names containing `image_edit`.
-- If a Job ID is no longer in the queue, replace it with `—`.
-- If it becomes `—` and the edit column is not ✅, mark it ⚠️.
+**Step C — Update WebDS column**
+- Count tars under the `images_distorted_text` key in the WebDS output for each dataset/range:
+  ```
+  python ~/Project/bashrc/s3_omni.py ls gcs:nv-00-10206-webdataset-images/webdataset_image_synthetic_text/<dataset>/<res>/<ar>/images_distorted_text/<part>/ | grep -c '.tar'
+  ```
+- Mark ✅ if count = 100 for that group.
 
 ### The report
 
-| Dataset                             | Range     | Part       | Prompts | Images | Edits | image_distorted_text | ImageEdit Job ID |
-|-------------------------------------|-----------|------------|--------:|-------:|------:|---------------------:|------------------|
-| synthetic_scene_text_v1             | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | —                |
-| synthetic_scene_text_v1             | 100-200   | part000000 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_v1             | 200-300   | part000000 |     100 |     52 |       |                      | ⚠️               |
-| synthetic_scene_text_v1             | 500-600   | part000001 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_v1             | 600-700   | part000001 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_v1             | 1000-1100 | part000001 |     100 |    100 |   100 |                   ✅ | —                |
-| synthetic_scene_text_v1             | 1100-1200 | part000001 |     100 |    100 |   100 |                   ✅ | —                |
-| synthetic_scene_text_v1             | 1200-1300 | part000001 |     100 |    100 |   100 |                   ✅ | —                |
-| synthetic_scene_text_v1             | 1300-1400 | part000001 |     100 |    100 |       |                   ✅ | —                |
-| synthetic_scene_text_v1             | 1400-1500 | part000001 |     100 |    100 |       |                   ✅ | —                |
-| synthetic_scene_text_v1_phi         | 0-100     | part000000 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_v1_phi         | 100-200   | part000000 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_chinese_v1     | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | —                |
-| synthetic_scene_text_chinese_v1     | 100-200   | part000000 |     100 |    100 |       |                   ✅ | —                |
-| synthetic_scene_text_chinese_v1     | 200-300   | part000000 |     100 |    100 |       |                   ✅ | —                |
-| synthetic_scene_text_chinese_v1     | 300-400   | part000000 |     100 |    100 |       |                   ✅ | —                |
-| synthetic_scene_text_chinese_v1     | 400-500   | part000000 |     100 |    100 |       |                   ✅ | —                |
-| synthetic_scene_text_chinese_v1_phi | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | —                |
-| synthetic_scene_text_chinese_v1_phi | 100-200   | part000000 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_chinese_v1_phi | 200-300   | part000000 |     100 |    100 |       |                      | ⚠️               |
-| synthetic_scene_text_chinese_v1_phi | 300-400   | part000000 |     100 |    100 |       |                      | ⚠️               |
+| Dataset                             | Range     | Part       | Prompts | Images | Edits | image_distorted_text | WebDS |
+|-------------------------------------|-----------|------------|--------:|-------:|------:|---------------------:|-------|
+| synthetic_scene_text_v1             | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_v1             | 100-200   | part000000 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_v1             | 200-300   | part000000 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_v1             | 500-600   | part000001 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_v1             | 600-700   | part000001 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_v1             | 1000-1100 | part000001 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_v1             | 1100-1200 | part000001 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_v1             | 1200-1300 | part000001 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_v1             | 1300-1400 | part000001 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_v1             | 1400-1500 | part000001 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_v1_phi         | 0-100     | part000000 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_v1_phi         | 100-200   | part000000 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_chinese_v1     | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_chinese_v1     | 100-200   | part000000 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_chinese_v1     | 200-300   | part000000 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_chinese_v1     | 300-400   | part000000 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_chinese_v1     | 400-500   | part000000 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_chinese_v1_phi | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_chinese_v1_phi | 100-200   | part000000 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_chinese_v1_phi | 200-300   | part000000 |     100 |    100 |       |                      |       |
+| synthetic_scene_text_chinese_v1_phi | 300-400   | part000000 |     100 |    100 |       |                      |       |
 
-
-## SGD MISC Information
-
-### CPU prompt-gen jobs (partition: cpu, 1 node each)
-
-| Job ID  | Run Name                             | State   | Runtime    |
-|---------|--------------------------------------|---------|------------|
-| 1213644 | scene_text_prompt_gen_english_v1     | RUNNING | 1-15:53:34 |
-| 1210778 | scene_text_prompt_gen_english_phi_v1 | RUNNING | 1-22:30:20 |

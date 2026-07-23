@@ -32,7 +32,7 @@ This rule applies to every current and future cheatsheet — pipeline-specific f
 > Most cheatsheet commands (`slaunch ...`, `slurm` submissions, file writes that land in a project repo, etc.) must execute on a **remote cluster** (GCP or AWS), **not** on `n0`. Whenever the user asks to **launch** a command, **submit** a job, or **write** a file that belongs on the remote repo:
 >
 > 1. **Always consult the `ssh_run` skill first** — it documents the canonical remote-launch recipe (host selection, command wrapping, slurm-id capture, log path resolution).
-> 2. **Ask the user which cluster** (`awscode` / `gcpcode`) if they have not already specified one. Do not guess.
+> 2. **Ask the user which cluster** (`awscode` / `gcpcode` / `gb300`) if they have not already specified one. Do not guess.
 > 3. Use `ssh_run` to dispatch the command — never paste a raw `ssh <host> '...'` command unless `ssh_run` cannot express it.
 >
 > This rule applies to every current and future cheatsheet — pipeline-specific files do not need to repeat the remote-launch instructions.

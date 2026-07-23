@@ -26,8 +26,9 @@ Use `/usr/bin/ssh ...` and `/usr/bin/scp ...`
 
 - `awscode` — AWS cluster head node
 - `gcpcode` — GCP cluster head node
+- `gb300` — GB300 cluster head node
 
-Pick from the user's phrasing: "aws" / "awscode" → `awscode`; "gcp" / "gcpcode" → `gcpcode`; ambiguous → ask.
+Pick from the user's phrasing: "aws" / "awscode" → `awscode`; "gcp" / "gcpcode" → `gcpcode`; "gb300" → `gb300`; ambiguous → ask.
 
 ## `slurm` / `slaunch` Pre-flight Dedupe Check Required
 

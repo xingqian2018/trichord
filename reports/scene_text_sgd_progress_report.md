@@ -99,6 +99,22 @@ This table is only updated upon special request.
   ```
 - Mark ✅ if count = 100 for that group.
 
+**Step D — Create `captions_ebc`**
+- Run `create_caption_pickle.py` from `imaginaire4_sila` to convert `metas_ebc` into `captions_ebc` pickle tars.
+- Launch one job per dataset:
+  ```bash
+  CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
+  bash $HOME/Project/bashrc/sbatch_launch/main.sh cpu 1x1 create_caption_pickle_<dataset> \
+      pipelines/image/text_rendering/create_caption_pickle.py \
+      --webds_path s3://nv-00-10206-webdataset-images/webdataset_image_synthetic_text/<dataset> \
+      --webds_credential credentials/gcs.secret \
+      --meta_key metas_ebc \
+      --out_key captions_ebc \
+      --num_concurrency 8 \
+      --metadata_to_caption_pickle_type sgd_converted_ebc
+  ```
+- Once `captions_ebc` is complete across all datasets, regenerate `wdinfo_unified.json` (see `data_create_wdinfo.md`) including keys: `images`, `metas`, `images_distorted_text`, `metas_ebc`, `captions_ebc`.
+
 ### The report
 
 | Dataset                             | Range     | Part       | Prompts | Images | Edits | image_distorted_text | WebDS |
@@ -109,18 +125,18 @@ This table is only updated upon special request.
 | synthetic_scene_text_v1             | 500-600   | part000001 |     100 |    100 |       |                      |       |
 | synthetic_scene_text_v1             | 600-700   | part000001 |     100 |    100 |       |                      |       |
 | synthetic_scene_text_v1             | 1000-1100 | part000001 |     100 |    100 |   100 |                   ✅ | ✅    |
-| synthetic_scene_text_v1             | 1100-1200 | part000001 |     100 |    100 |   100 |                   ✅ |       |
-| synthetic_scene_text_v1             | 1200-1300 | part000001 |     100 |    100 |   100 |                   ✅ |       |
-| synthetic_scene_text_v1             | 1300-1400 | part000001 |     100 |    100 |   100 |                   ✅ |       |
-| synthetic_scene_text_v1             | 1400-1500 | part000001 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_v1             | 1100-1200 | part000001 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_v1             | 1200-1300 | part000001 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_v1             | 1300-1400 | part000001 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_v1             | 1400-1500 | part000001 |     100 |    100 |   100 |                   ✅ | ✅    |
 | synthetic_scene_text_v1_phi         | 0-100     | part000000 |     100 |    100 |       |                      |       |
 | synthetic_scene_text_v1_phi         | 100-200   | part000000 |     100 |    100 |       |                      |       |
 | synthetic_scene_text_v1_phi         | 200-300   | part000000 |     100 |    100 |       |                      |       |
 | synthetic_scene_text_chinese_v1     | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
-| synthetic_scene_text_chinese_v1     | 100-200   | part000000 |     100 |    100 |   100 |                   ✅ |       |
-| synthetic_scene_text_chinese_v1     | 200-300   | part000000 |     100 |    100 |   100 |                   ✅ |       |
-| synthetic_scene_text_chinese_v1     | 300-400   | part000000 |     100 |    100 |   100 |                   ✅ |       |
-| synthetic_scene_text_chinese_v1     | 400-500   | part000000 |     100 |    100 |   100 |                   ✅ |       |
+| synthetic_scene_text_chinese_v1     | 100-200   | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_chinese_v1     | 200-300   | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_chinese_v1     | 300-400   | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
+| synthetic_scene_text_chinese_v1     | 400-500   | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
 | synthetic_scene_text_chinese_v1_phi | 0-100     | part000000 |     100 |    100 |   100 |                   ✅ | ✅    |
 | synthetic_scene_text_chinese_v1_phi | 100-200   | part000000 |     100 |    100 |       |                      |       |
 | synthetic_scene_text_chinese_v1_phi | 200-300   | part000000 |     100 |    100 |       |                      |       |

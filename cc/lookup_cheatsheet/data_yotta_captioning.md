@@ -53,8 +53,8 @@ OUTPUT = "/workspace/user/xingqianx/.cache/customized_models/Qwen3.5-27B-Image-D
 s3 = boto3.client(
     "s3",
     endpoint_url="https://storage.googleapis.com",
-    aws_access_key_id="GOOG1EODU5KLGJKSRSZN6HTMMCLGRJQXKAFOLSJJCGGBRPCUWJDOEM25F5OQ4",
-    aws_secret_access_key="xToiogNjSzj4pPrfVliWIJ0T/nwu8E36ll6iSISY",
+    aws_access_key_id="<look it up>",
+    aws_secret_access_key="<look it up>",
     region_name="us-east4",
     config=Config(
         s3={"addressing_style": "path"},

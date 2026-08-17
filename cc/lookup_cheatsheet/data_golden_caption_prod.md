@@ -355,3 +355,56 @@ slaunch cpu 1x1 wdinfo_red \
     --batch_size 32
 ```
 
+## LanceDB making
+
+Script lives in `imaginaire4_sila` (not `imaginaire4`).
+
+Builds a LanceDB table with columns `(uuid, image_s3_range, caption)` from a customized WebDataset.
+
+- `--imagetar_path`: S3/GCS root that contains `.../images/*.tar` files
+- `--caption_path`: S3/GCS root for caption JSON files — derive by replacing the `images` segment with the caption key (e.g. `caption_golden`) in `imagetar_path`
+- `--lancedb_path`: output LanceDB URI (`gs://` or `s3://`), `.lance` suffix is added automatically
+- `--write_mode`: `append` (default) or `overwrite`
+- `--fragment_rows`: max rows per Lance fragment (default 500,000)
+- Edit `customized_filter()` inside the script to control which resolution/aspect-ratio buckets are included and how many tars per bucket.
+
+```bash
+CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
+slaunch cpu 1x1 lancedb_<VERSION> \
+    pipelines/image/text_rendering/customized_webds_to_lancedb.py \
+    --imagetar_path    <WEBDS_FOLDER> \
+    --caption_path     <CAPTION_FOLDER> \
+    --webds_credential credentials/gcs.secret \
+    --lancedb_path     <LANCEDB_PATH> \
+    --lancedb_credential credentials/gcs.secret \
+    --write_mode       append \
+    --fragment_rows    500000
+```
+
+```bash
+CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
+slaunch cpu 1x1 lancedb_red \
+    pipelines/image/text_rendering/customized_webds_to_lancedb.py \
+    --imagetar_path    s3://nv-00-10206-vfm/webdataset_image_regular/red/ \
+    --caption_path     s3://nv-00-10206-vfm/webdataset_image_regular/red_gcraw_s5/ \
+    --webds_credential credentials/gcs.secret \
+    --lancedb_path     gs://nv-00-10206-vfm/lancedb/image/regular/red_mxtier1_caption.lance/ \
+    --lancedb_credential credentials/gcs.secret \
+    --write_mode       append \
+    --fragment_rows    500000 \
+    --json_key         mx_tier1
+```
+
+```bash
+CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
+slaunch cpu 1x1 lancedb_hqcoyo \
+    pipelines/image/text_rendering/customized_webds_to_lancedb.py \
+    --imagetar_path    s3://nv-00-10206-webdataset-images/webdataset_cosmos_lab_image_v1/webdataset_cosmos_lab_image_v1/v1_high_quality/coyo_700m/ \
+    --caption_path     s3://nv-00-10206-vfm/webdataset_debug/dev/v1_high_quality_coyo700m_mxtier1/ \
+    --webds_credential credentials/gcs.secret \
+    --lancedb_path     gs://nv-00-10206-vfm/lancedb/image/regular/v1_high_quality_coyo700m_mxtier1_caption.lance/ \
+    --lancedb_credential credentials/gcs.secret \
+    --write_mode       append \
+    --fragment_rows    500000 \
+    --json_key         mx_tier1
+```

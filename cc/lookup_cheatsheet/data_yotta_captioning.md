@@ -161,6 +161,21 @@ python3 /workspace/user/xingqianx/vllm_scripts/vllm_checkpoint_converter_v2.py p
 python3 /workspace/user/xingqianx/vllm_scripts/vllm_checkpoint_converter_v2.py inspect \
   --model-dir /workspace/user/xingqianx/.cache/customized_models/Qwen3.5-27B-Image-Dense-Captioner-V2-HamidSnah-Only-Converted \
   --expected vllm
+
+
+python3 /workspace/user/xingqianx/vllm_scripts/vllm_checkpoint_converter_v2.py inspect \
+  --model-dir /workspace/user/xingqianx/.cache/customized_models/Qwen3.5-27B-Image-Dense-Captioner-V4-HamidSnah-MxTier1-VQAData-Mixed-Converted \
+  --expected native
+
+python3 /workspace/user/xingqianx/vllm_scripts/vllm_checkpoint_converter_v2.py prepare \
+  --model-dir /workspace/user/xingqianx/.cache/customized_models/Qwen3.5-27B-Image-Dense-Captioner-V4-HamidSnah-MxTier1-VQAData-Mixed-Converted \
+  --summary-path /tmp/v3_prepare_summary.json
+
+python3 /workspace/user/xingqianx/vllm_scripts/vllm_checkpoint_converter_v2.py inspect \
+  --model-dir /workspace/user/xingqianx/.cache/customized_models/Qwen3.5-27B-Image-Dense-Captioner-V4-HamidSnah-MxTier1-VQAData-Mixed-Converted \
+  --expected vllm
+
+
 ```
 
 ----------------

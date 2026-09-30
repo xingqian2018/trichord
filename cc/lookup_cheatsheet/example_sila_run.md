@@ -359,8 +359,8 @@ uv run yotta launch \
   --use-enroot-cache \
   --mode=lepton-ray \
   --cluster=azure \
-  --replicas=4 \
-  --num-to-launch 4 \
+  --replicas=1 \
+  --num-to-launch 1 \
   --dockerfile=pipelines/models/vlm/qwen3p5_vl.dockerfile \
   --lepton-queue-priority=very-high \
   --base-conda-env=no_conda \
@@ -374,3 +374,30 @@ uv run yotta launch \
   --endpoint-port 8067
 ```
 
+
+```
+uv run yotta launch \
+  --replicas=8 \
+  --mode=slurm-ray \
+  --cluster=gcp-iad \
+  --partition=batch_long \
+  --wckey=p1 \
+  --team=cosmos_base_training \
+  --sqsh-file=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/containers/qwen3p5_vl_vllm_arm64.sqsh \
+  --base-conda-env=no_conda \
+  --artifacts-storage-location=pbss \
+  --job-name="imcaptionv2-recover-gcpiad" \
+  -- python -m pipelines.sila.image.captioning_v2.image_qwen3p5vl_captioning_pipeline_recover \
+  --dataset gs://nv-00-10206-vfm/lancedb/image/regular/getty_image_350k_test.lance/ \
+  --pipeline-version hamid_snah_capbalance_nocot_dense_recover \
+  --recover-from-pipeline-version hamid_snah_capbalance_nocot_dense \
+  --endpoint-port 8067
+```
+
+
+
+# Clear yotta cache
+
+```
+uv run yotta cache rm
+```

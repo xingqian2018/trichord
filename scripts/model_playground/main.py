@@ -8,6 +8,8 @@ import re
 import sys
 import threading
 import time
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -16,8 +18,8 @@ import streamlit as st  # noqa: E402
 import streamlit.components.v1 as components  # noqa: E402
 
 from taxonomy.helper import Taxonomy  # noqa: E402
-from tool import TOOL_REGISTRY  # noqa: E402
-from tool.agent import Agent  # noqa: E402
+from agent.base import Agent  # noqa: E402
+from agent.poster_generation_agent import poster_generation  # noqa: E402
 from utils import (  # noqa: E402
     MODEL_CHOICE,
     RENDER_TARGET_AREA,
@@ -33,8 +35,10 @@ DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 DEFAULT_MODEL = "kimi-k3"
 PROMPT_DIR = Path(__file__).resolve().parent / "prompt"
 RENDERED_POSTER_DIR = SCRATCH_ROOT / "rendered_posters"
+EMPTY_REPLY = "*(empty response — check the terminal log for API errors)*"
 REASONING_EFFORTS = ["default", "low", "high", "max"]
 TAXONOMY_NONE = "(none)"
+RESULT_ROOT = Path.home() / "agentic_result"
 TOPIC_MESSAGE_TEMPLATE = "Please generate a poster with the following topic:\n{topic}"
 
 HTML_BLOCK_RE = re.compile(r"```\s*html\s*\n?(.*?)```", re.DOTALL | re.IGNORECASE)
@@ -53,45 +57,8 @@ def get_taxonomy() -> Taxonomy:
     return Taxonomy()
 
 
-def execute_tool_call(tool_instances: dict, name: str, arguments_json: str) -> dict:
-    if name not in TOOL_REGISTRY:
-        raise ValueError(f"Unknown tool: {name}")
-    if name not in tool_instances:
-        tool_instances[name] = TOOL_REGISTRY[name]()
-    args = json.loads(arguments_json) if arguments_json else {}
-    return tool_instances[name].run(args)
-
-
-def run_turn(agent: Agent, tool_instances: dict, status: dict, user_input: str | None, images: list | None):
-    def set_stage(text: str):
-        status["stage"] = text
-        status["since"] = time.time()
-
-    try:
-        for call in agent.pending_tool_calls():
-            note = f"Tool call '{call['name']}' was interrupted before a result was recorded."
-            agent.add_tool_result(call["id"], {"text": note, "images": []})
-        if user_input is not None:
-            agent.add_user_message(user_input, images=images or None)
-        step_no = 0
-        while True:
-            step_no += 1
-            set_stage(f"model step {step_no} ({agent.model_name})")
-            agent.step()
-            pending = agent.pending_tool_calls()
-            if not pending:
-                return
-            for call in pending:
-                set_stage(f"tool: {call['name']}")
-                try:
-                    tool_result = execute_tool_call(tool_instances, call["name"], call["arguments"])
-                except Exception as e:
-                    tool_result = {"text": f"Tool call '{call['name']}' failed: {type(e).__name__}: {e}", "images": []}
-                agent.add_tool_result(call["id"], tool_result)
-    except Exception as e:
-        for call in agent.pending_tool_calls():
-            agent.add_tool_result(call["id"], {"text": f"Run aborted: {type(e).__name__}: {e}", "images": []})
-        agent.append({"role": "assistant", "content": f"Run failed: {type(e).__name__}: {e}"}, {"finish_reason": "error"})
+def run_turn(agent: Agent, user_input: str | None, images: list | None):
+    agent.run({"prompt": user_input, "images": images})
 
 
 def extract_html_blocks(text: str) -> list[str]:
@@ -159,27 +126,6 @@ with st.sidebar:
         on_change=_load_topic,
     )
 
-    def _sync_tools_json():
-        selected = [TOOL_REGISTRY[n].SCHEMA for n in TOOL_REGISTRY if st.session_state.get(f"use_tool_{n}")]
-        st.session_state.tools_json_text = json.dumps(selected, indent=2, ensure_ascii=False) if selected else ""
-
-    st.markdown("**Tools**")
-    for tool_name in TOOL_REGISTRY:
-        st.checkbox(tool_name, key=f"use_tool_{tool_name}", on_change=_sync_tools_json)
-    if "tools_json_text" not in st.session_state:
-        st.session_state.tools_json_text = ""
-    tools_json_text = st.text_area(
-        "Tool definitions (JSON list, OpenAI function-calling format)",
-        key="tools_json_text",
-        height=200,
-    )
-    tools_def = None
-    if tools_json_text.strip():
-        try:
-            tools_def = json.loads(tools_json_text)
-        except json.JSONDecodeError as e:
-            st.error(f"Tool definitions JSON is invalid: {e}")
-
     if st.button("Clear chat"):
         st.session_state.pop("agent", None)
         st.session_state.pop("worker", None)
@@ -191,60 +137,68 @@ with st.sidebar:
 
 
 def new_agent() -> Agent:
-    return Agent(
+    return poster_generation(
+        "PosterGenerationAgent_" + datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6],
         model_name,
         system_prompt,
-        tools_def or [],
         max_tokens=int(max_tokens),
         temperature=temperature if send_temperature else None,
         reasoning_effort=None if reasoning_effort == "default" else reasoning_effort,
     )
 
 
+def agent_matches_sidebar(candidate: Agent) -> bool:
+    return (
+        candidate.model_name == model_name
+        and candidate.system_prompt == system_prompt
+        and candidate.max_tokens == int(max_tokens)
+        and candidate.temperature == (temperature if send_temperature else None)
+        and candidate.reasoning_effort == (None if reasoning_effort == "default" else reasoning_effort)
+    )
+
+
 if "agent" not in st.session_state:
+    st.session_state.agent = new_agent()
+elif not st.session_state.agent.messages and not agent_matches_sidebar(st.session_state.agent):
     st.session_state.agent = new_agent()
 if "pending_attachment" not in st.session_state:
     st.session_state.pending_attachment = None
-if "tool_instances" not in st.session_state:
-    st.session_state.tool_instances = {}
-if "run_status" not in st.session_state:
-    st.session_state.run_status = {}
 
 agent: Agent = st.session_state.agent
-agent.set_model(model_name)
-agent.set_system_prompt(system_prompt)
-agent.set_tools(tools_def or [])
+if agent.messages and not agent_matches_sidebar(agent):
+    st.sidebar.caption("Sidebar changes apply after Clear chat.")
 agent.max_tokens = int(max_tokens)
 agent.temperature = temperature if send_temperature else None
 agent.reasoning_effort = None if reasoning_effort == "default" else reasoning_effort
 
-st.caption(f"Resolved model string: `{resolve_model_string(model_name)}` · session `{agent.session_id}`")
+with st.sidebar:
+    st.markdown("**Tools** (configured by PosterGenerationAgent)")
+    for tool_name in agent.tool_registry:
+        st.caption(f"• tool: {tool_name}")
+    for declared in agent.agents:
+        st.caption(f"• agent: {declared['agent']['type']} ({declared['agent']['name']})")
+    with st.expander("Tool definitions"):
+        st.code(json.dumps([*agent.tools, *agent.agents], indent=2, ensure_ascii=False), language="json")
+
+st.caption(f"Resolved model string: `{resolve_model_string(model_name)}` · agent `{agent.agent_name}`")
 
 
-def render_reasoning(meta: dict):
-    if meta.get("reasoning"):
+def render_reasoning(msg: dict):
+    if msg.get("reasoning"):
         with st.expander("🧠 Thinking trace"):
-            st.markdown(meta["reasoning"])
+            st.markdown(msg["reasoning"])
 
 
-def render_tool_calls(meta: dict):
-    if meta.get("tool_calls"):
-        try:
-            pretty = json.dumps(json.loads(meta["tool_calls"]), indent=4, ensure_ascii=False)
-        except (TypeError, ValueError):
-            pretty = meta["tool_calls"]
+def render_tool_calls(msg: dict):
+    if msg.get("tool_calls"):
         with st.expander("🔧 Tool calls"):
-            st.code(pretty, language="json")
+            st.code(json.dumps(msg["tool_calls"], indent=4, ensure_ascii=False), language="json")
 
 
-def render_tool_images(meta: dict):
-    for path in meta.get("images") or []:
+def render_tool_images(msg: dict):
+    handler = agent.tool_instances.get(msg["tool_call_id"])
+    for path in getattr(handler, "images", None) or []:
         st.image(path)
-
-
-def render_finish_reason(meta: dict):
-    if "finish_reason" in meta:
-        st.caption(f"finish_reason: {meta['finish_reason']}")
 
 
 def render_content(content):
@@ -270,7 +224,7 @@ def html_diff(rendered_html: str, delivered_html: str, max_lines: int = 120) -> 
     return "\n".join(diff)
 
 
-def render_html_preview_buttons(text: str, msg_idx: int, meta: dict):
+def render_html_preview_buttons(text: str, msg_idx: int, msg: dict):
     if not isinstance(text, str):
         return
     for block_idx, html_code in enumerate(extract_html_blocks(text)):
@@ -278,7 +232,7 @@ def render_html_preview_buttons(text: str, msg_idx: int, meta: dict):
         if toggle_key not in st.session_state:
             st.session_state[toggle_key] = False
 
-        rendered_path = meta.get("rendered_html_path")
+        rendered_path = getattr(agent, "last_rendered_html_path", None)
         if rendered_path and Path(rendered_path).is_file():
             rendered_html = Path(rendered_path).read_text()
             if normalize_html(rendered_html) != normalize_html(html_code):
@@ -309,7 +263,7 @@ def render_html_preview_buttons(text: str, msg_idx: int, meta: dict):
         if render_clicked:
             with st.spinner("Rendering..."):
                 try:
-                    out = RENDERED_POSTER_DIR / f"ui_{agent.session_id}_{msg_idx}_{block_idx}.png"
+                    out = RENDERED_POSTER_DIR / f"ui_{agent.agent_name}_{msg_idx}_{block_idx}.png"
                     st.session_state[png_key] = str(render_html_to_png(html_code, out, RENDER_TARGET_AREA))
                 except Exception as e:
                     st.error(f"Render failed: {e}")
@@ -332,24 +286,25 @@ def render_html_preview_buttons(text: str, msg_idx: int, meta: dict):
                     st.rerun()
 
 
-def render_message(idx: int, msg: dict, meta: dict):
+def render_message(idx: int, msg: dict):
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant":
-            render_reasoning(meta)
+            render_reasoning(msg)
         render_content(msg["content"])
+        if msg["role"] == "assistant" and not msg["content"] and not msg.get("tool_calls"):
+            st.markdown(EMPTY_REPLY)
         if msg["role"] == "assistant":
-            if meta.get("finish_reason") == "stop":
-                render_html_preview_buttons(msg["content"], idx, meta)
-            render_tool_calls(meta)
-            render_finish_reason(meta)
+            if not msg.get("tool_calls"):
+                render_html_preview_buttons(msg["content"], idx, msg)
+            render_tool_calls(msg)
         elif msg["role"] == "tool":
-            render_tool_images(meta)
+            render_tool_images(msg)
             st.caption(f"tool_call_id: {msg['tool_call_id']}")
 
 
 render_baseline = len(agent.messages)
 for idx in range(render_baseline):
-    render_message(idx, agent.messages[idx], agent.meta[idx])
+    render_message(idx, agent.messages_extended[idx])
 
 def is_running() -> bool:
     worker = st.session_state.get("worker")
@@ -359,7 +314,7 @@ def is_running() -> bool:
 def start_worker(user_input: str | None, images: list | None):
     worker = threading.Thread(
         target=run_turn,
-        args=(agent, st.session_state.tool_instances, st.session_state.run_status, user_input, images),
+        args=(agent, user_input, images),
         daemon=True,
     )
     st.session_state.worker = worker
@@ -378,13 +333,28 @@ def live_tail():
         return
     st.session_state.was_running = True
     for idx in range(render_baseline, len(agent.messages)):
-        render_message(idx, agent.messages[idx], agent.meta[idx])
-    status = st.session_state.run_status
-    elapsed = int(time.time() - status.get("since", time.time()))
-    st.status(f"thinking... {status.get('stage', agent.model_name)} · {elapsed}s", state="running", expanded=False)
+        render_message(idx, agent.messages_extended[idx])
+    st.status("thinking...", state="running", expanded=False)
 
 
 live_tail()
+
+if not running and agent.messages:
+    default_dir = str(RESULT_ROOT / agent.agent_name)
+    if st.session_state.get("save_dir_session") != agent.agent_name:
+        st.session_state.save_dir = default_dir
+        st.session_state.save_dir_session = agent.agent_name
+    path_col, btn_col = st.columns([5, 1])
+    with path_col:
+        st.text_input("Save path", key="save_dir", label_visibility="collapsed")
+    with btn_col:
+        if st.button("Save result", use_container_width=True):
+            try:
+                agent.save_history(Path(st.session_state.save_dir).expanduser())
+                saved = Path(st.session_state.save_dir).expanduser()
+                st.success(f"Saved to {saved}")
+            except Exception as e:
+                st.error(f"Save failed: {type(e).__name__}: {e}")
 
 if st.session_state.pending_attachment is not None:
     cap_col, remove_col = st.columns([5, 1])

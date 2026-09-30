@@ -5,7 +5,8 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tool.agent import EMPTY_REPLY, Agent  # noqa: E402
+from agent.base import Agent  # noqa: E402
+from tool.base import migrate_files  # noqa: E402
 
 DEFAULT_MODEL_NAME = "kimi-k3"
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompt"
@@ -13,10 +14,11 @@ SYSTEM_PROMPT = (PROMPT_DIR / "poster_visual_critic.md").read_text().strip()
 
 
 class poster_visual_critic_agent(Agent):
-    SCHEMA = {
-        "type": "function",
-        "function": {
-            "name": "poster_visual_critic_agent",
+    schema = {
+        "type": "agent",
+        "agent": {
+            "type": "agent",
+            "name": "<placeholder>",
             "description": (
                 "Visual reviewer for a poster or generated poster image. Returns natural-language feedback: an overall take "
                 "(ready to ship, ready with minor polish, or needs another pass), what is working, and for each issue "
@@ -40,34 +42,35 @@ class poster_visual_critic_agent(Agent):
         },
     }
 
-    def __init__(self, model_name: str = DEFAULT_MODEL_NAME):
+    def __init__(self, agent_name: str, model_name: str = DEFAULT_MODEL_NAME, **kwargs):
         super().__init__(
+            agent_name,
             model_name,
             SYSTEM_PROMPT,
-            tools=None,
             max_tokens=4096,
             temperature=0.0,
             num_max_retry=1,
             timeout=180,
+            **kwargs,
         )
+        self.files: list[str] = []
 
     def critique(self, prompt: str, image: Image.Image) -> str:
-        self.reset()
         self.add_user_message(prompt, images=[image])
-        idx = self.step()
-        content = self.messages[idx]["content"]
-        if content == EMPTY_REPLY:
-            raise RuntimeError(f"Critic returned no content (finish_reason={self.meta[idx].get('finish_reason')})")
+        self.step()
+        content = self.messages[-1]["content"]
+        if not content:
+            raise RuntimeError("Critic returned no content")
         return content.strip()
 
-    def run(self, args: dict) -> dict:
-        text = self.critique(args["prompt"], Image.open(args["image_path"]))
-        assistant = {"role": "assistant", "content": text}
-        if self.meta[-1].get("reasoning"):
-            assistant["thinking"] = self.meta[-1]["reasoning"]
-        chat = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": [{"type": "text", "text": args["prompt"]}, {"type": "image", "path": args["image_path"]}]},
-            assistant,
-        ]
-        return {"text": text, "images": [], "chat": chat}
+    def run(self, args: dict) -> str:
+        self.files.append(args["image_path"])
+        return self.critique(args["prompt"], Image.open(args["image_path"]))
+
+    def produced_files(self) -> list[str]:
+        return list(self.files)
+
+    def save_history(self, path: str | Path) -> None:
+        super().save_history(path)
+        moved = migrate_files(Path(path), self.files)
+        self.files[:] = [moved.get(x, x) for x in self.files]

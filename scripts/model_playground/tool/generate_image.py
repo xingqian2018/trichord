@@ -3,6 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tool.base import Tool, migrate_files  # noqa: E402
 from utils import SCRATCH_ROOT, GATEWAY_CONFIG, UnifiedGatewayImageGenerator, resolve_model_string, resolve_output_path  # noqa: E402
 
 DEFAULT_MODEL_NAME = "nano-banana-2.0"
@@ -25,8 +26,8 @@ ASPECT_RATIO_TO_PHRASE = {
 }
 
 
-class generate_image:
-    SCHEMA = {
+class generate_image(Tool):
+    schema = {
         "type": "function",
         "function": {
             "name": "generate_image",
@@ -44,6 +45,8 @@ class generate_image:
     }
 
     def __init__(self, model_name: str = DEFAULT_MODEL_NAME):
+        super().__init__()
+        self.images: list[str] = []
         self.model_name = model_name
         self.gateway = UnifiedGatewayImageGenerator(GATEWAY_CONFIG, num_concurrency=1, num_max_retry=2, timeout=300)
 
@@ -61,7 +64,19 @@ class generate_image:
         out.write_bytes(result["images"][0])
         return str(out)
 
-    def run(self, args: dict) -> dict:
+    def run(self, args: dict) -> str:
         out = resolve_output_path(args.get("output_path"), OUTPUT_DIR, ".png")
         path = self.generate(args["prompt"], args.get("aspect_ratio", "1:1"), str(out))
-        return {"text": f"[generate_image saved to {path}]", "images": [path]}
+        self.images.append(path)
+        return f"[generate_image saved to {path}]"
+
+    def produced_files(self) -> list[str]:
+        return list(self.images)
+
+    def save_history(self, path: str | Path) -> None:
+        target = Path(path)
+        target.mkdir(parents=True, exist_ok=True)
+        if self.result_text is not None:
+            (target / "result.txt").write_text(self.result_text)
+        moved = migrate_files(target, self.images)
+        self.images[:] = [moved.get(x, x) for x in self.images]

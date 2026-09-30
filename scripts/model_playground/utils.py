@@ -244,7 +244,7 @@ class UnifiedGatewayVLM:
                     if finish_reason is None:
                         logger.warning(f"VLM API for {actual_model}: stream ended without a finish_reason (possible dropped connection)")
                     tool_calls_str = json.dumps([tool_calls[i] for i in sorted(tool_calls)], ensure_ascii=False) if tool_calls else None
-                    return {"content": content, "reasoning": reasoning, "tool_calls": tool_calls_str, "finish_reason": finish_reason}
+                    return {"reasoning": reasoning, "content": content, "tool_calls": tool_calls_str, "finish_reason": finish_reason}
                 return await asyncio.wait_for(_stream(), timeout=self.timeout)
             except KeyboardInterrupt:
                 raise
@@ -255,7 +255,7 @@ class UnifiedGatewayVLM:
                 if attempt == 0 or attempt == self.num_max_retry - 1:
                     logger.warning(f"VLM API for {actual_model} error (attempt {attempt + 1}/{self.num_max_retry}): {type(e).__name__}: {e}")
         logger.warning("VLM query failed after max retries")
-        return {"content": None, "reasoning": None, "tool_calls": None, "finish_reason": None}
+        return {"reasoning": None, "content": None, "tool_calls": None, "finish_reason": None}
 
     def query(self, request_list: list[dict[str, Any]], pbar_desc: Optional[str] = None) -> list[dict[str, str]]:
         mininterval = 0.1 if len(request_list) < 500 else 30

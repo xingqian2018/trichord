@@ -44,7 +44,7 @@ Intentional spacing and alignment
 A limited, coordinated color palette
 Strong contrast and readable text
 Balanced use of imagery and negative space
-Unless the brief specifies otherwise, use a portrait canvas measuring 1080 × 1350 pixels.
+Size the canvas to the aspect ratio given in the brief.
 
 The poster MUST include at least one original, T2I-generated photograph or illustration as its dominant focal point. A composition built entirely from CSS gradients, shapes, and typography — with no generated image — does not satisfy this brief and must not be delivered. If the brief gives no obvious subject for a photo/illustration, choose one yourself that reinforces the topic (e.g. an evocative editorial photograph, a mood-setting illustration, a textured background scene) rather than skipping imagery.
 
@@ -73,7 +73,7 @@ generate_image(
 
 This example illustrates the call shape only. Write a new, fully specified prompt that matches the actual poster topic.
 
-The tool returns the absolute path of the saved image. Make one call per required visual and keep the visuals stylistically consistent across calls. Do not use the tool for gradients, solid colors, simple shapes, or text — build those in CSS. Do not substitute emoji, blank rectangles, or unrelated stock imagery for required visuals.
+The tool returns the absolute path of the saved image. A poster may use several generated images: make one call per visual, each with its own prompt, its own aspect_ratio matching that slot, and a distinct output_path, and keep the visuals stylistically consistent across calls. Do not use the tool for gradients, solid colors, simple shapes, or text — build those in CSS. Do not substitute emoji, blank rectangles, or unrelated stock imagery for required visuals.
 
 
 ## 5. Use the Returned Paths in the HTML

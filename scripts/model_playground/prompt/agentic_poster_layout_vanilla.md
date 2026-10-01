@@ -44,7 +44,7 @@ Intentional spacing and alignment
 A limited, coordinated color palette
 Strong contrast and readable text
 Balanced use of geometry and negative space
-Unless the brief specifies otherwise, use a portrait canvas measuring 1080 × 1350 pixels.
+Size the canvas to the aspect ratio given in the brief.
 
 Use only HTML and CSS to build every visual element: typography, layout, backgrounds, gradients, borders, shadows, and decorative geometry (shapes, patterns, dividers, icons built from CSS). Do not reference, embed, or request any raster photograph or illustration — the poster must be fully self-contained and renderable from HTML/CSS alone, with no external or generated image assets of any kind.
 

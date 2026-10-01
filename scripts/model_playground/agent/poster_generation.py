@@ -121,9 +121,9 @@ class poster_generation(Agent):
                         pass
 
     def save_history_core(self, path: str) -> None:
-        super().save_history_core(path)
         root = osp.join(path, self.agent_id.replace("(", "").replace(")", ""))
         self.save_derived(osp.join(root, "derived"))
+        super().save_history_core(path)
 
     def save_derived(self, derived: str) -> None:
         if self.cached_html is None:

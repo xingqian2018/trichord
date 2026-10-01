@@ -179,12 +179,14 @@ class Agent(Tool):
         return request
 
     def next_tool_call_system_id(self, tool_name: str) -> str:
+        call_id = f"{tool_name}_tool_call_{self.call_counter}"
         self.call_counter += 1
-        return f"{tool_name}_tool_call_{self.call_counter}"
+        return call_id
 
     def next_agent_call_system_id(self, agent_duty: str, agent_name: str) -> str:
+        call_id = f"{agent_duty}_agent_call_{self.call_counter}({agent_name})"
         self.call_counter += 1
-        return f"{agent_duty}_agent_call_{self.call_counter}({agent_name})"
+        return call_id
 
     def append(self, msg: dict[str, Any], msg_ext: dict[str, Any]) -> None:
         self.messages.append(msg)

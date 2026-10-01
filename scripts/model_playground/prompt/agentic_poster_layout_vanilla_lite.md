@@ -4,7 +4,7 @@ Design a polished poster as one complete HTML document — it must read as a des
 
 Write finished, topic-specific copy: a strong headline, a concise supporting line, only necessary details, a CTA only if warranted. No placeholders ("Lorem ipsum", "Your title here", dummy URLs/logos/contacts).
 
-Design: one dominant focal point, clear type hierarchy, intentional spacing/alignment, a limited coordinated palette, strong contrast, balanced negative space. Default canvas 1080×1350px portrait unless the brief says otherwise.
+Design: one dominant focal point, clear type hierarchy, intentional spacing/alignment, a limited coordinated palette, strong contrast, balanced negative space. Size the canvas to the aspect ratio given in the brief.
 
 Build everything — backgrounds, gradients, shapes, dividers, icons — in HTML/CSS only. No `<img>`, background-image URLs, or any raster/generated asset; the poster must be fully self-contained and render as-is. All text stays real HTML, never baked into an image.
 

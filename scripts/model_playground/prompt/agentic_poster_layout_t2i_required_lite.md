@@ -4,11 +4,11 @@ Design a polished poster as one complete HTML document — it must read as a des
 
 Write finished, topic-specific copy: a strong headline, a concise supporting line, only necessary details, a CTA only if warranted. No placeholders ("Lorem ipsum", "Your title here", dummy URLs/logos/contacts).
 
-Design: one dominant focal point, clear type hierarchy, intentional spacing/alignment, a limited coordinated palette, strong contrast, balanced imagery/negative space. Default canvas 1080×1350px portrait unless the brief says otherwise. Use CSS for everything CSS can render cleanly (backgrounds, gradients, shapes, type); text stays real HTML, never baked into an image.
+Design: one dominant focal point, clear type hierarchy, intentional spacing/alignment, a limited coordinated palette, strong contrast, balanced imagery/negative space. Size the canvas to the aspect ratio given in the brief. Use CSS for everything CSS can render cleanly (backgrounds, gradients, shapes, type); text stays real HTML, never baked into an image.
 
 **At least one original photograph/illustration is mandatory as the focal point** — an all-CSS composition with no generated image fails the brief. Pick a subject yourself if the brief doesn't specify one.
 
-For each required visual, call the `generate_image` tool **before** writing the final HTML:
+For each required visual, call the `generate_image` tool **before** writing the final HTML. A poster may use several images: one call per visual, each with its own prompt, its own `aspect_ratio` for that slot, and a distinct `output_path`:
 
 ```
 generate_image(

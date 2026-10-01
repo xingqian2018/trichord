@@ -63,26 +63,42 @@
 | hamid_snah qwen v2 r2048     | opus decomp + gpt-5.5 judge | 0.9845 / 300/300 / 21619/21619 |
 | hamid_snah qwen v3 r2048     | opus decomp + gemini judge  | 0.9772 / 300/300 / 22952/22992 |
 | hamid_snah qwen v3 r2048     | opus decomp + gpt-5.5 judge | 0.9866 / 300/300 / 22992/22992 |
+| hamid_snah qwen r2048        | opus decomp + gemini judge  | 0.9512 / 351/351 / 10270/10270 |
+| hamid_snah qwen r2048        | opus decomp + gpt-5.5 judge | 0.9704 / 300/300 / 10270/10270 |
+| hamid_snah qwen v4 r2048     | opus decomp + gemini judge  | 0.9607 / 313/313 / 15119/15187 |
+| hamid_snah qwen v4 r2048     | opus decomp + gpt-5.5 judge | 0.9722 / 300/300 / 15187/15187 |
 | hamid_snah nocot v2 r2048    | opus decomp + gemini judge  | 0.9732 / 300/300 / 21514/21577 |
 | hamid_snah nocot v2 r2048    | opus decomp + gpt-5.5 judge | 0.9842 / 300/300 / 21577/21577 |
 | hamid_snah nocot v3 r2048    | opus decomp + gemini judge  | 0.9760 / 300/300 / 22962/23018 |
 | hamid_snah nocot v3 r2048    | opus decomp + gpt-5.5 judge | 0.9846 / 300/300 / 23018/23018 |
+| hamid_snah nocot v4 r2048    | opus decomp + gemini judge  | 0.9659 / 300/300 / 15907/15907 |
+| hamid_snah nocot v4 r2048    | opus decomp + gpt-5.5 judge | 0.9777 / 300/300 / 15907/15907 |
+| hamid_snah qwen nocot r2048  | opus decomp + gemini judge  | 0.9500 / 305/305 / 10809/10811 |
+| hamid_snah qwen nocot r2048  | opus decomp + gpt-5.5 judge | 0.9680 / 300/300 / 10811/10811 |
 | MX Tier1s21p                 | opus decomp + s21p judge    | 0.9740 / 319/319 / 23453/25204 |
 
 
 
 
-| Setting             | Settings                    | Scores / Claim Cnt |
-|---------------------|-----------------------------|--------------------|
-| hamid_snah v2       | opus decomp + gemini judge  | 0.9750 / 21619     |
-| hamid_snah v3       | opus decomp + gemini judge  | 0.9772 / 22992     |
-| hamid_snah nocot v2 | opus decomp + gemini judge  | 0.9732 / 21577     |
-| hamid_snah nocot v3 | opus decomp + gemini judge  | 0.9760 / 23018     |
-|---------------------|-----------------------------|--------------------|
-| hamid_snah v2       | opus decomp + gpt-5.5 judge | 0.9845 / 21619     |
-| hamid_snah v3       | opus decomp + gpt-5.5 judge | 0.9866 / 22992     |
-| hamid_snah nocot v2 | opus decomp + gpt-5.5 judge | 0.9842 / 21577     |
-| hamid_snah nocot v3 | opus decomp + gpt-5.5 judge | 0.9846 / 23018     |
+| Setting                   | Settings                      | Scores / Claim Cnt   |
+|---------------------------|-------------------------------|----------------------|
+| hamid_snah qwen (original)| opus decomp + gemini judge    | 0.9512 / 10270       |
+| hamid_snah v2             | opus decomp + gemini judge    | 0.9750 / 21619       |
+| hamid_snah v3             | opus decomp + gemini judge    | 0.9772 / 22992       |
+| hamid_snah v4             | opus decomp + gemini judge    | 0.9607 / 15187       |
+| hamid_snah qwen nocot     | opus decomp + gemini judge    | 0.9500 / 10811       |
+| hamid_snah nocot v2       | opus decomp + gemini judge    | 0.9732 / 21577       |
+| hamid_snah nocot v3       | opus decomp + gemini judge    | 0.9760 / 23018       |
+| hamid_snah nocot v4       | opus decomp + gemini judge    | 0.9659 / 15907       |
+| ---------------------     | ----------------------------- | -------------------- |
+| hamid_snah qwen (original)| opus decomp + gemini judge    | 0.9704 / 10270       |
+| hamid_snah v2             | opus decomp + gpt-5.5 judge   | 0.9845 / 21619       |
+| hamid_snah v3             | opus decomp + gpt-5.5 judge   | 0.9866 / 22992       |
+| hamid_snah v4 (new)       | opus decomp + gpt-5.5 judge   | 0.9722 / 15187       |
+| hamid_snah qwen nocot     | opus decomp + gemini judge    | 0.9680 / 10811       |
+| hamid_snah nocot v2       | opus decomp + gpt-5.5 judge   | 0.9842 / 21577       |
+| hamid_snah nocot v3       | opus decomp + gpt-5.5 judge   | 0.9846 / 23018       |
+| hamid_snah nocot v4 (new) | opus decomp + gpt-5.5 judge   | 0.9777 / 15907       |
 
 
 

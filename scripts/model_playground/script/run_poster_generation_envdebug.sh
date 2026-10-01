@@ -1,7 +1,5 @@
 #!/bin/bash
-# Run this on the awscode or gcpcode head node. It submits itself with srun (2 tasks, one container
-# each, same image and mounts as slaunch) and runs the checks inside the containers.
-# CPU partition: cpu-big on awscode, cpu on gcpcode; override with PARTITION=<name>.
+# bash /home/xingqianx/Project/trichord/scripts/model_playground/script/run_poster_generation_envdebug.sh
 
 HOST=$(hostname)
 if [ -z "$SLURM_PROCID" ] && [[ "$HOST" == aws-* || "$HOST" == gcp-* ]]; then
@@ -21,6 +19,7 @@ if [ -z "$SLURM_PROCID" ] && [[ "$HOST" == aws-* || "$HOST" == gcp-* ]]; then
        bash "$HOME/Project/trichord/scripts/model_playground/script/run_poster_generation_envdebug.sh"
 fi
 
+cd "$(dirname "$(readlink -f "$0")")/.." || exit 1
 T="${SLURM_PROCID:-0}"
 say() { echo "[task $T] $*"; }
 PY=""

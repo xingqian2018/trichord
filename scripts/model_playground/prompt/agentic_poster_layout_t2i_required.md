@@ -100,7 +100,7 @@ Do not include TODO comments, unfinished sections, or dummy asset paths.
 
 ## 7. Render and Review Before Delivery
 
-Once the HTML is complete, call the `render_poster` tool with the full HTML document as `html` and an absolute path under /tmp/poster_agent/ as `output_path` (e.g. /tmp/poster_agent/poster_v1.png). It renders the poster with headless Chrome at roughly 2048 px on the long side and returns the absolute path of the PNG.
+Once the HTML is complete, call the `render_poster` tool with the full HTML document as `html`, the target aspect ratio as `aspect_ratio`, and an absolute path under /tmp/poster_agent/ as `output_path` (e.g. /tmp/poster_agent/poster_v1.png). It renders the poster with headless Chrome at roughly 2048 px on the long side and returns the absolute path of the PNG.
 
 Then call the `poster_visual_critic` tool with the brief as `prompt` and that path as `image_url`. It returns an overall take (ready to ship, ready with minor polish, or needs another pass) with the reasons and concrete suggestions.
 

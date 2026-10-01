@@ -20,15 +20,16 @@ import streamlit.components.v1 as components  # noqa: E402
 from taxonomy.helper import Taxonomy  # noqa: E402
 from agent.base import Agent  # noqa: E402
 from agent.poster_generation import poster_generation  # noqa: E402
-from utils import MODEL_CHOICE, image_conversion, resolve_model_string  # noqa: E402
-from tool.render_poster import RENDER_TARGET_AREA, infer_canvas_size, inject_reset_css, inline_local_images, render_html_to_png  # noqa: E402
+from utils import MODEL_CHOICE, REASONING_EFFORT_LEVELS, default_reasoning_effort, image_conversion, resolve_model_string  # noqa: E402
+from tool.generate_image import ASPECT_RATIO_TO_SIZE  # noqa: E402
+from tool.render_poster import infer_canvas_size, inject_reset_css, inline_local_images, render_html_to_png, target_size  # noqa: E402
 
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 DEFAULT_MODEL = "kimi-k3"
 PROMPT_DIR = Path(__file__).resolve().parent / "prompt"
 RENDERED_POSTER_DIR = Path("/tmp/model_playground/rendered_posters")
 EMPTY_REPLY = "*(empty response — check the terminal log for API errors)*"
-REASONING_EFFORTS = ["default", "low", "high", "max"]
+MODEL_DEFAULT_EFFORT = "model default"
 TAXONOMY_NONE = "(none)"
 RESULT_ROOT = Path.home() / "agentic_result"
 TOPIC_MESSAGE_TEMPLATE = "Please generate a poster with the following topic:\n{topic}"
@@ -49,9 +50,9 @@ def get_taxonomy() -> Taxonomy:
     return Taxonomy()
 
 
-def run_turn(agent: Agent, user_input: str | None, images: list | None):
+def run_turn(agent: Agent, user_input: str | None, images: list | None, aspect_ratio: str):
     image_urls = [image_conversion(data, dst_fmt="data_url") for data in images or []]
-    agent.run({"prompt": user_input, "image_urls": image_urls})
+    agent.run({"prompt": user_input, "aspect_ratio": aspect_ratio, "image_urls": image_urls})
 
 
 def extract_html_blocks(text: str) -> list[str]:
@@ -62,11 +63,6 @@ def extract_html_blocks(text: str) -> list[str]:
         if lang.lower() != "html" and HTML_DOC_RE.search(body):
             blocks.append(body.strip())
     return blocks
-
-
-def scaled_size(width: int, height: int, target_area: int) -> tuple[int, int]:
-    scale = (target_area / (width * height)) ** 0.5
-    return max(1, round(width * scale)), max(1, round(height * scale))
 
 
 def normalize_html(html_code: str) -> str:
@@ -83,7 +79,13 @@ with st.sidebar:
     send_temperature = st.checkbox("Send temperature", value=False)
     temperature = st.slider("Temperature", 0.0, 2.0, 1.0, 0.05, disabled=not send_temperature)
     max_tokens = st.number_input("Max tokens", min_value=256, max_value=131072, value=16384, step=1024)
-    reasoning_effort = st.selectbox("Reasoning effort (kimi)", REASONING_EFFORTS, index=0)
+    effort_choice = st.selectbox(
+        f"Reasoning effort (model default: {default_reasoning_effort(model_name) or 'none'})",
+        [MODEL_DEFAULT_EFFORT, *REASONING_EFFORT_LEVELS],
+        index=0,
+    )
+    reasoning_effort = None if effort_choice == MODEL_DEFAULT_EFFORT else effort_choice
+    aspect_ratio = st.selectbox("Poster aspect ratio", list(ASPECT_RATIO_TO_SIZE), index=0)
 
     prompt_presets = list_prompt_presets()
 
@@ -131,12 +133,12 @@ with st.sidebar:
 
 def new_agent() -> Agent:
     return poster_generation(
-        "PosterGenerationAgent_" + datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6],
+        datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8],
         model_name,
         system_prompt,
         max_tokens=int(max_tokens),
         temperature=temperature if send_temperature else None,
-        reasoning_effort=None if reasoning_effort == "default" else reasoning_effort,
+        reasoning_effort=reasoning_effort,
     )
 
 
@@ -146,7 +148,7 @@ def agent_matches_sidebar(candidate: Agent) -> bool:
         and candidate.system_prompt == system_prompt
         and candidate.max_tokens == int(max_tokens)
         and candidate.temperature == (temperature if send_temperature else None)
-        and candidate.reasoning_effort == (None if reasoning_effort == "default" else reasoning_effort)
+        and candidate.reasoning_effort == reasoning_effort
     )
 
 
@@ -162,7 +164,6 @@ if agent.messages and not agent_matches_sidebar(agent):
     st.sidebar.caption("Sidebar changes apply after Clear chat.")
 agent.max_tokens = int(max_tokens)
 agent.temperature = temperature if send_temperature else None
-agent.reasoning_effort = None if reasoning_effort == "default" else reasoning_effort
 
 with st.sidebar:
     st.markdown("**Tools** (configured by PosterGenerationAgent)")
@@ -191,7 +192,7 @@ def render_tool_calls(msg: dict):
 
 def render_tool_images(msg: dict):
     handler = agent.tool_instances.get(msg["tool_call_id"])
-    for path in getattr(handler, "images", None) or []:
+    for path in getattr(handler, "image_path_history", None) or []:
         st.image(path)
 
 
@@ -239,7 +240,7 @@ def render_html_preview_buttons(text: str, msg_idx: int, msg: dict):
                     html_code = rendered_html
 
         canvas_width, canvas_height = infer_canvas_size(html_code)
-        preview_width, preview_height = scaled_size(canvas_width, canvas_height, RENDER_TARGET_AREA)
+        preview_width, preview_height = target_size(canvas_width, canvas_height)
 
         preview_col, render_col = st.columns(2)
         with preview_col:
@@ -257,7 +258,7 @@ def render_html_preview_buttons(text: str, msg_idx: int, msg: dict):
             with st.spinner("Rendering..."):
                 try:
                     out = RENDERED_POSTER_DIR / f"ui_{agent.agent_name}_{msg_idx}_{block_idx}.png"
-                    st.session_state[png_key] = str(render_html_to_png(html_code, out, RENDER_TARGET_AREA))
+                    st.session_state[png_key] = str(render_html_to_png(html_code, out))
                 except Exception as e:
                     st.error(f"Render failed: {e}")
 
@@ -280,19 +281,22 @@ def render_html_preview_buttons(text: str, msg_idx: int, msg: dict):
 
 
 def render_message(idx: int, msg: dict):
+    content = msg.get("content")
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant":
             render_reasoning(msg)
-        render_content(msg["content"])
-        if msg["role"] == "assistant" and not msg["content"] and not msg.get("tool_calls"):
+        render_content(content)
+        if msg["role"] == "assistant" and not content and not msg.get("tool_calls"):
             st.markdown(EMPTY_REPLY)
         if msg["role"] == "assistant":
             if not msg.get("tool_calls"):
-                render_html_preview_buttons(msg["content"], idx, msg)
+                render_html_preview_buttons(content, idx, msg)
             render_tool_calls(msg)
         elif msg["role"] == "tool":
             render_tool_images(msg)
             st.caption(f"tool_call_id: {msg['tool_call_id']}")
+        elif msg["role"] == "agent":
+            st.caption(f"agent_call_id: {msg['agent_call_id']}")
 
 
 render_baseline = len(agent.messages)
@@ -307,7 +311,7 @@ def is_running() -> bool:
 def start_worker(user_input: str | None, images: list | None):
     worker = threading.Thread(
         target=run_turn,
-        args=(agent, user_input, images),
+        args=(agent, user_input, images, aspect_ratio),
         daemon=True,
     )
     st.session_state.worker = worker
@@ -333,19 +337,19 @@ def live_tail():
 live_tail()
 
 if not running and agent.messages:
-    default_dir = str(RESULT_ROOT / agent.agent_name)
-    if st.session_state.get("save_dir_session") != agent.agent_name:
-        st.session_state.save_dir = default_dir
-        st.session_state.save_dir_session = agent.agent_name
+    if "save_dir" not in st.session_state:
+        st.session_state.save_dir = str(RESULT_ROOT)
     path_col, btn_col = st.columns([5, 1])
     with path_col:
-        st.text_input("Save path", key="save_dir", label_visibility="collapsed")
+        st.text_input("Save root (a folder named by the agent id is created inside)", key="save_dir", label_visibility="collapsed")
     with btn_col:
         if st.button("Save result", use_container_width=True):
+            save_root = st.session_state.save_dir
+            if not save_root.startswith("s3://"):
+                save_root = str(Path(save_root).expanduser())
             try:
-                agent.save_history(Path(st.session_state.save_dir).expanduser())
-                saved = Path(st.session_state.save_dir).expanduser()
-                st.success(f"Saved to {saved}")
+                agent.save_history(save_root)
+                st.success(f"Saved to {save_root}/{agent.agent_id.replace('(', '').replace(')', '')}")
             except Exception as e:
                 st.error(f"Save failed: {type(e).__name__}: {e}")
 
@@ -388,9 +392,5 @@ if user_input is not None and not running:
         images.append(st.session_state.pending_attachment)
     st.session_state.pending_attachment = None
     start_worker(user_input, images)
-    st.rerun()
-
-if not running and agent.pending_tool_calls():
-    start_worker(None, None)
     st.rerun()
 

@@ -13,8 +13,10 @@
 
 import asyncio
 import base64
+import hashlib
 import io
 import json
+import random
 import threading
 from pathlib import Path
 from typing import Any, Optional
@@ -138,6 +140,39 @@ def video_bytes_to_data_url(video_bytes: bytes, video_fmt: str = "mp4") -> str:
     return f"data:{mime_type};base64,{base64.b64encode(video_bytes).decode('utf-8')}"
 
 
+def hash_bytes(data: bytes) -> str:
+    return hashlib.sha1(data).hexdigest()
+
+
+S3_CREDENTIAL_FILE = Path(__file__).resolve().parents[2] / "credentials" / "gcs.secret"
+
+
+def put(data: bytes, path: str | Path) -> str:
+    url = str(path)
+    scheme = urlparse(url).scheme
+    if scheme in ("", "file"):
+        target = Path(url[len("file://"):] if scheme == "file" else url)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        return url
+    assert scheme == "s3", f"unsupported destination {url!r}; use a local path or s3://bucket/key"
+    import boto3
+    from botocore.config import Config
+
+    cred = json.loads(S3_CREDENTIAL_FILE.read_text())
+    client = boto3.client(
+        "s3",
+        endpoint_url=cred["endpoint_url"],
+        region_name=cred["region_name"],
+        aws_access_key_id=cred["aws_access_key_id"],
+        aws_secret_access_key=cred["aws_secret_access_key"],
+        config=Config(s3={"addressing_style": "path"}, request_checksum_calculation="when_required"),
+    )
+    parsed = urlparse(url)
+    client.put_object(Bucket=parsed.netloc, Key=parsed.path.lstrip("/"), Body=data)
+    return url
+
+
 def sniff_image_fmt(data: bytes) -> str:
     if data[:8] == b"\x89PNG\r\n\x1a\n":
         return "png"
@@ -192,6 +227,29 @@ def image_conversion(value: Any, src_fmt: str = "", dst_fmt: str = "bytes") -> A
         mime_type = f"image/{sniff_image_fmt(data)}"
         return f"data:{mime_type};base64,{base64.b64encode(data).decode('utf-8')}"
     raise ValueError(f"unknown image dst_fmt {dst_fmt!r}")
+
+
+REASONING_EFFORT_LEVELS = ["low", "medium", "high", "max"]
+REASONING_EFFORT_DEFAULTS = {"kimi": "max", "gpt": "high"}
+
+
+REASONING_EFFORT_SUPPORTED = {"kimi": ["low", "high", "max"], "gpt": ["low", "medium", "high"]}
+
+
+def default_reasoning_effort(model_name: str) -> Optional[str]:
+    model_string = resolve_model_string(model_name).lower()
+    for family, effort in REASONING_EFFORT_DEFAULTS.items():
+        if family in model_string:
+            return effort
+    return None
+
+
+def random_reasoning_effort(model_name: str, rng: Optional[random.Random] = None) -> Optional[str]:
+    model_string = resolve_model_string(model_name).lower()
+    for family, levels in REASONING_EFFORT_SUPPORTED.items():
+        if family in model_string:
+            return (rng or random).choice(levels)
+    return None
 
 
 def resolve_model_string(model_name: str) -> str:
@@ -407,8 +465,10 @@ class UnifiedGatewayImageGenerator(UnifiedGateway):
         images = [base64.b64decode(item.b64_json) for item in response.data if item.b64_json]
         return {"images": images} if images else None
 
-    def build_request(self, model_name: str, prompt: str, size: Optional[str] = None, n: int = 1) -> dict[str, Any]:
+    def build_request(self, model_name: str, prompt: str, size: Optional[str] = None, n: int = 1, output_format: Optional[str] = None) -> dict[str, Any]:
         request = {"model": resolve_model_string(model_name), "prompt": prompt, "n": n}
         if size:
             request["size"] = size
+        if output_format:
+            request["output_format"] = output_format
         return request

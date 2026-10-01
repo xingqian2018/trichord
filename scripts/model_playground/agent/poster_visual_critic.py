@@ -4,7 +4,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from agent.base import Agent  # noqa: E402
-from tool.base import migrate_files  # noqa: E402
 
 DEFAULT_MODEL_NAME = "kimi-k3"
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompt"
@@ -51,7 +50,6 @@ class poster_visual_critic_agent(Agent):
             timeout=180,
             **kwargs,
         )
-        self.files: list[str] = []
 
     def critique(self, prompt: str, image_url: str) -> str:
         self.add_user_message(prompt, image_urls=[image_url])
@@ -61,14 +59,6 @@ class poster_visual_critic_agent(Agent):
             raise RuntimeError(f"Critic returned no usable content (finish_reason={finish_reason!r})")
         return content.strip()
 
-    def run(self, args: dict) -> str:
-        self.files.append(args["image_url"])
+    def run_core(self, args: dict) -> str:
         return self.critique(args["prompt"], args["image_url"])
 
-    def produced_files(self) -> list[str]:
-        return list(self.files)
-
-    def save_history(self, path: str | Path) -> None:
-        super().save_history(path)
-        moved = migrate_files(Path(path), self.files)
-        self.files[:] = [moved.get(x, x) for x in self.files]

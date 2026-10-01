@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import base64
 import copy
-import hashlib
 import io
 import json
+import os.path as osp
 import random
 import sys
 import threading
@@ -16,8 +16,8 @@ from typing import Any, Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tool.base import Tool  # noqa: E402
-from utils import GATEWAY_CONFIG, UnifiedGatewayVLM, image_conversion, resolve_model_string  # noqa: E402
+from tool.base import Tool, ToolCallError  # noqa: E402
+from utils import GATEWAY_CONFIG, UnifiedGatewayVLM, default_reasoning_effort, hash_bytes, image_conversion, put, resolve_model_string  # noqa: E402
 
 FIRST_NAMES = ["Ada", "Iris", "Leo", "Mira", "Noah", "Uma", "Theo", "Zara", "Kai", "Nina", "Ravi", "Sage", "Elio", "Vera", "Omar", "Lina", "Xingqian"]
 LAST_NAMES = ["Chen", "Okafor", "Silva", "Novak", "Haddad", "Ivers", "Moreau", "Tanaka", "Quinn", "Bauer", "Rossi", "Mehta", "Larsen", "Diaz", "Kowal", "Nakamura", "Xu"]
@@ -39,7 +39,7 @@ def convert_agent_schema_to_tool_schema(agents: list[dict[str, Any]]) -> list[di
     return converted
 
 
-def externalize_media(messages: list[dict[str, Any]], media_dir: Path) -> list[dict[str, Any]]:
+def externalize_media(messages: list[dict[str, Any]], root: str, saved: set[str]) -> list[dict[str, Any]]:
     messages = copy.deepcopy(messages)
     for msg in messages:
         if not isinstance(msg.get("content"), list):
@@ -51,16 +51,15 @@ def externalize_media(messages: list[dict[str, Any]], media_dir: Path) -> list[d
             header, payload = url.split(",", 1)
             fmt = header[len("data:"):].split(";")[0].split("/")[-1]
             data = base64.b64decode(payload)
-            filename = f"{hashlib.sha1(data).hexdigest()}.{fmt}"
-            media_dir.mkdir(parents=True, exist_ok=True)
-            target = media_dir / filename
-            if not target.exists():
-                target.write_bytes(data)
-            block["image_url"]["url"] = f"{media_dir.name}/{filename}"
+            filename = f"{hash_bytes(data)}.{fmt}"
+            if filename not in saved:
+                put(data, osp.join(root, "media", filename))
+                saved.add(filename)
+            block["image_url"]["url"] = f"media/{filename}"
     return messages
 
 
-class UnknownToolError(ValueError):
+class UnknownToolError(ToolCallError):
     def __init__(self, message: str, message_extended: str):
         super().__init__(message)
         self.message = message
@@ -146,7 +145,7 @@ class Agent(Tool):
             instance_schema = copy.deepcopy(instance.schema)
             instance_schema["agent"].update({"name": sub_name, "duty": duty})
             self.agents.append(instance_schema)
-            self.agent_instances[f"{duty}_agent_{sub_name}"] = instance
+            self.agent_instances[get_agent_id(duty, sub_name)] = instance
 
         names = [t["function"]["name"] for t in self.tools] + [a["agent"]["duty"] for a in self.agents]
         assert len(set(names)) == len(names), f"duplicate tool/agent declarations: {names}"
@@ -155,7 +154,7 @@ class Agent(Tool):
         self.model_name = model_name
         self.system_prompt = system_prompt
         self.temperature = temperature
-        self.reasoning_effort = reasoning_effort
+        self.reasoning_effort = reasoning_effort if reasoning_effort is not None else default_reasoning_effort(model_name)
         self.max_tokens = max_tokens
         self.gateway = UnifiedGatewayVLM(gateway_configs, num_concurrency=1, num_max_retry=num_max_retry, timeout=timeout)
 
@@ -173,7 +172,7 @@ class Agent(Tool):
         }
         if self.temperature is not None:
             request["temperature"] = self.temperature
-        if self.reasoning_effort:
+        if self.reasoning_effort is not None:
             request["reasoning_effort"] = self.reasoning_effort
         if self.tools or self.agents:
             request["tools"] = [*self.tools, *convert_agent_schema_to_tool_schema(self.agents)]
@@ -202,7 +201,7 @@ class Agent(Tool):
         self.append(msg, copy.deepcopy(msg))
 
     def sloppy_find_agent_name(self, role: str) -> Optional[str]:
-        exact = [a["agent"]["name"] for a in self.agents if a["agent"]["role"] == role]
+        exact = [a["agent"]["name"] for a in self.agents if a["agent"]["duty"] == role]
         if len(exact) >= 1:
             return exact[0]
         return None
@@ -215,18 +214,18 @@ class Agent(Tool):
             if agent_name is not None:
                 function = copy.deepcopy(call["function"])
                 agent_duty = function.pop("name")
-                agent_call_id = self.next_agent_call_system_id()
+                agent_call_id = self.next_agent_call_system_id(agent_duty, agent_name)
                 agent = {
-                    "name": agent_name, 
+                    "name": agent_name,
                     "duty": agent_duty,
                     **function
                 }
-                agent_call = {"id":agent_call_id, "type": "agent", "agent": agent}
+                agent_call = {"id": agent_call_id, "type": "agent", "agent": agent}
                 ext_tool_calls.append(agent_call)
             else:
                 call = copy.deepcopy(call)
-                tool_call_id = self.next_tool_call_system_id()
-                call["id"] = tool_call_id
+                call["id"] = self.next_tool_call_system_id(function_name)
+                ext_tool_calls.append(call)
         return ext_tool_calls
 
     def step(self) -> str:
@@ -258,7 +257,7 @@ class Agent(Tool):
         agent_dutys = list(set(a["agent"]["duty"] for a in self.agents))
         if call["type"] == "function":
             tool_name = call["function"]["name"]
-            if tool_name not in self.tool_registry:
+            if tool_name in self.tool_registry:
                 self.tool_instances[call["id"]] = self.tool_registry[tool_name]()
                 return self.tool_instances[call["id"]]
             else:
@@ -271,7 +270,7 @@ class Agent(Tool):
             if agent_id not in self.agent_instances:
                 raise UnknownToolError(
                     f"Unknown tool. Available tools: {[*self.tool_registry, *agent_dutys]}",
-                    f"Unknown agent. Available agents: {[{"duty" : agent["duty"], "name" : agent["name"]} for agent in self.agents]}",
+                    f"Unknown agent. Available agents: {[{'duty': a['agent']['duty'], 'name': a['agent']['name']} for a in self.agents]}",
                 )
             else:
                 return self.agent_instances[agent_id]
@@ -284,18 +283,16 @@ class Agent(Tool):
     def execute_one_tool_or_agent_call(self, call_id: str, call_ext: dict[str, Any]) -> Callable[[str], None]:
         try:
             instance = self.get_tool_or_agent_instance(call_ext)
-            if call_ext.get("type") == "agent":
+            raw_arguments = call_ext["agent"]["arguments"] if call_ext["type"] == "agent" else call_ext["function"]["arguments"]
+            args = json.loads(raw_arguments) if raw_arguments else {}
+            if call_ext["type"] == "agent":
                 with instance.lock:
-                    args = json.loads(call_ext["agent"]["arguments"]) if call_ext["agent"]["arguments"] else {}
                     text = instance.run(args)
             else:
-                args = json.loads(call_ext["function"]["arguments"]) if call_ext["function"]["arguments"] else {}
                 text = instance.run(args)
             text_ext = text
         except UnknownToolError as e:
             text, text_ext = e.message, e.message_extended
-        except Exception as e:
-            text = text_ext = f"Error: {e}"
 
         msg = {"role": "tool", "tool_call_id": call_id, "content": text}
         if call_ext["type"] == "agent":
@@ -312,18 +309,17 @@ class Agent(Tool):
         if not call_ids:
             return
         with ThreadPoolExecutor(max_workers=min(len(call_exts), self.max_worker_thread_for_agent_and_tool)) as pool:
-            appends_callers = list(pool.map(self.execute_one_tool_or_agent_call, list(zip(call_ids, call_exts))))
+            appends_callers = list(pool.map(self.execute_one_tool_or_agent_call, call_ids, call_exts))
         for append_caller in appends_callers:
             append_caller()
 
-    def run(self, args: dict[str, Any]) -> str:
+    def run_core(self, args: dict[str, Any]) -> str:
         if args.get("prompt") is not None:
             self.add_user_message(args["prompt"], image_urls=args.get("image_urls") or None)
         while True:
             finish_reason = self.step()
             if finish_reason == "stop":
-                self.result_text = self.messages[-1]["content"]
-                return self.result_text
+                return self.messages[-1]["content"]
             if finish_reason == "tool_calls":
                 self.execute_tool_or_agent_calls()
             else:
@@ -334,39 +330,47 @@ class Agent(Tool):
         if self.tools or self.agents:
             schemas = [*self.tools, *self.agents] if isext else [*self.tools, *convert_agent_schema_to_tool_schema(self.agents)]
             chat_message_header.append({"role": "system", "type": "tool-declare", "content": json.dumps(schemas, ensure_ascii=False)})
-        if self.reasoning_effort:
+        if self.reasoning_effort is not None:
             chat_message_header.append({"role": "system", "type": "reasoning-effort", "content": self.reasoning_effort})
         chat_message_header.append({"role": "system", "content": self.system_prompt})
         return chat_message_header
 
-    def save_history(self, path: str | Path) -> None:
-        agent_id_no_bracket = self.agent_id.replace("(", "").replace(")", "")
-        root = Path(path) / agent_id_no_bracket
-        root.mkdir(parents=True, exist_ok=True)
-        media_dir = root / "media"
-        chat = {
+    def save_history_core(self, path: str) -> None:
+        root = osp.join(path, self.agent_id.replace("(", "").replace(")", ""))
+        setting = {
             "agent_id": self.agent_id,
             "agent_name": self.agent_name,
-            "messages": [*self.save_chat_header(isext=False), *externalize_media(self.messages, media_dir)],
-            "messages_extended": [*self.save_chat_header(isext=True), *externalize_media(self.messages_extended, media_dir)],
+            "agent_duty": self.schema["agent"]["duty"],
+            "model_name": self.model_name,
+            "model_string": resolve_model_string(self.model_name),
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "reasoning_effort": self.reasoning_effort,
+            "tools": list(self.tool_registry),
+            "agents": [a["agent"]["duty"] for a in self.agents],
         }
-        (root / "chat.json").write_text(json.dumps(chat, ensure_ascii=False, indent=4))
+        put(json.dumps(setting, ensure_ascii=False, indent=4).encode("utf-8"), osp.join(root, "setting.json"))
 
-        saved: set[str] = set()
+        saved_media: set[str] = set()
+        chat = {
+            "messages": [*self.save_chat_header(isext=False), *externalize_media(self.messages, root, saved_media)],
+            "messages_extended": [*self.save_chat_header(isext=True), *externalize_media(self.messages_extended, root, saved_media)],
+        }
+        put(json.dumps(chat, ensure_ascii=False, indent=4).encode("utf-8"), osp.join(root, "chat.json"))
+
         for msg in self.messages_extended:
             if msg["role"] != "tool":
                 continue
-            system_id = msg["tool_call_id"]
-            folder = self.call_folder(system_id)
-            if folder in saved:
-                continue
-            saved.add(folder)
-            out_dir = root / folder
-            if system_id in self.tool_instances:
-                self.tool_instances[system_id].save_history(out_dir)
+            tool_call_id = msg["tool_call_id"]
+            out_dir = osp.join(root, "tool", tool_call_id)
+            if tool_call_id in self.tool_instances:
+                self.tool_instances[tool_call_id].save_history(out_dir)
             else:
-                out_dir.mkdir(parents=True, exist_ok=True)
-                (out_dir / "result.txt").write_text(msg["content"])
+                put(msg["content"].encode("utf-8"), osp.join(out_dir, "result.txt"))
+
+        for instance in self.agent_instances.values():
+            if instance.messages:
+                instance.save_history(osp.join(root, "agent"))
 
         if self.result_text is not None:
-            (root / "result.txt").write_text(self.result_text)
+            put(self.result_text.encode("utf-8"), osp.join(root, "result.txt"))

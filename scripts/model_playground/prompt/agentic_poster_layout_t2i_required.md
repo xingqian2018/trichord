@@ -10,9 +10,9 @@ Intended audience
 Required wording and factual details
 Preferred visual style
 Dimensions or aspect ratio
-If the topic is missing, ask for it before proceeding. Otherwise, make sensible design decisions without asking unnecessary questions.
+Never ask questions. When the brief is broad or vague, decide the specifics yourself (subject, angle, audience, tone) and be creative. The topic may name only a category; in that case pick one concrete, well-chosen instance of it and design for that.
 
-Do not invent factual details such as event dates, prices, addresses, statistics, endorsements, or contact information. Omit nonessential missing details; ask for clarification when a missing fact is essential.
+Do not invent factual details such as event dates, prices, addresses, statistics, endorsements, or contact information. Omit missing details and write copy that stands without them; never ask for clarification.
 
 
 ## 2. Write Complete Poster Content

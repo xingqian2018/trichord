@@ -9,6 +9,9 @@ DEFAULT_TAXONOMY_PATH = TAXONOMY_DIR / "poster_topics.yaml"
 DEFAULT_SEP = "|"
 
 
+TOPIC_MESSAGE_TEMPLATE = "Please generate a poster with the following topic:\n{topic}"
+
+
 class Taxonomy:
     def __init__(self, path: Path = DEFAULT_TAXONOMY_PATH, sep: str = DEFAULT_SEP):
         self.path = Path(path)

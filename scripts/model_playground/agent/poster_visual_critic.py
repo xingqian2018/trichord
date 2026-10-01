@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from agent.base import Agent  # noqa: E402
 
-DEFAULT_MODEL_NAME = "kimi-k3"
+DEFAULT_MODEL_NAME = "kimi-k3@nvidiak"
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompt"
 SYSTEM_PROMPT = (PROMPT_DIR / "poster_visual_critic.md").read_text().strip()
 

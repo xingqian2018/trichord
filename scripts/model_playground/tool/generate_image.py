@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from tool.base import Tool, ToolCallError, migrate_files  # noqa: E402
 from utils import GATEWAY_CONFIG, UnifiedGatewayImageGenerator, image_conversion, put, resolve_model_string, sniff_image_fmt  # noqa: E402
 
-DEFAULT_MODEL_NAME = "nano-banana-2.0"
+DEFAULT_MODEL_NAME = "nano-banana-2.0@nvidiak"
 
 ASPECT_RATIO_TO_SIZE = {
     "1:1": "1024x1024",

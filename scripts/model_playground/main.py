@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import streamlit as st  # noqa: E402
 import streamlit.components.v1 as components  # noqa: E402
 
-from taxonomy.helper import Taxonomy  # noqa: E402
+from taxonomy.helper import TOPIC_MESSAGE_TEMPLATE, Taxonomy  # noqa: E402
 from agent.base import Agent  # noqa: E402
 from agent.poster_generation import poster_generation  # noqa: E402
 from utils import MODEL_CHOICE, REASONING_EFFORT_LEVELS, default_reasoning_effort, image_conversion, resolve_model_string  # noqa: E402
@@ -32,7 +32,6 @@ EMPTY_REPLY = "*(empty response — check the terminal log for API errors)*"
 MODEL_DEFAULT_EFFORT = "model default"
 TAXONOMY_NONE = "(none)"
 RESULT_ROOT = Path.home() / "agentic_result"
-TOPIC_MESSAGE_TEMPLATE = "Please generate a poster with the following topic:\n{topic}"
 
 HTML_BLOCK_RE = re.compile(r"```\s*html\s*\n?(.*?)```", re.DOTALL | re.IGNORECASE)
 GENERIC_FENCE_RE = re.compile(r"```(\w*)\s*\n?(.*?)```", re.DOTALL)

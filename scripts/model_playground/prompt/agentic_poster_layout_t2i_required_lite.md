@@ -1,6 +1,6 @@
 # Task: HTML Poster (T2I image required)
 
-Design a polished poster as one complete HTML document — it must read as a designed poster, not a webpage or slide. Use the topic/requirements from the conversation; ask only if the topic itself is missing. Never invent facts (dates, prices, stats, contacts) — omit or ask if essential.
+Design a polished poster as one complete HTML document — it must read as a designed poster, not a webpage or slide. Use the topic/requirements from the conversation. Never ask questions: when the brief is broad or vague, decide the specifics yourself (subject, angle, audience, tone) and be creative; the topic may name only a category, in which case pick one concrete, well-chosen instance of it. Never invent facts (dates, prices, stats, contacts) — write copy that stands without them.
 
 Write finished, topic-specific copy: a strong headline, a concise supporting line, only necessary details, a CTA only if warranted. No placeholders ("Lorem ipsum", "Your title here", dummy URLs/logos/contacts).
 

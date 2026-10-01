@@ -20,7 +20,7 @@ from utils import image_conversion, put  # noqa: E402
 CSS_DIM_RE = re.compile(r"(width|height):\s*(\d+)px", re.IGNORECASE)
 LOCAL_IMG_SRC_RE = re.compile(r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE)
 FALLBACK_CANVAS_SIZE = (1080, 1350)
-CHROME_CANDIDATES = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]
+CHROME_CANDIDATES = [str(Path.home() / "Software" / "chrome" / "google-chrome"), "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]
 
 
 def infer_canvas_size(html_code: str) -> tuple[int, int]:
@@ -66,7 +66,7 @@ def inline_local_images(html_code: str) -> str:
 
 def find_chrome_binary() -> str | None:
     for name in CHROME_CANDIDATES:
-        path = shutil.which(name)
+        path = name if Path(name).is_file() else shutil.which(name)
         if path:
             return path
     return None

@@ -1,17 +1,19 @@
 #!/bin/bash
 # Run this on the awscode or gcpcode head node. It submits itself with srun (2 tasks, one container
 # each, same image and mounts as slaunch) and runs the checks inside the containers.
-# Override the CPU partition with PARTITION=<name> (default: cpu).
+# CPU partition: cpu-big on awscode, cpu on gcpcode; override with PARTITION=<name>.
 
 HOST=$(hostname)
 if [ -z "$SLURM_PROCID" ] && [[ "$HOST" == aws-* || "$HOST" == gcp-* ]]; then
   if [[ "$HOST" == aws-* ]]; then
     DOCKER_PATH=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/containers/imaginaire4_v11.2.3.sqsh
+    PARTITION="${PARTITION:-cpu-big}"
   else
     DOCKER_PATH=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/containers/imaginaire4_v12.0.0.sqsh
+    PARTITION="${PARTITION:-cpu}"
   fi
   lustrepath=/lustre/fsw/portfolios/cosmos
-  exec srun --account=cosmos_base_training --partition="${PARTITION:-cpu}" --nodes=1 --ntasks=2 --cpus-per-task=2 --time=00:10:00 \
+  exec srun --account=cosmos_base_training --partition="$PARTITION" --nodes=1 --ntasks=2 --cpus-per-task=2 --time=00:10:00 \
        --container-image="$DOCKER_PATH" \
        --container-mounts "$lustrepath:$lustrepath:rw,$HOME:$HOME:rw" \
        --container-workdir="$HOME/Project/trichord/scripts/model_playground" \

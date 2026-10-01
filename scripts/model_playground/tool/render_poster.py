@@ -1,4 +1,5 @@
 import json
+import os
 import os.path as osp
 import re
 import shutil
@@ -20,7 +21,28 @@ from utils import image_conversion, put  # noqa: E402
 CSS_DIM_RE = re.compile(r"(width|height):\s*(\d+)px", re.IGNORECASE)
 LOCAL_IMG_SRC_RE = re.compile(r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE)
 FALLBACK_CANVAS_SIZE = (1080, 1350)
-CHROME_CANDIDATES = [str(Path.home() / "Software" / "chrome" / "google-chrome"), "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]
+
+
+PLAYWRIGHT_BROWSERS_ROOT = Path.home() / "Software" / "playwright-browsers"
+PLAYWRIGHT_CHROME_PATTERNS = [
+    "chromium_headless_shell-*/chrome-headless-shell-linux*/chrome-headless-shell",
+    "chromium_headless_shell-*/chrome-linux*/headless_shell",
+    "chromium-*/chrome-linux*/chrome",
+]
+
+
+def get_playwright_chrome_candidates() -> list[str]:
+    return [str(p) for pattern in PLAYWRIGHT_CHROME_PATTERNS for p in sorted(PLAYWRIGHT_BROWSERS_ROOT.glob(pattern), reverse=True)]
+
+
+CHROME_CANDIDATES = [
+    *get_playwright_chrome_candidates(),
+    str(Path.home() / "Software" / "chrome" / "google-chrome"),
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+]
 
 
 def infer_canvas_size(html_code: str) -> tuple[int, int]:
@@ -114,7 +136,10 @@ def render_html_to_png(html_code: str, png_path: Path) -> Path:
             f"--screenshot={png_path}",
             f"file://{html_path}",
         ]
-        result = subprocess.run(cmd, capture_output=True, timeout=120)
+        home = Path(tmpdir) / "home"
+        home.mkdir()
+        env = {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config"), "XDG_CACHE_HOME": str(home / ".cache")}
+        result = subprocess.run(cmd, capture_output=True, timeout=120, env=env)
         if result.returncode != 0 or not png_path.exists():
             raise RuntimeError(f"Chrome render failed: {result.stderr.decode(errors='replace')}")
     with Image.open(png_path) as image:

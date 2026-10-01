@@ -9,9 +9,10 @@ if [ -z "$SLURM_PROCID" ] && [[ "$HOST" == aws-* || "$HOST" == gcp-* ]]; then
   else
     DOCKER_PATH=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/containers/imaginaire4_v12.0.0.sqsh
     PARTITION="${PARTITION:-cpu}"
+    WCKEY="${WCKEY:-p0}"
   fi
   lustrepath=/lustre/fsw/portfolios/cosmos
-  exec srun --account=cosmos_base_training --partition="$PARTITION" --nodes=1 --ntasks=2 --cpus-per-task=2 --time=00:10:00 \
+  exec srun --account=cosmos_base_training --partition="$PARTITION" ${WCKEY:+--wckey=$WCKEY} --nodes=1 --ntasks=2 --cpus-per-task=2 --time=00:10:00 \
        --container-image="$DOCKER_PATH" \
        --container-mounts "$lustrepath:$lustrepath:rw,$HOME:$HOME:rw" \
        --container-workdir="$HOME/Project/trichord/scripts/model_playground" \

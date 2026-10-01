@@ -41,27 +41,28 @@ for m in ["openai", "PIL", "fsspec", "boto3", "yaml", "loguru", "tqdm"]:
         print(f"{m:8s} MISSING ({type(e).__name__})")
 PYEOF
 
-say "--- chrome"
-CHROME=""
-for c in "$HOME/Software/chrome/google-chrome" google-chrome google-chrome-stable chromium chromium-browser; do
-  if [ -x "$c" ] || command -v "$c" >/dev/null 2>&1; then CHROME="$c"; break; fi
-done
-if [ -z "$CHROME" ]; then
-  say "chrome: NOT FOUND"
-else
-  say "chrome: $CHROME ($($CHROME --version 2>/dev/null | tr -d '\n'))"
-  MISSING=$(ldd "$(dirname "$(readlink -f "$CHROME")")/chrome" 2>/dev/null | grep -c "not found")
-  say "chrome missing shared libs: $MISSING"
-  WORK=$(mktemp -d /tmp/env_debug_XXXX)
-  echo "<body style='background:tomato;width:400px;height:300px'><h1>ok</h1></body>" > "$WORK/t.html"
-  mkdir -p "$WORK/home"
-  HOME="$WORK/home" XDG_CONFIG_HOME="$WORK/home/.config" XDG_CACHE_HOME="$WORK/home/.cache" \
-  "$CHROME" --headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage --disable-crash-reporter \
-            --user-data-dir="$WORK/profile" --window-size=400,300 --screenshot="$WORK/t.png" "file://$WORK/t.html" >"$WORK/chrome.log" 2>&1
-  RC=$?
-  if [ -s "$WORK/t.png" ]; then say "chrome headless render: OK ($(stat -c %s "$WORK/t.png") bytes)"; else say "chrome headless render: NOT OK (exit $RC)"; grep -v "dbus" "$WORK/chrome.log" | tail -12 | sed "s/^/[task $T]   /"; fi
-  rm -rf "$WORK"
-fi
+say "--- chrome (render_poster tool)"
+WORK=$(mktemp -d /tmp/env_debug_XXXX)
+$PY - "$WORK/t.png" <<'PYEOF' 2>&1 | tail -12 | sed "s/^/[task ${SLURM_PROCID:-0}]   /"
+import subprocess
+import sys
+from PIL import Image
+from tool.render_poster import CHROME_CANDIDATES, find_chrome_binary, render_html_to_png
+chrome = find_chrome_binary()
+if chrome is None:
+    print(f"chrome: NOT FOUND (tried {CHROME_CANDIDATES})")
+    sys.exit(0)
+print(f"chrome: {chrome}")
+missing = [line.split()[0] for line in subprocess.run(["ldd", chrome], capture_output=True, text=True).stdout.splitlines() if "not found" in line]
+print(f"chrome system libs: {'OK' if not missing else 'NOT OK, missing ' + ' '.join(missing)} (before bundled lib folder)")
+html = "<html><head><style>.poster{width:1080px;height:1440px;background:linear-gradient(teal,navy);color:white;font:bold 80px sans-serif}</style></head><body><div class='poster'>env debug</div></body></html>"
+try:
+    out = render_html_to_png(html, sys.argv[1])
+    print(f"chrome render: OK {Image.open(out).size}")
+except Exception as e:
+    print(f"chrome render: NOT OK ({type(e).__name__}: {str(e)[-600:]})")
+PYEOF
+rm -rf "$WORK"
 
 say "--- /tmp isolation across tasks"
 touch "/tmp/env_debug_probe_$T"

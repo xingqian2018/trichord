@@ -1,3 +1,8 @@
+'''
+# Setup the env
+pip install playwright && PLAYWRIGHT_BROWSERS_PATH=$HOME/Software/playwright-browsers python -m playwright install --with-deps chromium-headless-shell
+'''
+
 import json
 import os
 import os.path as osp
@@ -24,6 +29,7 @@ FALLBACK_CANVAS_SIZE = (1080, 1350)
 
 
 PLAYWRIGHT_BROWSERS_ROOT = Path.home() / "Software" / "playwright-browsers"
+PLAYWRIGHT_BUNDLED_LIB_DIR = PLAYWRIGHT_BROWSERS_ROOT / "lib"
 PLAYWRIGHT_CHROME_PATTERNS = [
     "chromium_headless_shell-*/chrome-headless-shell-linux*/chrome-headless-shell",
     "chromium_headless_shell-*/chrome-linux*/headless_shell",
@@ -139,6 +145,8 @@ def render_html_to_png(html_code: str, png_path: Path) -> Path:
         home = Path(tmpdir) / "home"
         home.mkdir()
         env = {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(home / ".config"), "XDG_CACHE_HOME": str(home / ".cache")}
+        if PLAYWRIGHT_BUNDLED_LIB_DIR.is_dir():
+            env["LD_LIBRARY_PATH"] = os.pathsep.join(filter(None, [str(PLAYWRIGHT_BUNDLED_LIB_DIR), os.environ.get("LD_LIBRARY_PATH")]))
         result = subprocess.run(cmd, capture_output=True, timeout=120, env=env)
         if result.returncode != 0 or not png_path.exists():
             raise RuntimeError(f"Chrome render failed: {result.stderr.decode(errors='replace')}")

@@ -1,8 +1,6 @@
 import sys
 from pathlib import Path
 
-from PIL import Image
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from agent.base import Agent  # noqa: E402
@@ -17,8 +15,8 @@ class poster_visual_critic_agent(Agent):
     schema = {
         "type": "agent",
         "agent": {
-            "type": "agent",
             "name": "<placeholder>",
+            "duty": "poster_visual_critic",
             "description": (
                 "Visual reviewer for a poster or generated poster image. Returns natural-language feedback: an overall take "
                 "(ready to ship, ready with minor polish, or needs another pass), what is working, and for each issue "
@@ -32,12 +30,12 @@ class poster_visual_critic_agent(Agent):
                         "type": "string",
                         "description": "The brief: what the poster is for, its intended audience, and what to focus the critique on",
                     },
-                    "image_path": {
+                    "image_url": {
                         "type": "string",
-                        "description": "Absolute path of the image to critique, as returned by generate_image or a render",
+                        "description": "The image to critique: an absolute path, file://, http(s), or data: URL, e.g. the path returned by render_poster",
                     },
                 },
-                "required": ["prompt", "image_path"],
+                "required": ["prompt", "image_url"],
             },
         },
     }
@@ -55,17 +53,17 @@ class poster_visual_critic_agent(Agent):
         )
         self.files: list[str] = []
 
-    def critique(self, prompt: str, image: Image.Image) -> str:
-        self.add_user_message(prompt, images=[image])
-        self.step()
-        content = self.messages[-1]["content"]
-        if not content:
-            raise RuntimeError("Critic returned no content")
+    def critique(self, prompt: str, image_url: str) -> str:
+        self.add_user_message(prompt, image_urls=[image_url])
+        finish_reason = self.step()
+        content = self.messages[-1].get("content") or ""
+        if finish_reason != "stop" or not content:
+            raise RuntimeError(f"Critic returned no usable content (finish_reason={finish_reason!r})")
         return content.strip()
 
     def run(self, args: dict) -> str:
-        self.files.append(args["image_path"])
-        return self.critique(args["prompt"], Image.open(args["image_path"]))
+        self.files.append(args["image_url"])
+        return self.critique(args["prompt"], args["image_url"])
 
     def produced_files(self) -> list[str]:
         return list(self.files)

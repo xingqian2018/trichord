@@ -15,7 +15,7 @@ class Tool:
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "prompt": {"type": "string", "description": "Image description"},
+                    "prompt": {"type": "string", "description": "input argument"},
                 },
                 "required": ["prompt"],
             },

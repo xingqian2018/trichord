@@ -1,13 +1,13 @@
 import sys
 from pathlib import Path
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tool.base import Tool, migrate_files  # noqa: E402
-from utils import SCRATCH_ROOT, GATEWAY_CONFIG, UnifiedGatewayImageGenerator, resolve_model_string, resolve_output_path  # noqa: E402
+from utils import GATEWAY_CONFIG, UnifiedGatewayImageGenerator, resolve_model_string  # noqa: E402
 
 DEFAULT_MODEL_NAME = "nano-banana-2.0"
-OUTPUT_DIR = SCRATCH_ROOT / "generated_images"
 
 ASPECT_RATIO_TO_SIZE = {
     "1:1": "960x960",
@@ -37,15 +37,16 @@ class generate_image(Tool):
                 "properties": {
                     "prompt": {"type": "string", "description": "Image description"},
                     "aspect_ratio": {"type": "string", "enum": ["1:1", "16:9", "9:16", "4:3", "3:4"]},
-                    "output_path": {"type": "string", "description": "Filename to save the generated image as"},
+                    "output_path": {"type": "string", "description": "Absolute path to save the generated PNG as"},
                 },
                 "required": ["prompt", "aspect_ratio", "output_path"],
             },
         },
     }
 
-    def __init__(self, model_name: str = DEFAULT_MODEL_NAME):
+    def __init__(self, model_name: str = DEFAULT_MODEL_NAME, scratch_root: Optional[str] = None):
         super().__init__()
+        self.scratch_root = Path(scratch_root) if scratch_root else None
         self.images: list[str] = []
         self.model_name = model_name
         self.gateway = UnifiedGatewayImageGenerator(GATEWAY_CONFIG, num_concurrency=1, num_max_retry=2, timeout=300)
@@ -57,7 +58,7 @@ class generate_image(Tool):
             prompt = f"{prompt}\n\n{phrase}."
         request = self.gateway.build_request(self.model_name, prompt, size=size)
         result = self.gateway.query([request])[0]
-        if not result["images"]:
+        if result is None:
             raise RuntimeError(f"Image generation failed for model '{self.model_name}'")
         out = Path(output_path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -65,7 +66,9 @@ class generate_image(Tool):
         return str(out)
 
     def run(self, args: dict) -> str:
-        out = resolve_output_path(args.get("output_path"), OUTPUT_DIR, ".png")
+        out = Path(args["output_path"])
+        if self.scratch_root is not None and (not out.is_absolute() or not out.resolve().is_relative_to(self.scratch_root)):
+            raise ValueError(f"the target save path {out} is not available; use an absolute path under {self.scratch_root}/")
         path = self.generate(args["prompt"], args.get("aspect_ratio", "1:1"), str(out))
         self.images.append(path)
         return f"[generate_image saved to {path}]"

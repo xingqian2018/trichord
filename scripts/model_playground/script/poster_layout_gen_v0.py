@@ -14,7 +14,8 @@ from tqdm import tqdm  # noqa: E402
 from tool.generate_image import generate_image  # noqa: E402
 from tool.poster_visual_critic_agent import poster_visual_critic_agent  # noqa: E402
 from tool.render_poster import render_poster  # noqa: E402
-from utils import GATEWAY_CONFIG, UnifiedGatewayLLM, render_html_to_png, resolve_model_string  # noqa: E402
+from tool.render_poster import render_html_to_png  # noqa: E402
+from utils import GATEWAY_CONFIG, UnifiedGatewayLLM, resolve_model_string  # noqa: E402
 
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompt"
 DEFAULT_SYSTEM_PROMPT_PRESET = "agentic_poster_layout_t2i_required"
@@ -125,17 +126,17 @@ class PosterLayoutGenerator:
 
         async with self.sem:
             for turn in range(self.args.max_turns):
-                response = await self.llm.query_core(self.build_request(messages))
-                log_event({"event": "response", "turn": turn, **response})
+                response = (await asyncio.to_thread(self.llm.query, [self.build_request(messages)]))[0]
                 result["turns"] = turn + 1
-                if response["finish_reason"] is None and response["content"] is None and response["tool_calls"] is None:
+                if response is None:
                     result["error"] = "llm query failed"
                     break
+                log_event({"event": "response", "turn": turn, **response})
 
-                tool_calls = json.loads(response["tool_calls"]) if response["tool_calls"] else []
+                tool_calls = response.get("tool_calls") or []
                 if not tool_calls:
-                    messages.append({"role": "assistant", "content": response["content"] or ""})
-                    html_blocks = extract_html_blocks(response["content"] or "")
+                    messages.append({"role": "assistant", "content": response.get("content") or ""})
+                    html_blocks = extract_html_blocks(response.get("content") or "")
                     if not html_blocks:
                         result["error"] = "final response has no html block"
                         break
@@ -147,20 +148,13 @@ class PosterLayoutGenerator:
 
                 for i, call in enumerate(tool_calls):
                     call["id"] = call["id"] or f"call_{turn}_{i}"
-                messages.append({
-                    "role": "assistant",
-                    "content": response["content"] or "",
-                    "tool_calls": [
-                        {"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": c["arguments"]}}
-                        for c in tool_calls
-                    ],
-                })
+                messages.append({"role": "assistant", "content": response.get("content") or "", "tool_calls": tool_calls})
                 for call in tool_calls:
                     try:
-                        tool_result = await asyncio.to_thread(self.execute_tool_call, call["name"], call["arguments"], sample_dir)
+                        tool_result = await asyncio.to_thread(self.execute_tool_call, call["function"]["name"], call["function"]["arguments"], sample_dir)
                     except Exception as e:
                         tool_result = {"text": f"Tool call '{call['name']}' failed: {type(e).__name__}: {e}", "images": []}
-                    log_event({"event": "tool_result", "turn": turn, "tool_call_id": call["id"], "name": call["name"], **tool_result})
+                    log_event({"event": "tool_result", "turn": turn, "tool_call_id": call["id"], "name": call["function"]["name"], **tool_result})
                     result["images"].extend(tool_result["images"])
                     messages.append({"role": "tool", "tool_call_id": call["id"], "content": tool_result["text"]})
             else:

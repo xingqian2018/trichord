@@ -19,22 +19,14 @@ import streamlit.components.v1 as components  # noqa: E402
 
 from taxonomy.helper import Taxonomy  # noqa: E402
 from agent.base import Agent  # noqa: E402
-from agent.poster_generation_agent import poster_generation  # noqa: E402
-from utils import (  # noqa: E402
-    MODEL_CHOICE,
-    RENDER_TARGET_AREA,
-    SCRATCH_ROOT,
-    infer_canvas_size,
-    inject_reset_css,
-    inline_local_images,
-    render_html_to_png,
-    resolve_model_string,
-)
+from agent.poster_generation import poster_generation  # noqa: E402
+from utils import MODEL_CHOICE, image_conversion, resolve_model_string  # noqa: E402
+from tool.render_poster import RENDER_TARGET_AREA, infer_canvas_size, inject_reset_css, inline_local_images, render_html_to_png  # noqa: E402
 
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 DEFAULT_MODEL = "kimi-k3"
 PROMPT_DIR = Path(__file__).resolve().parent / "prompt"
-RENDERED_POSTER_DIR = SCRATCH_ROOT / "rendered_posters"
+RENDERED_POSTER_DIR = Path("/tmp/model_playground/rendered_posters")
 EMPTY_REPLY = "*(empty response — check the terminal log for API errors)*"
 REASONING_EFFORTS = ["default", "low", "high", "max"]
 TAXONOMY_NONE = "(none)"
@@ -58,7 +50,8 @@ def get_taxonomy() -> Taxonomy:
 
 
 def run_turn(agent: Agent, user_input: str | None, images: list | None):
-    agent.run({"prompt": user_input, "images": images})
+    image_urls = [image_conversion(data, dst_fmt="data_url") for data in images or []]
+    agent.run({"prompt": user_input, "image_urls": image_urls})
 
 
 def extract_html_blocks(text: str) -> list[str]:
@@ -184,9 +177,10 @@ st.caption(f"Resolved model string: `{resolve_model_string(model_name)}` · agen
 
 
 def render_reasoning(msg: dict):
-    if msg.get("reasoning"):
+    reasoning = msg.get("reasoning_content") or msg.get("reasoning")
+    if reasoning:
         with st.expander("🧠 Thinking trace"):
-            st.markdown(msg["reasoning"])
+            st.markdown(reasoning)
 
 
 def render_tool_calls(msg: dict):
@@ -232,12 +226,11 @@ def render_html_preview_buttons(text: str, msg_idx: int, msg: dict):
         if toggle_key not in st.session_state:
             st.session_state[toggle_key] = False
 
-        rendered_path = getattr(agent, "last_rendered_html_path", None)
-        if rendered_path and Path(rendered_path).is_file():
-            rendered_html = Path(rendered_path).read_text()
+        rendered_html = getattr(agent, "cached_html", None)
+        if rendered_html:
             if normalize_html(rendered_html) != normalize_html(html_code):
                 st.warning(
-                    f"Delivered HTML differs from the last rendered version ({Path(rendered_path).name}) — "
+                    "Delivered HTML differs from the last rendered version — "
                     "the critic reviewed that one, not this block."
                 )
                 with st.expander("Show diff (rendered → delivered)"):

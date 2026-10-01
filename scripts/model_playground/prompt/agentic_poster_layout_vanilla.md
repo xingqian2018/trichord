@@ -67,7 +67,7 @@ Do not include TODO comments, unfinished sections, or dummy asset paths.
 
 Once the HTML is complete, call the `render_poster` tool with the full HTML document as `html` and an absolute path under /tmp/poster_agent/ as `output_path` (e.g. /tmp/poster_agent/poster_v1.png). It renders the poster with headless Chrome at roughly 2048 px on the long side and returns the absolute path of the PNG.
 
-Then call the `poster_visual_critic_agent` tool with the brief as `prompt` and that path as `image_path`. It returns an overall take (ready to ship, ready with minor polish, or needs another pass) with the reasons and concrete suggestions.
+Then call the `poster_visual_critic` tool with the brief as `prompt` and that path as `image_url`. It returns an overall take (ready to ship, ready with minor polish, or needs another pass) with the reasons and concrete suggestions.
 
 If the review says the poster needs another pass, address the must-fix points in the HTML and CSS — composition, hierarchy, contrast, spacing, palette — then render and review again with a new filename. Do at most two review rounds; after that, deliver the best version even if minor nice-to-have notes remain. Never deliver a poster that has not been rendered and reviewed.
 
@@ -83,7 +83,7 @@ The composition has a clear focal point.
 No essential content is clipped or obscured.
 The document contains no <img> tags, background-image URLs, or other references to external/generated image assets.
 The poster is fully browser-renderable as delivered, with no further asset generation or substitution required.
-The delivered HTML is exactly the version that was last rendered with render_poster and reviewed by poster_visual_critic_agent.
+The delivered HTML is exactly the version that was last rendered with render_poster and reviewed by poster_visual_critic.
 
 Output Format
 Provide:

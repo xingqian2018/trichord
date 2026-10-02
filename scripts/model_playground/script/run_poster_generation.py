@@ -1,29 +1,21 @@
 """
 Run CMD (same docker/mounts as slaunch, but plain srun: ONE CONTAINER PER TASK, no torchrun):
-    export DOCKER_PATH=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/containers/imaginaire4_v12.0.0.sqsh
-    export CONTAINER_WORKDIR=$HOME/Project/trichord/scripts/model_playground
-    lustrepath=/lustre/fsw/portfolios/cosmos
-    srun --account=cosmos_base_training --partition=<cpu partition> --nodes=1 --ntasks=32 --cpus-per-task=2 \\
-         --kill-on-bad-exit=0 \\
-         --container-image=${DOCKER_PATH} \\
-         --container-mounts $lustrepath:$lustrepath:rw,$HOME:$HOME:rw \\
-         --container-workdir="$CONTAINER_WORKDIR" \\
-         --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID \\
-         .venv/bin/python script/run_poster_generation.py \\
-             --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_kimi_nb2_kimi_v0 \\
-             --aspect_ratio random
 
-    Each srun task is its own container, so /tmp/poster_agent is private per agent process.
-    Do NOT add --container-name (tasks would share one container) and do NOT wrap in torchrun.
+mkdir -p $HOME/log/slurm
+lustrepath=/lustre/fsw/portfolios/cosmos
+sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-long --job-name=poster_gen_v0 \
+    --nodes=1 --ntasks-per-node=32 --cpus-per-task=2 --time=7-00:00:00 \
+    -o $HOME/log/slurm/poster_gen_v0.%j.o -e $HOME/log/slurm/poster_gen_v0.%j.e \
+    --wrap="srun --kill-on-bad-exit=0 \
+        --container-image=$lustrepath/projects/cosmos_base_training/containers/imaginaire4_v12.0.0.sqsh \
+        --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
+        --container-workdir=$HOME/Project/trichord/scripts/model_playground \
+        --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID \
+        python3 script/run_poster_generation.py \
+            --model kimi-k3@nvidia \
+            --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_kimi_nb2_kimi_v0 \
+            --aspect_ratio random --reasoning_effort random --max_samples_per_process 625"
 
-One-time setup inside the container (the local .venv symlinks the host python and cannot be reused in the image):
-    srun ... --ntasks=1 --container-image=${DOCKER_PATH} --container-mounts ... --container-workdir="$CONTAINER_WORKDIR" \\
-         bash -c 'python3 -m venv .venv_container && .venv_container/bin/pip install -r requirements.txt'
-    then launch with .venv_container/bin/python instead of .venv/bin/python
-
-Check once before the real run:
-    srun ... --ntasks=2 --container-image=${DOCKER_PATH} bash -c 'which google-chrome chromium; touch /tmp/probe_$SLURM_PROCID; ls /tmp/probe_*'
-    each task must report a chrome binary and list only its own probe file
 """
 
 import argparse
@@ -49,6 +41,7 @@ RANK = int(os.environ.get("SLURM_PROCID", 0))
 WORLD_SIZE = int(os.environ.get("SLURM_NTASKS", 1))
 RANDOM = "random"
 MODEL_DEFAULT = "default"
+PROGRESS_EVERY = 10
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,10 +57,15 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if RANK != 0:
+        logger.remove()
+        logger.add(sys.stderr, filter=lambda record: record["extra"].get("progress", False))
     system_prompt = (PROMPT_DIR / f"{args.prompt_preset}.md").read_text().strip()
     taxonomy = Taxonomy()
+    total = args.max_samples_per_process if args.max_samples_per_process > 0 else "inf"
 
     sample = 0
+    generated = 0
     while args.max_samples_per_process <= 0 or sample < args.max_samples_per_process:
         topic = taxonomy.random_get_one_topic()
         aspect_ratio = random.choice(list(ASPECT_RATIO_TO_SIZE)) if args.aspect_ratio == RANDOM else args.aspect_ratio
@@ -86,10 +84,14 @@ def main() -> None:
             agent.run({"prompt": TOPIC_MESSAGE_TEMPLATE.format(topic=topic), "aspect_ratio": aspect_ratio})
             agent.save_history(args.output)
             logger.info(f"rank {RANK}/{WORLD_SIZE} sample {sample} done in {time.time() - started:.1f}s | {aspect_ratio} | {topic}")
+            generated += 1
         except Exception as e:
             logger.warning(f"rank {RANK}/{WORLD_SIZE} sample {sample} agent {agent_name} failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+            time.sleep(1)
         del agent
         sample += 1
+        if sample % PROGRESS_EVERY == 0:
+            logger.bind(progress=True).info(f"rank {RANK}/{WORLD_SIZE} generated {generated}/{total} ({sample - generated} failed)")
 
 
 if __name__ == "__main__":

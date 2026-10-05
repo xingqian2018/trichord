@@ -1,13 +1,26 @@
 """
+Docker build:
+
+lustrepath=/lustre/fsw/portfolios/cosmos
+mkdir -p $lustrepath/users/xingqianx/Container
+srun --account=cosmos_base_training --nodes=1 --exclusive --ntasks-per-node=76 --cpus-per-task=1 --time=04:00:00 \
+     --container-image=$lustrepath/projects/cosmos_base_training/containers/imaginaire4_v12.0.0.sqsh \
+     --container-save=$lustrepath/users/xingqianx/Container/run_poster_generation.sqsh \
+     --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
+     --container-env=HOME \
+     --container-remap-root \
+     bash -c "pip install playwright && PLAYWRIGHT_BROWSERS_PATH=$HOME/Software/playwright-browsers python -m playwright install --with-deps chromium-headless-shell"
+
+     
 Run CMD (same docker/mounts as slaunch, but plain srun: ONE CONTAINER PER TASK, no torchrun):
 
 mkdir -p $HOME/log/slurm
 lustrepath=/lustre/fsw/portfolios/cosmos
 sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-long --job-name=poster_gen_v0 \
-    --nodes=1 --ntasks-per-node=32 --cpus-per-task=2 --time=7-00:00:00 \
+    --nodes=1 --exclusive --ntasks-per-node=32 --cpus-per-task=2 --time=7-00:00:00 \
     -o $HOME/log/slurm/poster_gen_v0.%j.o -e $HOME/log/slurm/poster_gen_v0.%j.e \
     --wrap="srun --kill-on-bad-exit=0 \
-        --container-image=$lustrepath/projects/cosmos_base_training/containers/imaginaire4_v12.0.0.sqsh \
+        --container-image=$lustrepath/users/xingqianx/Container/run_poster_generation.sqsh \
         --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
         --container-workdir=$HOME/Project/trichord/scripts/model_playground \
         --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID \

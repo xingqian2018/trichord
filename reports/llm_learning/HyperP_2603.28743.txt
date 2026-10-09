@@ -1,0 +1,1334 @@
+
+=====PAGE 1=====
+Rethinking Language Model Scaling under
+Transferable Hypersphere Optimization
+Liliang Ren1 Yang Liu1 Yelong Shen1 Weizhu Chen1
+1Microsoft
+renll1402@gmail.com wzchen@microsoft.com
+Abstract
+Scaling laws for large language models depend critically on the optimizer and
+parameterization. Existing hyperparameter transfer laws are mainly developed for
+first-order optimizers, and they do not structurally prevent training instability at
+scale. Recent hypersphere optimization methods constrain weight matrices to a
+fixed-norm hypersphere, offering a promising alternative for more stable scaling.
+We introduceHyperP(Hypersphere Parameterization), the first framework for
+transferring optimal learning rates across model width, depth, training tokens, and
+Mixture-of-Experts (MoE) granularity under the Frobenius-sphere constraint with
+the Muon optimizer. We prove that weight decay is a first-order no-op on the
+Frobenius sphere, show that Depth-µP remains necessary, and find that the optimal
+learning rate follows the same data-scaling power law with the “magic exponent”
+0.32 previously observed for AdamW. A single base learning rate tuned at the
+smallest scale transfers across all compute budgets under HyperP, yielding1.58×
+compute efficiency over a strong Muon baseline at6×10 21 FLOPs. Moreover, Hy-
+perP delivers transferable stability: all monitored instability indicators, including
+Z-values, output RMS, and activation outliers, remain bounded and non-increasing
+under training FLOPs scaling. We also propose SqrtGate, an MoE gating mecha-
+nism derived from the hypersphere constraint that preserves output RMS across
+MoE granularities for improved granularity scaling, and show that hypersphere
+optimization enables substantially larger auxiliary load-balancing weights, yielding
+both strong performance and good expert balance. We release our training codebase
+athttps://github.com/microsoft/ArchScale.
+1 Introduction
+Neural scaling laws [ KMH+20, HBM+22, Tea25b] are central to the compute-efficient develop-
+ment of Large Language Models (LLMs) [ RWC+19, BMR+20, Ope23, Goo25, DA24b, Tea25a,
+YLY+25]. In practice, architectural designs and data recipes are explored at small scales for cost-
+savings, hoping that the improvements will persist when scaled up to prohibitively expensive compute
+budgets. However, identifying the true scaling behavior requires each model along the curve to be
+trained with near-optimal hyperparameters for its own scale. Even with well-tuned hyperparameters,
+scaling up training FLOPs routinely triggers logit explosion, activation outliers, and loss spikes
+[ZBK+22, DLBZ22, CND+23, QWZ+25, QHW+26] that push training off the optimal trajectory
+or even lead to training failures [ZRG+22, RCX+25]. Existing hyperparameter transfer frameworks
+[YHB+22, YYZH23, BBC+25, LZH+25, QCP+25, MAB+25] primarily study the transfer of opti-
+mal learning rate (LR), weight decay, and batch size across model width and depth, while largely
+overlooking how the learning rate should scale with training tokens to remain transferable across
+training FLOPs under second-order optimizers. Moreover, they do not provide structural guarantees
+on training stability at larger scales. In practice, mitigations such as Z-loss regularization [ZBK+22]
+Preprint.
+arXiv:2603.28743v2  [cs.LG]  5 Apr 2026
+
+=====PAGE 2=====
+and careful weight decay scheduling [Def25] are applied as ad hoc patches rather than principled
+solutions. Recent work on hypersphere optimization [ Ber25, WDL+25, XLT+26] offers a funda-
+mentally different approach. By constraining weight matrices to a fixed-norm sphere, hypersphere
+optimization provides structural stability guarantees: the weight-norm constraint naturally bounds
+output logit magnitudes for each linear projection. It also has the potential to eliminate weight
+decay, a notorious hyperparameter whose optimal value depends intricately on learning rate, training
+duration [W A24, BDG+25], and model width [QCP+25].
+In this work, we derive the first learning rate transfer laws across training FLOPs for hypersphere
+optimization, covering width, depth, training duration, and MoE granularity, under a typical second-
+order hypersphere optimizer MuonH [ WDL+25]. We summarize our transfer laws as HyperP
+(Hypersphere Parameterization), a framework under which a single base learning rate tuned at the
+smallest scale transfers optimally to all compute budgets. Our theoretical and empirical results
+reveal that hypersphere optimization, when equipped with proper transfer laws, achieves not only
+optimal scaling efficiency but alsotransferable stability: the same hyperparameters that work at
+small scale produce equally or more stable training dynamics at large scale. With these results,
+fair comparisons of architectural scaling become possible: every model at every scale is trained
+at its transferred optimal learning rates, so the resulting scaling curves reflect each architecture’s
+near-optimal performance. Our contributions are as follows:
+• First transfer laws across FLOPs for hypersphere optimization.We derive HyperP, which
+achieves optimal LR transfer across training FLOPs, spanning width, depth, training tokens,
+and MoE granularity. We prove that weight decay is a first-order no-op under Frobenius-sphere
+optimization, and empirically show that removing weight decay does not harm model quality.
+We also derive that Depth-µP [YYZH23] is still required, disproving the claim that MuonH
+is inherently depth-transferable [WDL+25], and discover the “magic exponent” 0.32 for data
+scaling, matching the previous result on AdamW [BBC+25] and suggesting universality across
+optimizers.
+• Transferable stability.Empirically, we show that HyperP yieldsstability transfer: all six
+monitored instability indicators (Z-values, output RMS, activation outlier percentages for both
+attention and MoE sub-layers) are bounded and non-increasing as we scale training FLOPs for
+MoE models from 913M to 13.3B total parameters.
+• Robust MoE scaling and load balancing.We derive SqrtGate, a square-root gating mechanism
+that preserves output RMS across MoE granularities, reducing router Z-value peaks by 5×
+compared to standard gating. HyperP’s optimal LR transfers robustly across MoE sparsity
+(S∈{1,...,32} ) and granularity (k∈{2,...,64} ). It also allows for much larger auxiliary
+load balancing weights, achieving the best validation loss and expert balance simultaneously, in
+contrast to prior findings that a large load balancing weight hurts model quality [WGZ+24].
+• Scalable compute efficiency leverage.A single base LR tuned at the smallest scale with 208M
+active parameters transfers effectively to all compute budgets explored. At the largest6×10 21
+FLOPs, HyperP achieves 1.58× Compute Efficiency Leverage (CEL) [KMH+20, Tea25b] over a
+strong Muon baseline withµP++ and weight decay scaling for dense models, and our MoE model
+withS= 8,k= 8 further achieves 3.38× CEL over the dense models. The advantage of HyperP
+over the baseline grows monotonically with scale, implying even larger gains at frontier compute.
+• Architecture comparison under optimal scaling.With HyperP, we systematically examine
+dense (QK-Norm [DDM+23], Gated Attention [QWZ+25]) and MoE (SqrtGate, shared expert
+[DDZ+24]) architectures at their optimal performance, revealing that while the performance gains
+of SqrtGate and Gated Attention shrink as the training FLOPs increase, they provide significant
+stability gains that can remove the RMS spikes and control the explodingZ-values.
+2 Background
+Hypersphere optimization.Hypersphere optimization constrains weight matrices to lie on a unit
+sphere under a chosen matrix norm. After each gradient update, the weight matrix W is re-projected
+as follows,
+W←C W−ηG
+∥W−ηG∥ ,(1)
+2
+
+=====PAGE 3=====
+whereη is learning rate, C is a constant, G denotes the weight update and∥·∥ is the chosen ma-
+trix norm. Several choices of the matrix norm have been proposed recently: MuonH [ WDL+25]
+uses the Frobenius norm with the Muon optimizer [ JJB+24]; Both MuonSphere [ XLT+26] and
+SSO [ XLT+26] use the spectral norm, while SSO further applies the steepest descent on the
+spectral sphere. Previous works have explored column- and row-wise weight normalization
+[SK16, KAL+23, LHSG25, FDD+25], while in this work we focus primarily on matrix-wise nor-
+malization for theoretical simplicity.
+MuonH optimizer.MuonH (Muon-Hyperball) [ WDL+25] instantiates hypersphere optimization
+with the Muon optimizer [JJB+24] and Frobenius norm, normalizing both the weight and the update:
+bG=c G
+G
+∥G∥F
+, W + =c W
+W−η bG
+∥W−η bG∥F
+,(2)
+wherecW =∥W 0∥F is the initial weight norm, cG =c W , and G is the standard Muon update.
+MuonH is applied to each hidden weight matrix, while AdamW [LH18] with the same weight and up-
+date normalization schemes (denoted as AdamH) is used for the weight matrix of the language-model
+head, and the remaining vector parameters and embeddings are optimized with the original AdamW.
+The update normalization further ensures that the relative update magnitude ∥∆W∥F/∥W∥F is
+constant for a given layer, enabling the same learning-rate scale to be used for both MuonH and
+AdamH.
+3 Scaling Hypersphere Optimization
+We first motivate our choice of the Frobenius hypersphere by showing that it can eliminate the need for
+weight decay under the first-order approximation. We then derive the hyperparameter transfer laws for
+width and depth scaling by examining the theoretical implications of hypersphere optimization. The
+learning rate transfer law is further established for the data scaling scenario through empirical studies.
+We present our Hypersphere Parameterization,HyperP, for training FLOPs scaling by summarizing
+our transfer laws over width, depth, and data scaling in Table 1. Finally, we illustrate the theoretical
+stability benefits of hypersphere optimization in Section 3.6 and propose our SqrtGate mechanism for
+the granularity scaling of Mixture-of-Experts (MoE) in Section 3.7.
+3.1 Elimination of Weight Decay
+Among various choices of norms in hypersphere optimization, the Frobenius norm admits a simple
+geometric interpretation: after projection back to a fixed Frobenius sphere, only the tangent component
+of an update survives to first order.
+Theorem 1(First-order form of Frobenius-sphere updates).Let W∈R dout×din satisfy∥W∥F =c W ,
+and define
+fW=W+ ∆, W + =c W
+fW
+∥fW∥F
+.(3)
+Then, for sufficiently small∥∆∥F ,
+W +−W= Π T (∆) +O(∥∆∥ 2
+F ),(4)
+whereΠT (∆) = ∆− ⟨∆,W⟩ F
+∥W∥ 2
+F
+Wis the tangent-space projection atW.
+A direct corollary is that radial shrinkage is removed to first order.
+Corollary 1.1(Weight decay is a first-order no-op).If ∆ =−ηG−ηλW, then W +−W=
+−ηΠT (G) +O(η 2). Hence, the weight decay term has no first-order effect under Frobenius renor-
+malization.
+The detailed proof is included in Appendix B. Therefore, in this work, we only study the MuonH
+optimizer, which is based on the Frobenius norm, and we leave the formal uniqueness characterization
+as a future work. Our theorem eliminates weight decay as a hyperparameter entirely, reducing the
+search space from the joint (η,λ) plane to a single dimension η. In contrast, standard optimizers
+(e.g. AdamW, Muon) require careful co-tuning of the learning rate and weight decay, and the optimal
+weight decay interacts with the learning rate, training duration [W A24, BDG+25], and even model
+width [QCP+25], which further complicates hyperparameter transfer laws.
+3
+
+=====PAGE 4=====
+3.2 Width Scaling
+Our derivation of the width transfer laws is based on the following observation: ForW∈R dout×din,
+the spectral and Frobenius norms satisfy
+∥W∥ 2≤∥W∥ F≤√r∥W∥ 2, r:= rank(W)≤min(d in,d out).
+The upper bound is attained if and only if W has full rank and all its nonzero singular values are
+equal. When the update ∆W is orthogonalized, as in Muon, the resulting dynamics tend to avoid
+highly anisotropic spectra and instead favor a relatively flat singular-value profile. In that regime,
+∥W∥F/√r becomes a good proxy of∥W∥ 2, which leads to the same width-transfer property as in
+µP [YHB+22].
+Theorem 2(Width transfer under Frobenius sphere).Let Y=WX ,W∈R dout×din, and assume
+∥W∥ rms =C/√din, equivalently∥W∥F =C√dout, for a width-independent constantC=O(1) .
+Assume further thatW is approximately isotropic on its input space, in the sense that its nonzero
+singular values are sufficiently uniform. Equivalently, for typical inputsX,
+∥WX∥ 2≈ ∥W∥Fp
+min(din,d out)
+∥X∥2.
+Since
+p
+din/min(d in,d out) =O(1), then
+∥Y∥ rms≈C∥X∥ rms.
+The proof is included in Appendix A. Therefore, hypersphere optimization with∥W∥F =C√dout
+preserves width transfer without explicit1/wlearning rate scaling as in standardµP .
+3.3 Depth Scaling
+We analyze how the learning rate and residual scaler depend on depth when optimization is performed
+on a Frobenius sphere. Consider a depth-Lresidual network
+xl+1 =x l +αLfl(xl;Wl), l= 1,...,L,(5)
+whereαL denotes the depth-dependent residual scaler. Each matrix parameter is constrained to satisfy
+∥Wl∥F =c W . We first study the hypersphere optimization with only weight normalization as in
+Equation (1) and then consider the variant in which the raw update is normalized to have a fixed
+Frobenius norm as in Equation (2), wherecW is not necessarily equal tocG.
+Theorem 3(Depth scaling under Frobenius-sphere optimization).Under residual networks, assume
+that local Jacobians areO(1) under the chosen width parameterization, and that the update step size
+is sufficiently small for first-order linearization to hold.
+1. Weight renormalization under scale-dependent optimizers.If only the weights are renormal-
+ized as in (1), and the layerwise update satisfies∥Gl∥F =O(α L), then the total first-order
+function perturbation isO(Lα2
+Lηl). In particular, for the standard depth-stabilizing scaling
+αL =L−1/2, a depth-independent learning rateηl =O(1) yields anO(1) function-space
+update.
+2. Normalizing both weight and update.If the weight update is normalized so that ∥Ul∥F =
+cG, then the total first-order function perturbation isO(LαLηl). Hence, the learning rate
+must scale as
+ηl =O
+ 1
+LαL
+
+(6)
+to maintain an O(1) function-space update. In particular, when αL =L −1/2, ηl =
+O(L−1/2).
+3.Post-norm Architecture.The same exponent holds for post-norm residual blocks
+xl+1 = LayerNorm(xl +αLfl(xl;Wl)),(7)
+since the standard deviation of the input of LayerNorm [BKH16] isO(1)with depth.
+4
+
+=====PAGE 5=====
+The proofs are included in Appendix C. Our theorem shows that the original forms of Depth- µP
+[YYZH23] for both scale-dependent and scale-invariant optimizers are preserved under hypersphere
+optimization, and the post-norm residual does not remove the dependence on model depth for
+accumulated weight perturbations. Importantly, our result does not rely on any independence
+assumptions across layers. Under the small-step conditionη∥Gl∥F≪∥W l∥F , we use a first-order
+Taylor expansion to express the total perturbation as a sum of layerwise contributions and then apply
+the triangle inequality to obtain a deterministic worst-case bound. Our theorem shows that, contrary
+to the original claim of the authors in MuonH [WDL+25], the optimizer is not inherently transferable
+across model depth because they neglect the cumulative angular drift introduced by the summation of
+residual connections. We further provide empirical verification of our theoretical result in Section 4.2.
+3.4 Data Scaling
+Since there is no clear theory on how the learning rate should scale with the training to-
+kens, we study the transfer law with empirical studies. We fix model depth d=8 (208M
+parameters) and vary training tokens from 10.4B to 166.4B, sweeping LR on a fine grid
+{0.004,0.006,0.008,0.010,0.012,0.014,0.016,0.018} with quadratic fitting in log(η) space. The
+detailed setup is provided in beginning of Section 4.
+Figure 1: Left: Loss vs. LR at different token budgets. Right: Fitted optimal LR vs. training tokens
+on log-log scale, showing a clean power-law relationship with exponent0.32. The exact values are
+reported in Table 4.
+As shown in Figure 1, the optimal LR follows a clean power law:
+η∗ = 24.27·T −0.320 (8)
+whereT is the total number of training tokens. We also conduct leave-one-out cross-validation,
+which gives a mean absolute prediction error of only 1.50% for optimal LR. The exponent 0.32 is
+remarkably consistent with the finding of Bjorck et al. [BBC+25], who report the same exponent for
+AdamW on different architectures and datasets. This “magic exponent” may be a universal property
+of gradient-based optimization in neural networks, independent of the specific optimizer. We leave
+a more rigorous empirical verification and the theoretical analysis of this coincidence as intriguing
+future work.
+3.5 Hypersphere Parametrization
+We summarize the complete HyperP framework in Table 1, contrasting it with µP and µP++
+[RCX+25]. HyperP eliminates the weight decay entirely as in Section 3.1, inherits native width
+transfer from the Frobenius-sphere constraint in Section 3.2, applies the depth scaling derived in
+Section 3.3, and incorporates the data scalingη∝T −0.32 established in Section 3.4.
+5
+
+=====PAGE 6=====
+Table 1: Differences between µP,µP++ [RCX+25] and HyperP under Muon-based optimizers
+[JJB+24].LR mult.denotes the per-parameter multiplier applied on top of the global learning-rate
+(η),Init. std.means the standard deviation of the initialization,Res. mult.is the multiplier applied to
+the output of residual branches andWDdenotes the weight decay. w is the model width,d means
+model depth and T is the training tokens. µP and µP++ applies Muon for matix-like parameters
+with adjustments of LR and WD following [ QCP+25] and AdamW for unembedding and vector-
+like parameters, while HyperP adopts MuonH [WDL+25] for matrix-like parameters, AdamH for
+unembedding weights and AdamW for vector-like parameters.
+Parameter Scheme LR mult. Init. std. Res. mult. Weight mult. WD
+Embedding/Vector
+µP∝1∝1—∝1∝1
+µP++∝1/
+√
+d∝1—∝10
+HyperP∝1/
+√
+d∝1—∝10
+Unembedding
+µP∝1∝1—∝1/w∝1
+µP++∝1/
+√
+d∝1—∝1/w0
+HyperP∝1/
+√
+d∝1—∝10
+Hidden Weights
+µP∝
+p
+dout/din ∝1/ √din 1∝1∝1/w
+µP++∝
+p
+dout/(dind)∝1/ √din 1/
+√
+2d∝1∝1/w
+HyperP∝1/(T 0.32√
+d)∝1/ √din 1/
+√
+2d∝10
+3.6 Bounded Logit Magnitudes
+In standard training, the weight norms can grow unbounded due to the translation-invariance property
+of Softmax, causing attention, router or LM head logitsz to explode. TheZ-loss penaltyλz log2Z
+(whereZ= P
+i exp(zi)) is a common practice [ ZBK+22] introduced to constrain the growth of
+the log-sum-exponential of the logits. A key practical benefit of hypersphere optimization is that
+it naturally bounds the logit magnitudes in both attention and MoE routing, alleviating the need
+for Z-loss regularization. We state the proposition below and provide empirical verification in
+Section 5.1.
+Proposition 4(Bounded Logits under Hypersphere Constraint).For any weight matrix W with
+∥W∥F =Cand inputxwith∥x∥ rms =O(1):
+∥Wx∥ 2≤∥W∥ F∥x∥2 =C∥x∥ 2 =C∥x∥ rms
+p
+din.(9)
+The per-element logit magnitude is bounded as|[Wx]j|≤C∥x∥ 2, and the RMS of the logit vector
+satisfies:
+∥Wx∥ rms≤C
+r
+din
+dout
+∥x∥rms.(10)
+The proposition similarly applies to the spectral sphere scenario where∥W∥ 2 =C.
+3.7 MoE Granularity Scaling
+In a Mixture-of-Experts (MoE) [SMM+17] layer, the outputy is formed by combining the Top-k
+routed experts selected from a larger expert pool. Letk denote the number of active routed experts
+(the granularity) and letS denote the sparsity ratio, so the layer containskS routed experts in total.
+Formally,
+y=
+kX
+i=1
+giEi(x) +E shared(x),
+kX
+i=1
+gi = 1,(11)
+wheregi are the routing weights over the selected k experts, following the design of [ SMM+17,
+Ope25], andE shared is an optional shared expert [DA24a].
+Proposition 5(Classical gating is k-dependent).Let yroute =Pk
+i=1giEi(x). Assume the active
+expert outputs satisfy ∥Ei(x)∥rms =rfor alli, and are approximately pairwise uncorrelated:
+⟨Ei(x),Ej(x)⟩≈0fori̸=j.Then
+∥yroute∥rms≈r
+vuut
+kX
+i=1
+g2
+i.(12)
+6
+
+=====PAGE 7=====
+In particular, if the routing weights are near-uniform on the selected experts, i.e.gi≈1/k, then
+∥yroute∥rms≈ r√
+k
+.(13)
+By contrast,∥yroute∥rms≈r is recovered only in the degenerate case where routing is nearly one-hot,
+i.e. oneg i≈1and the others are close to zero.
+This shows that classical softmax gating preserves RMS only in the worst-case collapsed-routing
+regime. In the more typical case where multiple selected experts contribute non-trivially, the routed
+signal shrinks withk. In our setting, hypersphere optimization makes the equal-RMS assumption
+natural by explicitly controlling the output scale of each expert with weight normalization. Moreover,
+Muon optimizer can indirectly reduce co-adaptation across experts by reducing anisotropy in each
+expert’s matrix updates, which makes the pairwise-uncorrelated approximation more realistic. This
+motivates us to analyze the routed branch under the equal-RMS, weak-correlation regime rather
+than under the worst-case scenario. We propose to replacegi with√gi, and denote our approach as
+SqrtGate(Square-root Gate).
+Proposition 6(SqrtGate is approximately k-invariant).Define the routed branch by y′
+route =Pk
+i=1
+√giEi(x),Pk
+i=1gi = 1.Under the same assumptions as in Proposition 5,
+∥y′
+route∥rms≈r
+vuut
+kX
+i=1
+(√gi)2 =r.(14)
+Hence the routed-branch RMS is approximately invariant to the granularityk.
+We can see that classical gating is RMS-preserving only when Top-k routing effectively collapses to
+Top-1, whereas SqrtGate is RMS-preserving for any gating distributions in the equal-RMS, weak-
+correlation regime induced by hypersphere optimization. When the shared expert is presented, we
+also multiply1/
+√
+2to the final outputyto preserve the overall output RMS after summation.
+4 Experiments & Results
+Architecture.Throughout this work, we use the Transformer-Next architecture family, inspired
+by the attention module design in Qwen3-Next [ Qwe25]: dense Transformers with GQA (4 KV
+heads) [ALTdJ+23], head dimension 128, aspect ratio α= 128 (i.e.model width w= 128d ),
+QK-Norm [DDM+23], and headwise gated attention [QWZ+25]. The number of attention heads is
+set tonhead = 2d, whered is the model depth, so thatnhead is always a multiple of 8 during scaling.
+We use SwiGLU [Sha20] with 4w intermediate size [RCX+25, Ope25] for MLP, and apply Pre-Norm
+[XYH+20] for residual connections. The MoE module follows the same design as in Section 3.7
+with SqrtGate and a shared expert, where the Softmax operator is after Top-k selection [Ope25], and
+we denote this architecture as Transformer-Next-MoE. We sweep depthsd∈{8,12,16,20,24} ,
+corresponding to 208M–3.8B parameters for the dense model and 913M–22.9B total parameters for
+MoE models with a sparsity of 8. To match the active parameters to the dense model, we (1) choose
+Top-(k−1 ) experts from an expert pool ofkS−1 experts and have 1 shared expert always activated,
+and (2) shrink the intermediate dimension of the experts as we scale up the granularity.
+Training setup.By default, all models are trained on the SlimPajama dataset [ SAKM+23] with a
+context length of 4K and a batch size of 2M tokens. The learning rate schedule uses a linear decay to
+10% of peak without warm-up, following [JBR+24]. A momentum of 0.95 is adopted for both Muon
+and MuonH. For FLOPs scaling, the number of training tokens is scaled proportionally to number of
+parameters according to Chinchilla Law [HBM+22] with a measure of Tokens Per Parameter (TPP)
+=T/N , whereT is the total training tokens andN is the parameter count. The PyTorch [PGM+19]
+default initialization from Kaiming uniform distribution [ HZRS16] is adopted. The independent
+weight decay [WLX+24] is applied for the Muon optimizer.
+Scaling comparison and compute efficiency leverage.We follow the Chinchilla law [ HBM+22]
+for fine-grained FLOPs computation, which accounts for embedding and language-model head
+FLOPs, as well as an accurate self-attention FLOPs calculation. To compare scaling behaviors, we
+7
+
+=====PAGE 8=====
+follow [KMH+20, Tea25b] to fit each method’s final validation loss as a power law in training FLOPs,
+C, then define the compute efficiency leverage ρ=C base/C∗, where C∗ is the method’s actual
+FLOPs andCbase is the FLOPs the baseline would need to reach the same loss L∗ of the method
+according to its fitted scaling law;ρ>1indicates better compute efficiency than the baseline.
+4.1 Empirical Optimality of MuonH
+A natural concern of hypersphere optimization is whether removing weight decay trades off perfor-
+mance. We compare MuonH against standard Muon at d=8 dense model with 10.4B tokens. For
+Muon, we jointly sweep learning rateη∈{4×10 −3,8×10−3,10−2,2×10−2,4×10−2}, and weight
+decayλ∈{4×10 −4,8×10−4,10−3,2×10−3,4×10−3}; for MuonH, weight decay is set to 0.
+Figure 2: Validation loss vs. learning rate for Muon (sweeping weight decayλ) and MuonH (λ=0).
+MuonH achieves comparable optimality with a simpler hyperparameter space.
+As shown in Figure 2 and Table 2, MuonH achieves a slightly better validation loss while entirely
+removing weight decay as a hyperparameter. The optimal LR for MuonH is∼1.4× smaller than for
+Muon. Muon’s performance is sensitive to weight decay: the bestλ= 10−3 gives a loss of 2.479,
+whileλ= 4×10−3 gives 2.500 (+0.021 nats). These empirical results mean that MuonH does not
+trade-off quality for a simpler hyperparameter space and support our theory on the weight decay
+elimination effect of Frobenius-sphere optimization in Theorem 1.
+Table 2: Fitted optimal learning rate η∗ and validation loss between MuonH and Muon. MuonH
+matches Muon while eliminating weight decay.
+Method Fittedη ∗ Best Val Loss Weight Decay
+Muon (bestλ=10−3) 0.0222 2.47910 −3
+MuonH (λ=0) 0.0155 2.475 0
+4.2 Parameter Scaling
+We empirically verify the depth scaling predictions of Section 3.3 by co-scaling width and depth at
+a fixed aspect ratio (w=αd ,α= 128 ), so that the model is well-shaped across scales. We run all
+depth experiments at 10.4B tokens and sweep learning rates on a fine grid{0.002,0.004,...,0.020} .
+Figure 3 compares MuonH with and without Depth-µP at 50 TPP acrossd∈{8,12,16,20,24} on
+the same LR grid, while full LR-loss sweeps are reported in Tables 5 and 6 and a summary of optimal
+values is provided in Table 7.
+8
+
+=====PAGE 9=====
+Figure 3: Loss vs. LR curves across model sizes with Depth-µP (left) and without Depth-µP (right).
+Depth-µP keeps the optimal LR stable atη∗≈0.014 – 0.016 across all depths, while the optimum
+drifts fromη∗ = 0.016atd=8toη ∗ = 0.008atd=24without Depth-µP.
+Without Depth-µP, the optimal learning rate decreases from η∗ = 0.016 atd=8 toη∗ = 0.008 at
+d=24, consistent with the depth-dependent LR trend predicted in Section 3.3; the loss landscape
+also sharpens with depth, as increasing LR from the optimum to η= 0.020 incurs a +0.023 nats
+penalty atd=8 (2.492 vs. 2.469) but a +0.098 nats penalty atd=20 (2.264 vs. 2.166). In contrast,
+with Depth-µP the optimal LR remains nearly constant at η∗≈0.014 – 0.016 fromd=8 tod=24.
+Crucially, both configurations achieve comparable best losses at each depth (Table 7), confirming that
+Depth-µP preserves model quality while enabling hyperparameter transfer. These results empirically
+validate our theory in Section 3.3 and refute the claim that MuonH is inherently depth-transferable
+[WDL+25].
+4.3 Critical Batch Size
+We fixd=8 with 10.4B tokens and sweep LR across batch sizesB∈{256K,512K,1M,2M} tokens
+to identify the critical batch size, the threshold above which increasing batch size significantly
+degrades the achievable loss [MKAT18].
+Figure 4: Left: Loss vs. LR at different batch sizes. Right: Optimal LR vs. batch size on log-log
+scale. The exact values are reported in Table 8.
+The optimal LR scales as η∗ = 4.66×10 −6·B 0.558, with exponent≈0.56 sitting between the
+linear scaling rule (exponent 1.0) and the square-root rule (exponent 0.5, predicted by SDE analysis
+[MLPA22]). The minimum achievable loss is remarkably stable across batch sizes (within a 0.001
+difference across batch sizes from 256K to 1M and within 0.004 for 2M), indicating that all tested
+batch sizes are below the critical batch size for this configuration. Since the optimal loss is mostly
+invariant under the tested batch size, we fix the batch size to 2M tokens for all subsequent experiments
+9
+
+=====PAGE 10=====
+so that the batch size does not confound the scaling behavior. We leave the study of the relationship
+between critical batch size and training tokens to future work, as it requires a straightforward but
+costly scaling of the same suite of experiments explored in this section across multiple token budgets.
+4.4 MoE Scaling
+We extend our empirical verification of HyperP to our Transformer-Next-MoE architecture, inves-
+tigating when scaling sparsity and granularity plateaus under optimal learning rates.
+Auxiliary Balance Loss.We apply the Switch-Transformer load balancing loss [ FZS22], computed
+over the global batch across all data-parallel ranks:
+Laux =γ·N·
+NX
+i=1
+fi·Pi,(15)
+whereN is the number of experts,fi =c i/PN
+j=1cj is the fraction of tokens dispatched to experti
+(with ci the hard count), and Pi = PT
+t=1pt,i/PN
+j=1
+PT
+t=1pt,j is the normalized total router
+probability for experti, withpt,i the post-softmax routing weight for token t. Both fi andPi are
+aggregated across all ranks via all-reduce before computing the loss. Under 10.4B training token
+budgets withd= 8 model size, we sweep the auxiliary balance loss weightγ∈{10 −3,10−2,10−1}
+for theS= 8,k= 4 MoE configuration,as shown in Figure 5. Note that in this setting, we train
+withoutSqrtGate or shared experts to remove architectural confounders, allowing us to better isolate
+the effect of hypersphere optimization on load balancing.
+Figure 5: Loss vs. LR curves for three auxiliary loss weights. The curves nearly overlap, indicating
+robustness onγ under hypersphere optimization. The exact values across all LR andγ combinations
+are reported in Table 9.
+To quantify load imbalance, we use the MaxVio (maximal violation) metric [ WGZ+24], which
+measures how much the most loaded expert exceeds the balanced baseline:
+MaxVio = maxi ci−¯c
+¯c ,¯c= 1
+N
+NX
+i=1
+ci,(16)
+whereci is the number of tokens dispatched to expert i within a batch and ¯cis the expected load
+under perfect balance. A value of zero indicates perfectly uniform routing. We compute MaxVio per
+layer and report the mean across layers (Mean MaxVio). Surprisingly, as shown in Table 3, the largest
+weightγ= 10−1 achieves thebestloss (2.332) with the lowest Mean MaxVio. This contrasts with
+prior work suggesting that the auxiliary loss harms language modeling quality and thereby motivates
+auxiliary-loss-free load balancing [WGZ+24]. Under hypersphere optimization, the bounded logits
+(Theorem 4) likely prevent the auxiliary loss from interfering with the language modeling objective,
+and we leave the theoretical study to future work. Motivated by these results, we adoptγ= 0.1 for
+all experiments in the remainder of the paper.
+10
+
+=====PAGE 11=====
+Table 3: Effect of γ on global load balancing. Mean max violation measures worst-case load
+imbalance across experts atη∗ = 0.012from the global batch.
+γBest Val Loss Mean MaxVio
+10−3 2.334 0.848
+10−2 2.336 0.132
+10−1 2.332 0.086
+Sparsity Scaling.We sweep sparsity S∈{1,2,4,8,16,32} for Transformer-Next-MoE with
+granularityk= 4 . The model has a constant 208M active parameters, with a range of 208M–3.33B
+total parameters depending on the sparsity. As shown in Figure 6, the optimal LR varies only mildly
+(0.012–0.016) across a 32× sparsity range, indicating strong LR transferability over MoE sparsity.
+Increasing sparsity consistently improves validation loss: moving fromS=1 toS=32 reduces the
+optimal loss by 0.224. This means that it would require approximately 5.2× more dense training
+FLOP to achieve the same loss reduction under the MuonH+HyperP scaling curve in Figure 9.
+Figure 6: Left: Loss vs. LR across sparsity levels. Right: Optimal loss follows a power law in the
+MoE sparsity. The exact values are reported in Table 10.
+Granularity Scaling.We sweep k∈{2,4,8,16,32,64} with and without SqrtGate to verify that
+our granularity scaling theory in Section 3.7 holds in practice. As shown in Figure 7, the optimal LR
+varies only between 0.012–0.014 across a 32× range ofk, enabling direct LR transfer across MoE
+granularity configurations. SqrtGate consistently improves val loss at everyk, with the largest gain at
+k= 2 (−0.018 nats) andk= 32 (−0.009 nats). With SqrtGate, performance continues to improve
+up tok= 32 , which achieves the best loss of 2.310, whereas the baseline saturates atk= 16 . These
+results show that SqrtGate improves both the model quality and the granularity scalability compared
+to the baseline.
+Figure 7: Loss vs. LR across top-k values with and without SqrtGate. The exact optimal learning
+rates and losses are provided in Table 11.
+11
+
+=====PAGE 12=====
+4.5 Training FLOPs Scaling
+Empirical optimality of HyperP across FLOPs.Before comparing scaling behaviors between
+different hyperparameter transfer laws, we first verify that HyperP preserves the empirical optimality
+of a single small-scale LR choice as training FLOPs increase. As shown in Figure 8, the loss-vs-LR
+curves under HyperP remain well aligned from d=8 throughd=20, and the same base optimum
+η0 = 0.02 is preserved across scales. This confirms the central premise of HyperP: one LR sweep
+at small scale is sufficient to determine the learning rates used along the full scaling trajectory. In
+contrast, without HyperP the optimal learning rate drifts with depth, so directly reusing the small-scale
+learning rate becomes increasingly miscalibrated and leads to substantially worse performance.
+Figure 8: Loss vs. LR across depths with HyperP (left) and without HyperP (right). HyperP keeps
+the curves aligned and preserves a common base optimum atη 0 = 0.02fromd=8throughd=20.
+Figure 9: Left: Loss vs. FLOPs with power-law fits for all four methods. Right: Compute Efficiency
+Leverage (CEL) relative to the Muon baseline. MuonH+HyperP achieves 1.58 × CEL than the
+MuonH baseline, while the MuonH+HyperP MoE models achieve 3.38× CEL over the dense model
+baselines. The exact values are reported in Table 12.
+Compute scaling comparisons.In Figure 9, we compare the end-to-end compute scaling behaviors
+of various hyperparameter transfer laws. Each method is tuned once at the smallest model sized=8
+using a coarse-grained LR sweep η∈{2×10 −3,4×10−3,8×10−3,1×10−2,2×10−2,4×10−2}
+and then scaled with the observed optimal learning rate across model sizesd∈{8,12,16,20,24}
+with 50 TPP. Specifically, we compare four configurations:
+• Muon:µP++ [RCX+25] with∝1/w weight decay scaling [QCP+25], using optimal base LR
+η∗ = 0.02with base weight decayλ ∗ = 10−3.
+• MuonH: vanilla MuonH with ∝1/ √din initialization [ WDL+25], using optimal base LR
+η∗ = 0.01.
+12
+
+=====PAGE 13=====
+•MuonH+HyperP: MuonH with HyperP, using optimal base LRη ∗ = 0.02.
+• MuonH+HyperP MoE: HyperP applied to the Transformer-Next-MoE model withS=8 and
+k=8, using the optimal base LRη∗ = 0.01.
+Given the empirical results, we fit each Loss–FLOPs trajectory withL=A·C −b +C0 (Figure 9, left).
+Among dense models, MuonH+HyperP exhibits the strongest scaling trends, achieving the lowest
+irreducible floor (C0 = 0.85), compared with 1.23 for Muon and 1.62 for MuonH without HyperP.
+At the largest budget ( 5.96×10 21 FLOPs), MuonH+HyperP attains 1.58× Compute Efficiency
+Leverage (CEL) over the Muon baseline. The MuonH+HyperP MoE model achieves a similarly low
+floor (C0 = 0.87) while outperforming all dense models across the full FLOPs range, reaching up to
+3.38× CEL over the dense baselines at the largest budget. The CEL of MuonH+HyperP increases
+monotonically with scale (Figure 9, right), rising from near parity at d=8 to 1.58× leverage at
+d=24. In contrast, MuonH without HyperP is briefly competitive at intermediate scales but ultimately
+declines to 0.70×, showing that even a modest learning-rate transfer mismatch compounds into a
+substantial compute efficiency penalty at large scale.
+5 Analysis
+5.1 Transferable Stability
+Figure 10: Stability metrics across training for MoE models at depthsd∈{8,12,16,20} under the
+same transferred LR. All metrics are bounded and non-increasing with scales.
+A practical concern with hyperparameter transfer is whether training stability degrades at larger scales
+when the hyperparameters are configured using a small proxy. We track six metrics of the training
+configurationMuonH+HyperP MoEconducted in Section 4.5 for the Transformer-Next-MoE
+model across depthsd∈{8,12,16,20}:
+•Z -values( LSE2): For both attention and MoE routing, we computeZ= 1
+BT
+P LSE(z)2, where
+LSE(z) = log P
+i exp(zi) is the log-sum-exp of the pre-softmax logits. This is the quantity
+penalized byZ-loss [ZBK +22]; largeZindicates logit explosion.
+• Output RMS: The root-mean-square magnitude of the attention and MoE residual-branch outputs,
+averaged across layers. Growing output norms signal representational instability.
+• Outlier %: The fraction of hidden-state elements of the attention and MoE residual-branch
+outputs exceeding 5σ from the per-token mean, averaged across layers. This detects the emergence
+of activation outliers that degrade quantization.
+13
+
+=====PAGE 14=====
+Figure 10 shows that all six metrics are well-behaved as scale increases. The attention Z-values
+plateau at comparable magnitudes across depths (≈200–220). The routerZ-values are even better
+behaved: their peaks decrease monotonically with depth (from 56 atd=8 to 33 atd=20) and continue
+to decline during training at the largest scale. The output RMS norms decrease with depth for
+both attention and MoE residual branches. The outlier percentages similarly decrease with depth,
+indicating that larger models under HyperP do not develop more activation outliers commonly
+observed in standard training [DLBZ22]. These results show that HyperP provides not only optimal
+LR transfer but alsostability transfer: the same hyperparameters that work well at small scales
+produce equally or more stable training dynamics at large scales.
+5.2 Sensitivity of Optimal Learning Rate Estimation
+Since we heavily use quadratic fitting to find optimal Learning Rates (LRs), we want to understand
+how many LR sweep points are needed for reliable estimates. We take the experimental data from
+our data scaling experiments in Section 3.4 as a case study. We enumerate all
+ 8
+k
+
+combinations ofk
+points from 8 available LRs, fit the parabola in log(η) space, and measure the mean relative error
+compared to the full 8-point fit.
+Figure 11: Relative error in optimal LR (Left) and optimal loss (Right) estimates vs. number of sweep
+points. The exact values are reported in Table 14.
+Optimal loss is far more stable than optimal LR.The loss estimate is consistently 50–140× less
+sensitive than the LR estimate (Table 14). With onlyn=3 points, the loss error is 0.03–0.14% while
+the LR error is 3.7–8.1%. This asymmetry is expected: the loss minimum is a second-order quantity
+that is insensitive to perturbations in the sweep points, whereas the minimizing LR is first-order.
+Five points suffice.Because loss is second-order in LR, even moderate LR errors translate to
+negligible loss errors. With n=5, the worst-case LR error is 4.1% (at 10.4B tokens), yet the
+corresponding loss error is only 0.04%, or∼0.001 nats in absolute terms. Throughout this paper,
+we report losses up-to four decimal places and the smallest architecture differences we act on are
+∼0.006 nats (e.g., SqrtGate vs. SharedExp+SqrtGate in Table 16). A∼0.001-nat fitting uncertainty
+is thus well below the resolution needed to distinguish any comparison in our experiments. Note
+that our analysis assumes a well-fitting quadratic (R2 >0.99 ) and when the fit is poor, we base our
+conclusions on the observed optimal LR instead.
+5.3 Rethinking Architecture
+After establishing the scaling laws on the predefinedTransformer-Nextarchitecture, we can now
+revisit architectural design choices to better understand their impact under hypersphere optimization.
+With HyperP enabling fair comparisons under scalable, near-optimal hyperparameter settings, we
+study several architecture variants by first identifying the optimal learning rate at thed= 8 scale and
+then scaling to larger models using the fitted optima.
+Small-scale ablation study.We first compare architectural variants at the smallest scale ( d=8,
+10.4B tokens) before scaling up. On the dense model side, we ablate three attention normalization
+14
+
+=====PAGE 15=====
+variants:GA QK-Norm(Gated Attention with QK normalization),QK-Norm, andBaseline(no QK-
+Norm or GA). On the MoE side, we ablate SqrtGate (Section 3.7) and the shared expert (SharedExp)
+on a sparsity of 8 and a granularity of 8 configuration ( S= 8,k= 8 ), comparingSqrtGate,
+SharedExp, andSharedExp + SqrtGate.
+Figure 12: Small-scale LR sweeps atd=8, 10.4B tokens. Left: Dense attention normalization variants.
+GA QK-Norm achieves the lowest loss with a slightly shifted optimal LR. We exclude the LR=0.02
+data points for dense models because the large learning rate leads to phase changes that harm fitting
+goodness. Right: MoE architecture variants. SharedExp + SqrtGate achieves the best loss while
+all variants maintain similar optimal LRs (η∗≈0.0135 – 0.0137). The exact values are reported in
+Table 15 and Table 16.
+As shown in Figure 12, GA QK-Norm outperforms QK-Norm by−0.010 nats and Baseline by−0.023
+nats. All three methods have similar optimal LRs (0.015–0.016), confirming that gated attention with
+QK normalization directly improves optimization quality without drastically change the LR landscape.
+All three MoE variants share nearly identical optimal LRs (η∗ = 0.0135 – 0.0137), indicating that
+neither SqrtGate nor the shared expert distorts the LR landscape under hypersphere optimization.
+SqrtGate and the shared expert alone provide nearly identical improvements. Combining both yields
+the best performance, suggesting that the two mechanisms address orthogonal aspects: SqrtGate
+stabilizes the forward signal magnitude across routing granularity (Theorem 6), while the shared
+expert provides a consistently activated capacity pathway.
+Figure 13: Dense architecture scaling. Left: Loss vs. FLOPs with power-law fitsL=A·C −b. Right:
+Compute Efficiency Leverage (CEL) over the baseline.
+Scaling comparisons.In Figure 13, we compare Baseline (LR =0.015), QKNorm (LR=0.015),
+and GatedAttn+QKNorm (LR=0.016) across depthsd∈{8,12,16,20} . Since there are fewer than
+5 data points for the fitting, we apply power-law fits without irreducible loss for robust estimates.
+15
+
+=====PAGE 16=====
+GatedAttn+QKNorm achieves the best scaling behaviors overall, translating its−0.023 nats small-
+scale advantage into growing compute efficiency leverage that peaks at∼1.15× at intermediate scale.
+However, the advantages of both QKNorm and GatedAttn+QKNorm further shrink as the training
+scale increases, indicating the diminishing performance returns of these architectural choices.
+Figure 14: MoE architecture scaling. Left: Loss vs. FLOPs with power-law fits. All properly-tuned
+variants (LR=0.014) outperform the lower-LR baseline. Right: Compute efficiency leverage over the
+SharedExp+SqrtGate (LR=0.01) baseline.
+In Figure 14, we compare SharedExp, SqrtGate, and SharedExp+SqrtGate across depths d∈
+{8,12,16,24} with their fitted optimal LR =0.014. We also have an observed optimal LR base-
+line for SharedExp+SqrtGate with LR =0.01 to understand how using the fitted optimum affects
+the CEL when compared to the observed optimum. All three variants at the properly tuned LR
+(0.014) outperform the SharedExp+SqrtGate baseline at the suboptimal LR (0.01), demonstrating that
+even a modest LR mismatch (1.4×) compounds into meaningful efficiency losses at scale. Among
+the properly tuned variants, SharedExp+SqrtGate achieves the best overall scaling, confirming that
+the complementary benefits observed at small scale (Figure 12) persist with increasing compute.
+These results underscore that fine-grained LR tuning at small scale, enabled by HyperP’s transferable
+optimal LR, propagates nontrivial compute savings across the entire scaling trajectory.
+Figure 15: Stability comparison of architecture ablations. Left: Router Z-values for MoE variants at
+d=16. Router logits are exploding without SqrtGate. Right: MLP output RMS for dense variants
+atd=20. QKNorm and Baseline exhibit a large spike at around 110B training tokens, while Gate-
+dAttn+QKNorm maintains the most stable RMS throughout training.
+Stability benefits of architecture choices.While the loss improvements from architectural choices
+narrow with increasing computes, they present significant stability benefits at larger scales. Figure 15
+tracks two instability indicators during long training runs at the largest scale in ablation study. For
+MoE routing (Figure 15, left), the effect of SqrtGate is dramatic: without SqrtGate (SharedExp only),
+routerZ-values grow continuously from∼25 to over 190 with frequent spikes, indicating progressive
+16
+
+=====PAGE 17=====
+logit explosion. Adding SqrtGate suppresses this entirely: the Z-values remain bounded below 40
+throughout training, around 5× reduction in peak magnitude. For dense architectures (Figure 15,
+right), QKNorm alone produces the highest MLP output RMS, while GatedAttn+QKNorm achieves
+the most stable trend without any spikes. The vanilla Baseline shows lower final RMS but exhibits
+late-training instability spikes absent from the GatedAttn+QKNorm variant. These results reveal a
+complementary role for architecture design under HyperP: even when loss differences shrink at scale,
+the stability margin provided by SqrtGate and GatedAttn becomes increasingly important for reliable
+large-scale training.
+6 Conclusion
+We introduce HyperP (Hypersphere Parameterization), the first framework for transferring a sin-
+gle optimal learning rate across model width, depth, training tokens, and MoE granularity under
+Frobenius-sphere optimization. We prove that weight decay is a first-order no-op on the Frobenius
+sphere and that Depth-µP remains necessary, and empirically identify a data-scaling exponent of
+0.32 matching previous studies on AdamW, suggesting universality across optimizers. For MoE,
+we propose SqrtGate, a gating mechanism that preserves output RMS across granularities, reducing
+routerZ-value peaks by 5×. A single base learning rate tuned at d=8 (208M active parameters)
+transfers to d=24 (3.8B active parameters), achieving 1.58× compute efficiency leverage over a
+strong Muon baseline at 6×10 21 FLOPs, with MoE models at d=20 of 13.3B total parameters
+reaching 3.38× over dense models. The advantage grows monotonically, suggesting even larger
+gains than the Muon baseline at frontier scales. HyperP also enables substantially larger auxiliary
+load-balancing weights and allows models to achieve the best loss and expert balance simultaneously.
+HyperP further deliverstransferable stability: all monitored instability indicators are non-increasing
+with scale under the same transferred hyperparameters, and systematic architecture comparisons
+reveal that while loss improvements from QK-Norm, Gated Attention, and SqrtGate diminish with
+scale, their stability benefits become increasingly important for long-horizon training.
+Limitations.We assume the Chinchilla law is compute-optimal for our training setup, which in
+practice needs to be re-fitted per training dataset. The magic data scaling exponent 0.32 is an
+empirical observation that lacks a theoretical derivation for a universality guarantee. Extending
+these scaling laws to other architectures (e.g., hybrid models [ RCX+25], linear recurrent models
+[LLC+26, YKH25]) and verifying them at larger scale remains an important future direction. The
+batch size scaling exponent 0.56 deviates from the SDE-predicted 0.5, warranting further theoretical
+investigation. While our work mainly focuses on the transfer law of the learning rate, better scaling
+performance may be achieved by extending the analyses to the optimizers’ momentum terms.
+Acknowledgement
+We want to thank Kaiyue Wen, Cheng Lu, Songlin Yang and Jingyuan Liu for helpful discussions.
+References
+[ALTdJ+23] J. Ainslie, J. Lee-Thorp, Michiel de Jong, Yury Zemlyanskiy, Federico Lebr’on, and Sumit K.
+Sanghai. Gqa: Training generalized multi-query transformer models from multi-head checkpoints.
+Conference on Empirical Methods in Natural Language Processing, 2023.
+[BBC+25] Johan Bjorck, Alon Benhaim, Vishrav Chaudhary, Furu Wei, and Xia Song. Scaling optimal LR
+across token horizons. InThe Thirteenth International Conference on Learning Representations,
+2025.
+[BDG+25] Shane Bergsma, Nolan Dey, Gurpreet Gosal, Gavia Gray, Daria Soboleva, and Joel Hestness.
+Power lines: Scaling laws for weight decay and batch size in llm pre-training.arXiv preprint
+arXiv: 2505.13738, 2025.
+[Ber25] Jeremy Bernstein. Modular manifolds.Thinking Machines Lab: Connectionism, 2025.
+https://thinkingmachines.ai/blog/modular-manifolds/.
+[BKH16] Jimmy Lei Ba, Jamie Ryan Kiros, and Geoffrey E. Hinton. Layer normalization.arXiv preprint
+arXiv: 1607.06450, 2016.
+17
+
+=====PAGE 18=====
+[BMR+20] Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal,
+Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, et al. Language models are
+few-shot learners.Advances in neural information processing systems, 33:1877–1901, 2020.
+[CND+23] Aakanksha Chowdhery, Sharan Narang, Jacob Devlin, Maarten Bosma, Gaurav Mishra, Adam
+Roberts, Paul Barham, Hyung Won Chung, Charles Sutton, Sebastian Gehrmann, et al. Palm:
+Scaling language modeling with pathways.Journal of machine learning research, 24(240):1–113,
+2023.
+[DA24a] DeepSeek-AI. Deepseek-v2: A strong, economical, and efficient mixture-of-experts language
+model.arXiv preprint arXiv: 2405.04434, 2024.
+[DA24b] DeepSeek-AI. Deepseek-v3 technical report.arXiv preprint arXiv: 2412.19437, 2024.
+[DDM+23] Mostafa Dehghani, Josip Djolonga, Basil Mustafa, Piotr Padlewski, Jonathan Heek, Justin Gilmer,
+Andreas Peter Steiner, Mathilde Caron, Robert Geirhos, Ibrahim Alabdulmohsin, Rodolphe Jenat-
+ton, Lucas Beyer, Michael Tschannen, Anurag Arnab, Xiao Wang, Carlos Riquelme Ruiz, Matthias
+Minderer, Joan Puigcerver, Utku Evci, Manoj Kumar, Sjoerd Van Steenkiste, Gamaleldin Fathy
+Elsayed, Aravindh Mahendran, Fisher Yu, Avital Oliver, Fantine Huot, Jasmijn Bastings, Mark
+Collier, Alexey A. Gritsenko, Vighnesh Birodkar, Cristina Nader Vasconcelos, Yi Tay, Thomas
+Mensink, Alexander Kolesnikov, Filip Pavetic, Dustin Tran, Thomas Kipf, Mario Lucic, Xiaohua
+Zhai, Daniel Keysers, Jeremiah J. Harmsen, and Neil Houlsby. Scaling vision transformers to 22
+billion parameters. In Andreas Krause, Emma Brunskill, Kyunghyun Cho, Barbara Engelhardt,
+Sivan Sabato, and Jonathan Scarlett, editors,Proceedings of the 40th International Conference on
+Machine Learning, volume 202 ofProceedings of Machine Learning Research, pages 7480–7512.
+PMLR, 23-29 Jul 2023.
+[DDZ+24] Damai Dai, Chengqi Deng, Chenggang Zhao, Runxin Xu, Huazuo Gao, Deli Chen, Jiashi Li,
+Wangding Zeng, Xingkai Yu, Yu Wu, Zhenda Xie, Y . K. Li, Panpan Huang, Fuli Luo, Chong
+Ruan, Zhifang Sui, and Wenfeng Liang. Deepseekmoe: Towards ultimate expert specialization in
+mixture-of-experts language models. InAnnual Meeting of the Association for Computational
+Linguistics, 2024.
+[Def25] Aaron Defazio. Why gradients rapidly increase near the end of training.arXiv preprint arXiv:
+2506.02285, 2025.
+[DLBZ22] Tim Dettmers, Mike Lewis, Younes Belkada, and Luke Zettlemoyer. Llm.int8(): 8-bit matrix
+multiplication for transformers at scale.arXiv preprint arXiv: 2208.07339, 2022.
+[FDD+25] Yonggan Fu, Xin Dong, Shizhe Diao, Matthijs Van keirsbilck, Hanrong Ye, Wonmin Byeon,
+Yashaswi Karnati, Lucas Liebenwein, Hannah Zhang, Nikolaus Binder, Maksim Khadkevich,
+Alexander Keller, Jan Kautz, Yingyan Celine Lin, and Pavlo Molchanov. Nemotron-flash: Towards
+latency-optimal hybrid small language models.arXiv preprint arXiv: 2511.18890, 2025.
+[FZS22] William Fedus, Barret Zoph, and Noam Shazeer. Switch transformers: Scaling to trillion parameter
+models with simple and efficient sparsity.The Journal of Machine Learning Research, 23(1):5232–
+5270, 2022.
+[Goo25] Google. Gemini 2.5: Pushing the frontier with advanced reasoning, multimodality, long context,
+and next generation agentic capabilities.arXiv preprint arXiv: 2507.06261, 2025.
+[HBM+22] Jordan Hoffmann, Sebastian Borgeaud, A. Mensch, Elena Buchatskaya, Trevor Cai, Eliza Ruther-
+ford, Diego de Las Casas, Lisa Anne Hendricks, Johannes Welbl, Aidan Clark, Tom Hennigan, Eric
+Noland, Katie Millican, George van den Driessche, Bogdan Damoc, Aurelia Guy, Simon Osindero,
+K. Simonyan, Erich Elsen, Jack W. Rae, Oriol Vinyals, and L. Sifre. Training compute-optimal
+large language models.ARXIV .ORG, 2022.
+[HZRS16] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image
+recognition.CVPR, 2016.
+[JBR+24] Keller Jordan, Jeremy Bernstein, Brendan Rappazzo, @fernbear.bsky.social, Boza Vlado, You Ji-
+acheng, Franz Cesista, Braden Koszarsky, and @Grad62304977. modded-nanogpt: Speedrunning
+the nanogpt baseline, 2024.
+[JJB+24] Keller Jordan, Yuchen Jin, Vlado Boza, Jiacheng You, Franz Cesista, Laker Newhouse, and Jeremy
+Bernstein. Muon: An optimizer for hidden layers in neural networks, 2024.
+[KAL+23] Tero Karras, Miika Aittala, Jaakko Lehtinen, Janne Hellsten, Timo Aila, and Samuli Laine.
+Analyzing and improving the training dynamics of diffusion models.arXiv preprint arXiv:
+2312.02696, 2023.
+[KMH+20] Jared Kaplan, Sam McCandlish, Tom Henighan, Tom B. Brown, Benjamin Chess, Rewon Child,
+Scott Gray, Alec Radford, Jeffrey Wu, and Dario Amodei. Scaling laws for neural language
+models.arXiv preprint arXiv: 2001.08361, 2020.
+18
+
+=====PAGE 19=====
+[LH18] Ilya Loshchilov and Frank Hutter. Decoupled weight decay regularization. InInternational
+Conference on Learning Representations, 2018.
+[LHSG25] Ilya Loshchilov, Cheng-Ping Hsieh, Simeng Sun, and Boris Ginsburg. nGPT: Normalized
+transformer with representation learning on the hypersphere. InThe Thirteenth International
+Conference on Learning Representations, 2025.
+[LLC+26] Aakash Lahoti, Kevin Y . Li, Berlin Chen, Caitlin Wang, Aviv Bick, J. Zico Kolter, Tri Dao, and
+Albert Gu. Mamba-3: Improved sequence modeling using state space principles.arXiv preprint
+arXiv: 2603.15569, 2026.
+[LZH+25] Houyi Li, Wenzhen Zheng, Jingcheng Hu, Qiufeng Wang, Hanshan Zhang, Zili Wang, Shijie
+Xuyang, Yuantao Fan, Shuigeng Zhou, Xiangyu Zhang, and Daxin Jiang. Predictable scale: Part i
+- optimal hyperparameter scaling law in large language model pretraining.arXiv preprint arXiv:
+2503.04715, 2025.
+[MAB+25] Bruno Mlodozeniec, Pierre Ablin, Louis Béthune, Dan Busbridge, Michal Klein, Jason Ramapu-
+ram, and Marco Cuturi. Completed hyperparameter transfer across modules, width, depth, batch
+and duration, 2025.
+[MKAT18] Sam McCandlish, Jared Kaplan, Dario Amodei, and OpenAI Dota Team. An empirical model of
+large-batch training.arXiv preprint arXiv: 1812.06162, 2018.
+[MLPA22] Sadhika Malladi, Kaifeng Lyu, Abhishek Panigrahi, and Sanjeev Arora. On the SDEs and scaling
+rules for adaptive gradient algorithms. In Alice H. Oh, Alekh Agarwal, Danielle Belgrave, and
+Kyunghyun Cho, editors,Advances in Neural Information Processing Systems, 2022.
+[Ope23] OpenAI. Gpt-4 technical report.PREPRINT, 2023.
+[Ope25] OpenAI. gpt-oss-120b & gpt-oss-20b model card.arXiv preprint arXiv: 2508.10925, 2025.
+[PGM+19] Adam Paszke, Sam Gross, Francisco Massa, Adam Lerer, James Bradbury, Gregory Chanan,
+Trevor Killeen, Zeming Lin, Natalia Gimelshein, Luca Antiga, et al. Pytorch: An imperative style,
+high-performance deep learning library.Advances in neural information processing systems, 32,
+2019.
+[QCP+25] Shikai Qiu, Zixi Chen, Hoang Phan, Qi Lei, and Andrew Gordon Wilson. Hyperparameter transfer
+enables consistent gains of matrix-preconditioned optimizers across scales. InThe Thirty-ninth
+Annual Conference on Neural Information Processing Systems, 2025.
+[QHW+26] Zihan Qiu, Zeyu Huang, Kaiyue Wen, Peng Jin, Bo Zheng, Yuxin Zhou, Haofeng Huang, Zekun
+Wang, Xiao Li, Huaqing Zhang, Yang Xu, Haoran Lian, Siqi Zhang, Rui Men, Jianwei Zhang,
+Ivan Titov, Dayiheng Liu, Jingren Zhou, and Junyang Lin. A unified view of attention and
+residual sinks: Outlier-driven rescaling is essential for transformer training.arXiv preprint arXiv:
+2601.22966, 2026.
+[Qwe25] Qwen Team. Qwen3-next-80b-a3b, September 2025. Qwen Blog. Accessed: 2026-03-22.
+[QWZ+25] Zihan Qiu, Zekun Wang, Bo Zheng, Zeyu Huang, Kaiyue Wen, Songlin Yang, Rui Men, Le Yu,
+Fei Huang, Suozhi Huang, Dayiheng Liu, Jingren Zhou, and Junyang Lin. Gated attention for
+large language models: Non-linearity, sparsity, and attention-sink-free. InThe Thirty-ninth Annual
+Conference on Neural Information Processing Systems, 2025.
+[RCX+25] Liliang Ren, Congcong Chen, Haoran Xu, Young Jin Kim, Adam Atkinson, Zheng Zhan, Jiankai
+Sun, Baolin Peng, Liyuan Liu, Shuohang Wang, Hao Cheng, Jianfeng Gao, Weizhu Chen, and
+yelong shen. Decoder-hybrid-decoder architecture for efficient reasoning with long generation. In
+The Thirty-ninth Annual Conference on Neural Information Processing Systems, 2025.
+[RWC+19] Alec Radford, Jeff Wu, Rewon Child, David Luan, Dario Amodei, and Ilya Sutskever. Language
+models are unsupervised multitask learners.arXiv preprint, 2019.
+[SAKM+23] Daria Soboleva, Faisal Al-Khateeb, Robert Myers, Jacob R Steeves, Joel Hes-
+tness, and Nolan Dey. Slimpajama: A 627b token cleaned and dedupli-
+cated version of redpajama, 2023. URL: https://www.cerebras.net/blog/
+slimpajama-a-627b-token-cleaned-and-deduplicated-version-of-redpajama.
+[Sha20] Noam Shazeer. Glu variants improve transformer.arXiv preprint arXiv: 2002.05202, 2020.
+[SK16] Tim Salimans and Durk P Kingma. Weight normalization: A simple reparameterization to
+accelerate training of deep neural networks.Advances in neural information processing systems,
+29, 2016.
+[SMM+17] Noam Shazeer, Azalia Mirhoseini, Krzysztof Maziarz, Andy Davis, Quoc V . Le, Geoffrey E.
+Hinton, and Jeff Dean. Outrageously large neural networks: The sparsely-gated mixture-of-experts
+layer. In5th International Conference on Learning Representations, ICLR 2017, Toulon, France,
+April 24-26, 2017, Conference Track Proceedings. OpenReview.net, 2017.
+19
+
+=====PAGE 20=====
+[Tea25a] Kimi Team. Kimi k2: Open agentic intelligence.arXiv preprint arXiv: 2507.20534, 2025.
+[Tea25b] Ling Team. Every activation boosted: Scaling general reasoner to 1 trillion open language
+foundation.arXiv preprint arXiv: 2510.22115, 2025.
+[W A24] Xi Wang and Laurence Aitchison. How to set adamw’s weight decay as you scale model and
+dataset size.arXiv preprint arXiv: 2405.13698, 2024.
+[WDL+25] Kaiyue Wen, Xingyu Dang, Kaifeng Lyu, Tengyu Ma, and Percy Liang. Fantastic pretraining
+optimizers and where to find them ii: From weight decay to hyperball optimization, 12 2025.
+[WGZ+24] Lean Wang, Huazuo Gao, Chenggang Zhao, Xu Sun, and Damai Dai. Auxiliary-loss-free load
+balancing strategy for mixture-of-experts.arXiv preprint arXiv: 2408.15664, 2024.
+[WLX+24] Mitchell Wortsman, Peter J Liu, Lechao Xiao, Katie E Everett, Alexander A Alemi, Ben Adlam,
+John D Co-Reyes, Izzeddin Gur, Abhishek Kumar, Roman Novak, Jeffrey Pennington, Jascha
+Sohl-Dickstein, Kelvin Xu, Jaehoon Lee, Justin Gilmer, and Simon Kornblith. Small-scale proxies
+for large-scale transformer training instabilities. InThe Twelfth International Conference on
+Learning Representations, 2024.
+[XLT+26] Tian Xie, Haoming Luo, Haoyu Tang, Yiwen Hu, Jason Klein Liu, Qingnan Ren, Yang Wang,
+Wayne Xin Zhao, Rui Yan, Bing Su, Chong Luo, and Baining Guo. Controlled llm training on
+spectral sphere.arXiv preprint arXiv: 2601.08393, 2026.
+[XYH+20] Ruibin Xiong, Yunchang Yang, Di He, Kai Zheng, Shuxin Zheng, Chen Xing, Huishuai Zhang,
+Yanyan Lan, Liwei Wang, and Tie-Yan Liu. On layer normalization in the transformer architecture.
+InProceedings of the 37th International Conference on Machine Learning, ICML 2020, 13-18
+July 2020, Virtual Event, volume 119 ofProceedings of Machine Learning Research, pages
+10524–10533. PMLR, 2020.
+[YHB+22] Greg Yang, Edward J. Hu, Igor Babuschkin, Szymon Sidor, Xiaodong Liu, David Farhi, Nick
+Ryder, Jakub Pachocki, Weizhu Chen, and Jianfeng Gao. Tensor programs v: Tuning large neural
+networks via zero-shot hyperparameter transfer.arXiv preprint arXiv: 2203.03466, 2022.
+[YKH25] Songlin Yang, Jan Kautz, and Ali Hatamizadeh. Gated delta networks: Improving mamba2 with
+delta rule. InThe Thirteenth International Conference on Learning Representations, 2025.
+[YLY+25] An Yang, Anfeng Li, Baosong Yang, Beichen Zhang, Binyuan Hui, Bo Zheng, Bowen Yu, Chang
+Gao, Chengen Huang, Chenxu Lv, Chujie Zheng, Dayiheng Liu, Fan Zhou, Fei Huang, Feng Hu,
+Hao Ge, Haoran Wei, Huan Lin, Jialong Tang, Jian Yang, Jianhong Tu, Jianwei Zhang, Jianxin
+Yang, Jiaxi Yang, Jing Zhou, Jingren Zhou, Junyang Lin, Kai Dang, Keqin Bao, Kexin Yang,
+Le Yu, Lianghao Deng, Mei Li, Mingfeng Xue, Mingze Li, Pei Zhang, Peng Wang, Qin Zhu, Rui
+Men, Ruize Gao, Shixuan Liu, Shuang Luo, Tianhao Li, Tianyi Tang, Wenbiao Yin, Xingzhang
+Ren, Xinyu Wang, Xinyu Zhang, Xuancheng Ren, Yang Fan, Yang Su, Yichang Zhang, Yinger
+Zhang, Yu Wan, Yuqiong Liu, Zekun Wang, Zeyu Cui, Zhenru Zhang, Zhipeng Zhou, and Zihan
+Qiu. Qwen3 technical report.arXiv preprint arXiv: 2505.09388, 2025.
+[YYZH23] Greg Yang, Dingli Yu, Chen Zhu, and Soufiane Hayou. Tensor programs vi: Feature learning in
+infinite-depth neural networks.International Conference on Learning Representations, 2023.
+[ZBK+22] Barret Zoph, Irwan Bello, Sameer Kumar, Nan Du, Yanping Huang, Jeff Dean, Noam Shazeer, and
+William Fedus. St-moe: Designing stable and transferable sparse expert models.arXiv preprint
+arXiv: 2202.08906, 2022.
+[ZRG+22] Susan Zhang, Stephen Roller, Naman Goyal, Mikel Artetxe, Moya Chen, Shuohui Chen, Christo-
+pher Dewan, Mona Diab, Xian Li, Xi Victoria Lin, Todor Mihaylov, Myle Ott, Sam Shleifer, Kurt
+Shuster, Daniel Simig, Punit Singh Koura, Anjali Sridhar, Tianlu Wang, and Luke Zettlemoyer.
+Opt: Open pre-trained transformer language models.arXiv preprint arXiv: 2205.01068, 2022.
+A Proof of Width Transfer under Frobenius Sphere
+Lemma 7(Spectral–Frobenius sandwich).For any matrixW∈R dout×din,
+∥W∥ 2≤∥W∥ F≤√r∥W∥ 2, r:= rank(W).
+Hence,
+∥W∥ 2≤∥W∥ F≤
+p
+min(din,d out)∥W∥ 2.
+Moreover, the upper bound is attained if and only if r= min(d in,d out) and all nonzero singular
+values ofWare equal.
+20
+
+=====PAGE 21=====
+Proof.Letσ 1,...,σ r be the nonzero singular values ofW. Then
+∥W∥ 2 = max
+1≤i≤r
+σi,∥W∥ F =
+ rX
+i=1
+σ2
+i
+1/2
+.
+The lower bound∥W∥ 2≤∥W∥ F is immediate. For the upper bound,
+rX
+i=1
+σ2
+i≤rmax
+i
+σ2
+i =r∥W∥ 2
+2,
+hence
+∥W∥F≤√r∥W∥ 2.
+Equality holds if and only if all nonzero singular values are equal. To also reach
+∥W∥F =
+p
+min(din,d out)∥W∥ 2,
+one additionally needsr= min(d in,d out), i.e., full rank.
+We now prove the width-transfer theorem.
+Proof of Theorem 2.By assumption,
+∥W∥ rms = ∥W∥F√doutdin
+= C√din
+,
+which is equivalent to
+∥W∥F =C
+p
+dout.
+Now assumeWis approximately isotropic on its input space, so that for typical inputsX,
+∥WX∥ 2≤∥W∥ 2∥X∥2≈ ∥W∥Fp
+min(din,d out)
+∥X∥2.
+Since
+p
+din/min(d in,d out) =O(1), then
+∥Y∥ rms = ∥Y∥ 2√dout
+=∥WX∥ 2√dout
+≈ ∥W∥F√din
+√dout
+∥X∥2.
+Substituting∥W∥ F =C√dout gives
+∥Y∥ rms≈ C√din
+∥X∥2.
+Finally, using∥X∥ rms =∥X∥ 2/√din, we obtain
+∥Y∥ rms≈C∥X∥ rms.
+Thus the output rms scale is width-stable, which is exactly the desiredµP-style width transfer.
+B First-Order Form of Frobenius-Sphere Updates
+We prove that Frobenius renormalization preserves only the tangent component of an update to first
+order.
+Proof of Theorem 1. VectorizeW and ∆ asw= vec(W) andδ= vec(∆) . Since∥w∥2 =c W , (3)
+becomes
+w+ =c W
+w+δ
+∥w+δ∥ 2
+.(17)
+21
+
+=====PAGE 22=====
+Now expand the denominator:
+∥w+δ∥ 2 =
+ 
+∥w∥2
+2 + 2⟨w,δ⟩+∥δ∥ 2
+2
+1/2
+(18)
+=c W
+
+1 + 2⟨w,δ⟩
+c2
+W
++∥δ∥2
+2
+c2
+W
+1/2
+(19)
+=c W
+
+1 +⟨w,δ⟩
+c2
+W
+
++O(∥δ∥ 2
+2),(20)
+where we use(1 +z) 1/2 = 1 + 1
+2z+O(z 2).
+Therefore,
+w+ = (w+δ)
+
+1 +⟨w,δ⟩
+c2
+W
+−1
++O(∥δ∥ 2
+2)(21)
+= (w+δ)
+
+1− ⟨w,δ⟩
+c2
+W
+
++O(∥δ∥ 2
+2)(22)
+=w+δ− ⟨w,δ⟩
+c2
+W
+w+O(∥δ∥ 2
+2).(23)
+Hence
+w+−w=δ− ⟨w,δ⟩
+c2
+W
+w+O(∥δ∥ 2
+2).(24)
+Returning to matrix form gives
+W +−W= ∆− ⟨∆,W⟩ F
+∥W∥ 2
+F
+W+O(∥∆∥ 2
+F ) = ΠT (∆) +O(∥∆∥ 2
+F ),(25)
+which proves (4).
+Proof of Corollary 1.1.By linearity ofΠ T ,
+ΠT (G+λW) = Π T (G) +λΠT (W).(26)
+But
+ΠT (W) =W− ⟨W,W⟩ F
+∥W∥ 2
+F
+W=W−W= 0.(27)
+Applying Theorem 1 with∆ =−η(G+λW)gives the result.
+C Depth Scaling under Frobenius-Sphere Optimization
+We first derive the first-order decomposition of the network perturbation, then analyze residual
+networks with and without update normalization, and finally extend the argument to post-norm blocks
+by computing the LayerNorm Jacobian explicitly.
+C.1 First-order decomposition of the network perturbation
+LetF(x;W 1,...,W L) denote the network output as a function of all layer parameters. For perturba-
+tions∆W 1,...,∆W L, first-order multivariate Taylor expansion yields
+F(x;W+ ∆W)−F(x;W) =
+LX
+l=1
+∂F
+∂Wl
+∆Wl +O
+
+X
+i,j
+∥∆Wi∥F∥∆Wj∥F
+
+.(28)
+Thus the first-order total perturbation is additive over layers.
+22
+
+=====PAGE 23=====
+C.2 Residual network without update normalization
+Consider
+xl+1 =x l +αLfl(xl;Wl).(29)
+Perturbing both the hidden state and the weights gives, to first order,
+∆xl+1 = ∆xl +αL
+∂fl
+∂xl
+∆xl +αL
+∂fl
+∂Wl
+∆Wl.(30)
+Define Al =I+α LJ(l)
+f,x and bl =α LJ(l)
+f,W ∆Wl. Then ∆xl+1 =A l∆xl +b l. Unrolling this
+recursion yields
+∆xL =
+LX
+l=1
+ L−1Y
+k=l+1
+Ak
+!
+bl.(31)
+Since∥J(l)
+f,x∥F =O(1) with depth, for sufficiently small αL, eachAl has an operator norm O(1).
+Hence the downstream transport factors in (31) contribute only constant-order factors at the level of
+depth exponents, and it suffices to track the scaling ofbl.
+If only the weights are normalized and the weight updates scale with the magnitude of gradients,
+then by Theorem 1, ∥∆Wl∥F =O(η l∥Gl∥F ). Under the stable-depth assumption for residual
+networks, the layerwise gradient satisfies∥Gl∥F =O(α L), since differentiating (29) with respect to
+Wl introduces exactly one factor ofαL, while the upstream signal isO(1) by assumption. Therefore
+∥∆Wl∥F =O(η lαL). Since∥J (l)
+f,W∥F =O(1),
+∥bl∥F =O(α L∥∆Wl∥F ) =O(η lα2
+L).(32)
+By the Triangle Inequality, summing overL layers gives∥∆xL∥F =O(Lη lα2
+L). We consider two
+cases where alpha is sufficiently small to satisfy our assumptions: If αL =L −1/2, this reduces
+to∥∆xL∥F =O(η l), so a depth-independent learning rate ηl =O(1) yields an O(1) first-order
+function perturbation; IfαL =L−1, one obtains∥∆xL∥F =O(L−1ηl), which requiresηl =O(L) .
+C.3 Residual network with update normalization
+Assume the raw update is normalized before the Frobenius-sphere projection:
+bGl =c G
+Gl
+∥Gl∥F
+, fWl =W l−ηlbGl, W +
+l =c W
+fWl
+∥fWl∥F
+.(33)
+By Theorem 1,
+∆Wl =W +
+l −Wl =−η lΠT (bGl) +O(η 2
+l ).(34)
+Because∥bGl∥F =c G =O(1) , we have∥∆Wl∥F =O(η l). Thus the linearized residual contribution
+at layerlscales as
+∥bl∥F =O(α L∥∆Wl∥F ) =O(α Lηl),(35)
+and summing over depth gives
+∥∆xL∥F =O(Lα Lηl).(36)
+Therefore, preserving anO(1)first-order function perturbation requires
+ηl =O
+ 1
+LαL
+
+.(37)
+In particular, ifαL =L−1/2, this givesηl =O(L−1/2), while ifαL =L−1, it givesηl =O(1).
+C.4 Post-norm residual block
+We now consider
+xl+1 = LN(xl +αLfl(xl;Wl)).(38)
+23
+
+=====PAGE 24=====
+Letu=x+α Lf(x;W) ,µ= 1
+d 1⊤u,v=u−µ1 ,σ=
+q
+1
+d∥v∥2 +ε . Ignoring learned gain and
+bias, LayerNorm is LN(u) =v/σ . Let P=I− 1
+d 11⊤. Since v=Pu , we have dv=Pdu .
+Moreover,
+dσ= 1
+2σd
+1
+d∥v∥2 +ε
+
+= 1
+σdv⊤dv= 1
+σdv⊤du,(39)
+where we usePv=v. Now
+dLN(u) =d
+v
+σ
+
+= 1
+σdv− v
+σ2dσ= 1
+σPdu− 1
+σ3dvv⊤du.(40)
+Hence the LayerNorm Jacobian is
+JLN(u) = 1
+σP− 1
+σ3dvv⊤ = 1
+σ
+
+P− 1
+dσ2vv⊤
+
+.(41)
+Now differentiate (38). By the chain rule,
+∂xl+1
+∂Wl
+=J LN(ul)αL
+∂fl
+∂Wl
+,(42)
+and similarly ∂xl+1
+∂xl
+=J LN(ul)
+
+I+α L
+∂fl
+∂xl
+
+. Sinceσl isO(1) with depth under post-norm, then
+by (41),∥JLN(ul)∥op =O(1) . Therefore, the local weight sensitivity has the same depth scalerαL
+as in the pre-norm residual block. Consequently, the same scaling argument as above applies: with
+update normalization, one obtains∥∆xL∥=O(Lα Lηl), and henceηl =O
+
+1
+LαL
+
+.
+D Detailed Experimental Results
+This section provides the exact numerical values for the figures presented in Section 3.4, Section 4
+and Section 5.
+Table 4: Optimal LR vs. training token budget under fine-grid sweeping with quadratic fitting.
+Training Tokens Fittedη ∗ Fitted Min Loss
+10.4B 0.01515 2.4741
+20.8B 0.01208 2.4189
+41.6B 0.00958 2.3773
+83.2B 0.00772 2.3456
+166.4B 0.00635 2.3214
+Table 5: Validation loss vs. LR across model depth at a fixed token budget of 10.4B without Depth-µP.
+Depth (d) Paramsη=0.002η=0.004η=0.006η=0.008η=0.010η=0.012η=0.014η=0.016η=0.018η=0.020Optimalη
+8 208M 2.684 2.569 2.521 2.498 2.485 2.474 2.4702.4692.473 2.492 0.016
+12 570M 2.523 2.405 2.355 2.328 2.3152.3082.309 2.319 2.351 2.386 0.012
+16 1.24B 2.426 2.307 2.256 2.2302.2202.225 2.251 2.288 2.299 2.315 0.010
+20 2.31B 2.354 2.235 2.1892.1662.169 2.191 2.218 2.235 2.246 2.264 0.008
+24 3.90B 2.300 2.183 2.1402.1262.142 2.165 2.184 2.196 2.212 2.221 0.008
+Table 6: Validation loss vs. LR across model depth at a fixed token budget of 10.4B with Depth-µP.
+Depth (d) Paramsη=0.002η=0.004η=0.006η=0.008η=0.010η=0.012η=0.014η=0.016η=0.018η=0.020Optimalη
+8 208M 2.682 2.568 2.520 2.496 2.484 2.4762.4732.474 2.477 2.479 0.014
+12 570M 2.568 2.437 2.377 2.347 2.331 2.319 2.3162.3152.317 2.321 0.016
+16 1.24B 2.495 2.359 2.297 2.264 2.245 2.235 2.2292.2252.225 2.234 0.016
+20 2.31B 2.445 2.309 2.246 2.211 2.188 2.177 2.1712.1692.172 2.188 0.016
+24 3.90B 2.413 2.272 2.208 2.172 2.150 2.1372.1322.132 2.137 2.152 0.014
+24
+
+=====PAGE 25=====
+Table 7: Optimal LR and loss vs. model depth at a fixed training token of 10.4B, comparing with and
+without Depth-µP. Depth-µP transfers the optimal LR across parameter size.
+Depth (d) w/ Depth-µPη ∗ w/ Depth-µP Loss w/o Depth-µPη ∗ w/o Depth-µP Loss
+8 0.014 2.4734 0.016 2.4693
+12 0.016 2.3150 0.012 2.3079
+16 0.016 2.2250 0.010 2.2196
+20 0.016 2.1690 0.008 2.1656
+24 0.014 2.1320 0.008 2.1263
+Table 8: Optimal LR vs. batch size for dense models. The minimum loss is remarkably stable (within
+0.004 nats), indicating all tested batch sizes are below the critical batch size.
+Batch Size Fittedη ∗ Fitted Min Loss
+256K 0.00504 2.4711
+512K 0.00706 2.4697
+1M 0.01056 2.4700
+2M 0.01562 2.4741
+Table 9: Validation loss vs. LR across auxiliary loss weights. The optimal LR ( η∗ = 0.012) and
+achievable loss are stable across a100×range ofγ.
+γ η=0.004η=0.008η=0.01η=0.012η=0.02Best Loss
+10−3 2.427 2.350 2.3402.3342.349 2.334
+10−2 2.431 2.354 2.3402.3362.346 2.336
+10−1 2.427 2.350 2.3372.3322.346 2.332
+Table 10: Optimal LR and loss vs. MoE sparsity. The LR varies mildly (0.012–0.016) across a32×
+range.
+Sparsity (S) Fittedη ∗ Fitted Min Loss
+1 0.0163 2.4766
+2 0.0162 2.4236
+4 0.0145 2.3705
+8 0.0139 2.3262
+16 0.0124 2.2861
+32 0.0115 2.2529
+Table 11: Optimal LR and loss across top-kvalues, with and without SqrtGate.
+Top-kw/o SqrtGateη ∗ w/o SqrtGate Loss w/ SqrtGateη ∗ w/ SqrtGate Loss
+2 0.0140 2.4306 0.0139 2.4131
+4 0.0132 2.3263 0.0139 2.3262
+8 0.0137 2.3220 0.0135 2.3156
+16 0.0126 2.3178 0.0129 2.3111
+32 0.0127 2.3186 0.0131 2.3096
+64 0.0122 2.3244 0.0128 2.3154
+25
+
+=====PAGE 26=====
+Table 12: Validation loss vs. FLOPs. MuonH + HyperP increasingly outperforms both alternatives at
+larger scale.
+Depth FLOPs Muon MuonH+HyperP MuonH
+82.14×10 19 2.4777 2.4804 2.4845
+121.49×10 20 2.2257 2.2192 2.2099
+166.59×10 20 2.0671 2.0526 2.0500
+202.19×10 21 1.9591 1.9311 1.9558
+245.96×10 21 1.8785 1.8365 1.9015
+Table 13: Compute efficiency leverage over Muon. MuonH + HyperP’s advantage grows monotoni-
+cally with scale.
+Depth FLOPs MuonH+HyperP MuonH
+82.14×10 19 0.99×0.96×
+121.49×10 20 1.04×1.19×
+166.59×10 20 1.16×1.17×
+202.19×10 21 1.35×0.99×
+245.96×10 21 1.58×0.70×
+Table 14: Mean relative error (%) of optimal LR and optimal loss estimates as a function of the
+number of sweep pointsn.
+LR Relative Error (%) Loss Relative Error (%)
+Tokensn=3n=4n=5n=6n=7n=3n=4n=5n=6n=7
+10.4B 5.87 5.08 4.09 2.88 1.55 0.07 0.05 0.04 0.03 0.01
+20.8B 3.68 2.01 1.46 1.00 0.53 0.04 0.02 0.01 0.01 0.01
+41.6B 4.27 2.55 1.58 0.95 0.46 0.03 0.02 0.01 0.01 0.01
+83.2B 5.43 3.06 1.88 1.12 0.54 0.05 0.02 0.02 0.01 0.01
+166.4B 8.07 1.97 0.88 0.48 0.28 0.14 0.02 0.01 0.01 0.00
+Table 15: QK-Norm ablation at d=8. GA QK-Norm achieves the best loss while maintaining a
+similar optimal LR.
+Method Fittedη ∗ Min Loss
+GA QK-Norm 0.01582.4727
+QK-Norm 0.0151 2.4823
+Baseline 0.0149 2.4960
+Table 16: MoE architecture ablation at d=8,S=8,k=8, 10.4B tokens. SqrtGate and the shared
+expert provide complementary gains.
+Method Fittedη ∗ Min Loss∆vs. Best
+SharedExp + SqrtGate 0.01352.3154—
+SqrtGate 0.0135 2.3210+0.006
+SharedExp 0.0137 2.3215+0.006
+26

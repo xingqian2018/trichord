@@ -12,7 +12,7 @@ srun --account=cosmos_base_training --nodes=1 --exclusive --ntasks-per-node=76 -
      bash -c "pip install playwright && PLAYWRIGHT_BROWSERS_PATH=$HOME/Software/playwright-browsers python -m playwright install --with-deps chromium-headless-shell"
 
      
-Run CMD (same docker/mounts as slaunch, but plain srun: ONE CONTAINER PER TASK, no torchrun):
+Run CMD (plain srun, no torchrun; all tasks on a node share ONE container, so each task runs under script/isolated_tmp.sh to get a private /tmp):
 
 mkdir -p $HOME/log/slurm
 lustrepath=/lustre/fsw/portfolios/cosmos
@@ -24,7 +24,7 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-nam
         --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
         --container-workdir=$HOME/Project/trichord/scripts/model_playground_v1 \
         --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID \
-        python3 script/run_poster_generation_v1.py \
+        bash script/isolated_tmp.sh python3 script/run_poster_generation_v1.py \
             --model kimi-k3@nvidiak \
             --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_v1_kimi_cosmos3_kimi \
             --aspect_ratio random --reasoning_effort random --max_samples_per_process 625"

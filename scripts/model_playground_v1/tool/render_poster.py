@@ -168,7 +168,7 @@ class render_poster(Tool):
                 "type": "object",
                 "properties": {
                     "html": {"type": "string", "description": "The complete HTML poster document to render"},
-                    "output_path": {"type": "string", "description": "Absolute path to save the rendered PNG as, e.g. /tmp/poster_agent/poster_v1.png"},
+                    "output_path": {"type": "string", "description": "Absolute path to save the rendered PNG as"},
                     "aspect_ratio": {"type": "string", "enum": list(ASPECT_RATIO_TO_SIZE), "description": "Target aspect ratio of the poster; the HTML canvas must match it"},
                 },
                 "required": ["html", "output_path", "aspect_ratio"],

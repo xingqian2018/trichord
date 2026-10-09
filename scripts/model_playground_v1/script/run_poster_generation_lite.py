@@ -1,7 +1,7 @@
 """
 Lite poster generation: the agent thinks, writes one image prompt, makes exactly one generate_image call, and stops.
 
-Run CMD (same docker/mounts as run_poster_generation.py, ONE CONTAINER PER TASK, no torchrun):
+Run CMD (plain srun, no torchrun; all tasks on a node share ONE container, so each task runs under script/isolated_tmp.sh to get a private /tmp):
 
 mkdir -p $HOME/log/slurm
 lustrepath=/lustre/fsw/portfolios/cosmos
@@ -13,7 +13,7 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-long --job-name=
         --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
         --container-workdir=$HOME/Project/trichord/scripts/model_playground_v1 \
         --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID \
-        python3 script/run_poster_generation_lite.py \
+        bash script/isolated_tmp.sh python3 script/run_poster_generation_lite.py \
             --model kimi-k3@nvidiak \
             --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_lite_gpt2p5sunburst_v0 \
             --aspect_ratio random --reasoning_effort random --max_samples_per_process 625"

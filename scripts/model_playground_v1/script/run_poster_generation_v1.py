@@ -16,9 +16,9 @@ Run CMD (plain srun, no torchrun; all tasks on a node share ONE container, so ea
 
 mkdir -p $HOME/log/slurm
 lustrepath=/lustre/fsw/portfolios/cosmos
-sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-name=poster_gen_v1 \
-    --nodes=1 --exclusive --ntasks-per-node=32 --cpus-per-task=2 --time=1-00:00:00 \
-    -o $HOME/log/slurm/poster_gen_v1.%j.o -e $HOME/log/slurm/poster_gen_v1.%j.e \
+sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-name=poster_gen_v1p1 \
+    --nodes=2 --exclusive --ntasks-per-node=16 --cpus-per-task=2 --time=1-00:00:00 \
+    -o $HOME/log/slurm/poster_gen_v1p1.%j.o -e $HOME/log/slurm/poster_gen_v1p1.%j.e \
     --wrap="srun --kill-on-bad-exit=0 \
         --container-image=$lustrepath/users/xingqianx/Container/run_poster_generation.sqsh \
         --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
@@ -26,8 +26,8 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-nam
         --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID \
         bash script/isolated_tmp.sh python3 script/run_poster_generation_v1.py \
             --model kimi-k3@nvidiak \
-            --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_v1_kimi_cosmos3_kimi \
-            --aspect_ratio random --reasoning_effort random --max_samples_per_process 625"
+            --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_v1p1_kimi_cosmos3_kimi \
+            --aspect_ratio random --reasoning_effort random --max_samples_per_process 510"
 
 """
 

@@ -47,12 +47,13 @@ class generate_image(Tool):
     }
 
     aspect_ratio_to_size = ASPECT_RATIO_TO_SIZE
+    gateway_timeout = 300
 
     def __init__(self, model_name: str = DEFAULT_MODEL_NAME, scratch_root: Optional[str] = None):
         super().__init__()
         self.scratch_root = Path(scratch_root) if scratch_root else None
         self.model_name = model_name
-        self.gateway = UnifiedGatewayImageGenerator(GATEWAY_CONFIG, num_concurrency=1, num_max_retry=2, timeout=300)
+        self.gateway = UnifiedGatewayImageGenerator(GATEWAY_CONFIG, num_concurrency=1, num_max_retry=2, timeout=self.gateway_timeout)
 
     def generate(self, prompt: str, aspect_ratio: str, output_path: str) -> str:
         if aspect_ratio not in self.aspect_ratio_to_size:

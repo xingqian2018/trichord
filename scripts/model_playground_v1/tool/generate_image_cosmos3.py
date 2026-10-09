@@ -18,6 +18,7 @@ COSMOS3_ASPECT_RATIO_TO_SIZE = {
 
 class generate_image_cosmos3(generate_image):
     aspect_ratio_to_size = COSMOS3_ASPECT_RATIO_TO_SIZE
+    gateway_timeout = 1800
 
     def __init__(self, model_name: str = DEFAULT_MODEL_NAME, scratch_root: Optional[str] = None):
         super().__init__(model_name=model_name, scratch_root=scratch_root)

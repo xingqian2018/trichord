@@ -16,8 +16,8 @@ Run CMD (same docker/mounts as slaunch, but plain srun: ONE CONTAINER PER TASK, 
 
 mkdir -p $HOME/log/slurm
 lustrepath=/lustre/fsw/portfolios/cosmos
-sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-long --job-name=poster_gen_v1 \
-    --nodes=1 --exclusive --ntasks-per-node=32 --cpus-per-task=2 --time=7-00:00:00 \
+sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-name=poster_gen_v1 \
+    --nodes=1 --exclusive --ntasks-per-node=32 --cpus-per-task=2 --time=1-00:00:00 \
     -o $HOME/log/slurm/poster_gen_v1.%j.o -e $HOME/log/slurm/poster_gen_v1.%j.e \
     --wrap="srun --kill-on-bad-exit=0 \
         --container-image=$lustrepath/users/xingqianx/Container/run_poster_generation.sqsh \

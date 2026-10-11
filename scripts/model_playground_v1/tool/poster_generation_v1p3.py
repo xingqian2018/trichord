@@ -13,7 +13,6 @@ from tool.poster_visual_critic import SYSTEM_PROMPT as CRITIC_SYSTEM_PROMPT  # n
 from tool.render_poster import render_poster  # noqa: E402
 from tool.tool import ToolCallError  # noqa: E402
 
-CRITIC_MAX_TOKENS = 16384
 CRITIC_TIMEOUT = 600
 CRITIC_NUM_MAX_RETRY = 2
 
@@ -58,7 +57,6 @@ class poster_visual_critic_v1p3(poster_visual_critic_k3slurm):
             self,
             model_name,
             CRITIC_SYSTEM_PROMPT,
-            max_tokens=CRITIC_MAX_TOKENS,
             temperature=0.0,
             num_max_retry=CRITIC_NUM_MAX_RETRY,
             timeout=CRITIC_TIMEOUT,
@@ -76,6 +74,12 @@ class poster_visual_critic_v1p3(poster_visual_critic_k3slurm):
 
 class poster_generation_v1p3(poster_generation):
     tool_registry_classes = [generate_image_cosmos3_v1p3, render_poster_v1p3, poster_visual_critic_v1p3]
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        for instance in self.tool_instances.values():
+            if isinstance(instance, Agent):
+                instance.max_tokens = self.max_tokens
 
     def setting(self) -> dict[str, Any]:
         return {**super().setting(), **fallback_setting(self)}

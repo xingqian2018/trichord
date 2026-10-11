@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tool.agent import Agent  # noqa: E402
-from tool.generate_image_cosmos3 import generate_image_cosmos3  # noqa: E402
+from tool.generate_image_cosmos3 import COSMOS3_ASPECT_RATIO_TO_SIZE, generate_image_cosmos3  # noqa: E402
 from tool.poster_generation import poster_generation  # noqa: E402
 from tool.poster_generation_v1p2 import K3SLURM_MODEL_NAME, poster_visual_critic_k3slurm  # noqa: E402
 from tool.poster_visual_critic import SYSTEM_PROMPT as CRITIC_SYSTEM_PROMPT  # noqa: E402
@@ -46,6 +46,8 @@ class generate_image_cosmos3_v1p3(generate_image_cosmos3):
 
 
 class render_poster_v1p3(render_poster):
+    aspect_ratio_to_size = COSMOS3_ASPECT_RATIO_TO_SIZE
+
     def run_core(self, args: dict) -> str:
         require_args(self.schema, args)
         return super().run_core(args)

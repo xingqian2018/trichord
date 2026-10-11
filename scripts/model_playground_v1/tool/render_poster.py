@@ -17,13 +17,19 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tool.tool import Tool, ToolCallError  # noqa: E402
-from tool.generate_image import ASPECT_RATIO_TO_SIZE  # noqa: E402
 from utils import image_conversion  # noqa: E402
 
 
 CSS_DIM_RE = re.compile(r"(width|height):\s*(\d+)px", re.IGNORECASE)
 LOCAL_IMG_SRC_RE = re.compile(r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE)
 FALLBACK_CANVAS_SIZE = (1080, 1350)
+RENDER_ASPECT_RATIO_TO_SIZE = {
+    "1:1": "2048x2048",
+    "4:3": "2368x1760",
+    "3:4": "1760x2368",
+    "16:9": "2720x1536",
+    "9:16": "1536x2720",
+}
 
 
 PLAYWRIGHT_BROWSERS_ROOT = Path.home() / "Software" / "playwright-browsers"
@@ -99,27 +105,27 @@ def find_chrome_binary() -> str | None:
 
 
 def aspect_ratio_bucket(width: int, height: int, tolerance: float = 0.03) -> Optional[str]:
-    for aspect_ratio in ASPECT_RATIO_TO_SIZE:
+    for aspect_ratio in RENDER_ASPECT_RATIO_TO_SIZE:
         target_w, target_h = (int(x) for x in aspect_ratio.split(":"))
         if abs(width / height - target_w / target_h) <= tolerance * (target_w / target_h):
             return aspect_ratio
     return None
 
 
-def target_size(width: int, height: int) -> tuple[int, int]:
+def target_size(width: int, height: int, size_table: dict[str, str] = RENDER_ASPECT_RATIO_TO_SIZE) -> tuple[int, int]:
     bucket = aspect_ratio_bucket(width, height)
     if bucket is None:
-        raise RuntimeError(f"canvas {width}x{height} matches none of the aspect ratio tiers {list(ASPECT_RATIO_TO_SIZE)}")
-    target_width, target_height = ASPECT_RATIO_TO_SIZE[bucket].split("x")
+        raise RuntimeError(f"canvas {width}x{height} matches none of the aspect ratio tiers {list(size_table)}")
+    target_width, target_height = size_table[bucket].split("x")
     return int(target_width), int(target_height)
 
 
-def render_html_to_png(html_code: str, png_path: Path) -> Path:
+def render_html_to_png(html_code: str, png_path: Path, size_table: dict[str, str] = RENDER_ASPECT_RATIO_TO_SIZE) -> Path:
     chrome_bin = find_chrome_binary()
     if chrome_bin is None:
         raise RuntimeError(f"No headless Chrome/Chromium binary found (tried {CHROME_CANDIDATES}).")
     width, height = infer_canvas_size(html_code)
-    target_width, target_height = target_size(width, height)
+    target_width, target_height = target_size(width, height, size_table)
     scale = target_width / width
     png_path = Path(png_path)
     png_path.parent.mkdir(parents=True, exist_ok=True)
@@ -169,12 +175,14 @@ class render_poster(Tool):
                 "properties": {
                     "html": {"type": "string", "description": "The complete HTML poster document to render"},
                     "output_path": {"type": "string", "description": "Absolute path to save the rendered PNG as"},
-                    "aspect_ratio": {"type": "string", "enum": list(ASPECT_RATIO_TO_SIZE), "description": "Target aspect ratio of the poster; the HTML canvas must match it"},
+                    "aspect_ratio": {"type": "string", "enum": list(RENDER_ASPECT_RATIO_TO_SIZE), "description": "Target aspect ratio of the poster; the HTML canvas must match it"},
                 },
                 "required": ["html", "output_path", "aspect_ratio"],
             },
         },
     }
+
+    aspect_ratio_to_size = RENDER_ASPECT_RATIO_TO_SIZE
 
     def __init__(self, scratch_root: Optional[str] = None):
         super().__init__()
@@ -192,12 +200,12 @@ class render_poster(Tool):
         if infer_canvas_size(html) == FALLBACK_CANVAS_SIZE and not CSS_DIM_RE.search(html):
             raise ToolCallError("html declares no canvas size; the root poster element must set explicit width and height in px")
         aspect_ratio = args["aspect_ratio"]
-        if aspect_ratio not in ASPECT_RATIO_TO_SIZE:
-            raise ToolCallError(f"aspect_ratio must be one of {list(ASPECT_RATIO_TO_SIZE)}, got {aspect_ratio!r}")
+        if aspect_ratio not in self.aspect_ratio_to_size:
+            raise ToolCallError(f"aspect_ratio must be one of {list(self.aspect_ratio_to_size)}, got {aspect_ratio!r}")
         width, height = infer_canvas_size(html)
         if aspect_ratio_bucket(width, height) != aspect_ratio:
             raise ToolCallError(f"the HTML canvas is {width}x{height}, which is not approximately {aspect_ratio}; set the root element width and height so it can render a {aspect_ratio} canvas with minor resize.")
-        path = str(render_html_to_png(html, out))
+        path = str(render_html_to_png(html, out, self.aspect_ratio_to_size))
         self.add_file(path)
         return f"render_poster saved PNG to {path}"
 
@@ -205,6 +213,6 @@ class render_poster(Tool):
         return {
             **super().setting(),
             "scratch_root": str(self.scratch_root) if self.scratch_root else None,
-            "aspect_ratio_to_size": ASPECT_RATIO_TO_SIZE,
+            "aspect_ratio_to_size": self.aspect_ratio_to_size,
             "chrome_binary": find_chrome_binary(),
         }

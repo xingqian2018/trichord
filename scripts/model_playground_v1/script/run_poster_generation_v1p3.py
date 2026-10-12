@@ -7,6 +7,8 @@ to the model as ToolCallError instead of failing the sample.
 v1p2 = v1 (cosmos3 t2i + render + visual critic) with the agent AND the critic on Slurm-hosted Kimi-K3
 (`--model kimi-k3@k3slurm`, see gateway_kimik3.py). Endpoints are discovered on the batch host (squeue is not
 available inside the container) and refreshed every 5 min into $K3_ENDPOINTS_FILE, which the gateway re-reads.
+Since 2026-10-12 the endpoints are our own replicas (scripts/serving/serve_kimi_k3.sbatch, job names k3-xqx*),
+because sdharur's k3-scale2048 pool is gone.
 
 Docker build: same container as run_poster_generation_v1.py (no extra packages needed).
 
@@ -19,8 +21,8 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-nam
     --nodes=2 --exclusive --ntasks-per-node=32 --cpus-per-task=2 --time=1-00:00:00 \
     -o $HOME/log/slurm/poster_gen_v1p3.%j.o -e $HOME/log/slurm/poster_gen_v1p3.%j.e \
     --wrap="export K3_ENDPOINTS_FILE=$HOME/log/k3_endpoints/\$SLURM_JOB_ID.json; \
-        python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE || exit 1; \
-        python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --every 300 > $HOME/log/k3_endpoints/\$SLURM_JOB_ID.log 2>&1 & \
+        python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --user xingqianx --job-prefix k3-xqx || exit 1; \
+        python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --user xingqianx --job-prefix k3-xqx --every 300 > $HOME/log/k3_endpoints/\$SLURM_JOB_ID.log 2>&1 & \
         srun --kill-on-bad-exit=0 \
         --container-image=$lustrepath/users/xingqianx/Container/run_poster_generation.sqsh \
         --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
@@ -28,7 +30,7 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-nam
         --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID,K3_ENDPOINTS_FILE \
         bash script/isolated_tmp.sh python3 script/run_poster_generation_v1p3.py \
             --model kimi-k3@k3slurm \
-            --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_v1p3_kimik3_cosmos3_kimik3 \
+            --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_v1p4_kimik3_cosmos3_kimik3 \
             --aspect_ratio random --reasoning_effort random --max_samples_per_process 625; \
         kill %1"
 

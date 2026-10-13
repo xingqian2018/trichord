@@ -21,8 +21,8 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-nam
     --nodes=2 --exclusive --ntasks-per-node=32 --cpus-per-task=2 --time=1-00:00:00 \
     -o $HOME/log/slurm/poster_gen_v1p4.%j.o -e $HOME/log/slurm/poster_gen_v1p4.%j.e \
     --wrap="export K3_ENDPOINTS_FILE=$HOME/log/k3_endpoints/\$SLURM_JOB_ID.json; \
-        python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --user xingqianx --job-prefix k3-xqx || exit 1; \
-        python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --user xingqianx --job-prefix k3-xqx --every 300 > $HOME/log/k3_endpoints/\$SLURM_JOB_ID.log 2>&1 & \
+        python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --user xingqianx --job-prefix k3-xqx --api-key-name SLURM_KIMI_K3_API_KEY || exit 1; \
+        python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --user xingqianx --job-prefix k3-xqx --api-key-name SLURM_KIMI_K3_API_KEY --every 300 > $HOME/log/k3_endpoints/\$SLURM_JOB_ID.log 2>&1 & \
         srun --kill-on-bad-exit=0 \
         --container-image=$lustrepath/users/xingqianx/Container/run_poster_generation.sqsh \
         --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \

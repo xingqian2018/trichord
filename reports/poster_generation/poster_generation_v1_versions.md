@@ -164,13 +164,13 @@
   - `tool/generate_image_cosmos3_slurm.py`：新生图工具。继承 `generate_image_cosmos3`，只换掉发请求的那一层：在 `C3_ENDPOINTS_FILE` 列出的副本之间随机选择，出错的副本冷却 120 秒后换下一个。
   - `tool/poster_generation_v1p5.py`：继承 `poster_generation_v1p3`，只把工具列表里的生图工具换成上面这个（保留 v1p3 的必填参数检查）。
   - `script/run_poster_generation_v1p5.py`：入口，文件头是完整的启动命令。
-  - `k3_endpoints.py`：新增 `--model`（Cosmos3 副本按 `LeptonTR/Cosmos3-Super-Text2Image` 探活）和 `--api-key-file` 两个参数，默认值不变。另外修了一个问题：只扫一次时扫到 0 个服务会返回 1，启动命令里的 `|| exit 1` 从此生效（v1p2 到 v1p4 的同一检查此前从未生效）。
+  - `k3_endpoints.py`：新增 `--model`（Cosmos3 副本按 `LeptonTR/Cosmos3-Super-Text2Image` 探活）和 `--api-key-name`（从 `credentials/gateway.json` 读取 key）两个参数，默认值不变。另外修了一个问题：只扫一次时扫到 0 个服务会返回 1，启动命令里的 `|| exit 1` 从此生效（v1p2 到 v1p4 的同一检查此前从未生效）。
 - **服务：** `scripts/serving/serve_cosmos3_super_t2i.sbatch`，每个副本 1 个节点 × 4 GB300（CFG 并行 2 × Ulysses 2，HSDP 分片 4）。
   - 132.5 GB 权重放在团队共享的 HF 缓存里，第一次运行时自动下载。
-  - 加了 API key：所有请求都必须带 `~/.config/cosmos3_serving/api_key` 里的 key，别人拿到地址也调不了。
+  - 加了 API key：所有请求都必须带 key（`credentials/gateway.json` 里的 `SLURM_COSMOS3_API_KEY`），别人拿到地址也调不了。
   - 统一用 `bash scripts/serving/serve.sh <服务名> <副本数> [batch|batch_long]` 启动，用 `bash scripts/serving/serve.sh status` 查看。
-- **启动命令相对 v1p4 的变化：** 多了一组 Cosmos3 扫描（启动时扫一次，之后每 5 分钟刷新），`C3_ENDPOINTS_FILE` 和 `C3_API_KEY_FILE` 通过 `--container-env` 传进容器；任务名 `poster_gen_v1p5`。
-- **输出：** `poster_generation_v1p5_kimik3_cosmos3slurm_kimik3/`
+- **启动命令相对 v1p4 的变化：** 多了一组 Cosmos3 扫描（启动时扫一次，之后每 5 分钟刷新），`C3_ENDPOINTS_FILE` 通过 `--container-env` 传进容器；任务名 `poster_gen_v1p5`。
+- **输出：** `poster_generation_v1p5_kimik3_cosmos3_kimik3/`
 - **运行情况（2026-10-13）：** 尚未启动。需要先起 Cosmos3 副本并确认能正常出图；按今天下午的估计，batch 4 小时最早 10-14 00:49 开始。
 
 ## 产量汇总
@@ -182,7 +182,7 @@
 | v1p2 | 关闭 | 4,755 | `poster_generation_v1p2_kimi_cosmos3_kimi/` |
 | v1p3 | 关闭 | 7,404 | `poster_generation_v1p3_kimik3_cosmos3_kimik3/` |
 | v1p4 | 关闭 | 2,100（971940） | `poster_generation_v1p4_kimik3_cosmos3_kimik3/` |
-| v1p5 | 关闭 | 未开始 | `poster_generation_v1p5_kimik3_cosmos3slurm_kimik3/` |
+| v1p5 | 关闭 | 未开始 | `poster_generation_v1p5_kimik3_cosmos3_kimik3/` |
 | **合计** | | **19,900** | |
 
 数量为 S3 运行文件夹实数（v1 到 v1p3 为 2026-10-12 统计，v1p4 为 2026-10-13 统计，只含已结束的 971940），每个文件夹是一个成功保存的样本。各版本表格里的"成功"一列来自日志统计：每个任务每 10 个样本才报告一次进度，所以会略偏少。

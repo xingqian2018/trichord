@@ -3,7 +3,8 @@
 # Copied from Dense-Pretraining-LMs/.claude/scripts/vllm_serve_mimo_pro.sbatch; only --max-model-len pinned to
 # max_position_embeddings (job 912109 auto-fit already chose 1048576, KV cache 5.59M tokens).
 # Port = 20000 + jobid % 20000; endpoint.env is written once /v1/models answers.
-# API key: $VLLM_API_KEY, else $U/run/mimo_pro_serve/api_key.
+# API key: SLURM_MIMO_API_KEY in ~/Project/trichord/credentials/gateway.json (same value as the old
+# $U/run/mimo_pro_serve/api_key, so existing MiMo clients keep working).
 # Submit (bash): sbatch -J mimo-xqx-1 scripts/serving/serve_mimo_v2p6_pro_rl.sbatch
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
@@ -25,7 +26,7 @@ MODEL=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/shared/huggin
 STATE=$U/run/mimo_pro_serve/job-$SLURM_JOB_ID
 mkdir -p "$STATE"
 test -s "$IMAGE"; test -s "$MODEL/config.json"
-export VLLM_API_KEY=${VLLM_API_KEY:-$(cat "$U/run/mimo_pro_serve/api_key")}
+export VLLM_API_KEY=$(python3 -c 'import json, os; print(json.load(open(os.path.expanduser("~/Project/trichord/credentials/gateway.json")))["SLURM_MIMO_API_KEY"].strip())')
 [[ -n "$VLLM_API_KEY" ]]
 
 export MIMO_PORT=$((20000 + SLURM_JOB_ID % 20000))

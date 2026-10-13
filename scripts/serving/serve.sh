@@ -13,6 +13,7 @@ RUN=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx
 
 declare -A PREFIX=([kimi_k3]=k3-xqx [mimo_v2p6_pro_rl]=mimo-xqx [cosmos3_super_t2i]=c3-xqx)
 declare -A STATE=([kimi_k3]=k3_serve [mimo_v2p6_pro_rl]=mimo_pro_serve [cosmos3_super_t2i]=c3_serve)
+declare -A KEY=([kimi_k3]=SLURM_KIMI_K3_API_KEY [mimo_v2p6_pro_rl]=SLURM_MIMO_API_KEY [cosmos3_super_t2i]=SLURM_COSMOS3_API_KEY)
 
 usage() { sed -n 2,8p "${BASH_SOURCE[0]}"; exit 1; }
 
@@ -37,7 +38,7 @@ case "$part" in
     batch_long) time=2-00:00:00 ;;
     *) usage ;;
 esac
-if [[ "$svc" == cosmos3_super_t2i ]]; then test -s ~/.config/cosmos3_serving/api_key || { echo "missing ~/.config/cosmos3_serving/api_key"; exit 1; }; fi
+grep -q "\"${KEY[$svc]}\"" ~/Project/trichord/credentials/gateway.json || { echo "missing ${KEY[$svc]} in ~/Project/trichord/credentials/gateway.json"; exit 1; }
 mkdir -p "$RUN/${STATE[$svc]}"
 
 last=$(squeue -u "$USER" -h -o "%j" | sed -n "s/^${PREFIX[$svc]}-\([0-9]\+\)$/\1/p" | sort -n | tail -1)

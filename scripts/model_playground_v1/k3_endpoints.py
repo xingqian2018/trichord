@@ -5,7 +5,7 @@
 
 Any other served model works the same way, e.g. the self-hosted Cosmos3 T2I replicas:
     python3 k3_endpoints.py --out /path/c3_endpoints.json --user xingqianx --job-prefix c3-xqx --model LeptonTR/Cosmos3-Super-Text2Image \
-        --api-key-file ~/.config/cosmos3_serving/api_key
+        --api-key-name SLURM_COSMOS3_API_KEY
 """
 
 import argparse
@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 K3_MODEL = "moonshotai/Kimi-K3"
+CREDENTIAL_FILE = Path(__file__).resolve().parents[2] / "credentials" / "gateway.json"
 
 
 def http_json(url: str, body: Optional[dict] = None, timeout: float = 5, api_key: Optional[str] = None) -> Any:
@@ -79,10 +80,10 @@ if __name__ == "__main__":
     p.add_argument("--user", default="sdharur")
     p.add_argument("--job-prefix", default="k3-scale2048")
     p.add_argument("--model", default=K3_MODEL, help="served model id that /v1/models must list")
-    p.add_argument("--api-key-file", default=None, help="file holding the bearer key of endpoints served with --api-key")
+    p.add_argument("--api-key-name", default=None, help="credentials/gateway.json entry holding the bearer key of endpoints served with --api-key")
     p.add_argument("--every", type=float, default=0, help="seconds between refreshes; 0 = run once")
     args = p.parse_args()
-    api_key = Path(args.api_key_file).expanduser().read_text().strip() if args.api_key_file else None
+    api_key = json.loads(CREDENTIAL_FILE.read_text())[args.api_key_name].strip() if args.api_key_name else None
     while True:
         n = write_endpoints(args.out, args.user, args.job_prefix, args.model, api_key)
         print(f"{time.strftime('%H:%M:%S')} {n} live endpoint(s) -> {args.out}", flush=True)

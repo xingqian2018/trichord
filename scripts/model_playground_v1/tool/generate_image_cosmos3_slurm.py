@@ -12,20 +12,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from loguru import logger  # noqa: E402
 
 from tool.generate_image_cosmos3 import generate_image_cosmos3  # noqa: E402
-from utils import UnifiedGatewayImageGenerator  # noqa: E402
+from utils import UnifiedGatewayImageGenerator, load_credential_secret  # noqa: E402
 
 COSMOS3_MODEL = "LeptonTR/Cosmos3-Super-Text2Image"
 POOL_KEY = "c3slurm"
 DEFAULT_MODEL_NAME = f"{COSMOS3_MODEL}@{POOL_KEY}"
-DEFAULT_API_KEY_FILE = "~/.config/cosmos3_serving/api_key"
+API_KEY_NAME = "SLURM_COSMOS3_API_KEY"
 WAIT_SECONDS = 30
 
 # Self-hosted replicas only (scripts/serving/serve_cosmos3_super_t2i.sbatch); Lepton is never called.
 # Endpoints are found on the batch host, which has squeue:
 #   python3 k3_endpoints.py --out $C3_ENDPOINTS_FILE --user xingqianx --job-prefix c3-xqx \
-#       --model LeptonTR/Cosmos3-Super-Text2Image --api-key-file ~/.config/cosmos3_serving/api_key
+#       --model LeptonTR/Cosmos3-Super-Text2Image --api-key-name SLURM_COSMOS3_API_KEY
 # and read here from C3_ENDPOINTS (comma list) or C3_ENDPOINTS_FILE (json list).
-# The bearer key comes from C3_API_KEY_FILE (default ~/.config/cosmos3_serving/api_key).
+# The bearer key is SLURM_COSMOS3_API_KEY in credentials/gateway.json.
 BAD_UNTIL: dict[str, float] = {}
 
 
@@ -41,10 +41,6 @@ def load_c3_endpoints() -> list[str]:
     return []
 
 
-def load_c3_api_key() -> str:
-    return Path(os.environ.get("C3_API_KEY_FILE", DEFAULT_API_KEY_FILE)).expanduser().read_text().strip()
-
-
 class UnifiedGatewayCosmos3T2I(UnifiedGatewayImageGenerator):
     label = "Cosmos3T2I"
 
@@ -52,7 +48,9 @@ class UnifiedGatewayCosmos3T2I(UnifiedGatewayImageGenerator):
         super().__init__({}, num_concurrency=num_concurrency, num_max_retry=num_max_retry, timeout=timeout)
         from openai import AsyncOpenAI
         self.AsyncOpenAI = AsyncOpenAI
-        self.api_key = load_c3_api_key()
+        self.api_key = load_credential_secret(API_KEY_NAME)
+        if not self.api_key:
+            raise RuntimeError(f"{API_KEY_NAME} missing from credentials/gateway.json")
         self.cooldown_seconds = cooldown_seconds
         self.refresh_seconds = refresh_seconds
         self.clients: dict[str, Any] = {}

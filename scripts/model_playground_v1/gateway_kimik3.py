@@ -9,6 +9,7 @@ Why a dedicated gateway (verified 2026-10-09 against vLLM 0.30 K3 serving):
     recovered with return_token_ids + /detokenize and parsed here into OpenAI-style tool_calls
 
 Endpoints come from k3_endpoints.load_endpoints() (K3_ENDPOINTS / K3_ENDPOINTS_FILE / squeue).
+Requests carry SLURM_KIMI_K3_API_KEY from credentials/gateway.json (ignored by replicas served without --api-key).
 
 Use everywhere a model name is accepted:
     import gateway_kimik3; gateway_kimik3.install()      # before any Agent is built
@@ -34,9 +35,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from loguru import logger  # noqa: E402
 
 from k3_endpoints import K3_MODEL, http_json, load_endpoints  # noqa: E402
-from utils import UnifiedGatewayVLM  # noqa: E402
+from utils import UnifiedGatewayVLM, load_credential_secret  # noqa: E402
 
 K3_GATEWAY_KEY = "k3slurm"
+K3_API_KEY_NAME = "SLURM_KIMI_K3_API_KEY"
 
 # K3 output channels (the prompt already ends with "<|open|>think<|sep|>"):
 #   <think><|close|>think<|sep|><|open|>response<|sep|><text><|close|>response<|sep|>
@@ -115,6 +117,7 @@ class UnifiedGatewayKimiK3(UnifiedGatewayVLM):
             self.num_concurrency, self.num_max_retry, self.timeout = num_concurrency, num_max_retry, timeout
         from openai import AsyncOpenAI
         self._AsyncOpenAI = AsyncOpenAI
+        self.api_key = load_credential_secret(K3_API_KEY_NAME) or "EMPTY"
         self._fixed_endpoints = endpoints
         self.cooldown_seconds = cooldown_seconds
         self.refresh_seconds = refresh_seconds
@@ -132,7 +135,7 @@ class UnifiedGatewayKimiK3(UnifiedGatewayVLM):
         if set(urls) != set(self._clients):
             urls = list(urls)
             random.shuffle(urls)  # spread processes over endpoints
-            self._clients = {u: self._clients.get(u) or self._AsyncOpenAI(base_url=u, api_key="EMPTY", max_retries=0) for u in urls}
+            self._clients = {u: self._clients.get(u) or self._AsyncOpenAI(base_url=u, api_key=self.api_key, max_retries=0) for u in urls}
             self._cycle = itertools.cycle(list(self._clients))
 
     def _pick(self, tried: set[str]) -> Optional[str]:
@@ -194,7 +197,7 @@ class UnifiedGatewayKimiK3(UnifiedGatewayVLM):
         if client_tools:
             root = url.rstrip("/").removesuffix("/v1")
             try:
-                raw = (await asyncio.to_thread(http_json, f"{root}/detokenize", {"model": K3_MODEL, "tokens": token_ids}, 60))["prompt"]
+                raw = (await asyncio.to_thread(http_json, f"{root}/detokenize", {"model": K3_MODEL, "tokens": token_ids}, 60, self.api_key))["prompt"]
             except Exception as e:
                 raise EndpointError(f"detokenize failed: {e}") from e
             parsed = parse_k3_output(raw)

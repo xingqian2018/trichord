@@ -8,8 +8,8 @@
 # Image: docker://vllm/vllm-omni:cosmos3-arm64 imported once with
 #   enroot import -o $U/containers/vllm-omni+cosmos3-arm64.sqsh docker://vllm/vllm-omni:cosmos3-arm64
 # Port = 20000 + jobid % 20000; endpoint.env is written once /v1/models answers.
-# API key: every /v1 request needs "Authorization: Bearer <key>"; the key is read from $C3_API_KEY_FILE
-# (default ~/.config/cosmos3_serving/api_key, mode 600), the same file the poster pipeline reads.
+# API key: every /v1 request needs "Authorization: Bearer <key>"; the key is SLURM_COSMOS3_API_KEY in
+# ~/Project/trichord/credentials/gateway.json, the same entry the poster pipeline reads.
 # Submit (bash): mkdir -p /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/c3_serve
 #                sbatch -J c3-xqx-1 scripts/serving/serve_cosmos3_super_t2i.sbatch
 #SBATCH -A cosmos_base_training
@@ -34,7 +34,7 @@ export C3_MODEL=$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots
 STATE=$U/run/c3_serve/job-$SLURM_JOB_ID
 mkdir -p "$STATE"
 test -s "$IMAGE"
-export VLLM_API_KEY=$(cat "${C3_API_KEY_FILE:-$HOME/.config/cosmos3_serving/api_key}")
+export VLLM_API_KEY=$(python3 -c 'import json, os; print(json.load(open(os.path.expanduser("~/Project/trichord/credentials/gateway.json")))["SLURM_COSMOS3_API_KEY"].strip())')
 [[ -n "$VLLM_API_KEY" ]]
 
 export C3_PORT=$((20000 + SLURM_JOB_ID % 20000))

@@ -3,7 +3,9 @@
 # Adapted from sdharur's k3_scale2048 serve_continuation.sbatch + serve_node.sh, merged into one file in the
 # style of Dense-Pretraining-LMs/.claude/scripts/vllm_serve_mimo_pro.sbatch.
 # Port = 20000 + jobid % 20000 on the first node; endpoint.env is written once /v1/models answers.
-# Discovery for the poster pipeline: python3 k3_endpoints.py --user xingqianx --job-prefix k3-xqx
+# API key: every /v1 request needs "Authorization: Bearer <key>"; the key is SLURM_KIMI_K3_API_KEY in
+# ~/Project/trichord/credentials/gateway.json, the same entry the poster pipeline reads.
+# Discovery for the poster pipeline: python3 k3_endpoints.py --user xingqianx --job-prefix k3-xqx --api-key-name SLURM_KIMI_K3_API_KEY
 # Submit (bash): mkdir -p /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/k3_serve
 #                sbatch -J k3-xqx-1 scripts/serving/serve_kimi_k3.sbatch
 #SBATCH -A cosmos_base_training
@@ -29,6 +31,8 @@ mkdir -p "$STATE"
 test -s "$IMAGE"; test -s "$MODEL/config.json"
 [[ "$(cat "$MODEL/.stage_complete")" == f831ab66814297da540d832a5235f8e904f29d06 ]]
 [[ "$SLURM_JOB_NUM_NODES" == 2 ]]
+export VLLM_API_KEY=$(python3 -c 'import json, os; print(json.load(open(os.path.expanduser("~/Project/trichord/credentials/gateway.json")))["SLURM_KIMI_K3_API_KEY"].strip())')
+[[ -n "$VLLM_API_KEY" ]]
 
 mapfile -t hosts < <(scontrol show hostnames "$SLURM_JOB_NODELIST")
 export K3_HEAD_HOST=${hosts[0]}
@@ -56,7 +60,7 @@ srun --nodes=2 --ntasks=2 --ntasks-per-node=1 --cpus-per-task=128 --gpus-per-nod
      bash -c 'unset PYTHONPATH; mkdir -p "$XDG_CACHE_HOME"; \
          headless=""; [[ "$SLURM_PROCID" == 1 ]] && headless="--headless"; \
          exec vllm serve "$K3_MODEL" --served-model-name moonshotai/Kimi-K3 \
-             --host 0.0.0.0 --port "$K3_PORT" --trust-remote-code \
+             --host 0.0.0.0 --port "$K3_PORT" --api-key "$VLLM_API_KEY" --trust-remote-code \
              --tensor-parallel-size 8 --enable-expert-parallel \
              --decode-context-parallel-size 8 --dcp-comm-backend a2a \
              --nnodes 2 --node-rank "$SLURM_PROCID" \
@@ -71,7 +75,7 @@ server_pid=$!
 
 for ((i = 0; i < 240; i++)); do   # up to 2 h: loading 1.5 TB of weights plus graph capture
     kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid"; exit 1; }
-    if curl -fsS --max-time 5 "http://$K3_HEAD_HOST:$K3_PORT/v1/models" > "$STATE/models.json" 2>/dev/null \
+    if curl -fsS --max-time 5 -H "Authorization: Bearer $VLLM_API_KEY" "http://$K3_HEAD_HOST:$K3_PORT/v1/models" > "$STATE/models.json" 2>/dev/null \
         && grep -q 'moonshotai/Kimi-K3' "$STATE/models.json"; then
         printf 'job_id=%s\nmodel=moonshotai/Kimi-K3\nbase_url=http://%s:%s/v1\n' "$SLURM_JOB_ID" "$K3_HEAD_HOST" "$K3_PORT" > "$STATE/endpoint.env"
         echo "READY $(tr '\n' ' ' < "$STATE/endpoint.env")"

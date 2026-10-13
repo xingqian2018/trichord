@@ -1,6 +1,9 @@
 #!/bin/bash
 # Cosmos3-Super-Text2Image vLLM-Omni endpoint on oci-jhb (gb300): 1 GB300 node, CFG2 x Ulysses2, HSDP shard 4.
-# Same flags as the Lepton deployment (LeptonTR/Cosmos3-Super-Text2Image), so clients keep the same model name.
+# Same flags as the Lepton deployment (LeptonTR/Cosmos3-Super-Text2Image), so clients keep the same model name,
+# plus --no-guardrails: the guardrail models (nvidia/Cosmos-1.0-Guardrail, Qwen/Qwen3Guard-Gen-0.6B) are never loaded.
+# Our requests always send guardrails=False anyway, and loading them needs HF downloads that fail offline
+# (jobs 990000-990004 died at startup on exactly that, 2026-10-13).
 # Weights: nvidia/Cosmos3-Super-Text2Image (public, 132.5 GB) in the team-shared HF hub, downloaded on first run.
 # Image: docker://vllm/vllm-omni:cosmos3-arm64 imported once with
 #   enroot import -o $U/containers/vllm-omni+cosmos3-arm64.sqsh docker://vllm/vllm-omni:cosmos3-arm64
@@ -58,7 +61,7 @@ srun --nodes=1 --ntasks=1 --container-image="$IMAGE" \
              --served-model-name LeptonTR/Cosmos3-Super-Text2Image \
              --host 0.0.0.0 --port "$C3_PORT" --api-key "$VLLM_API_KEY" \
              --cfg-parallel-size 2 --ulysses-degree 2 --tensor-parallel-size 1 \
-             --use-hsdp --hsdp-shard-size 4 --init-timeout 1800' > "$STATE/server.log" 2>&1 &
+             --use-hsdp --hsdp-shard-size 4 --init-timeout 1800 --no-guardrails' > "$STATE/server.log" 2>&1 &
 server_pid=$!
 
 for ((i = 0; i < 240; i++)); do   # up to 2 h: first run includes the 132.5 GB download

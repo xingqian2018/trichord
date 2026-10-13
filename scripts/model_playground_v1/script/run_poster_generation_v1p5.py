@@ -36,7 +36,7 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-nam
         --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID,K3_ENDPOINTS_FILE,C3_ENDPOINTS_FILE,C3_API_KEY_FILE \
         bash script/isolated_tmp.sh python3 script/run_poster_generation_v1p5.py \
             --model kimi-k3@k3slurm \
-            --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_v1p5_kimik3_cosmos3slurm_kimik3 \
+            --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_v1p5_kimik3_cosmos3_kimik3 \
             --aspect_ratio random --reasoning_effort random --max_samples_per_process 625; \
         kill %1 %2"
 

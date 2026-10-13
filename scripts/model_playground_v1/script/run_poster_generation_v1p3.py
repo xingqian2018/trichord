@@ -17,9 +17,9 @@ Run CMD:
 mkdir -p $HOME/log/slurm $HOME/log/k3_endpoints
 lustrepath=/lustre/fsw/portfolios/cosmos
 playground=$HOME/Project/trichord/scripts/model_playground_v1
-sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-name=poster_gen_v1p3 \
+sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-name=poster_gen_v1p4 \
     --nodes=2 --exclusive --ntasks-per-node=32 --cpus-per-task=2 --time=1-00:00:00 \
-    -o $HOME/log/slurm/poster_gen_v1p3.%j.o -e $HOME/log/slurm/poster_gen_v1p3.%j.e \
+    -o $HOME/log/slurm/poster_gen_v1p4.%j.o -e $HOME/log/slurm/poster_gen_v1p4.%j.e \
     --wrap="export K3_ENDPOINTS_FILE=$HOME/log/k3_endpoints/\$SLURM_JOB_ID.json; \
         python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --user xingqianx --job-prefix k3-xqx || exit 1; \
         python3 $playground/k3_endpoints.py --out \$K3_ENDPOINTS_FILE --user xingqianx --job-prefix k3-xqx --every 300 > $HOME/log/k3_endpoints/\$SLURM_JOB_ID.log 2>&1 & \

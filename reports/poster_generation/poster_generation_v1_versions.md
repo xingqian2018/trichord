@@ -1,6 +1,6 @@
-# Agentic 海报数据生成：v1 / v1p1 / v1p2 / v1p3 / v1p4 版本说明
+# Agentic 海报数据生成：v1 / v1p1 / v1p2 / v1p3 / v1p4 / v1p5 版本说明
 
-更新时间：2026-10-12
+更新时间：2026-10-13
 代码位置：`scripts/model_playground_v1/`
 输出位置：`gcs:nv-00-10206-vfm/debug/xingqianx/agentic_data/`
 
@@ -13,6 +13,7 @@
 | v1p2 | 主 agent 和 critic 改用 Slurm 上自建的 Kimi K3 服务池（`kimi-k3@k3slurm`），不再走 NVIDIA gateway；同时关闭 Cosmos3 安全过滤 |
 | v1p3 | 在 v1p2 上加：上下文超长时自动切回 NVIDIA gateway、critic 超时放宽、工具参数错误交还模型重试、渲染改为 1024 档 |
 | v1p4 | 代码与 v1p3 相同，Kimi K3 服务换成我们自己部署的副本（上下文上限 1048576），输出到新文件夹 |
+| v1p5 | 生图从 Lepton 换成我们自己部署的 Cosmos3 副本（同一个模型），不再调用 Lepton；没有可用副本时等待而不是让样本失败 |
 
 ## 共同部分
 
@@ -127,9 +128,50 @@
   - 端口为 `20000 + jobid % 20000`，就绪后在 `run/k3_serve/job-<id>/endpoint.env` 写出地址。
 - **上下文超长：** v1p2 的主要失败原因是服务只开了 32768。v1p4 的服务开到 1M，一个海报 agent 的对话远到不了这个长度，回退到 `kimi-k3@nvidiak` 的情况应该基本为 0，几乎不消耗 gateway 额度。可以用各样本 `setting.json` 的 `fallback_requests` 核对。
 - **其他错误仍不走 gateway：** 连接失败、超时、500 会换下一个自建服务，出错的那个冷却 120 秒；所有服务都不可用时样本失败。所以必须在服务就绪后再启动。
-- **运行情况（2026-10-12）：**
+- **Kimi 服务运行情况：**
   - 968459（batch，4 小时）用于验证：服务正常启动，`/v1/models` 显示 `max_model_len` 为 1048576，测试请求正常返回。
-  - 971679、971680（batch_long，48 小时）是正式副本，排队中，未开始生成。
+  - 971679、971680（batch_long，48 小时）是正式副本。10-12 19:27 两者同时被 Slurm 重新排队（requeue，原因未查明），之后在新节点上自动重启，到 10-13 已重启 3 次；每次换节点地址都会变，要等重新加载完才可用。
+- **生成任务：**
+
+| 任务 | 规模 | 时长 | 结束原因 | 成功 |
+|---|---|---|---|---|
+| 971940 | 2 节点 × 32 任务 | 11 小时 48 分（10-12 15:52 – 10-13 03:40） | Kimi 副本重启期间样本快速失败、配额耗尽（FAILED） | 2,100（S3 实数） |
+| 986675 | 2 节点 × 32 任务 | 10-13 11:10 起 | 运行中 | — |
+
+- **971940 的经过：**
+  - 15:52 – 19:27 约 100 个/小时，19:27 之后升到约 230 个/小时（期间在 Lepton 端加大了生图吞吐，说明瓶颈在生图）。两个 Kimi 副本始终很空：64 个 agent 同时只有约 10 个 Kimi 请求，没有排队。
+  - 19:27 Kimi 副本被重新排队后，服务列表扫描为 0，旧地址全部失效。没有可用服务时样本几秒就失败（仅 rank 0 一个任务在 19 点就失败 617 次），多数任务很快用完 625 个样本的配额而退出；03:39 又一次扫描为 0，剩下的任务也随之结束。
+  - 除此之外只有 1 个样本因 Cosmos3 返回 504 失败；没有上下文超长，也没有回退到 gateway。
+- **遗留问题：** Kimi 这边"没有可用服务时样本立即失败"仍未修复（v1p5 只对生图做了等待处理），副本被重新排队时仍会损失配额。
+
+### v1p5
+
+- **为什么要新版本：** v1p4 的样本里生图很慢。两个 Kimi 副本始终很空（64 个 agent 同时只有约 10 个 Kimi 请求，没有排队），而在 Lepton 端加大生图吞吐后，v1p4 的产量从约 100 个/小时涨到约 230 个/小时，说明瓶颈在 Lepton 上的 Cosmos3。所以和 Kimi 一样，把 Cosmos3 也部署到我们自己的 GPU 节点上。
+- **相对 v1p4 只变了生图：**
+
+| 项目 | v1p4 | v1p5 |
+|---|---|---|
+| 生图工具类 | `generate_image_cosmos3_v1p3` | `generate_image_cosmos3_slurm_v1p5` |
+| 生图服务 | Lepton（`lepton_cosmos3_t2i`） | 自建副本 `c3-xqx*`，完全不调用 Lepton |
+| 模型 | `Cosmos3-Super-Text2Image` | 同一个模型，HF `nvidia/Cosmos3-Super-Text2Image`（版本 `daf3d374`） |
+| 服务端 | Lepton 上的 vLLM-Omni | vLLM-Omni 镜像 `vllm/vllm-omni:cosmos3-arm64`，参数与 Lepton 相同 |
+| 对模型暴露的工具名 | `generate_image` | `generate_image`（不变，对话中看不出服务来源） |
+| 分辨率、guardrail | 1024 档，关闭 | 不变 |
+| 没有可用生图服务时 | 报错，样本失败 | 每 30 秒重读服务列表等待，最长到工具超时（1800 秒 × 2 次） |
+| Kimi K3、渲染、critic | 自建 Kimi、1024 档渲染、critic 600 秒 × 2 | 不变 |
+
+- **代码：**
+  - `tool/generate_image_cosmos3_slurm.py`：新生图工具。继承 `generate_image_cosmos3`，只换掉发请求的那一层：在 `C3_ENDPOINTS_FILE` 列出的副本之间随机选择，出错的副本冷却 120 秒后换下一个。
+  - `tool/poster_generation_v1p5.py`：继承 `poster_generation_v1p3`，只把工具列表里的生图工具换成上面这个（保留 v1p3 的必填参数检查）。
+  - `script/run_poster_generation_v1p5.py`：入口，文件头是完整的启动命令。
+  - `k3_endpoints.py`：新增 `--model`（Cosmos3 副本按 `LeptonTR/Cosmos3-Super-Text2Image` 探活）和 `--api-key-file` 两个参数，默认值不变。另外修了一个问题：只扫一次时扫到 0 个服务会返回 1，启动命令里的 `|| exit 1` 从此生效（v1p2 到 v1p4 的同一检查此前从未生效）。
+- **服务：** `scripts/serving/serve_cosmos3_super_t2i.sbatch`，每个副本 1 个节点 × 4 GB300（CFG 并行 2 × Ulysses 2，HSDP 分片 4）。
+  - 132.5 GB 权重放在团队共享的 HF 缓存里，第一次运行时自动下载。
+  - 加了 API key：所有请求都必须带 `~/.config/cosmos3_serving/api_key` 里的 key，别人拿到地址也调不了。
+  - 统一用 `bash scripts/serving/serve.sh <服务名> <副本数> [batch|batch_long]` 启动，用 `bash scripts/serving/serve.sh status` 查看。
+- **启动命令相对 v1p4 的变化：** 多了一组 Cosmos3 扫描（启动时扫一次，之后每 5 分钟刷新），`C3_ENDPOINTS_FILE` 和 `C3_API_KEY_FILE` 通过 `--container-env` 传进容器；任务名 `poster_gen_v1p5`。
+- **输出：** `poster_generation_v1p5_kimik3_cosmos3slurm_kimik3/`
+- **运行情况（2026-10-13）：** 尚未启动。需要先起 Cosmos3 副本并确认能正常出图；按今天下午的估计，batch 4 小时最早 10-14 00:49 开始。
 
 ## 产量汇总
 
@@ -139,14 +181,15 @@
 | v1p1 | 开启 | 5,565 | `poster_generation_v1p1_kimi_cosmos3_kimi/` |
 | v1p2 | 关闭 | 4,755 | `poster_generation_v1p2_kimi_cosmos3_kimi/` |
 | v1p3 | 关闭 | 7,404 | `poster_generation_v1p3_kimik3_cosmos3_kimik3/` |
-| v1p4 | 关闭 | 未开始 | `poster_generation_v1p4_kimik3_cosmos3_kimik3/` |
-| **合计** | | **17,800** | |
+| v1p4 | 关闭 | 2,100（971940） | `poster_generation_v1p4_kimik3_cosmos3_kimik3/` |
+| v1p5 | 关闭 | 未开始 | `poster_generation_v1p5_kimik3_cosmos3slurm_kimik3/` |
+| **合计** | | **19,900** | |
 
-数量为 2026-10-12 统计的 S3 运行文件夹实数，每个文件夹是一个成功保存的样本。各版本表格里的"成功"一列来自日志统计：每个任务每 10 个样本才报告一次进度，所以会略偏少。
+数量为 S3 运行文件夹实数（v1 到 v1p3 为 2026-10-12 统计，v1p4 为 2026-10-13 统计，只含已结束的 971940），每个文件夹是一个成功保存的样本。各版本表格里的"成功"一列来自日志统计：每个任务每 10 个样本才报告一次进度，所以会略偏少。
 
 ## 待解决
 
-1. **Kimi 服务来源：** `sdharur` 的服务池已下线，v1p4 改用我们自己的副本（见 v1p4）。副本数决定速度，2 个副本时建议 v1p4 先用 1 节点 × 32 任务。
+1. **Kimi 服务重启时样本失败：** `sdharur` 的服务池已下线，v1p4 起改用我们自己的副本。副本被重新排队时，Kimi 这边没有可用服务会让样本立即失败、很快耗尽配额（971940 就是这样结束的）。应该像 v1p5 的生图一样改成等待重试。
 2. **服务选择（如继续用自建服务池）：** 同一个 agent 固定使用一个服务，开始时选负载最低的服务，以利用前缀缓存、用上空闲服务。
 3. **Cosmos3 生图失败：** 安全过滤关闭后已不再是主要失败来源；如今后重新开启过滤，被拒绝时应作为可恢复错误交还模型改写提示词，而不是让样本失败。
 4. **内存：** 每个样本结束后清空私有 `/tmp/poster_agent`，并在进度日志里记录内存占用，以便查清 v1p1 内存溢出的其余原因。

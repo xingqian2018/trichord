@@ -1,8 +1,10 @@
 import base64
 import io
 import json
+import os
 import random
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
@@ -32,7 +34,6 @@ NUM_INFERENCE_STEPS = 40
 TRUE_CFG_SCALE = 1.0
 PE_SAMPLING = {"temperature": 1.0, "top_p": 0.95, "max_tokens": 8192, "extra_body": {"top_k": 20}}
 PE_MAX_ATTEMPTS = 3
-WEBP_QUALITY = 95
 
 
 def parse_rewrite(text: str) -> dict[str, str]:
@@ -104,9 +105,17 @@ class generate_image_qwen_image(Tool):
         wh_ratio = rewrite.get("wh_ratio") if rewrite.get("wh_ratio") in WH_RATIO_TO_SIZE else DEFAULT_WH_RATIO
         width, height = WH_RATIO_TO_SIZE[wh_ratio]
         seed = random.randrange(2**31)
-        buf = io.BytesIO()
-        Image.open(io.BytesIO(self.render(rewrite["rewritten_prompt"], width, height, seed))).convert("RGB").save(buf, format="WEBP", quality=WEBP_QUALITY)
-        self.output = {"prompt": rewrite["rewritten_prompt"], "wh_ratio": wh_ratio, "width": width, "height": height, "seed": seed, "webp": buf.getvalue()}
+        png = self.render(rewrite["rewritten_prompt"], width, height, seed)
+        if png[:8] != b"\x89PNG\r\n\x1a\n":
+            buf = io.BytesIO()
+            Image.open(io.BytesIO(png)).save(buf, format="PNG")
+            png = buf.getvalue()
+        fd, path = tempfile.mkstemp(prefix="qwen_image_", suffix=".png")
+        with os.fdopen(fd, "wb") as f:
+            f.write(png)
+        self.add_file(path)
+        self.output = {"prompt": prompt, "upsampled_prompt": rewrite["rewritten_prompt"], "wh_ratio": wh_ratio,
+                       "width": width, "height": height, "seed": seed, "png": png}
         return f"generate_image finished: {width}x{height} image"
 
     def setting(self) -> dict[str, Any]:

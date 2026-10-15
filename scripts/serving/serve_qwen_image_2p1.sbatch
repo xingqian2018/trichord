@@ -11,6 +11,8 @@
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
 #SBATCH --qos normal
+#SBATCH --wckey=p1
+#SBATCH --no-kill
 #SBATCH --segment=1
 #SBATCH -N 1
 #SBATCH --gpus-per-node=4
@@ -36,8 +38,8 @@ export OMP_NUM_THREADS=8
 export XDG_CACHE_HOME=/tmp/qi_cache_$SLURM_JOB_ID
 export HF_HOME=$XDG_CACHE_HOME/hf
 
-pool_start_broker
-for ((r = 0; r < REPLICAS; r++)); do
+launch_replica() {
+    local r=$1
     export QI_PORT=$((PORT_BASE + 1 + 4 * r)) QI_LOGS=$STATE/server-$r
     # first run downloads the weights into the shared hub (resumable); then one offline server per GPU
     srun --nodes=1 --ntasks=1 --nodelist="$(pool_hosts "$r")" --container-image="$IMAGE" \
@@ -50,13 +52,14 @@ for ((r = 0; r < REPLICAS; r++)); do
                  CUDA_VISIBLE_DEVICES=$i VLLM_CACHE_ROOT=$XDG_CACHE_HOME/vllm_$i vllm serve "$QI_MODEL" --omni \
                      --served-model-name Qwen/Qwen-Image-2.1 \
                      --host 0.0.0.0 --port $((QI_PORT + i)) --api-key "$VLLM_API_KEY" \
-                     --step-execution --max-num-seqs 4 --init-timeout 1800 > "$QI_LOGS-gpu$i.log" 2>&1 & \
+                     --step-execution --max-num-seqs 4 --init-timeout 1800 >> "$QI_LOGS-gpu$i.log" 2>&1 & \
              done; \
-             wait -n; exit 1' > "$STATE/server-$r.log" 2>&1 &
-    pid=$!
-    PIDS+=($pid)
+             wait -n; exit 1' >> "$STATE/server-$r.log" 2>&1 &
+    REPLICA_PID[$r]=$!
     for i in 0 1 2 3; do
-        pool_attach "$r" "http://$(pool_head "$r"):$((QI_PORT + i))" Qwen/Qwen-Image-2.1 SLURM_QWEN_IMAGE_API_KEY 4 "$pid"
+        pool_attach "$r" "http://$(pool_head "$r"):$((QI_PORT + i))" Qwen/Qwen-Image-2.1 SLURM_QWEN_IMAGE_API_KEY 4 "${REPLICA_PID[$r]}"
     done
-done
-pool_wait
+}
+
+pool_start_broker
+pool_run launch_replica

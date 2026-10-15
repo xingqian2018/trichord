@@ -12,6 +12,8 @@
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
 #SBATCH --qos normal
+#SBATCH --wckey=p1
+#SBATCH --no-kill
 #SBATCH --segment=1
 #SBATCH -N 1
 #SBATCH --gpus-per-node=4
@@ -26,8 +28,10 @@ source "$HOME/Project/trichord/scripts/serving/pool_lib.sh"
 pool_init c3_serve 1
 
 IMAGE=$U/containers/vllm-omni+cosmos3-arm64.sqsh
-export HF_HUB_CACHE=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/shared/huggingface_cache/hub
 export C3_REPO=nvidia/Cosmos3-Super-Text2Image C3_REVISION=daf3d374804be4c512c2135568a7cb95d4341d79
+# team-shared HF hub when it holds this revision, else our own hub (on gcpcode the shared Cosmos3 lock dir is not writable for us)
+export HF_HUB_CACHE=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/shared/huggingface_cache/hub
+[[ -s "$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots/$C3_REVISION/model_index.json" ]] || export HF_HUB_CACHE=$U/huggingface_cache/hub
 export C3_MODEL=$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots/$C3_REVISION
 test -s "$IMAGE"
 export VLLM_API_KEY=$(python3 -c 'import json, os; print(json.load(open(os.path.expanduser("~/Project/trichord/credentials/gateway.json")))["SLURM_COSMOS3_API_KEY"].strip())')
@@ -37,8 +41,8 @@ export OMP_NUM_THREADS=8
 export XDG_CACHE_HOME=/tmp/c3_cache_$SLURM_JOB_ID
 export VLLM_CACHE_ROOT=$XDG_CACHE_HOME/vllm HF_HOME=$XDG_CACHE_HOME/hf
 
-pool_start_broker
-for ((r = 0; r < REPLICAS; r++)); do
+launch_replica() {
+    local r=$1
     export C3_PORT=$((PORT_BASE + 1 + r))
     # first run downloads the weights into the shared hub (resumable); later runs only verify and start offline
     srun --nodes=1 --ntasks=1 --nodelist="$(pool_hosts "$r")" --container-image="$IMAGE" \
@@ -51,8 +55,10 @@ for ((r = 0; r < REPLICAS; r++)); do
                  --served-model-name LeptonTR/Cosmos3-Super-Text2Image \
                  --host 0.0.0.0 --port "$C3_PORT" --api-key "$VLLM_API_KEY" \
                  --cfg-parallel-size 2 --ulysses-degree 2 --tensor-parallel-size 1 \
-                 --use-hsdp --hsdp-shard-size 4 --init-timeout 1800 --no-guardrails' > "$STATE/server-$r.log" 2>&1 &
-    PIDS+=($!)
-    pool_attach "$r" "http://$(pool_head "$r"):$C3_PORT" LeptonTR/Cosmos3-Super-Text2Image SLURM_COSMOS3_API_KEY 2 "$!"
-done
-pool_wait
+                 --use-hsdp --hsdp-shard-size 4 --init-timeout 1800 --no-guardrails' >> "$STATE/server-$r.log" 2>&1 &
+    REPLICA_PID[$r]=$!
+    pool_attach "$r" "http://$(pool_head "$r"):$C3_PORT" LeptonTR/Cosmos3-Super-Text2Image SLURM_COSMOS3_API_KEY 2 "${REPLICA_PID[$r]}"
+}
+
+pool_start_broker
+pool_run launch_replica

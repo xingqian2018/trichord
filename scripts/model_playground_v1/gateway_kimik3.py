@@ -10,6 +10,9 @@ Why a dedicated gateway (verified 2026-10-09 against vLLM 0.30 K3 serving):
 
 Endpoints come from k3_endpoints.load_endpoints() (K3_ENDPOINTS / K3_ENDPOINTS_FILE / squeue).
 Requests carry SLURM_KIMI_K3_API_KEY from credentials/gateway.json (ignored by replicas served without --api-key).
+K3_NATIVE_TOOLS=1: the replicas run vLLM's kimi_k3 tool-call parser (--enable-auto-tool-choice --tool-call-parser kimi_k3),
+so `tools` and `tool_choice` (e.g. "required", enforced by the kimi_k3 structural tag) pass through unchanged and the
+server returns OpenAI tool_calls; without it, tools go in through the chat template and are parsed here.
 
 Use everywhere a model name is accepted:
     import gateway_kimik3; gateway_kimik3.install()      # before any Agent is built
@@ -21,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 import json
+import os
 import random
 import re
 import sys
@@ -66,8 +70,14 @@ def cached_endpoints(max_age: float) -> list[str]:
         return list(_ENDPOINT_CACHE["urls"])
 
 
+def native_tools() -> bool:
+    return os.environ.get("K3_NATIVE_TOOLS", "") == "1"
+
+
 def pre_format(request: dict[str, Any]) -> dict[str, Any]:
     request = {**request, "model": K3_MODEL, "stream": False}  # non-streaming, so the request can go through the dispatcher
+    if native_tools():
+        return request
     extra = dict(request.pop("extra_body", None) or {})
     tools = request.pop("tools", None)
     request.pop("tool_choice", None)
@@ -187,6 +197,10 @@ class UnifiedGatewayKimiK3(UnifiedGatewayVLM):
             raise EndpointError("response without a finish_reason")
 
         tool_calls: list[dict[str, Any]] = []
+        if native_tools() and message.tool_calls:
+            tool_calls = [{"id": c.id, "type": "function", "function": {"name": c.function.name, "arguments": c.function.arguments}} for c in message.tool_calls]
+            if finish_reason == "stop":
+                finish_reason = "tool_calls"
         if client_tools:
             root = url.rstrip("/").removesuffix("/v1")
             try:

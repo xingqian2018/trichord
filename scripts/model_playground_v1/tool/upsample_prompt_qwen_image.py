@@ -6,10 +6,22 @@ from typing import Any, Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from slurm_pool import SlurmPool  # noqa: E402
-from tool.generate_image_qwen_image import PE_MAX_ATTEMPTS, PE_SAMPLING, PE_SYSTEM_PROMPT, QWEN_IMAGE_PE_MODEL, WH_RATIO_TO_SIZE, parse_rewrite  # noqa: E402
+from tool.generate_image_qwen_image import WH_RATIO_TO_SIZE  # noqa: E402
 from tool.tool import Tool, ToolCallError  # noqa: E402
 
+QWEN_IMAGE_PE_MODEL = "Qwen/Qwen-Image-2.1-PE-T2I"
+PE_SYSTEM_PROMPT = (Path(__file__).resolve().parents[1] / "prompt" / "t2i_generation_qwen2p1_prompt_enhancement.md").read_text().strip()
+PE_SAMPLING = {"temperature": 1.0, "top_p": 0.95, "max_tokens": 8192, "extra_body": {"top_k": 20}}
+PE_MAX_ATTEMPTS = 3
 DEFAULT_ASPECT_RATIO = "1:1"
+
+
+def parse_rewrite(text: str) -> dict[str, str]:
+    answer = text.rpartition("</think>")[2].strip()
+    result = json.loads(answer[answer.find("{"): answer.rfind("}") + 1])
+    if not isinstance(result.get("rewritten_prompt"), str) or not result["rewritten_prompt"].strip():
+        raise ValueError("rewriter returned no rewritten_prompt")
+    return result
 
 
 class upsample_prompt_qwen_image(Tool):

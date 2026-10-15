@@ -1,7 +1,5 @@
-# Run this (on the cluster login node, then open the forwarded port)
+# Run this
 # streamlit run /home/xingqianx/Project/trichord/scripts/model_playground_v1/interface/run_qwen_image_2p1.py --server.port 8501
-# One prompt -> Qwen-Image-2.1-PE-T2I rewrite -> Qwen-Image-2.1 render. Both services are found the way the pipelines
-# find them: each service job writes its dispatcher URL to $U/run/<service>/broker_url; keys come from credentials/gateway.json.
 
 import base64
 import io
@@ -16,7 +14,7 @@ from PIL import Image
 
 RUN = Path("/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run")
 CREDENTIALS = Path.home() / "Project/trichord/credentials/gateway.json"
-PE_SYSTEM_PROMPT = (Path(__file__).resolve().parents[1] / "prompt" / "qwen_image_2p1_pe_t2i_system.txt").read_text().strip()
+PE_SYSTEM_PROMPT = (Path(__file__).resolve().parents[1] / "prompt" / "t2i_generation_qwen2p1_prompt_enhancement.md").read_text().strip()
 PE = {"dir": "qpe_serve", "model": "Qwen/Qwen-Image-2.1-PE-T2I", "key": "SLURM_QWEN_IMAGE_PE_API_KEY"}
 QI = {"dir": "qi_serve", "model": "Qwen/Qwen-Image-2.1", "key": "SLURM_QWEN_IMAGE_API_KEY"}
 WH_RATIO_TO_SIZE = {"1:1": "2048x2048", "4:3": "2400x1792", "3:4": "1792x2400", "3:2": "2528x1696", "2:3": "1696x2528", "16:9": "2752x1536", "9:16": "1536x2752"}

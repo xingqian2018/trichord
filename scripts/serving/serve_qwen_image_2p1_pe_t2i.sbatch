@@ -1,7 +1,7 @@
 #!/bin/bash
 # Qwen-Image-2.1-PE-T2I service on oci-jhb (gb300): the official prompt rewriter for Qwen-Image-2.1 (9B), vLLM with
 # data parallel 4 per node. A short brief in, {"rewritten_prompt": ..., "wh_ratio": ...} out; the client sends the
-# model's own system prompt (prompt/qwen_image_2p1_pe_t2i_system.txt in model_playground_v1).
+# model's own system prompt (prompt/t2i_generation_qwen2p1_prompt_enhancement.md in model_playground_v1).
 # One job = a dispatcher on node 0 + R single-node replicas; clients use ONE URL, $U/run/qpe_serve/broker_url (+ /v1), and
 # every replica pulls requests from the dispatcher through its sidecar (serving/broker_worker.py), see serving/pool_lib.sh.
 # Replica r serves on port 20000 + jobid % 20000 + 1 + r.

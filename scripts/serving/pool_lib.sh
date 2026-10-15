@@ -2,9 +2,17 @@
 #   node 0 (the batch host, "rank 0") runs the dispatcher (broker.py) and one sidecar per replica server
 #   replica r runs on nodes [r*NPR, (r+1)*NPR) of the job; each sidecar pulls work from the dispatcher and feeds it
 # Clients use one URL, written to $ROOT/broker_url:  http://<node0>:<20000 + jobid % 20000>/v1
-# Replica servers listen on the following ports (pool_port r [i]).
+# Fault handling: a sidecar exits (releasing its jobs) when its replica process dies or its backend stops answering, and
+# then ends that replica's srun; pool_run restarts a dead replica on the same nodes (MAX_RESTARTS times, after
+# RESTART_DELAY seconds) and restarts a dead dispatcher on the same port. The serve scripts use --no-kill, so a failed
+# node takes down only its own replica.
+# A serve script defines launch_replica <r>: start replica r's srun in the background, set REPLICA_PID[r]=$!, and
+# pool_attach its server(s); then it calls pool_start_broker and pool_run launch_replica.
 SERVING=$HOME/Project/trichord/scripts/serving
 U=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx
+MAX_RESTARTS=${MAX_RESTARTS:-3}
+RESTART_DELAY=${RESTART_DELAY:-60}
+declare -A REPLICA_PID REPLICA_RESTARTS
 
 pool_init() {  # <run dir name> <nodes per replica>
     ROOT=$U/run/$1
@@ -33,7 +41,8 @@ pool_head() {  # <replica> -> first node of that replica
 }
 
 pool_start_broker() {
-    python3 "$SERVING/broker.py" --port "$PORT_BASE" > "$STATE/broker.log" 2>&1 &
+    python3 "$SERVING/broker.py" --port "$PORT_BASE" >> "$STATE/broker.log" 2>&1 &
+    BROKER_PID=$!
     PIDS+=($!)
     for ((i = 0; i < 60; i++)); do
         curl -fsS --max-time 3 "$BROKER_URL/health" > /dev/null 2>&1 && break
@@ -52,23 +61,44 @@ pool_attach() {  # <replica> <server url> <served model> <key name> <max infligh
             kill -0 "$pid" 2>/dev/null || { echo "replica $r ($url) exited before READY"; exit 1; }
             if curl -fsS --max-time 5 -H "Authorization: Bearer $key" "$url/v1/models" 2>/dev/null | grep -q "$model"; then
                 echo "READY replica=$r $url"
-                exec python3 "$SERVING/broker_worker.py" --model "$model" --backend "$url" --api-key-name "$key_name" --max-inflight "$n" > "$STATE/worker-${url##*:}.log" 2>&1
+                python3 "$SERVING/broker_worker.py" --model "$model" --backend "$url" --api-key-name "$key_name" --max-inflight "$n" \
+                    --watch-pid "$pid" >> "$STATE/worker-${url##*:}.log" 2>&1
+                echo "sidecar for replica $r ($url) exited; stopping the replica so pool_run restarts it"
+                kill -TERM "$pid" 2>/dev/null
+                exit 0
             fi
             sleep 30
         done
-        echo "replica $r ($url) not ready after 2 h"
+        echo "replica $r ($url) not ready after 2 h; stopping it"
+        kill -TERM "$pid" 2>/dev/null
     ) &
+    PIDS+=($!)
 }
 
-pool_wait() {  # keep serving while the dispatcher and at least one replica are alive
-    while kill -0 "${PIDS[0]}" 2>/dev/null; do
-        local alive=0
-        for pid in "${PIDS[@]:1}"; do kill -0 "$pid" 2>/dev/null && alive=1; done
-        (( alive )) || { echo "all replicas exited"; exit 1; }
+pool_run() {  # <launch function>: start every replica, then keep the dispatcher and the replicas alive
+    local launch=$1 r alive broker_restarts=0
+    for ((r = 0; r < REPLICAS; r++)); do REPLICA_RESTARTS[$r]=0; "$launch" "$r"; PIDS+=("${REPLICA_PID[$r]}"); done
+    while true; do
         sleep 30
+        if ! kill -0 "$BROKER_PID" 2>/dev/null; then
+            (( broker_restarts < MAX_RESTARTS )) || { echo "dispatcher exited $broker_restarts times, giving up"; exit 1; }
+            broker_restarts=$((broker_restarts + 1))
+            echo "dispatcher exited; restart $broker_restarts/$MAX_RESTARTS"
+            pool_start_broker
+        fi
+        alive=0
+        for ((r = 0; r < REPLICAS; r++)); do
+            if kill -0 "${REPLICA_PID[$r]}" 2>/dev/null; then alive=1; continue; fi
+            (( REPLICA_RESTARTS[$r] < MAX_RESTARTS )) || continue
+            alive=1
+            REPLICA_RESTARTS[$r]=$((REPLICA_RESTARTS[$r] + 1))
+            echo "replica $r exited; restart ${REPLICA_RESTARTS[$r]}/$MAX_RESTARTS in ${RESTART_DELAY}s"
+            sleep "$RESTART_DELAY"
+            "$launch" "$r"
+            PIDS+=("${REPLICA_PID[$r]}")
+        done
+        (( alive )) || { echo "all replicas exited and used up their restarts"; exit 1; }
     done
-    echo "dispatcher exited"
-    exit 1
 }
 
 pool_cleanup() {

@@ -5,7 +5,8 @@ Qwen-Image-2.1-PE-T2I rewrites it into the full prompt and picks the aspect rati
 (40 steps, CFG off, official 2048-tier sizes). Each sample saves only <output>/<run_id>/image.webp and prompt.txt
 (the rewritten prompt the image was rendered from). All three models are our own Slurm services, each one URL (a
 dispatcher with replicas behind it, scripts/serving/pool_lib.sh). Keys are SLURM_KIMI_K3_API_KEY,
-SLURM_QWEN_IMAGE_PE_API_KEY and SLURM_QWEN_IMAGE_API_KEY in credentials/gateway.json.
+SLURM_QWEN_IMAGE_PE_API_KEY and SLURM_QWEN_IMAGE_API_KEY in credentials/gateway.json. K3_NATIVE_TOOLS=1: Kimi runs vLLM's kimi_k3 tool parser, so the agent's
+tool_choice="required" forces the generate_image call at decode time (see gateway_kimik3.py).
 
 Start the services first (bash, on gb300); each is one Slurm job with a dispatcher and N replicas behind one URL:
     bash ~/Project/trichord/scripts/serving/serve.sh kimi_k3 4
@@ -24,12 +25,12 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-normal --job-nam
     --nodes=1 --exclusive --ntasks-per-node=32 --cpus-per-task=2 --time=1-00:00:00 \
     -o $HOME/log/slurm/t2i_qwen_image_2p1_v0.%j.o -e $HOME/log/slurm/t2i_qwen_image_2p1_v0.%j.e \
     --wrap="for f in /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/k3_serve/broker_url /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/qpe_serve/broker_url /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/qi_serve/broker_url; do test -s \$f || { echo \"no dispatcher: \$f (bash ~/Project/trichord/scripts/serving/serve.sh status)\"; exit 1; }; done; \
-        export K3_ENDPOINTS=\$(cat /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/k3_serve/broker_url)/v1 QPE_ENDPOINTS=\$(cat /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/qpe_serve/broker_url)/v1 QI_ENDPOINTS=\$(cat /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/qi_serve/broker_url)/v1; \
+        export K3_ENDPOINTS=\$(cat /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/k3_serve/broker_url)/v1 QPE_ENDPOINTS=\$(cat /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/qpe_serve/broker_url)/v1 QI_ENDPOINTS=\$(cat /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/qi_serve/broker_url)/v1 K3_NATIVE_TOOLS=1; \
         srun --kill-on-bad-exit=0 \
         --container-image=$lustrepath/users/xingqianx/Container/run_poster_generation.sqsh \
         --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
         --container-workdir=$playground \
-        --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID,K3_ENDPOINTS,QPE_ENDPOINTS,QI_ENDPOINTS \
+        --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID,K3_ENDPOINTS,QPE_ENDPOINTS,QI_ENDPOINTS,K3_NATIVE_TOOLS \
         python3 script/run_t2i_generation.py \
             --model kimi-k3@k3slurm \
             --output s3://nv-00-10206-vfm/debug/xingqianx/t2i_data/t2i_qwen_image_2p1_kimik3_pe_v0 \

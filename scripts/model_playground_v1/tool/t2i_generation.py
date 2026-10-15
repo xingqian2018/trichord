@@ -12,6 +12,8 @@ from utils import put  # noqa: E402
 DEFAULT_MODEL_NAME = "kimi-k3@k3slurm"
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompt"
 DEFAULT_SYSTEM_PROMPT = (PROMPT_DIR / "t2i_generation_v0.md").read_text().strip()
+MAX_NUDGES = 2
+NUDGE_MESSAGE = "You replied with text. Call the generate_image tool now through a function call; do not write the call as text."
 
 
 class t2i_generation(Agent):
@@ -21,12 +23,20 @@ class t2i_generation(Agent):
     def __init__(self, model_name: str = DEFAULT_MODEL_NAME, system_prompt: str = DEFAULT_SYSTEM_PROMPT, **kwargs: Any):
         super().__init__(model_name, system_prompt, tool_registry=[generate_image_qwen_image], **kwargs)
 
+    def build_request(self) -> dict[str, Any]:
+        return {**super().build_request(), "tool_choice": "required"}
+
     def image_tool(self) -> generate_image_qwen_image:
         return self.tool_instances[generate_image_qwen_image.schema["function"]["name"]]
 
     def run_core(self, args: dict[str, Any]) -> str:
         self.add_user_message(args["prompt"])
         finish_reason = self.step()
+        for _ in range(MAX_NUDGES):
+            if finish_reason == "tool_calls":
+                break
+            self.add_user_message(NUDGE_MESSAGE)
+            finish_reason = self.step()
         if finish_reason != "tool_calls":
             raise RuntimeError(f"{self.model_name} ended with finish_reason={finish_reason!r} instead of calling generate_image")
         self.execute_tool_calls()

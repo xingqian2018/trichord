@@ -23,3 +23,4 @@ Across many requests the set should feel like thousands of different people aski
 ## Output
 
 Do not explain or discuss. Make one `generate_image` call whose `prompt` is your request, and nothing else.
+The call must go through the function-calling interface. Never write the call out as text such as `generate_image prompt: ...`; text in your reply is discarded and the image is not made.

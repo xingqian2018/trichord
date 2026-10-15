@@ -10,6 +10,8 @@
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
 #SBATCH --qos normal
+#SBATCH --wckey=p1
+#SBATCH --no-kill
 #SBATCH --segment=1
 #SBATCH -N 1
 #SBATCH --gpus-per-node=4
@@ -36,8 +38,8 @@ export VLLM_CACHE_ROOT=$XDG_CACHE_HOME/vllm DG_JIT_CACHE_DIR=$XDG_CACHE_HOME/dee
 # DeepGEMM JIT needs an nvcc whose major.minor == CUDART (13.0): the system /usr/local/cuda inside vllm-openai:v0.31.0
 export DG_JIT_NVCC_COMPILER=/usr/local/cuda/bin/nvcc
 
-pool_start_broker
-for ((r = 0; r < REPLICAS; r++)); do
+launch_replica() {
+    local r=$1
     export MIMO_PORT=$((PORT_BASE + 1 + r))
     srun --nodes=1 --ntasks=1 --nodelist="$(pool_hosts "$r")" --container-image="$IMAGE" \
          --container-mounts=/lustre:/lustre,/scratch:/scratch \
@@ -48,8 +50,10 @@ for ((r = 0; r < REPLICAS; r++)); do
              --trust-remote-code --tensor-parallel-size 4 \
              --gpu-memory-utilization 0.80 --max-model-len "$MIMO_MAX_MODEL_LEN" \
              --reasoning-parser mimo --tool-call-parser mimo --enable-auto-tool-choice \
-             --generation-config vllm' > "$STATE/server-$r.log" 2>&1 &
-    PIDS+=($!)
-    pool_attach "$r" "http://$(pool_head "$r"):$MIMO_PORT" mimo-v2.6-pro-rl SLURM_MIMO_API_KEY 32 "$!"
-done
-pool_wait
+             --generation-config vllm' >> "$STATE/server-$r.log" 2>&1 &
+    REPLICA_PID[$r]=$!
+    pool_attach "$r" "http://$(pool_head "$r"):$MIMO_PORT" mimo-v2.6-pro-rl SLURM_MIMO_API_KEY 32 "${REPLICA_PID[$r]}"
+}
+
+pool_start_broker
+pool_run launch_replica

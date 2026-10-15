@@ -12,6 +12,8 @@
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
 #SBATCH --qos normal
+#SBATCH --wckey=p1
+#SBATCH --no-kill
 #SBATCH --segment=1
 #SBATCH -N 1
 #SBATCH --gpus-per-node=4
@@ -37,8 +39,8 @@ export VLLM_ENGINE_READY_TIMEOUT_S=3600 OMP_NUM_THREADS=8
 export XDG_CACHE_HOME=/tmp/qpe_cache_$SLURM_JOB_ID
 export VLLM_CACHE_ROOT=$XDG_CACHE_HOME/vllm HF_HOME=$XDG_CACHE_HOME/hf
 
-pool_start_broker
-for ((r = 0; r < REPLICAS; r++)); do
+launch_replica() {
+    local r=$1
     export PE_PORT=$((PORT_BASE + 1 + r))
     # first run downloads the weights into the shared hub (resumable); later runs only verify and start offline
     srun --nodes=1 --ntasks=1 --nodelist="$(pool_hosts "$r")" --container-image="$IMAGE" \
@@ -51,8 +53,10 @@ for ((r = 0; r < REPLICAS; r++)); do
                  --host 0.0.0.0 --port "$PE_PORT" --api-key "$VLLM_API_KEY" \
                  --trust-remote-code --data-parallel-size 4 --tensor-parallel-size 1 \
                  --max-model-len 32768 --gpu-memory-utilization 0.85 \
-                 --limit-mm-per-prompt "{\"image\":0,\"video\":0}" --generation-config vllm' > "$STATE/server-$r.log" 2>&1 &
-    PIDS+=($!)
-    pool_attach "$r" "http://$(pool_head "$r"):$PE_PORT" Qwen/Qwen-Image-2.1-PE-T2I SLURM_QWEN_IMAGE_PE_API_KEY 64 "$!"
-done
-pool_wait
+                 --limit-mm-per-prompt "{\"image\":0,\"video\":0}" --generation-config vllm' >> "$STATE/server-$r.log" 2>&1 &
+    REPLICA_PID[$r]=$!
+    pool_attach "$r" "http://$(pool_head "$r"):$PE_PORT" Qwen/Qwen-Image-2.1-PE-T2I SLURM_QWEN_IMAGE_PE_API_KEY 64 "${REPLICA_PID[$r]}"
+}
+
+pool_start_broker
+pool_run launch_replica

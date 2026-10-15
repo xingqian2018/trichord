@@ -162,6 +162,11 @@ class Broker:
                         "live_workers": live.get(m, 0), "served": self.served[m], "failed": self.failed[m]} for m in sorted(models)}
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+    request_queue_size = 1024
+
+
 class Handler(BaseHTTPRequestHandler):
     broker: Broker
     protocol_version = "HTTP/1.1"
@@ -244,9 +249,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, required=True)
     args = parser.parse_args()
     Handler.broker = Broker()
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
-    server.daemon_threads = True
-    server.request_queue_size = 1024
+    server = Server((args.host, args.port), Handler)
     print(f"broker listening on {args.host}:{args.port}, models: {sorted(MODEL_KEYS)}", flush=True)
     server.serve_forever()
 

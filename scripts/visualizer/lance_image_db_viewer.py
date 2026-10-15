@@ -33,15 +33,23 @@ PBSS_TO_GCS: dict[str, tuple[str, str]] = {
 GCS_NATIVE_BUCKETS = {"nv-00-10206-images", "nv-00-10206-webdataset-images"}
 
 KNOWN_TABLES: dict[str, str] = {
-    "regular / unsplash_lite (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/unsplash_lite_slice_from_maintable_20260915.lance",
-    "regular / megalith-10m (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/megalith-10m_slice_from_maintable_20260915.lance",
-    "regular / lsdir (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/lsdir_slice_from_maintable_20260915.lance",
-    "regular / pexels_residual_trustedK1_v2 (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/pexels_residual_trustedK1_v2_slice_from_maintable_20260915.lance",
-    "regular / human_sft (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/human_sft_slice_from_maintable_20260915.lance",
-    "regular / aesthetic-train-v2 (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/aesthetic-train-v2_slice_from_maintable_20260915.lance",
-    "regular / flickr2k (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/flickr2k_slice_from_maintable_20260915.lance",
-    "regular / photo-concept-bucket (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/photo-concept-bucket_slice_from_maintable_20260915.lance",
-    "regular / multiaspect-4k-1m (20260915)": "gs://nv-00-10206-vfm/lancedb/image/regular/multiaspect-4k-1m_slice_from_maintable_20260915.lance",
+    "regular / commoncatalog-cc-by (20261014)": "gs://nv-00-10206-vfm/lancedb/image/regular/commoncatalog-cc-by_slice_from_maintable_20261014.lance",
+    "regular / megascenes (20261014)": "gs://nv-00-10206-vfm/lancedb/image/regular/megascenes_slice_from_maintable_20261014.lance",
+    "regular / commoncatalog-cc-by-sa (20261014)": "gs://nv-00-10206-vfm/lancedb/image/regular/commoncatalog-cc-by-sa_slice_from_maintable_20261014.lance",
+    "regular / Fine-T2I-curated (20261014)": "gs://nv-00-10206-vfm/lancedb/image/regular/Fine-T2I-curated_slice_from_maintable_20261014.lance",
+    "regular / 4KLSDB (20261014)": "gs://nv-00-10206-vfm/lancedb/image/regular/4KLSDB_slice_from_maintable_20261014.lance",
+    "regular / hq-50k (20261014)": "gs://nv-00-10206-vfm/lancedb/image/regular/hq-50k_slice_from_maintable_20261014.lance",
+    "regular / uhd-iqa (20261014)": "gs://nv-00-10206-vfm/lancedb/image/regular/uhd-iqa_slice_from_maintable_20261014.lance",
+    "regular / midtrain (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/midtrain_slice_from_maintable_20261009.lance",
+    "regular / megalith-10m (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/megalith-10m_slice_from_maintable_20261009.lance",
+    "regular / multiaspect-4k-1m (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/multiaspect-4k-1m_slice_from_maintable_20261009.lance",
+    "regular / photo-concept-bucket (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/photo-concept-bucket_slice_from_maintable_20261009.lance",
+    "regular / Aesthetic-Train-V2 (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/Aesthetic-Train-V2_slice_from_maintable_20261009.lance",
+    "regular / LSDIR (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/LSDIR_slice_from_maintable_20261009.lance",
+    "regular / human_sft (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/human_sft_slice_from_maintable_20261009.lance",
+    "regular / pexels_residual_trustedK1_v2 (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/pexels_residual_trustedK1_v2_slice_from_maintable_20261009.lance",
+    "regular / unsplash_lite (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/unsplash_lite_slice_from_maintable_20261009.lance",
+    "regular / flickr2k (20261009)": "gs://nv-00-10206-vfm/lancedb/image/regular/flickr2k_slice_from_maintable_20261009.lance",
 }
 
 MAX_METADATA_COLS_SHOWN = 40

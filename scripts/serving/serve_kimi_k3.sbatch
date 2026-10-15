@@ -1,6 +1,7 @@
 #!/bin/bash
 # Kimi-K3 service on oci-jhb (gb300): one job = a dispatcher on node 0 + R replicas of 2 GB300 nodes each
-# (TP8 / EP8 / DCP8, max context 1048576). Clients use ONE URL, $U/run/k3_serve/broker_url (+ /v1); every replica
+# (TP8 / EP8 / DCP8, max context 1048576). GB200 (gcpcode) version: serve_kimi_k3_gb200.sbatch.
+# Clients use ONE URL, $U/run/k3_serve/broker_url (+ /v1); every replica
 # pulls requests from the dispatcher through its sidecar (serving/broker_worker.py), see serving/pool_lib.sh.
 # Replica r serves on port 20000 + jobid % 20000 + 1 + r of its first node.
 # vLLM settings adapted from sdharur's k3_scale2048 serving; --max-model-len raised from 32768 to 1048576.
@@ -9,6 +10,8 @@
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
 #SBATCH --qos normal
+#SBATCH --wckey=p1
+#SBATCH --no-kill
 #SBATCH -N 2
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
@@ -36,8 +39,8 @@ export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 # node-local caches, same reason as the mimo endpoint (cache lock failures on shared storage)
 export XDG_CACHE_HOME=/tmp/k3_cache_$SLURM_JOB_ID HF_HOME=/tmp/k3_cache_$SLURM_JOB_ID/hf
 
-pool_start_broker
-for ((r = 0; r < REPLICAS; r++)); do
+launch_replica() {
+    local r=$1
     export K3_HEAD_HOST=$(pool_head "$r") K3_PORT=$((PORT_BASE + 1 + r)) K3_MASTER_PORT=$((40000 + SLURM_JOB_ID % 15000 + r))
     # one task per node: rank 0 serves the API on the replica's first node, rank 1 joins headless
     srun --nodes=2 --ntasks=2 --ntasks-per-node=1 --nodelist="$(pool_hosts "$r")" --cpus-per-task=128 --gpus-per-node=4 \
@@ -57,8 +60,11 @@ for ((r = 0; r < REPLICAS; r++)); do
                  --load-format fastsafetensors --no-enable-flashinfer-autotune --kv-cache-dtype fp8 \
                  --attention-config "{\"use_prefill_query_quantization\":true,\"mla_prefill_backend\":\"TRTLLM_RAGGED\"}" \
                  --attention-backend TOKENSPEED_MLA --enable-prefix-caching --prefix-match-unit 128 \
-                 --reasoning-parser kimi_k3 --mm-processor-cache-gb 0 $headless' > "$STATE/server-$r.log" 2>&1 &
-    PIDS+=($!)
-    pool_attach "$r" "http://$K3_HEAD_HOST:$K3_PORT" moonshotai/Kimi-K3 SLURM_KIMI_K3_API_KEY 48 "$!"
-done
-pool_wait
+                 --reasoning-parser kimi_k3 --enable-auto-tool-choice --tool-call-parser kimi_k3 \
+                 --mm-processor-cache-gb 0 $headless' >> "$STATE/server-$r.log" 2>&1 &
+    REPLICA_PID[$r]=$!
+    pool_attach "$r" "http://$K3_HEAD_HOST:$K3_PORT" moonshotai/Kimi-K3 SLURM_KIMI_K3_API_KEY 48 "${REPLICA_PID[$r]}"
+}
+
+pool_start_broker
+pool_run launch_replica

@@ -275,73 +275,81 @@ L1 domain（t2i 内部）               L2 子类：见 3.3 节
 - 叶子层平均每个叶子不到 1.5 条样本，所以叶子之间的权重主要由平滑决定，可信度低于 L1 和 L2。
 - 只用了一个打标模型。
 
-## 9. 细粒度 taxonomy v2（5.6 万个叶子，用于生成约 500 万条数据）
+## 9. 细粒度 taxonomy v2（5.8 万个叶子，用于生成约 500 万条数据）
 
-文件：`scripts/model_playground_v1/taxonomy/t2i_arena_v2.json`（4.7MB）
+文件：`scripts/model_playground_v1/taxonomy/t2i_arena_v2.json`
 
-**格式**：四层严格树 L1 > L2 > L3 > L4。
+**核心原则：taxonomy 只给 prompt 生成提供提示，不能替代 prompt 生成。**
 
-- L1 和 L2 的 key 写成 `"名称|权重"`，权重沿用第 8 节的 v1。
-- L3 和 L4 的 key 不带权重，表示在同一父节点下均匀采样。
-- 叶子的值为 `{}`。
+叶子只说"画什么"，而且每往下一层只具体一步。场景、地区文化、人物、年代、风格、媒介、光线、构图、配色和文字语言，全部留给下游写 prompt 的环节决定。
 
-| 层级 | 节点数 |
-|---|---|
-| L1 | 34 |
-| L2 | 133 |
-| L3 | 1,927 |
-| L4（叶子） | **56,062** |
+第一版的叶子把这些维度都写死了，每条约 10 个词，比如"中东集市里雕花木托盘上的阿塔尔香油瓶"，已经是一个完整画面。从这样的叶子出发写 100 条 prompt，只会得到同一个画面的近似改写，反而降低了多样性。所以这一版整体重做了。
 
-### 9.1 设计原则
+### 9.1 结构
 
-1. **按权重分配叶子数**。每个 L2 分到的叶子数为 max(150, 50,000 × 该 L2 的全局权重)。如果每个分支的叶子一样多，高权重分支的每个叶子都会被采样几千次，生成的数据会大量重复。按权重分配后，采样 500 万条时：
-   - 每个叶子被采样次数的中位数是 98 次；
-   - 90% 的叶子落在 52–102 次之间；
-   - 最少的是 9 次，出现在权重很低、靠 150 下限撑起来的冷门 L2。
-2. **L3 沿一个主维度切分，L3 之间互斥并且完全覆盖整个 L2**。先列出该 L2 所有的多样性维度，再选一个主维度来切；如果预算需要更多 L3，就在较大的取值下再按一个次维度细分，命名为"值: 子值"。不允许不同维度定义的 L3 互相重叠（例如不能同时有"猫的肖像"和"宠物睡觉"）。剩下的维度全部下放到叶子层。例如：
-   - 社媒营销 = 平台格式 × 行业（50 个 L3，包括后来补上的电商商品卡）；
+一共 5 层，是一棵严格的树：L1 > L2 > L3 > L4 > L5。
+
+- **权重**：只有 L1 和 L2 带权重，写成 `"名称|权重"`，数值沿用第 8 节的 v1。L3、L4、L5 不带权重，在同一个父节点下均匀采样。
+- **叶子**：值为 `{}`。
+- **加载**：可以直接用 `taxonomy/helper.py` 加载，它支持 JSON，也支持没有权重的层默认均匀采样。
+
+| 层级 | 含义 | 节点数 | 平均词数 |
+|---|---|---|---|
+| L1 | 大类 | 34 | — |
+| L2 | 中类 | 133 | — |
+| L3 | 中类内沿一个主维度切分 | 1,927 | — |
+| L4 | 话题族 | 10,065 | 3.2 |
+| L5（叶子） | 话题：主体，最多再加一个限定 | **57,815** | 2.9 |
+
+例子：
+
+- `Pets > Cats: Home and Indoor Life > sleeping and resting > loaf position`
+- `Social Media & Marketing > Video Thumbnails: Gaming And Esports > guides and tier lists > tier list ranking`
+- `Product Photography > Perfume & Fragrances > alternative fragrance formats > attar oil vial`
+- `Print & Editorial > Albums: Classical & World > global traditional music > gamelan ensemble album`
+
+### 9.2 设计要点
+
+1. **叶子数按权重分配**。每个 L2 的叶子数是 max(150, 50,000 × 该 L2 的全局权重)，这样每个叶子分到的样本量大致相同。按 500 万条采样计算：
+   - 每个叶子被采样次数的中位数是 95 次，90% 的叶子落在 49–102 次之间；
+   - 抽 20 万次能覆盖 53,975 个不同的叶子。
+2. **L3 沿一个主维度切分，L3 之间互斥并且完全覆盖整个 L2**。如果预算需要更多 L3，就用一个次维度再细分，命名为"值: 子值"。例如：
+   - 社媒营销 = 平台格式 × 行业；
    - IP 同人 = 作品媒介 × 呈现方式；
-   - 名人 = 职业 × 场景；
-   - 电影感 = 类型 × 叙事主题。
-3. **用真实需求约束覆盖范围**。生成每个 L2 的 L3 时，模型会看到 2,000 条打标样本中属于这个 L2 的真实 prompt，以及 v1 的种子叶子，并被要求保证每一条都能落进某个 L3。
-4. **全球化**。叶子里出现频率最高的专有词是各地文化和节日，例如 Chinese、Japanese、Russian、Persian、Indian、Arabic，以及诺鲁孜节、排灯节、开斋节、斋月、泼水节（Songkran）、马塔里基节（Matariki）等。这和 arena 约 41% 的非英语用户相对应。
-5. **叶子是"一类图"**，能脱离路径单独读懂。叶子里不出现真人姓名、品牌或 IP 名称，具体实例由下游写 prompt 的环节自己选。
+   - 名人 = 职业 × 场景。
 
-### 9.2 生成与清洗
+   生成 L3 时，模型能看到属于这个 L2 的真实 arena prompt 和 v1 的种子叶子，并被要求保证每一条都能落进某个 L3。电商商品卡这个 L3 就是靠这条规则查出遗漏后手动补上的。
+3. **L4、L5 每层只往下具体一步**：
+   - L4 是话题族，1–4 个词；L5 是话题，1–6 个词。
+   - 不指定场景、人物（族裔、国籍、年龄）、年代和表现方式（风格、媒介、光线、构图、配色、文字语言），除非这个维度本身就是话题，比如节日贺图下的"排灯节"，版画下的"木刻"。
+   - 兄弟节点之间按话题区分，不能只靠修饰词区分（不能出现"红色跑车"和"蓝色跑车"这种兄弟节点）。
 
-- **L3**：由 gemini-3.1-pro 生成，共 133 次调用。
-- **L4**：由 Claude Opus 5.5 生成，共 1,927 次调用，请求轮流发到 @nvidiak 和 @nvidiams，以及 aws 和 azure 两条路由，失败 0 次。
-- **擦边内容**：按决定全部保留，只排除明显的 NSFW，即不允许裸露、性行为，绝不允许性化未成年人。魅力类、泳装类、私密类主题下的人物必须是成年人。
+   效果：
+   - 只有 18 个叶子带国籍或年代形容词，第一版有好几千个；
+   - 带风格词的叶子只有 332 个，抽查下来都是风格本身就是话题的情况。
+4. **全球化交给下游 prompt 生成**。arena 约 41% 的用户不说英语，但地区和文化不再写进叶子，由写 prompt 时按语言和地区分布采样。只有那些本身就属于某种文化的话题才保留文化信息，例如节日、神话人物、传统音乐。
+
+### 9.3 生成与清洗
+
+- **生成**：
+  - L3 由 gemini-3.1-pro 生成，共 133 次调用。
+  - L4 和 L5 由 Claude Opus 5.5 生成，每个 L3 一次调用，共 1,927 次。调用轮流分到 @nvidiak 和 @nvidiams，以及 aws 和 azure 两条路由，失败 0 次。
+  - 先拿 1 个 L3（Video Thumbnails: Gaming And Esports）试点，确认粒度合适后才全量生成。
+- **内容规则**：擦边内容保留，只排除明显的 NSFW，即不允许裸露和性行为，也绝不允许性化未成年人。魅力类、泳装类、私密类主题下的人物必须是成年人。
 - **清洗**：
-  - 跨 L2 的完全重复去掉了 18 条，同一 L3 内没有近似重复（Jaccard 大于 0.8 的为 0）；
-  - 魅力人像 L2 下涉及儿童或青少年的叶子去掉了 7 条；
-  - 残留的品牌名或平台名约 60 处，替换成了通用说法（例如 YouTube → video channel，LEGO-style → toy brick style）。
+  - 在同一个 L3 内去重。叶子都很短，相同的词在不同父节点下含义不同，所以不做跨 L3 去重。
+  - 魅力人像 L2 下涉及儿童的叶子去掉 1 个。
+  - 对误杀加了例外，没有删掉以下这些：
+    - club kid（夜店亚文化）
+    - child's pose（瑜伽体式）
+    - naked bike（街车车型）
+    - naked-eye comet（肉眼可见的彗星）
+  - 残留的品牌名或平台名统一替换为通用说法，例如 YouTube 换成 video channel。
 
-### 9.3 各 L1 的叶子数（前 8 个）
+### 9.4 局限
 
-| L1 | 叶子数 |
-|---|---|
-| Graphic Design & Typography | 11,660 |
-| People & Portraits | 7,056 |
-| Characters & Creatures | 5,306 |
-| Art Styles & Media | 2,759 |
-| Abstract & Conceptual | 2,351 |
-| Products & Commercial | 2,310 |
-| Infographics & Education | 2,253 |
-| Emotions & Storytelling | 1,877 |
-
-### 9.4 样例
-
-- Products & Commercial > Product Photography > Perfume & Fragrances > attar oil vials displayed on carved wooden tray in Middle Eastern souk
-- Fantasy & Mythology > Mythology > Southeast Asian and Oceanic Lore > Balinese barong lion spirit confronting a fanged widow witch in dramatic battle
-- Infographics & Education > Slides & Worksheets > Worksheets: Early Learning & Tracing > spiral and loop tracing worksheet for pencil control practice
-- UI & Digital > Screens in Context > Computers & Laptops: Casual & Home Desks > student dorm room laptop surrounded by instant noodles at midnight
-- Technology & Science > Science > Microbiology and Cellular Structures > paramecium and amoeba swimming in a pond water droplet under brightfield microscope
-
-### 9.5 局限
-
-- L3 内部是均匀采样，没有用真实数据校准。L1 和 L2 的权重来自 1,548 条样本；L3 和 L4 是为了覆盖面设计出来的，不代表 arena 的真实比例。
-- 叶子名称是英文。要生成多语言 prompt，需要下游在写 prompt 时再按语言分布采样。
+- L3 及以下都按均匀采样，没有用真实数据校准。L1 和 L2 的权重来自 1,548 条样本；L3 以下的结构是为了覆盖面而设计的，不代表 arena 的真实比例。
+- 叶子是英文。生成多语言 prompt 需要下游按语言分布另外采样。
 
 ## 附：文件
 

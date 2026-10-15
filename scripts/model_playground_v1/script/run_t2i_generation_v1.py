@@ -1,5 +1,5 @@
 r"""
-t2i v1 = run_t2i_generation.py with tool/t2i_generation_v1.py and the weighted arena taxonomy (taxonomy/t2i_arena_v1.json).
+t2i v1 = run_t2i_generation.py with tool/t2i_generation_v1.py and the weighted arena taxonomy (taxonomy/t2i_arena_v0.yaml).
 The rewriter is its own tool: Kimi-K3 writes a base prompt, calls upsample_prompt (Qwen-Image-2.1-PE-T2I), may fix the
 expansion, and calls generate_image (Qwen-Image-2.1) once with a description and an aspect ratio; no review, no second
 render. System prompt: prompt/t2i_generation_v1.md. Each sample keeps the full trace plus derived/image.png and
@@ -40,4 +40,4 @@ from run_t2i_generation import main  # noqa: E402
 from tool.t2i_generation_v1 import t2i_generation_v1  # noqa: E402
 
 if __name__ == "__main__":
-    main(t2i_generation_v1, default_taxonomy="t2i_arena_v1")
+    main(t2i_generation_v1, default_taxonomy="t2i_arena_v0")

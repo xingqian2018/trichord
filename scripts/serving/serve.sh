@@ -1,29 +1,42 @@
 #!/bin/bash
-# One-line launcher for the self-hosted endpoints on gb300 (run from any directory, in bash):
-#   bash scripts/serving/serve.sh cosmos3_super_t2i 2         # 2 Cosmos3-Super-Text2Image replicas, batch_long 48 h (1 node each)
-#   bash scripts/serving/serve.sh kimi_k3 2                   # 2 Kimi-K3 replicas, batch_long 48 h (2 nodes each)
-#   bash scripts/serving/serve.sh mimo_v2p6_pro_rl 1          # 1 MiMo-V2.6-Pro-RL replica, batch_long 48 h (1 node)
-#   bash scripts/serving/serve.sh cosmos3_super_t2i 1 batch   # same, but batch 4 h (quick test, usually starts sooner)
-#   bash scripts/serving/serve.sh status                      # every replica: state, and its URL once READY
-# Each service runs serving/serve_<service>.sbatch; job names keep the short prefixes the pipeline scans for.
+# One-line launcher for the self-hosted services on gb300 (run from any directory, in bash). Each service is ONE Slurm
+# job: a dispatcher on its first node plus <replicas> model replicas that pull requests from it (serving/pool_lib.sh),
+# so clients use one URL per service, like a Lepton endpoint.
+#   bash scripts/serving/serve.sh kimi_k3 4                   # 4 Kimi-K3 replicas x 2 nodes = 8 nodes
+#   bash scripts/serving/serve.sh cosmos3_super_t2i 4         # 4 Cosmos3-Super-Text2Image replicas x 1 node
+#   bash scripts/serving/serve.sh qwen_image_2p1 2            # 2 Qwen-Image-2.1 nodes, 4 single-GPU servers each
+#   bash scripts/serving/serve.sh qwen_image_2p1_pe_t2i 1     # 1 Qwen-Image-2.1 prompt-rewriter node (DP4)
+#   bash scripts/serving/serve.sh mimo_v2p6_pro_rl 1          # 1 MiMo-V2.6-Pro-RL node
+#   bash scripts/serving/serve.sh cosmos3_super_t2i 1 batch   # batch partition, 4 h (quick test, usually starts sooner)
+#   bash scripts/serving/serve.sh status                      # every service: job, URL, queue, live replicas
+# To resize a service, cancel its job and submit again with a new replica count.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 RUN=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run
 
-declare -A PREFIX=([kimi_k3]=k3-xqx [mimo_v2p6_pro_rl]=mimo-xqx [cosmos3_super_t2i]=c3-xqx)
-declare -A STATE=([kimi_k3]=k3_serve [mimo_v2p6_pro_rl]=mimo_pro_serve [cosmos3_super_t2i]=c3_serve)
-declare -A KEY=([kimi_k3]=SLURM_KIMI_K3_API_KEY [mimo_v2p6_pro_rl]=SLURM_MIMO_API_KEY [cosmos3_super_t2i]=SLURM_COSMOS3_API_KEY)
+declare -A PREFIX=([kimi_k3]=k3-xqx [mimo_v2p6_pro_rl]=mimo-xqx [cosmos3_super_t2i]=c3-xqx [qwen_image_2p1]=qi-xqx [qwen_image_2p1_pe_t2i]=qpe-xqx)
+declare -A STATE=([kimi_k3]=k3_serve [mimo_v2p6_pro_rl]=mimo_pro_serve [cosmos3_super_t2i]=c3_serve [qwen_image_2p1]=qi_serve [qwen_image_2p1_pe_t2i]=qpe_serve)
+declare -A KEY=([kimi_k3]=SLURM_KIMI_K3_API_KEY [mimo_v2p6_pro_rl]=SLURM_MIMO_API_KEY [cosmos3_super_t2i]=SLURM_COSMOS3_API_KEY [qwen_image_2p1]=SLURM_QWEN_IMAGE_API_KEY [qwen_image_2p1_pe_t2i]=SLURM_QWEN_IMAGE_PE_API_KEY)
+declare -A MODEL=([kimi_k3]=moonshotai/Kimi-K3 [mimo_v2p6_pro_rl]=mimo-v2.6-pro-rl [cosmos3_super_t2i]=LeptonTR/Cosmos3-Super-Text2Image [qwen_image_2p1]=Qwen/Qwen-Image-2.1 [qwen_image_2p1_pe_t2i]=Qwen/Qwen-Image-2.1-PE-T2I)
+declare -A NODES_PER_REPLICA=([kimi_k3]=2 [mimo_v2p6_pro_rl]=1 [cosmos3_super_t2i]=1 [qwen_image_2p1]=1 [qwen_image_2p1_pe_t2i]=1)
+SERVICES="kimi_k3 mimo_v2p6_pro_rl cosmos3_super_t2i qwen_image_2p1 qwen_image_2p1_pe_t2i"
 
-usage() { sed -n 2,8p "${BASH_SOURCE[0]}"; exit 1; }
+usage() { sed -n 2,13p "${BASH_SOURCE[0]}"; exit 1; }
 
 status() {
-    for svc in kimi_k3 mimo_v2p6_pro_rl cosmos3_super_t2i; do
-        squeue -u "$USER" -h -o "%i %j %T %P %M %l" | awk -v p="${PREFIX[$svc]}" 'index($2, p) == 1' | sort -n | while read -r id name state part elapsed limit; do
-            env="$RUN/${STATE[$svc]}/job-$id/endpoint.env"
-            if [[ -s "$env" ]]; then url=$(grep base_url "$env" | cut -d= -f2-); else url="(not ready, log: $RUN/${STATE[$svc]}/slurm-$id.log)"; fi
-            printf '%-18s %-9s %-12s %-8s %-11s %s/%s  %s\n' "$svc" "$id" "$name" "$state" "$part" "$elapsed" "$limit" "$url"
-        done
+    for svc in $SERVICES; do
+        jobs=$(squeue -u "$USER" -h -o "%i %T %P %D %M/%l" -n "${PREFIX[$svc]}" | tr '\n' ' ')
+        [[ -n "$jobs" ]] || continue
+        echo "$svc  job: $jobs"
+        url_file="$RUN/${STATE[$svc]}/broker_url"
+        if [[ -s "$url_file" ]]; then
+            b=$(cat "$url_file")
+            echo "  url: $b/v1"
+            curl -fsS --max-time 5 "$b/stats" | python3 -c 'import json, sys; v = json.load(sys.stdin)[sys.argv[1]]; print("  live_replica_servers={live_workers} queued={queued} in_flight={in_flight} served={served} failed={failed}".format(**v))' "${MODEL[$svc]}" || echo "  (dispatcher not answering)"
+        else
+            echo "  dispatcher not up yet (log: $RUN/${STATE[$svc]}/slurm-<jobid>.log)"
+        fi
     done
 }
 
@@ -39,11 +52,11 @@ case "$part" in
     *) usage ;;
 esac
 grep -q "\"${KEY[$svc]}\"" ~/Project/trichord/credentials/gateway.json || { echo "missing ${KEY[$svc]} in ~/Project/trichord/credentials/gateway.json"; exit 1; }
+if squeue -u "$USER" -h -o "%i" -n "${PREFIX[$svc]}" | grep -q .; then
+    echo "$svc already has a job ($(squeue -u "$USER" -h -o "%i %T" -n "${PREFIX[$svc]}" | tr '\n' ' ')); cancel it first to resize"
+    exit 1
+fi
 mkdir -p "$RUN/${STATE[$svc]}"
-
-last=$(squeue -u "$USER" -h -o "%j" | sed -n "s/^${PREFIX[$svc]}-\([0-9]\+\)$/\1/p" | sort -n | tail -1)
-for ((i = 1; i <= n; i++)); do
-    name="${PREFIX[$svc]}-$((${last:-0} + i))"
-    sbatch -p "$part" -t "$time" -J "$name" "$HERE/serve_$svc.sbatch" | sed "s/$/  ($name, $part)/"
-done
-echo "check: bash $HERE/serve.sh status   (URL appears once the replica prints READY)"
+nodes=$((n * NODES_PER_REPLICA[$svc]))
+sbatch -p "$part" -t "$time" -N "$nodes" -J "${PREFIX[$svc]}" "$HERE/serve_$svc.sbatch" | sed "s/$/  ($svc: $n replicas, $nodes nodes, $part)/"
+echo "url file: $RUN/${STATE[$svc]}/broker_url   check: bash $HERE/serve.sh status"

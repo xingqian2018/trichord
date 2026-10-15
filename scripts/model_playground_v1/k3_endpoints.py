@@ -38,8 +38,8 @@ def endpoint_alive(base_url: str, timeout: float = 5, model: str = K3_MODEL, api
         return False
 
 
-def discover_slurm_endpoints(user: str = "sdharur", job_prefix: str = "k3-scale2048", port_base: int = 20000, model: str = K3_MODEL, api_key: Optional[str] = None) -> list[str]:
-    """Running jobs of `user` named `job_prefix*`; head node = first host, port = port_base + jobid % 20000."""
+def discover_slurm_endpoints(user: str = "sdharur", job_prefix: str = "k3-scale2048", port_base: int = 20000, model: str = K3_MODEL, api_key: Optional[str] = None, ports_per_job: int = 1) -> list[str]:
+    """Running jobs of `user` named `job_prefix*`; head node = first host, ports = port_base + jobid % 20000 + i, i < ports_per_job."""
     if shutil.which("squeue") is None:
         return []
     out = subprocess.run(["squeue", "-h", "-u", user, "-t", "RUNNING", "-o", "%i %j %N"], capture_output=True, text=True, check=True).stdout
@@ -49,7 +49,7 @@ def discover_slurm_endpoints(user: str = "sdharur", job_prefix: str = "k3-scale2
         if not name.startswith(job_prefix):
             continue
         head = subprocess.run(["scontrol", "show", "hostnames", nodelist], capture_output=True, text=True, check=True).stdout.split()[0]
-        candidates.append(f"http://{head}:{port_base + int(job_id) % 20000}/v1")
+        candidates.extend(f"http://{head}:{port_base + int(job_id) % 20000 + i}/v1" for i in range(ports_per_job))
     with ThreadPoolExecutor(max_workers=16) as pool:
         alive = list(pool.map(lambda url: endpoint_alive(url, model=model, api_key=api_key), candidates))
     return [url for url, ok in zip(candidates, alive) if ok]
@@ -65,8 +65,8 @@ def load_endpoints() -> list[str]:
     return discover_slurm_endpoints()
 
 
-def write_endpoints(out: str, user: str, job_prefix: str, model: str = K3_MODEL, api_key: Optional[str] = None) -> int:
-    urls = discover_slurm_endpoints(user, job_prefix, model=model, api_key=api_key)
+def write_endpoints(out: str, user: str, job_prefix: str, model: str = K3_MODEL, api_key: Optional[str] = None, ports_per_job: int = 1) -> int:
+    urls = discover_slurm_endpoints(user, job_prefix, model=model, api_key=api_key, ports_per_job=ports_per_job)
     if urls:  # never overwrite a good list with an empty one (squeue hiccup)
         tmp = f"{out}.tmp.{os.getpid()}"
         Path(tmp).write_text(json.dumps(urls, indent=1))
@@ -81,11 +81,12 @@ if __name__ == "__main__":
     p.add_argument("--job-prefix", default="k3-scale2048")
     p.add_argument("--model", default=K3_MODEL, help="served model id that /v1/models must list")
     p.add_argument("--api-key-name", default=None, help="credentials/gateway.json entry holding the bearer key of endpoints served with --api-key")
+    p.add_argument("--ports-per-job", type=int, default=1, help="servers per job on consecutive ports (Qwen-Image-2.1 runs 4)")
     p.add_argument("--every", type=float, default=0, help="seconds between refreshes; 0 = run once")
     args = p.parse_args()
     api_key = json.loads(CREDENTIAL_FILE.read_text())[args.api_key_name].strip() if args.api_key_name else None
     while True:
-        n = write_endpoints(args.out, args.user, args.job_prefix, args.model, api_key)
+        n = write_endpoints(args.out, args.user, args.job_prefix, args.model, api_key, args.ports_per_job)
         print(f"{time.strftime('%H:%M:%S')} {n} live endpoint(s) -> {args.out}", flush=True)
         if args.every <= 0:
             raise SystemExit(0 if n else 1)

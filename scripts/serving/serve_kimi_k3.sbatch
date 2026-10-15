@@ -1,13 +1,11 @@
 #!/bin/bash
-# Kimi-K3 vLLM endpoint on oci-jhb (gb300): 2 GB300 nodes per replica, TP8 / EP8 / DCP8, max context 1048576.
-# Adapted from sdharur's k3_scale2048 serve_continuation.sbatch + serve_node.sh, merged into one file in the
-# style of Dense-Pretraining-LMs/.claude/scripts/vllm_serve_mimo_pro.sbatch.
-# Port = 20000 + jobid % 20000 on the first node; endpoint.env is written once /v1/models answers.
-# API key: every /v1 request needs "Authorization: Bearer <key>"; the key is SLURM_KIMI_K3_API_KEY in
-# ~/Project/trichord/credentials/gateway.json, the same entry the poster pipeline reads.
-# Discovery for the poster pipeline: python3 k3_endpoints.py --user xingqianx --job-prefix k3-xqx --api-key-name SLURM_KIMI_K3_API_KEY
-# Submit (bash): mkdir -p /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/k3_serve
-#                sbatch -J k3-xqx-1 scripts/serving/serve_kimi_k3.sbatch
+# Kimi-K3 service on oci-jhb (gb300): one job = a dispatcher on node 0 + R replicas of 2 GB300 nodes each
+# (TP8 / EP8 / DCP8, max context 1048576). Clients use ONE URL, $U/run/k3_serve/broker_url (+ /v1); every replica
+# pulls requests from the dispatcher through its sidecar (serving/broker_worker.py), see serving/pool_lib.sh.
+# Replica r serves on port 20000 + jobid % 20000 + 1 + r of its first node.
+# vLLM settings adapted from sdharur's k3_scale2048 serving; --max-model-len raised from 32768 to 1048576.
+# API key: SLURM_KIMI_K3_API_KEY in ~/Project/trichord/credentials/gateway.json (dispatcher and replicas alike).
+# Submit (bash): bash scripts/serving/serve.sh kimi_k3 <replicas>      # requests 2 x <replicas> nodes
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
 #SBATCH --qos normal
@@ -22,66 +20,45 @@
 #SBATCH -o /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/k3_serve/slurm-%j.log
 set -euo pipefail
 umask 022
+source "$HOME/Project/trichord/scripts/serving/pool_lib.sh"
+pool_init k3_serve 2
 
-U=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx
 IMAGE=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/containers/kimi-k3-serving-v0.30.0-20260928.sqsh
 MODEL=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/users/sdharur/models/moonshotai/Kimi-K3-f831ab66
-STATE=$U/run/k3_serve/job-$SLURM_JOB_ID
-mkdir -p "$STATE"
 test -s "$IMAGE"; test -s "$MODEL/config.json"
 [[ "$(cat "$MODEL/.stage_complete")" == f831ab66814297da540d832a5235f8e904f29d06 ]]
-[[ "$SLURM_JOB_NUM_NODES" == 2 ]]
 export VLLM_API_KEY=$(python3 -c 'import json, os; print(json.load(open(os.path.expanduser("~/Project/trichord/credentials/gateway.json")))["SLURM_KIMI_K3_API_KEY"].strip())')
 [[ -n "$VLLM_API_KEY" ]]
-
-mapfile -t hosts < <(scontrol show hostnames "$SLURM_JOB_NODELIST")
-export K3_HEAD_HOST=${hosts[0]}
-export K3_PORT=$((20000 + SLURM_JOB_ID % 20000))
-export K3_MASTER_PORT=$((40000 + SLURM_JOB_ID % 15000))
 export K3_MODEL=$MODEL K3_MAX_MODEL_LEN=1048576
 export VLLM_ENGINE_READY_TIMEOUT_S=3600 VLLM_USE_V2_MODEL_RUNNER=1
 export VLLM_ALLREDUCE_USE_FLASHINFER=1 NCCL_CUMEM_ENABLE=1
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 # node-local caches, same reason as the mimo endpoint (cache lock failures on shared storage)
 export XDG_CACHE_HOME=/tmp/k3_cache_$SLURM_JOB_ID HF_HOME=/tmp/k3_cache_$SLURM_JOB_ID/hf
-printf 'image=%s\nmodel=%s\nnodes=%s\nbase_url=http://%s:%s/v1\nmax_model_len=%s\n' \
-    "$IMAGE" "$MODEL" "$SLURM_JOB_NODELIST" "$K3_HEAD_HOST" "$K3_PORT" "$K3_MAX_MODEL_LEN" > "$STATE/config.txt"
 
-server_pid=""
-cleanup() { code=$?; [[ -n "$server_pid" ]] && kill -TERM "$server_pid" 2>/dev/null || true; rm -f "$STATE/endpoint.env"; echo "exit_code=$code" > "$STATE/finished"; }
-trap cleanup EXIT
-trap 'exit 143' TERM INT
-
-# one task per node: rank 0 serves the API on the head node, rank 1 joins headless
-srun --nodes=2 --ntasks=2 --ntasks-per-node=1 --cpus-per-task=128 --gpus-per-node=4 \
-     --mem=0 --kill-on-bad-exit=1 --label --container-image="$IMAGE" \
-     --container-mounts=/lustre:/lustre,/scratch:/scratch,/dev/shm:/dev/shm \
-     --no-container-mount-home --container-workdir=/tmp --export=ALL \
-     bash -c 'unset PYTHONPATH; mkdir -p "$XDG_CACHE_HOME"; \
-         headless=""; [[ "$SLURM_PROCID" == 1 ]] && headless="--headless"; \
-         exec vllm serve "$K3_MODEL" --served-model-name moonshotai/Kimi-K3 \
-             --host 0.0.0.0 --port "$K3_PORT" --api-key "$VLLM_API_KEY" --trust-remote-code \
-             --tensor-parallel-size 8 --enable-expert-parallel \
-             --decode-context-parallel-size 8 --dcp-comm-backend a2a \
-             --nnodes 2 --node-rank "$SLURM_PROCID" \
-             --master-addr "$K3_HEAD_HOST" --master-port "$K3_MASTER_PORT" \
-             --distributed-executor-backend mp --gpu-memory-utilization 0.92 \
-             --max-model-len "$K3_MAX_MODEL_LEN" --max-num-seqs 512 --max-num-batched-tokens 16384 \
-             --load-format fastsafetensors --no-enable-flashinfer-autotune --kv-cache-dtype fp8 \
-             --attention-config "{\"use_prefill_query_quantization\":true,\"mla_prefill_backend\":\"TRTLLM_RAGGED\"}" \
-             --attention-backend TOKENSPEED_MLA --enable-prefix-caching --prefix-match-unit 128 \
-             --reasoning-parser kimi_k3 --mm-processor-cache-gb 0 $headless' > "$STATE/server.log" 2>&1 &
-server_pid=$!
-
-for ((i = 0; i < 240; i++)); do   # up to 2 h: loading 1.5 TB of weights plus graph capture
-    kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid"; exit 1; }
-    if curl -fsS --max-time 5 -H "Authorization: Bearer $VLLM_API_KEY" "http://$K3_HEAD_HOST:$K3_PORT/v1/models" > "$STATE/models.json" 2>/dev/null \
-        && grep -q 'moonshotai/Kimi-K3' "$STATE/models.json"; then
-        printf 'job_id=%s\nmodel=moonshotai/Kimi-K3\nbase_url=http://%s:%s/v1\n' "$SLURM_JOB_ID" "$K3_HEAD_HOST" "$K3_PORT" > "$STATE/endpoint.env"
-        echo "READY $(tr '\n' ' ' < "$STATE/endpoint.env")"
-        break
-    fi
-    sleep 30
+pool_start_broker
+for ((r = 0; r < REPLICAS; r++)); do
+    export K3_HEAD_HOST=$(pool_head "$r") K3_PORT=$((PORT_BASE + 1 + r)) K3_MASTER_PORT=$((40000 + SLURM_JOB_ID % 15000 + r))
+    # one task per node: rank 0 serves the API on the replica's first node, rank 1 joins headless
+    srun --nodes=2 --ntasks=2 --ntasks-per-node=1 --nodelist="$(pool_hosts "$r")" --cpus-per-task=128 --gpus-per-node=4 \
+         --mem=0 --kill-on-bad-exit=1 --label --container-image="$IMAGE" \
+         --container-mounts=/lustre:/lustre,/scratch:/scratch,/dev/shm:/dev/shm \
+         --no-container-mount-home --container-workdir=/tmp --export=ALL \
+         bash -c 'unset PYTHONPATH; mkdir -p "$XDG_CACHE_HOME"; \
+             headless=""; [[ "$SLURM_PROCID" == 1 ]] && headless="--headless"; \
+             exec vllm serve "$K3_MODEL" --served-model-name moonshotai/Kimi-K3 \
+                 --host 0.0.0.0 --port "$K3_PORT" --api-key "$VLLM_API_KEY" --trust-remote-code \
+                 --tensor-parallel-size 8 --enable-expert-parallel \
+                 --decode-context-parallel-size 8 --dcp-comm-backend a2a \
+                 --nnodes 2 --node-rank "$SLURM_PROCID" \
+                 --master-addr "$K3_HEAD_HOST" --master-port "$K3_MASTER_PORT" \
+                 --distributed-executor-backend mp --gpu-memory-utilization 0.92 \
+                 --max-model-len "$K3_MAX_MODEL_LEN" --max-num-seqs 512 --max-num-batched-tokens 16384 \
+                 --load-format fastsafetensors --no-enable-flashinfer-autotune --kv-cache-dtype fp8 \
+                 --attention-config "{\"use_prefill_query_quantization\":true,\"mla_prefill_backend\":\"TRTLLM_RAGGED\"}" \
+                 --attention-backend TOKENSPEED_MLA --enable-prefix-caching --prefix-match-unit 128 \
+                 --reasoning-parser kimi_k3 --mm-processor-cache-gb 0 $headless' > "$STATE/server-$r.log" 2>&1 &
+    PIDS+=($!)
+    pool_attach "$r" "http://$K3_HEAD_HOST:$K3_PORT" moonshotai/Kimi-K3 SLURM_KIMI_K3_API_KEY 48 "$!"
 done
-wait "$server_pid"
-exit 1
+pool_wait

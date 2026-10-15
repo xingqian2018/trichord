@@ -67,7 +67,7 @@ def cached_endpoints(max_age: float) -> list[str]:
 
 
 def pre_format(request: dict[str, Any]) -> dict[str, Any]:
-    request = {**request, "model": K3_MODEL, "stream": True}
+    request = {**request, "model": K3_MODEL, "stream": False}  # non-streaming, so the request can go through the dispatcher
     extra = dict(request.pop("extra_body", None) or {})
     tools = request.pop("tools", None)
     request.pop("tool_choice", None)
@@ -167,31 +167,24 @@ class UnifiedGatewayKimiK3(UnifiedGatewayVLM):
         req = pre_format(request)
         client_tools = "chat_template_kwargs" in req.get("extra_body", {})
         content, reasoning, reasoning_key, finish_reason = None, None, None, None
-        token_ids: list[int] = []
         try:
-            stream = await client.chat.completions.create(**req)
-            async for chunk in stream:
-                if not chunk.choices:
-                    continue
-                choice = chunk.choices[0]
-                delta = choice.delta
-                if delta.content:
-                    content = (content or "") + delta.content
-                for key in ("reasoning_content", "reasoning"):
-                    trace = getattr(delta, key, None)
-                    if trace:
-                        reasoning_key = reasoning_key or key
-                        reasoning = (reasoning or "") + trace
-                        break
-                ids = getattr(choice, "token_ids", None) or (choice.model_extra or {}).get("token_ids")
-                if ids:
-                    token_ids.extend(ids)
-                if choice.finish_reason is not None:
-                    finish_reason = choice.finish_reason
+            completion = await client.chat.completions.create(**req)
         except (openai.APIConnectionError, openai.APITimeoutError, openai.InternalServerError) as e:
             raise EndpointError(f"{type(e).__name__}: {e}") from e
+        if not completion.choices:
+            raise EndpointError("response without choices")
+        choice = completion.choices[0]
+        message = choice.message
+        content = message.content
+        for key in ("reasoning_content", "reasoning"):
+            trace = getattr(message, key, None) or (message.model_extra or {}).get(key)
+            if trace:
+                reasoning_key, reasoning = key, trace
+                break
+        token_ids: list[int] = getattr(choice, "token_ids", None) or (choice.model_extra or {}).get("token_ids") or []
+        finish_reason = choice.finish_reason
         if finish_reason is None:
-            raise EndpointError("stream ended without a finish_reason (possible dropped connection)")
+            raise EndpointError("response without a finish_reason")
 
         tool_calls: list[dict[str, Any]] = []
         if client_tools:

@@ -3,7 +3,7 @@ t2i Cosmos3: same loop as run_t2i_generation.py, with tool/t2i_generation_cosmos
 Kimi-K3 turns the sampled topic into a Cosmos3 structured JSON prompt (the official Cosmos3-Super-Text2Image T2I
 template, prompt/t2i_generation_cosmos3_v0.md) and calls generate_image once; the prompt goes to Cosmos3 as is, with
 no rewriter (official settings: 50 steps, guidance 4.0, flow shift 3.0, guardrails off, 768-tier sizes). Each sample
-keeps the full trace plus derived/image.png and derived/meta.json = {taxonomy, prompt, upsampled_prompt}.
+keeps the full trace plus derived/image.webp and derived/meta.json = {taxonomy, prompt, upsampled_prompt}.
 Text-layout and UI categories are excluded from sampling by default (TEXT_AND_UI_CATEGORIES; --exclude_taxonomy overrides).
 
 Start the services first (bash, on the cluster): kimi_k3_gb200 (or kimi_k3) and cosmos3_super_t2i via

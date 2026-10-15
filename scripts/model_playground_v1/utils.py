@@ -158,6 +158,23 @@ def hash_bytes(data: bytes) -> str:
 S3_CREDENTIAL_FILE = Path(__file__).resolve().parents[2] / "credentials" / "gcs.secret"
 
 
+def encode_image(data: bytes, fmt: str = "webp", quality: int = 85, method: int = 5) -> bytes:
+    fmt = fmt.lower()
+    if fmt == "png" and data[:8] == b"\x89PNG\r\n\x1a\n":
+        return data
+    image = Image.open(io.BytesIO(data))
+    buf = io.BytesIO()
+    if fmt == "webp":
+        image.save(buf, format="WEBP", quality=quality, method=method)
+    elif fmt == "jpeg":
+        image.convert("RGB").save(buf, format="JPEG", quality=quality)
+    elif fmt == "png":
+        image.save(buf, format="PNG")
+    else:
+        raise ValueError(f"unsupported image format {fmt!r}; use webp, jpeg or png")
+    return buf.getvalue()
+
+
 def put(data: bytes, path: str | Path) -> str:
     url = str(path)
     scheme = urlparse(url).scheme

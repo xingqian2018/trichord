@@ -21,7 +21,7 @@ class t2i_generation_cosmos3(Agent):
     """Kimi turns one taxonomy topic into a Cosmos3 structured JSON prompt (official T2I template) and calls
     generate_image (Cosmos3-Super-Text2Image) once; the run stops as soon as the image exists. Every request uses
     tool_choice="required"; a template violation is returned to Kimi as a tool error and it may call again.
-    Saves the usual trace (setting.json, chat.json, tool/generate_image/call/<id>/) plus <root>/derived/image.png and
+    Saves the usual trace (setting.json, chat.json, tool/generate_image/call/<id>/) plus <root>/derived/image.<fmt> (webp by default) and
     <root>/derived/meta.json = {taxonomy, prompt, upsampled_prompt}: Kimi's short request and the structured JSON the
     image was rendered from (Kimi plays the official upsampler, prompt/t2i_generation_cosmos3_v0.md)."""
 
@@ -54,5 +54,5 @@ class t2i_generation_cosmos3(Agent):
         super().save_history_core(root)
         image = self.image_tool().output
         meta = {"taxonomy": self.taxonomy, "prompt": image["request"], "upsampled_prompt": image["prompt"]}
-        put(image["png"], osp.join(root, "derived", "image.png"))
+        put(image["image"], osp.join(root, "derived", "image." + image["format"]))
         put(json.dumps(meta, ensure_ascii=False, indent=4).encode("utf-8"), osp.join(root, "derived", "meta.json"))

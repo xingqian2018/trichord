@@ -22,7 +22,7 @@ class t2i_generation_qwen2p1(Agent):
     """Kimi writes a base prompt for one taxonomy topic, calls upsample_prompt (Qwen-Image-2.1-PE-T2I), may edit the
     expanded description, and calls generate_image (Qwen-Image-2.1) once; the run stops as soon as the image exists,
     there is no review or second render. Every request uses tool_choice="required".
-    Saves the usual trace (setting.json, chat.json, tool/<fn>/call/<id>/) plus <root>/derived/image.png and
+    Saves the usual trace (setting.json, chat.json, tool/<fn>/call/<id>/) plus <root>/derived/image.<fmt> (webp by default) and
     <root>/derived/meta.json = {taxonomy, prompt, upsampled_prompt, render_prompt}: Kimi's base prompt, the rewriter's
     expansion, and the description the image was actually rendered from (equal to upsampled_prompt unless Kimi edited it)."""
 
@@ -60,5 +60,5 @@ class t2i_generation_qwen2p1(Agent):
         upsampled, image = self.upsample_tool().output, self.image_tool().output
         meta = {"taxonomy": self.taxonomy, "prompt": upsampled["prompt"], "upsampled_prompt": upsampled["upsampled_prompt"],
                 "render_prompt": image["render_prompt"]}
-        put(image["png"], osp.join(root, "derived", "image.png"))
+        put(image["image"], osp.join(root, "derived", "image." + image["format"]))
         put(json.dumps(meta, ensure_ascii=False, indent=4).encode("utf-8"), osp.join(root, "derived", "meta.json"))

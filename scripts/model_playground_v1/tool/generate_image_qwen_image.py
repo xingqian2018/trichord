@@ -1,5 +1,4 @@
 import base64
-import io
 import os
 import random
 import sys
@@ -9,10 +8,9 @@ from typing import Any, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from PIL import Image  # noqa: E402
-
 from slurm_pool import SlurmPool  # noqa: E402
 from tool.tool import Tool, ToolCallError  # noqa: E402
+from utils import encode_image  # noqa: E402
 
 QWEN_IMAGE_MODEL = "Qwen/Qwen-Image-2.1"
 WH_RATIO_TO_SIZE = {
@@ -50,8 +48,11 @@ class generate_image_qwen_image(Tool):
     }
     allow_parallel_calls = False
 
-    def __init__(self):
+    def __init__(self, image_format: str = "webp", image_quality: int = 85, webp_method: int = 5):
         super().__init__()
+        self.image_format = image_format.lower()
+        self.image_quality = image_quality
+        self.webp_method = webp_method
         self.renderer = SlurmPool("QI", "SLURM_QWEN_IMAGE_API_KEY", timeout=1800)
         self.upsampler: Optional[Any] = None
         self.output: Optional[dict[str, Any]] = None
@@ -80,16 +81,12 @@ class generate_image_qwen_image(Tool):
             raise ToolCallError(f"aspect_ratio must be one of {list(WH_RATIO_TO_SIZE)}, got {ratio!r}")
         width, height = WH_RATIO_TO_SIZE[ratio]
         seed = random.randrange(2**31)
-        png = self.render(prompt, width, height, seed)
-        if png[:8] != b"\x89PNG\r\n\x1a\n":
-            buf = io.BytesIO()
-            Image.open(io.BytesIO(png)).save(buf, format="PNG")
-            png = buf.getvalue()
-        fd, path = tempfile.mkstemp(prefix="qwen_image_", suffix=".png")
+        image = encode_image(self.render(prompt, width, height, seed), self.image_format, self.image_quality, self.webp_method)
+        fd, path = tempfile.mkstemp(prefix="qwen_image_", suffix="." + self.image_format)
         with os.fdopen(fd, "wb") as f:
-            f.write(png)
+            f.write(image)
         self.add_file(path)
-        self.output = {"render_prompt": prompt, "aspect_ratio": ratio, "width": width, "height": height, "seed": seed, "png": png}
+        self.output = {"render_prompt": prompt, "aspect_ratio": ratio, "width": width, "height": height, "seed": seed, "format": self.image_format, "image": image}
         return f"generate_image finished: {width}x{height} image"
 
     def setting(self) -> dict[str, Any]:
@@ -98,4 +95,7 @@ class generate_image_qwen_image(Tool):
             "image_model": QWEN_IMAGE_MODEL,
             "num_inference_steps": NUM_INFERENCE_STEPS,
             "true_cfg_scale": TRUE_CFG_SCALE,
+            "image_format": self.image_format,
+            "image_quality": self.image_quality,
+            "webp_method": self.webp_method,
         }

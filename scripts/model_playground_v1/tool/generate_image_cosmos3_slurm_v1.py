@@ -16,7 +16,6 @@ from slurm_pool import SlurmPool  # noqa: E402
 from tool.tool import Tool, ToolCallError  # noqa: E402
 
 COSMOS3_MODEL = "LeptonTR/Cosmos3-Super-Text2Image"
-# Official Cosmos3-Super-Text2Image agentic_upsampling defaults (constants.py / prompt_upsampler.py, "768" tier)
 ASPECT_RATIO_TO_SIZE = {
     "1:1": (1024, 1024),
     "4:3": (1184, 880),
@@ -36,7 +35,7 @@ TEMPLATE_KEYS = [
 ]
 
 
-class generate_image_cosmos3_structured(Tool):
+class generate_image_cosmos3_slurm_v1(Tool):
     """Render a Cosmos3 structured JSON prompt (the official T2I template) on our Cosmos3 replicas.
     The tool fills `resolution` and `aspect_ratio` in the JSON from the chosen aspect ratio, as the official upsampler does."""
 

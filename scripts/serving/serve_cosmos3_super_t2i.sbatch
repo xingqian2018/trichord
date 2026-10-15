@@ -28,8 +28,10 @@ source "$HOME/Project/trichord/scripts/serving/pool_lib.sh"
 pool_init c3_serve 1
 
 IMAGE=$U/containers/vllm-omni+cosmos3-arm64.sqsh
-export HF_HUB_CACHE=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/shared/huggingface_cache/hub
 export C3_REPO=nvidia/Cosmos3-Super-Text2Image C3_REVISION=daf3d374804be4c512c2135568a7cb95d4341d79
+# team-shared HF hub when it holds this revision, else our own hub (on gcpcode the shared Cosmos3 lock dir is not writable for us)
+export HF_HUB_CACHE=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/shared/huggingface_cache/hub
+[[ -s "$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots/$C3_REVISION/model_index.json" ]] || export HF_HUB_CACHE=$U/huggingface_cache/hub
 export C3_MODEL=$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots/$C3_REVISION
 test -s "$IMAGE"
 export VLLM_API_KEY=$(python3 -c 'import json, os; print(json.load(open(os.path.expanduser("~/Project/trichord/credentials/gateway.json")))["SLURM_COSMOS3_API_KEY"].strip())')

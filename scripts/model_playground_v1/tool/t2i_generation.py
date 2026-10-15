@@ -1,3 +1,4 @@
+import json
 import os.path as osp
 import sys
 from pathlib import Path
@@ -18,7 +19,9 @@ NUDGE_MESSAGE = "You replied with text. Call the generate_image tool now through
 
 class t2i_generation(Agent):
     """Kimi writes a base prompt for one taxonomy topic and makes exactly one generate_image call, then stops.
-    Saves only <root>/image.webp and <root>/prompt.txt (the rewritten prompt the image was rendered from)."""
+    Saves the usual trace (setting.json, chat.json with the thinking and the tool call, tool/generate_image/call/<id>/ with
+    the image) plus <root>/derived/image.png and <root>/derived/meta.json = {taxonomy, prompt, upsampled_prompt}, where
+    prompt is Kimi's base prompt and upsampled_prompt is the Qwen-Image-2.1-PE-T2I rewrite the image was rendered from."""
 
     def __init__(self, model_name: str = DEFAULT_MODEL_NAME, system_prompt: str = DEFAULT_SYSTEM_PROMPT, **kwargs: Any):
         super().__init__(model_name, system_prompt, tool_registry=[generate_image_qwen_image], **kwargs)
@@ -30,6 +33,7 @@ class t2i_generation(Agent):
         return self.tool_instances[generate_image_qwen_image.schema["function"]["name"]]
 
     def run_core(self, args: dict[str, Any]) -> str:
+        self.taxonomy = args.get("taxonomy")
         self.add_user_message(args["prompt"])
         finish_reason = self.step()
         for _ in range(MAX_NUDGES):
@@ -45,6 +49,8 @@ class t2i_generation(Agent):
         return self.messages[-1].get("content") or ""
 
     def save_history_core(self, root: str) -> None:
+        super().save_history_core(root)
         output = self.image_tool().output
-        put(output["webp"], osp.join(root, "image.webp"))
-        put(output["prompt"].encode("utf-8"), osp.join(root, "prompt.txt"))
+        meta = {"taxonomy": getattr(self, "taxonomy", None), "prompt": output["prompt"], "upsampled_prompt": output["upsampled_prompt"]}
+        put(output["png"], osp.join(root, "derived", "image.png"))
+        put(json.dumps(meta, ensure_ascii=False, indent=4).encode("utf-8"), osp.join(root, "derived", "meta.json"))

@@ -2,8 +2,8 @@ r"""
 Qwen-Image-2.1 text-to-image data: for each sample a taxonomy topic (taxonomy/t2i_topics_v0.yaml) goes to Kimi-K3,
 which writes a short base prompt and makes exactly one generate_image call (tool/t2i_generation.py). Inside the tool,
 Qwen-Image-2.1-PE-T2I rewrites it into the full prompt and picks the aspect ratio, and Qwen-Image-2.1 renders it
-(40 steps, CFG off, official 2048-tier sizes). Each sample saves only <output>/<run_id>/image.webp and prompt.txt
-(the rewritten prompt the image was rendered from). All three models are our own Slurm services, each one URL (a
+(40 steps, CFG off, official 2048-tier sizes). Each sample <output>/<run_id>/ keeps the full trace (setting.json,
+chat.json, tool/generate_image/call/<id>/) plus derived/image.png and derived/meta.json = {taxonomy, prompt, upsampled_prompt}. All three models are our own Slurm services, each one URL (a
 dispatcher with replicas behind it, scripts/serving/pool_lib.sh). Keys are SLURM_KIMI_K3_API_KEY,
 SLURM_QWEN_IMAGE_PE_API_KEY and SLURM_QWEN_IMAGE_API_KEY in credentials/gateway.json. K3_NATIVE_TOOLS=1: Kimi runs vLLM's kimi_k3 tool parser, so the agent's
 tool_choice="required" forces the generate_image call at decode time (see gateway_kimik3.py).
@@ -69,18 +69,18 @@ PROGRESS_EVERY = 10
 TOPIC_MESSAGE_TEMPLATE = "Topic:\n{topic}"
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(default_taxonomy: str = "t2i_topics_v0") -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--output", required=True)
     parser.add_argument("--model", default=DEFAULT_MODEL_NAME)
-    parser.add_argument("--taxonomy", default="t2i_topics_v0")
+    parser.add_argument("--taxonomy", default=default_taxonomy)
     parser.add_argument("--reasoning_effort", default=MODEL_DEFAULT, choices=[MODEL_DEFAULT, RANDOM, *REASONING_EFFORT_LEVELS])
     parser.add_argument("--max_samples_per_process", type=int, default=0, help="max samples generated per process; 0 or less loops until the process is stopped")
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
+def main(agent_cls: type = t2i_generation, default_taxonomy: str = "t2i_topics_v0") -> None:
+    args = parse_args(default_taxonomy)
     if RANK != 0:
         logger.remove()
         logger.add(sys.stderr, filter=lambda record: record["extra"].get("progress", False))
@@ -99,14 +99,14 @@ def main() -> None:
             reasoning_effort = args.reasoning_effort
 
         run_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8]
-        agent = t2i_generation(model_name=args.model, reasoning_effort=reasoning_effort)
+        agent = agent_cls(model_name=args.model, reasoning_effort=reasoning_effort)
 
         started = time.time()
         try:
-            agent.run({"prompt": TOPIC_MESSAGE_TEMPLATE.format(topic=topic)})
+            agent.run({"prompt": TOPIC_MESSAGE_TEMPLATE.format(topic=topic), "taxonomy": topic})
             agent.save_history(os.path.join(args.output, run_id))
             output = agent.image_tool().output
-            logger.info(f"rank {RANK}/{WORLD_SIZE} sample {sample} done in {time.time() - started:.1f}s | {output['wh_ratio']} | {topic}")
+            logger.info(f"rank {RANK}/{WORLD_SIZE} sample {sample} done in {time.time() - started:.1f}s | {output.get('wh_ratio') or output.get('aspect_ratio')} | {topic}")
             generated += 1
         except Exception as e:
             logger.warning(f"rank {RANK}/{WORLD_SIZE} sample {sample} run {run_id} failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")

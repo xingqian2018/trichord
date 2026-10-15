@@ -11,6 +11,7 @@
 #   bash scripts/serving/serve.sh cosmos3_super_t2i 1 batch   # batch partition, 4 h (quick test, usually starts sooner)
 #   bash scripts/serving/serve.sh status                      # every service: job, URL, queue, live replicas
 # To resize a service, cancel its job and submit again with a new replica count.
+# The serve scripts default to --wckey=p1; WCKEY=p0 bash scripts/serving/serve.sh ... submits with that WCKey instead.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -23,7 +24,7 @@ declare -A MODEL=([kimi_k3]=moonshotai/Kimi-K3 [kimi_k3_gb200]=moonshotai/Kimi-K
 declare -A NODES_PER_REPLICA=([kimi_k3]=2 [kimi_k3_gb200]=4 [mimo_v2p6_pro_rl]=1 [cosmos3_super_t2i]=1 [qwen_image_2p1]=1 [qwen_image_2p1_pe_t2i]=1)
 SERVICES="kimi_k3 kimi_k3_gb200 mimo_v2p6_pro_rl cosmos3_super_t2i qwen_image_2p1 qwen_image_2p1_pe_t2i"
 
-usage() { sed -n 2,14p "${BASH_SOURCE[0]}"; exit 1; }
+usage() { sed -n 2,15p "${BASH_SOURCE[0]}"; exit 1; }
 
 status() {
     for svc in $SERVICES; do
@@ -59,5 +60,5 @@ if squeue -u "$USER" -h -o "%i" -n "${PREFIX[$svc]}" | grep -q .; then
 fi
 mkdir -p "$RUN/${STATE[$svc]}"
 nodes=$((n * NODES_PER_REPLICA[$svc]))
-sbatch -p "$part" -t "$time" -N "$nodes" -J "${PREFIX[$svc]}" "$HERE/serve_$svc.sbatch" | sed "s/$/  ($svc: $n replicas, $nodes nodes, $part)/"
+sbatch -p "$part" -t "$time" -N "$nodes" -J "${PREFIX[$svc]}" ${WCKEY:+--wckey="$WCKEY"} "$HERE/serve_$svc.sbatch" | sed "s/$/  ($svc: $n replicas, $nodes nodes, $part, wckey ${WCKEY:-p1})/"
 echo "url file: $RUN/${STATE[$svc]}/broker_url   check: bash $HERE/serve.sh status"

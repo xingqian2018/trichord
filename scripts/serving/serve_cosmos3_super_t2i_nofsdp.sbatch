@@ -1,9 +1,9 @@
 #!/bin/bash
 # Cosmos3-Super-Text2Image service on oci-jhb (gb300), vLLM-Omni, no FSDP: 4 single-GPU servers per node (no CFG/Ulysses
 # parallel, no HSDP sharding), trading per-image latency for throughput; the whole model (132.5 GB bf16) fits on one GPU.
-# Experiment against serve_cosmos3_super_t2i.sbatch (one 4-GPU server per node); same model name, key and request API,
-# its own job name (c3n-xqx) and dispatcher URL ($U/run/c3n_serve/broker_url).
-# One job = a dispatcher on node 0 + R single-node replicas; clients use ONE URL, $U/run/c3n_serve/broker_url (+ /v1), and
+# Drop-in alternative to serve_cosmos3_super_t2i.sbatch (one 4-GPU server per node): same job name (c3-xqx), dispatcher URL,
+# model name, key and request API, so clients do not change; run one of the two, not both.
+# One job = a dispatcher on node 0 + R single-node replicas; clients use ONE URL, $U/run/c3_serve/broker_url (+ /v1), and
 # every replica pulls requests from the dispatcher through its sidecar (serving/broker_worker.py), see serving/pool_lib.sh.
 # Replica r, GPU i serves on port 20000 + jobid % 20000 + 1 + 4r + i. Same model flags as the Lepton deployment except
 # the parallelism, plus --no-guardrails: the guardrail models are never loaded (our requests
@@ -23,12 +23,12 @@
 #SBATCH --exclusive
 #SBATCH --mem=0
 #SBATCH -t 2-00:00:00
-#SBATCH -J c3n-xqx
-#SBATCH -o /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/c3n_serve/slurm-%j.log
+#SBATCH -J c3-xqx
+#SBATCH -o /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/run/c3_serve/slurm-%j.log
 set -euo pipefail
 umask 022
 source "$HOME/Project/trichord/scripts/serving/pool_lib.sh"
-pool_init c3n_serve 1
+pool_init c3_serve 1
 
 IMAGE=$U/containers/vllm-omni+cosmos3-arm64.sqsh
 export C3_REPO=nvidia/Cosmos3-Super-Text2Image C3_REVISION=daf3d374804be4c512c2135568a7cb95d4341d79
@@ -41,7 +41,7 @@ export VLLM_API_KEY=$(python3 -c 'import json, os; print(json.load(open(os.path.
 [[ -n "$VLLM_API_KEY" ]]
 export OMP_NUM_THREADS=8
 # node-local caches, same reason as the mimo endpoint (cache lock failures on shared storage)
-export XDG_CACHE_HOME=/tmp/c3n_cache_$SLURM_JOB_ID
+export XDG_CACHE_HOME=/tmp/c3_cache_$SLURM_JOB_ID
 export HF_HOME=$XDG_CACHE_HOME/hf
 
 launch_replica() {

@@ -1,4 +1,5 @@
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -14,6 +15,15 @@ PE_SYSTEM_PROMPT = (Path(__file__).resolve().parents[1] / "prompt" / "t2i_genera
 PE_SAMPLING = {"temperature": 1.0, "top_p": 0.95, "max_tokens": 8192, "extra_body": {"top_k": 20}}
 PE_MAX_ATTEMPTS = 3
 DEFAULT_ASPECT_RATIO = "1:1"
+
+
+def nearest_ratio(ratio: object) -> str:
+    try:
+        w, h = (float(x) for x in str(ratio).split(":"))
+        target = math.log(w / h)
+    except (ValueError, ZeroDivisionError):
+        return DEFAULT_ASPECT_RATIO
+    return min(WH_RATIO_TO_SIZE, key=lambda r: abs(math.log(WH_RATIO_TO_SIZE[r][0] / WH_RATIO_TO_SIZE[r][1]) - target))
 
 
 def parse_rewrite(text: str) -> dict[str, str]:
@@ -73,9 +83,9 @@ class upsample_prompt_qwen_image(Tool):
         if not prompt:
             raise ToolCallError("missing required argument 'prompt'; call upsample_prompt again with the image request")
         rewrite = self.rewrite(prompt)
-        ratio = rewrite.get("wh_ratio") if rewrite.get("wh_ratio") in WH_RATIO_TO_SIZE else DEFAULT_ASPECT_RATIO
+        ratio = nearest_ratio(rewrite.get("wh_ratio"))
         self.output = {"prompt": prompt, "upsampled_prompt": rewrite["rewritten_prompt"], "aspect_ratio": ratio}
         return json.dumps({"upsampled_prompt": rewrite["rewritten_prompt"], "aspect_ratio": ratio}, ensure_ascii=False)
 
     def setting(self) -> dict[str, Any]:
-        return {**super().setting(), "rewriter_model": QWEN_IMAGE_PE_MODEL}
+        return {**super().setting(), "rewriter_model": QWEN_IMAGE_PE_MODEL, "aspect_ratios": list(WH_RATIO_TO_SIZE)}

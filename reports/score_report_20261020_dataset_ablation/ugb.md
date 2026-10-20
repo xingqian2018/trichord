@@ -60,7 +60,9 @@ ruofan 两行是同事 ruofanl 用 cosmos-benchmarks 系统生成的图,从 gcpc
 |---|---|---|---|---|
 | c3p5_super_v2p5_iter741260_recipe_shift6_fullcfg_seed0(SFT 前) | 87.21 | 89.18 | 85.40 | 1170/1170 |
 | c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seed0_noneg | **87.88** | **90.13** | **85.82** | 1170/1170 |
-| c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seedrow_noneg(seed 改回 prompt 行号) | 待定 |  |  | (生成作业 2579419) |
+| c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seedrow_noneg(seed 改回 prompt 行号) | 87.67 | 89.92 | 85.61 | 1170/1170 |
+
+seed 从 0 改回 prompt 行号后,getty 从 87.88 变成 87.67(−0.21)。同一批行号 seed 的图第一次打分是 87.32(1169/1170,有 1 张 judge 调用重试后仍失败,被排除在统计外),`--force_rescore` 重打一遍后是 87.67:**同一批图只因 judge 重跑就差了 0.35 个点**,比换 seed 带来的变化还大。所以 0.3–0.5 个点以内的差异都要当作噪声看。
 
 同一套采样设置下,getty 实验比 SFT 前高 0.67 个点(orig +0.95,phi +0.42)。旧采样设置下(1024、`base_768`、shift 3)它比 SFT 前高 1.46 个点(87.56 vs 86.10),但那两行的分辨率和配置也不同,不是严格对比;这一组才是单变量对比,提升缩小但仍在。
 

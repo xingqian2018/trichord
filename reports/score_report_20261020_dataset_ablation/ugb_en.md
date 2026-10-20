@@ -58,7 +58,9 @@ Our re-scores are within 0.0–0.1 points of his, so **the scoring pipelines agr
 |---|---|---|---|---|
 | c3p5_super_v2p5_iter741260_recipe_shift6_fullcfg_seed0 (pre-SFT) | 87.21 | 89.18 | 85.40 | 1170/1170 |
 | c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seed0_noneg | **87.88** | **90.13** | **85.82** | 1170/1170 |
-| c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seedrow_noneg (seed back to prompt row index) | pending |  |  | (gen job 2579419) |
+| c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seedrow_noneg (seed back to prompt row index) | 87.67 | 89.92 | 85.61 | 1170/1170 |
+
+Switching the seed from 0 back to the prompt row index moves getty from 87.88 to 87.67 (−0.21). The first scoring of the row-seed images gave 87.32 (1169/1170: one judge call still failed after retries and was dropped from the stats); a `--force_rescore` pass on the same images gave 87.67. **Re-running the judge alone on identical images moved the score by 0.35 points**, more than the seed change did. Differences within roughly 0.3–0.5 points should be treated as noise.
 
 Under the same sampling, the getty run is 0.67 points above pre-SFT (orig +0.95, phi +0.42). Under the old sampling (1024, `base_768`, shift 3) it was 1.46 above pre-SFT (87.56 vs 86.10), but those two rows also differ in resolution and config; this pair is the single-variable comparison, and the gain shrinks but holds.
 

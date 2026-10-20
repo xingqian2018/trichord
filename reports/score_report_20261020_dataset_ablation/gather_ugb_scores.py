@@ -20,6 +20,7 @@ RUNS = [
     ("pre-SFT cfg6 noneg", f"{HAMID}/c3p5_super_v2p5_iter741260_cfg6_noneg"),
     ("pre-SFT recipe shift6", f"{HAMID}/c3p5_super_v2p5_iter741260_recipe_shift6_fullcfg_seed0"),
     ("002 recipe shift6", f"{HAMID}/c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seed0_noneg"),
+    ("002 recipe shift6 seedrow", f"{HAMID}/c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seedrow_noneg"),
     ("ruofan g4", f"{HAMID}/c3p5_super_v2p5_iter741260_ruofan_g4_shift6_negdefault"),
     ("ruofan g6", f"{HAMID}/c3p5_super_v2p5_iter741260_ruofan_g6_shift6_negdefault"),
     ("Qwen-2.1 no PE", "v2_1170L/qwen_image_2p1_nope"),

@@ -1,7 +1,7 @@
 r"""
 t2i Cosmos3 from existing structured prompts, no Kimi: every row of a prompt jsonl (one Cosmos3 structured JSON per row, e.g.
 the cosmos_captioner "full" captions of the agent_distilled datasets in image_meta_table_full.lance) is rendered once by
-tool/generate_image_cosmos3_slurm_v1.py with the official settings (50 steps, guidance 4.0, flow shift 3.0, guardrails
+tool/generate_image_cosmos3_with_strict_prompt_format_slurm.py with the official settings (50 steps, guidance 4.0, flow shift 3.0, guardrails
 off, 768-tier sizes), at the template aspect ratio nearest to the source image.
 Input rows: {"uuid", "source_dataset", "width", "height", "prompt": {<structured JSON>}}. A missing subject_details becomes {},
 keys outside the template are dropped, and rows missing any other template key are skipped.
@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from loguru import logger  # noqa: E402
 
-from tool.generate_image_cosmos3_slurm_v1 import ASPECT_RATIO_TO_SIZE, TEMPLATE_KEYS, generate_image_cosmos3_slurm_v1  # noqa: E402
+from tool.generate_image_cosmos3_with_strict_prompt_format_slurm import ASPECT_RATIO_TO_SIZE, TEMPLATE_KEYS, generate_image_cosmos3_with_strict_prompt_format_slurm  # noqa: E402
 from utils import S3_CREDENTIAL_FILE, put  # noqa: E402
 
 RANK = int(os.environ.get("SLURM_PROCID", 0))
@@ -103,7 +103,7 @@ def my_rows(path: str):
 
 
 def render(row: dict, prompt: dict, root: str) -> str:
-    tool = generate_image_cosmos3_slurm_v1()
+    tool = generate_image_cosmos3_with_strict_prompt_format_slurm()
     ratio = nearest_ratio(row["width"], row["height"])
     result = tool.run({"request": row["uuid"], "prompt": prompt, "aspect_ratio": ratio}, tool_call_id="render")
     if tool.output is None:

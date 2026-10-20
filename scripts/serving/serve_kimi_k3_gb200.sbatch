@@ -15,6 +15,7 @@
 #SBATCH --qos normal
 #SBATCH --wckey=p1
 #SBATCH --no-kill
+#SBATCH --segment=4
 #SBATCH -N 4
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4

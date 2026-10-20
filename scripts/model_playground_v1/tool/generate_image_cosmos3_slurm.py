@@ -14,7 +14,7 @@ from loguru import logger  # noqa: E402
 from tool.generate_image_cosmos3 import generate_image_cosmos3  # noqa: E402
 from utils import UnifiedGatewayImageGenerator, load_credential_secret  # noqa: E402
 
-COSMOS3_MODEL = "LeptonTR/Cosmos3-Super-Text2Image"
+COSMOS3_MODEL = "Slurm/Cosmos3-Super-Text2Image"
 POOL_KEY = "c3slurm"
 DEFAULT_MODEL_NAME = f"{COSMOS3_MODEL}@{POOL_KEY}"
 API_KEY_NAME = "SLURM_COSMOS3_API_KEY"
@@ -23,7 +23,7 @@ WAIT_SECONDS = 30
 # Self-hosted replicas only (scripts/serving/serve_cosmos3_super_t2i.sbatch); Lepton is never called.
 # Endpoints are found on the batch host, which has squeue:
 #   python3 k3_endpoints.py --out $C3_ENDPOINTS_FILE --user xingqianx --job-prefix c3-xqx \
-#       --model LeptonTR/Cosmos3-Super-Text2Image --api-key-name SLURM_COSMOS3_API_KEY
+#       --model Slurm/Cosmos3-Super-Text2Image --api-key-name SLURM_COSMOS3_API_KEY
 # and read here from C3_ENDPOINTS (comma list) or C3_ENDPOINTS_FILE (json list).
 # The bearer key is SLURM_COSMOS3_API_KEY in credentials/gateway.json.
 BAD_UNTIL: dict[str, float] = {}

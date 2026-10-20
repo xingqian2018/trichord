@@ -4,7 +4,7 @@
     python3 k3_endpoints.py --out /path/k3_endpoints.json --every 300     # keep refreshing
 
 Any other served model works the same way, e.g. the self-hosted Cosmos3 T2I replicas:
-    python3 k3_endpoints.py --out /path/c3_endpoints.json --user xingqianx --job-prefix c3-xqx --model LeptonTR/Cosmos3-Super-Text2Image \
+    python3 k3_endpoints.py --out /path/c3_endpoints.json --user xingqianx --job-prefix c3-xqx --model Slurm/Cosmos3-Super-Text2Image \
         --api-key-name SLURM_COSMOS3_API_KEY
 """
 

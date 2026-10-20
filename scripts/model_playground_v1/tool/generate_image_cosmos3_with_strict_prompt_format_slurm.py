@@ -13,7 +13,7 @@ from slurm_pool import SlurmPool  # noqa: E402
 from tool.tool import Tool, ToolCallError  # noqa: E402
 from utils import encode_image  # noqa: E402
 
-COSMOS3_MODEL = "LeptonTR/Cosmos3-Super-Text2Image"
+COSMOS3_MODEL = "Slurm/Cosmos3-Super-Text2Image"
 ASPECT_RATIO_TO_SIZE = {
     "1:1": (1024, 1024),
     "4:3": (1184, 880),
@@ -55,8 +55,9 @@ class generate_image_cosmos3_with_strict_prompt_format_slurm(Tool):
     }
     allow_parallel_calls = False
 
-    def __init__(self, image_format: str = "webp", image_quality: int = 85, webp_method: int = 5):
+    def __init__(self, image_format: str = "webp", image_quality: int = 85, webp_method: int = 5, served_model_name: Optional[str] = None):
         super().__init__()
+        self.served_model_name = served_model_name or os.environ.get("C3_SERVED_NAME") or COSMOS3_MODEL
         self.image_format = image_format.lower()
         self.image_quality = image_quality
         self.webp_method = webp_method
@@ -66,7 +67,7 @@ class generate_image_cosmos3_with_strict_prompt_format_slurm(Tool):
     def render(self, prompt: str, width: int, height: int, seed: int) -> bytes:
         def query(client: Any) -> bytes:
             response = client.images.generate(
-                model=COSMOS3_MODEL,
+                model=self.served_model_name,
                 prompt=prompt,
                 size=f"{width}x{height}",
                 n=1,
@@ -135,6 +136,6 @@ class generate_image_cosmos3_with_strict_prompt_format_slurm(Tool):
         return f"generate_image finished: {width}x{height} image"
 
     def setting(self) -> dict[str, Any]:
-        return {**super().setting(), "image_model": COSMOS3_MODEL, "num_inference_steps": NUM_INFERENCE_STEPS,
+        return {**super().setting(), "image_model": self.served_model_name, "num_inference_steps": NUM_INFERENCE_STEPS,
                 "guidance_scale": GUIDANCE_SCALE, "flow_shift": FLOW_SHIFT, "extra_args": EXTRA_ARGS,
                 "image_format": self.image_format, "image_quality": self.image_quality, "webp_method": self.webp_method}

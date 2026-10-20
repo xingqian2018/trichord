@@ -21,6 +21,7 @@ RESULT_DIRS = [
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_001_pretrain_midtrain_iter25000",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_000_pretrain_iter25000_noneg",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_001_pretrain_midtrain_iter25000_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_002_pretrain_getty_iter25000_noneg",
 ]
 IMAGES_PER_PAGE = 25
 UGB_PROMPTS_URI = "s3://datasets/unigenbench/v2/v2_1170L_G3F.csv"

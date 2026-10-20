@@ -30,7 +30,8 @@ CREDENTIAL_FILE = Path.home() / "Project/trichord/credentials/gateway.json"
 MODEL_KEYS = {
     "moonshotai/Kimi-K3": "SLURM_KIMI_K3_API_KEY",
     "mimo-v2.6-pro-rl": "SLURM_MIMO_API_KEY",
-    "LeptonTR/Cosmos3-Super-Text2Image": "SLURM_COSMOS3_API_KEY",
+    "Slurm/Cosmos3-Super-Text2Image": "SLURM_COSMOS3_API_KEY",
+    "Slurm/Cosmos3-Super-Text2Image-x9c": "SLURM_COSMOS3_API_KEY",
     "Qwen/Qwen-Image-2.1": "SLURM_QWEN_IMAGE_API_KEY",
     "Qwen/Qwen-Image-2.1-PE-T2I": "SLURM_QWEN_IMAGE_PE_API_KEY",
 }

@@ -56,7 +56,7 @@ launch_replica() {
              export HF_HUB_OFFLINE=1; \
              for i in 0 1 2 3; do \
                  CUDA_VISIBLE_DEVICES=$i VLLM_CACHE_ROOT=$XDG_CACHE_HOME/vllm_$i vllm serve "$C3_MODEL" --omni \
-                     --served-model-name LeptonTR/Cosmos3-Super-Text2Image \
+                     --served-model-name Slurm/Cosmos3-Super-Text2Image \
                      --host 0.0.0.0 --port $((C3_PORT + i)) --api-key "$VLLM_API_KEY" \
                      --cfg-parallel-size 1 --ulysses-degree 1 --tensor-parallel-size 1 \
                      --init-timeout 1800 --no-guardrails >> "$C3_LOGS-gpu$i.log" 2>&1 & \
@@ -64,7 +64,7 @@ launch_replica() {
              wait -n; exit 1' >> "$STATE/server-$r.log" 2>&1 &
     REPLICA_PID[$r]=$!
     for i in 0 1 2 3; do
-        pool_attach "$r" "http://$(pool_head "$r"):$((C3_PORT + i))" LeptonTR/Cosmos3-Super-Text2Image SLURM_COSMOS3_API_KEY 2 "${REPLICA_PID[$r]}"
+        pool_attach "$r" "http://$(pool_head "$r"):$((C3_PORT + i))" Slurm/Cosmos3-Super-Text2Image SLURM_COSMOS3_API_KEY 2 "${REPLICA_PID[$r]}"
     done
 }
 

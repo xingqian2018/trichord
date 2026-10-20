@@ -3,7 +3,7 @@
 # One job = a dispatcher on node 0 + R single-node replicas; clients use ONE URL, $U/run/c3_serve/broker_url (+ /v1), and
 # every replica pulls requests from the dispatcher through its sidecar (serving/broker_worker.py), see serving/pool_lib.sh.
 # Replica r serves on port 20000 + jobid % 20000 + 1 + r. Same flags as the Lepton deployment
-# (LeptonTR/Cosmos3-Super-Text2Image), plus --no-guardrails: the guardrail models are never loaded (our requests
+# (LeptonTR/Cosmos3-Super-Text2Image; served here as Slurm/Cosmos3-Super-Text2Image), plus --no-guardrails: the guardrail models are never loaded (our requests
 # send guardrails=False anyway, and loading them needs HF downloads that fail offline; jobs 990000-990004, 2026-10-13).
 # Weights: nvidia/Cosmos3-Super-Text2Image (public, 132.5 GB) in the team-shared HF hub, downloaded on first run.
 # Image: docker://vllm/vllm-omni:cosmos3-arm64 imported once into $U/containers/vllm-omni+cosmos3-arm64.sqsh.
@@ -25,14 +25,20 @@
 set -euo pipefail
 umask 022
 source "$HOME/Project/trichord/scripts/serving/pool_lib.sh"
-pool_init c3_serve 1
+pool_init "${C3_STATE:-c3_serve}" 1
 
 IMAGE=$U/containers/vllm-omni+cosmos3-arm64.sqsh
-export C3_REPO=nvidia/Cosmos3-Super-Text2Image C3_REVISION=daf3d374804be4c512c2135568a7cb95d4341d79
-# team-shared HF hub when it holds this revision, else our own hub (on gcpcode the shared Cosmos3 lock dir is not writable for us)
-export HF_HUB_CACHE=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/shared/huggingface_cache/hub
-[[ -s "$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots/$C3_REVISION/model_index.json" ]] || export HF_HUB_CACHE=$U/huggingface_cache/hub
-export C3_MODEL=$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots/$C3_REVISION
+export C3_SERVED_NAME=${C3_SERVED_NAME:-Slurm/Cosmos3-Super-Text2Image}
+if [[ -n "${C3_MODEL:-}" ]]; then
+    test -s "$C3_MODEL/model_index.json"
+    export C3_MODEL
+else
+    export C3_REPO=nvidia/Cosmos3-Super-Text2Image C3_REVISION=daf3d374804be4c512c2135568a7cb95d4341d79
+    # team-shared HF hub when it holds this revision, else our own hub (on gcpcode the shared Cosmos3 lock dir is not writable for us)
+    export HF_HUB_CACHE=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/shared/huggingface_cache/hub
+    [[ -s "$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots/$C3_REVISION/model_index.json" ]] || export HF_HUB_CACHE=$U/huggingface_cache/hub
+    export C3_MODEL=$HF_HUB_CACHE/models--nvidia--Cosmos3-Super-Text2Image/snapshots/$C3_REVISION
+fi
 test -s "$IMAGE"
 export VLLM_API_KEY=$(python3 -c 'import json, os; print(json.load(open(os.path.expanduser("~/Project/trichord/credentials/gateway.json")))["SLURM_COSMOS3_API_KEY"].strip())')
 [[ -n "$VLLM_API_KEY" ]]
@@ -52,12 +58,12 @@ launch_replica() {
              [[ -s "$C3_MODEL/model_index.json" ]] || python3 -c "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ[\"C3_REPO\"], revision=os.environ[\"C3_REVISION\"], max_workers=16)"; \
              export HF_HUB_OFFLINE=1; \
              exec vllm serve "$C3_MODEL" --omni \
-                 --served-model-name LeptonTR/Cosmos3-Super-Text2Image \
+                 --served-model-name "$C3_SERVED_NAME" \
                  --host 0.0.0.0 --port "$C3_PORT" --api-key "$VLLM_API_KEY" \
                  --cfg-parallel-size 2 --ulysses-degree 2 --tensor-parallel-size 1 \
                  --use-hsdp --hsdp-shard-size 4 --init-timeout 1800 --no-guardrails' >> "$STATE/server-$r.log" 2>&1 &
     REPLICA_PID[$r]=$!
-    pool_attach "$r" "http://$(pool_head "$r"):$C3_PORT" LeptonTR/Cosmos3-Super-Text2Image SLURM_COSMOS3_API_KEY 2 "${REPLICA_PID[$r]}"
+    pool_attach "$r" "http://$(pool_head "$r"):$C3_PORT" "$C3_SERVED_NAME" SLURM_COSMOS3_API_KEY 2 "${REPLICA_PID[$r]}"
 }
 
 pool_start_broker

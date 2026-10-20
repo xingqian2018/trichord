@@ -33,7 +33,7 @@ TEMPLATE_KEYS = [
 ]
 
 
-class generate_image_cosmos3_slurm_v1(Tool):
+class generate_image_cosmos3_with_strict_prompt_format_slurm(Tool):
     """Render a Cosmos3 structured JSON prompt (the official T2I template) on our Cosmos3 replicas.
     The tool fills `resolution` and `aspect_ratio` in the JSON from the chosen aspect ratio, as the official upsampler does."""
 

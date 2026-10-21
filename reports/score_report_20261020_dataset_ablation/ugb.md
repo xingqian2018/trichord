@@ -30,6 +30,41 @@
 | c3p5_exp003_002_pretrain_getty_iter25000_noneg                   | 1170 png | **87.56** | **89.80** | **85.51** | 1170/1170    |
 | c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_noneg         | 待定     |           |           |           | (训练作业 2576199) |
 
+## 采样设置逐步改变:exp003_002 getty(1024×1024)
+
+所有 SFT checkpoint 一律用 1024×1024、`base_768` 测(只有 SFT 前 checkpoint 用 960×960、`base`)。同一个 checkpoint `exp003_002_pretrain_getty/iter_000025000`,noneg,guidance 4,50 步,EMA;相邻两行只差一个变量。
+
+| 设置 | 生成脚本 | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3,CFG [400, 1000],行号 seed(原设置) | `inference_ugb_i4.py` | 87.56 | 89.80 | 85.51 | 1170/1170 |
+| shift 6,CFG [400, 1000],行号 seed | `inference_ugb_i4_20261020.py` | 87.23 | 89.57 | 85.09 | 1170/1170 |
+| shift 6,全程 CFG,行号 seed | `inference_ugb_i4_20261020_fullcfg.py` | 87.62 | 89.69 | 85.72 | 1170/1170 |
+| shift 6,全程 CFG,seed 恒为 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | **88.14** | **90.26** | **86.19** | 1170/1170 |
+
+逐步变化:shift 3 → 6 为 −0.33,CFG [400, 1000] → 全程为 +0.39,行号 seed → seed 0 为 +0.52;原设置到完整 recipe 总共 +0.58。前两步都在 judge 重跑的约 0.35 噪声范围内,shift 6 本身在 1024 下没有带来提升。seed 0 这一步最大,而且在 960 下也是同方向(87.67 → 87.88),但 seed 只决定采样起点,不改变模型能力,不应作为模型改进来解读。
+
+输出目录:`.../v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_002_pretrain_getty_iter25000_1024_shift6_{cfg400to1000_seedrow,fullcfg_seedrow,fullcfg_seed0}_noneg`。judge 重跑一次的噪声约 0.35 个点。
+
+同一组设置在 exp003_000 pretrain(`exp003_000_pretrain/iter_000025000`)上验证,1024×1024、`base_768`、noneg:
+
+| 设置 | 生成脚本 | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3,CFG [400, 1000],行号 seed(原设置) | `inference_ugb_i4.py` | 86.29 | 88.83 | 83.97 | 1170/1170 |
+| shift 6,CFG [400, 1000],行号 seed | `inference_ugb_i4_20261020.py` | 待定 |  |  | (作业 2582726) |
+| shift 6,全程 CFG,行号 seed | `inference_ugb_i4_20261020_fullcfg.py` | 待定 |  |  | (作业 2582727) |
+| shift 6,全程 CFG,seed 恒为 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | 待定 |  |  | (作业 2582728) |
+
+同一组设置在 SFT 前 checkpoint(exp003 的共同起点 `iter_000741260`)上验证,960×960、`base`、noneg:
+
+| 设置 | 生成脚本 | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3,CFG [400, 1000],行号 seed(原设置) | `inference_ugb_i4.py` | 86.10 | 88.01 | 84.34 | 1170/1170 |
+| shift 6,CFG [400, 1000],行号 seed | `inference_ugb_i4_20261020.py` | 待定 |  |  | (作业 2582723) |
+| shift 6,全程 CFG,行号 seed | `inference_ugb_i4_20261020_fullcfg.py` | 待定 |  |  | (作业 2582724) |
+| shift 6,全程 CFG,seed 恒为 0 | `inference_ugb_i4_20261020.py`(当时版本) | 87.21 | 89.18 | 85.40 | 1170/1170 |
+
+下面「Base checkpoint」一节里 getty 的两行 recipe 结果(87.88、87.67)是 960×960、`base` 测的,不符合上面的分辨率约定,以本节 1024 的结果为准。
+
 ## Base checkpoint — guidance 和 judge
 
 Checkpoint `60bm30b_v2p5_pretrain/checkpoints/iter_000741260`(SFT 前)。生成:`--experiment_name cosmos3p5_ga_60bm30b_base`,960×960,50 步,`--use_ema`,noneg,用 v2_1170L_gpt5p5_cosmos3p5_dense_hamid 的 prompt。所有格子的打分 prompt 都是 `v2_1170L`。GPT-5.5 的结果存为 `unigenbench_result_judge_gpt5p5.json`(`--signature judge_gpt5p5`),和 gemini 的 `unigenbench_result.json` 放在同一目录。

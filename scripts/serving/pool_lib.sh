@@ -8,6 +8,8 @@
 # node takes down only its own replica.
 # A serve script defines launch_replica <r>: start replica r's srun in the background, set REPLICA_PID[r]=$!, and
 # pool_attach its server(s); then it calls pool_start_broker and pool_run launch_replica.
+# POOL_ATTACH=1 (attach mode): the job brings replicas only; it starts no dispatcher, never touches broker_url, and its
+# sidecars pull from the dispatcher already named in $ROOT/broker_url, so clients get the extra capacity unchanged.
 SERVING=$HOME/Project/trichord/scripts/serving
 U=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx
 MAX_RESTARTS=${MAX_RESTARTS:-3}
@@ -41,6 +43,15 @@ pool_head() {  # <replica> -> first node of that replica
 }
 
 pool_start_broker() {
+    if [[ "${POOL_ATTACH:-0}" == 1 ]]; then
+        until [[ -s "$BROKER_URL_FILE" ]] && curl -fsS --max-time 3 "$(cat "$BROKER_URL_FILE")/health" > /dev/null 2>&1; do
+            echo "attach mode: waiting for the dispatcher in $BROKER_URL_FILE"
+            sleep 30
+        done
+        BROKER_PID=""
+        echo "ATTACHED to dispatcher $(cat "$BROKER_URL_FILE")/v1 replicas=$REPLICAS"
+        return
+    fi
     python3 "$SERVING/broker.py" --port "$PORT_BASE" >> "$STATE/broker.log" 2>&1 &
     BROKER_PID=$!
     PIDS+=($!)
@@ -80,7 +91,7 @@ pool_run() {  # <launch function>: start every replica, then keep the dispatcher
     for ((r = 0; r < REPLICAS; r++)); do REPLICA_RESTARTS[$r]=0; "$launch" "$r"; PIDS+=("${REPLICA_PID[$r]}"); done
     while true; do
         sleep 30
-        if ! kill -0 "$BROKER_PID" 2>/dev/null; then
+        if [[ -n "$BROKER_PID" ]] && ! kill -0 "$BROKER_PID" 2>/dev/null; then
             (( broker_restarts < MAX_RESTARTS )) || { echo "dispatcher exited $broker_restarts times, giving up"; exit 1; }
             broker_restarts=$((broker_restarts + 1))
             echo "dispatcher exited; restart $broker_restarts/$MAX_RESTARTS"

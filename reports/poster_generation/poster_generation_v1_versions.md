@@ -1,6 +1,6 @@
 # Agentic 海报数据生成：v1 / v1p1 / v1p2 / v1p3 / v1p4 / v1p5 版本说明
 
-更新时间：2026-10-13
+更新时间：2026-10-21（产量汇总）
 代码位置：`scripts/model_playground_v1/`
 输出位置：`gcs:nv-00-10206-vfm/debug/xingqianx/agentic_data/`
 
@@ -14,6 +14,7 @@
 | v1p3 | 在 v1p2 上加：上下文超长时自动切回 NVIDIA gateway、critic 超时放宽、工具参数错误交还模型重试、渲染改为 1024 档 |
 | v1p4 | 代码与 v1p3 相同，Kimi K3 服务换成我们自己部署的副本（上下文上限 1048576），输出到新文件夹 |
 | v1p5 | 生图从 Lepton 换成我们自己部署的 Cosmos3 副本（同一个模型），不再调用 Lepton；没有可用副本时等待而不是让样本失败 |
+| v2 | 生图前先由独立的 Kimi K3 upsampler 把简短需求扩写成 Cosmos3 官方结构化 JSON（`upsample_prompt` 工具），再用 exp009c（x9c）权重出图 |
 
 ## 共同部分
 
@@ -175,17 +176,24 @@
 
 ## 产量汇总
 
-| 版本 | Cosmos3 安全过滤 | 成功样本 | S3 文件夹 |
-|---|---|---|---|
-| v1 | 开启 | 68（原 76，移除 8） | `poster_generation_v1_kimi_cosmos3_kimi/` |
-| v1p1 | 开启 | 4,477（原 5,565，移除 1,088） | `poster_generation_v1p1_kimi_cosmos3_kimi/` |
-| v1p2 | 关闭 | 4,755 | `poster_generation_v1p2_kimi_cosmos3_kimi/` |
-| v1p3 | 关闭 | 7,404 | `poster_generation_v1p3_kimik3_cosmos3_kimik3/` |
-| v1p4 | 关闭 | 7,265（10-14 08:00，运行中） | `poster_generation_v1p4_kimik3_cosmos3_kimik3/` |
-| v1p5 | 关闭 | 8,529（10-14 08:00，运行中） | `poster_generation_v1p5_kimik3_cosmos3_kimik3/` |
-| **合计** | | **32,498** | |
+统计时间：2026-10-21（v2 已于 10-21 01:36 停止）。包括本报告之前的 v0 和 lite v0。
 
-数量为 S3 运行文件夹实数（v1p2、v1p3 为 2026-10-12 统计；v1、v1p1 为 2026-10-14 打码样本清理后的数量；v1p4、v1p5 为 2026-10-14 08:00 统计，两者仍在运行），每个文件夹是一个成功保存的样本。各版本表格里的"成功"一列来自日志统计：每个任务每 10 个样本才报告一次进度，所以会略偏少。
+| 版本 | 海报数 | 生成日期 | 生图 | S3 文件夹（`agentic_data/` 下） |
+|---|---|---|---|---|
+| v0 | 31,416 | 10-01 ~ 10-04 | nano-banana-2 | `poster_generation_kimi_nb2_kimi_v0/` |
+| lite v0 | 19,930 | 10-08 ~ 10-09 | gpt-image-2（sunburst），整张海报一次生成，没有 agent 流程 | `poster_generation_lite_v0_gpt2p5sunburst/` |
+| v1 | 68（原 76，移除 8） | 10-08 | Cosmos3（Lepton，安全过滤开） | `poster_generation_v1_kimi_cosmos3_kimi/` |
+| v1p1 | 4,477（原 5,565，移除 1,088） | 10-08 ~ 10-09 | Cosmos3（Lepton，安全过滤开） | `poster_generation_v1p1_kimi_cosmos3_kimi/` |
+| v1p2 | 4,755 | 10-09 ~ 10-10 | Cosmos3（Lepton） | `poster_generation_v1p2_kimi_cosmos3_kimi/` |
+| v1p3 | 7,404 | 10-10 ~ 10-11 | Cosmos3（Lepton） | `poster_generation_v1p3_kimik3_cosmos3_kimik3/` |
+| v1p4 | 10,896 | 10-12 ~ 10-15 | Cosmos3（Lepton） | `poster_generation_v1p4_kimik3_cosmos3_kimik3/` |
+| v1p5 | 19,799 | 10-13 ~ 10-16 | Cosmos3（自建 Slurm 副本） | `poster_generation_v1p5_kimik3_cosmos3_kimik3/` |
+| v2 | 10,810 | 10-20 ~ 10-21 | Cosmos3 exp009c（x9c）权重 + Kimi K3 prompt upsampling | `poster_generation_v2_kimik3_cosmos3x9cupsampled_kimik3/` |
+| **合计** | **109,555** | | | |
+
+其中 agent 流程生成的（v0、v1 ~ v2）共 89,625 个，lite 一次生成的共 19,930 个。
+
+数量为 S3 上的样本文件夹数：每个文件夹是一个成功保存的样本（失败的样本不保存）。统计时只列一层目录，不展开文件；按文件夹名里的时间分小时并行列，几十秒即可完成。v0 的文件夹名带 `poster_generation_agent_` 前缀，其余版本以时间开头。"生成日期"按文件夹名里的开始时间。v1、v1p1 为 2026-10-14 删除打码样本之后的数量。
 
 ## 安全过滤打码样本清理（2026-10-14）
 

@@ -28,6 +28,79 @@ Generation: `inference_ugb_i4.py`, `--experiment_name cosmos3p5_ga_60bm30b_base_
 | c3p5_exp003_002_pretrain_getty_iter25000_noneg                   | 1170 png | **87.56** | **89.80** | **85.51** | 1170/1170    |
 | c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_noneg         | pending  |           |           |           | (train job 2576199) |
 
+## Sampling progression on exp003_002 getty (1024×1024)
+
+Every SFT checkpoint is evaluated at 1024×1024 with `base_768` (only the pre-SFT checkpoint uses 960×960 with `base`). Same checkpoint `exp003_002_pretrain_getty/iter_000025000`, noneg, guidance 4, 50 steps, EMA; adjacent rows differ by one variable.
+
+| Setting | Generation script | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3, CFG [400, 1000], row seed (original) | `inference_ugb_i4.py` | 87.56 | 89.80 | 85.51 | 1170/1170 |
+| shift 3, CFG every step, row seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 87.92 | 90.18 | 85.84 | 1170/1170 |
+| shift 6, CFG [400, 1000], row seed | `inference_ugb_i4_20261020.py` | 87.23 | 89.57 | 85.09 | 1170/1170 |
+| shift 6, CFG every step, row seed | `inference_ugb_i4_20261020_fullcfg.py` | 87.62 | 89.69 | 85.72 | 1170/1170 |
+| shift 6, CFG every step, seed 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | **88.14** | **90.26** | **86.19** | 1170/1170 |
+
+Step by step: shift 3 → 6 is −0.33, CFG [400, 1000] → every step is +0.39, row seed → seed 0 is +0.52; original to the full recipe is +0.58 in total. The first two steps sit within the ~0.35-point judge re-run noise, so shift 6 by itself brings no gain at 1024. The seed-0 step is the largest and points the same way at 960 (87.67 → 87.88), but the seed only sets the sampling noise, not model capability, so it should not be read as a model improvement.
+
+Output folders: `.../v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_002_pretrain_getty_iter25000_1024_shift6_{cfg400to1000_seedrow,fullcfg_seedrow,fullcfg_seed0}_noneg`. Re-running the judge alone moves a score by about 0.35 points.
+
+The same progression on exp003_000 pretrain (`exp003_000_pretrain/iter_000025000`), 1024×1024, `base_768`, noneg:
+
+| Setting | Generation script | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3, CFG [400, 1000], row seed (original) | `inference_ugb_i4.py` | 86.29 | 88.83 | 83.97 | 1170/1170 |
+| shift 3, CFG every step, row seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 86.37 | 88.72 | 84.20 | 1170/1170 |
+| shift 6, CFG [400, 1000], row seed | `inference_ugb_i4_20261020.py` | 86.00 | 88.88 | 83.36 | 1170/1170 |
+| shift 6, CFG every step, row seed | `inference_ugb_i4_20261020_fullcfg.py` | 86.61 | 89.18 | 84.25 | 1170/1170 |
+| shift 6, CFG every step, seed 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | 86.87 | 88.83 | 85.07 | 1170/1170 |
+
+**Step-by-step change across the three checkpoints (all):**
+
+| Step | pre-SFT (960) | exp003_000 pretrain (1024) | exp003_002 getty (1024) |
+|---|---|---|---|
+| shift 3 → 6 | +0.11 | −0.29 | −0.33 |
+| CFG [400, 1000] → every step | +0.82 | +0.61 | +0.39 |
+| row seed → seed 0 | +0.18 | +0.26 | +0.52 |
+| original → full recipe | +1.11 | +0.58 | +0.58 |
+
+**Getty over pretrain under each sampling setting (1024):**
+
+| Setting | pretrain | getty | Δ |
+|---|---|---|---|
+| shift 3, CFG [400, 1000], row seed | 86.29 | 87.56 | +1.27 |
+| shift 6, CFG [400, 1000], row seed | 86.00 | 87.23 | +1.23 |
+| shift 6, CFG every step, row seed | 86.61 | 87.62 | +1.01 |
+| shift 6, CFG every step, seed 0 | 86.87 | 88.14 | +1.27 |
+
+**shift × CFG interval 2×2 (row seed, all):**
+
+| Checkpoint | shift 3 + [400, 1000] | shift 3 + every step | shift 6 + [400, 1000] | shift 6 + every step |
+|---|---|---|---|---|
+| pre-SFT (960) | 86.10 | 86.72 | 86.21 | 87.03 |
+| exp003_000 pretrain (1024) | 86.29 | 86.37 | 86.00 | 86.61 |
+| exp003_002 getty (1024) | 87.56 | 87.92 | 87.23 | 87.62 |
+| getty − pretrain | +1.27 | +1.55 | +1.23 | +1.01 |
+
+CFG on every step beats [400, 1000] in all six comparisons (shift 3: +0.62, +0.08, +0.36; shift 6: +0.82, +0.61, +0.39; mean ≈ +0.48); shift 3 → 6 goes both ways (mean ≈ 0). Getty over pretrain stays between +1.0 and +1.55 under all five sampling settings.
+
+Conclusions:
+- shift 6 alone does nothing on any of the three checkpoints (−0.33 to +0.11, all inside the ~0.35-point judge noise).
+- CFG on every step is the only consistent sampling gain: positive on all three checkpoints (+0.39 to +0.82).
+- seed 0 is positive all three times (+0.18 to +0.52) but never far above noise; it should not be read as a model improvement.
+- Getty's gain over pretrain stays between +1.0 and +1.3 under all four sampling settings, so the result does not depend on the sampler.
+
+The same progression on the pre-SFT checkpoint (exp003's common start `iter_000741260`), 960×960, `base`, noneg:
+
+| Setting | Generation script | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3, CFG [400, 1000], row seed (original) | `inference_ugb_i4.py` | 86.10 | 88.01 | 84.34 | 1170/1170 |
+| shift 3, CFG every step, row seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 86.72 | 88.24 | 85.33 | 1170/1170 |
+| shift 6, CFG [400, 1000], row seed | `inference_ugb_i4_20261020.py` | 86.21 | 87.88 | 84.67 | 1170/1170 |
+| shift 6, CFG every step, row seed | `inference_ugb_i4_20261020_fullcfg.py` | 87.03 | 88.83 | 85.37 | 1170/1170 |
+| shift 6, CFG every step, seed 0 | `inference_ugb_i4_20261020.py` (earlier version) | 87.21 | 89.18 | 85.40 | 1170/1170 |
+
+The two getty recipe rows in the "Base checkpoint" section below (87.88, 87.67) were rendered at 960×960 with `base`, which breaks the resolution rule above; this section's 1024 results supersede them.
+
 ## Base checkpoint — guidance and judge
 
 Checkpoint `60bm30b_v2p5_pretrain/checkpoints/iter_000741260` (pre-SFT). Generation: `--experiment_name cosmos3p5_ga_60bm30b_base`, 960×960, 50 steps, `--use_ema`, noneg, v2_1170L_gpt5p5_cosmos3p5_dense_hamid prompts. Scoring prompts `v2_1170L` for every cell. GPT-5.5 results are stored as `unigenbench_result_judge_gpt5p5.json` (`--signature judge_gpt5p5`) next to the gemini `unigenbench_result.json`.
@@ -58,6 +131,9 @@ Our re-scores are within 0.0–0.1 points of his, so **the scoring pipelines agr
 |---|---|---|---|---|
 | c3p5_super_v2p5_iter741260_recipe_shift6_fullcfg_seed0 (pre-SFT) | 87.21 | 89.18 | 85.40 | 1170/1170 |
 | c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seed0_noneg | **87.88** | **90.13** | **85.82** | 1170/1170 |
+| c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seedrow_noneg (seed back to prompt row index) | 87.67 | 89.92 | 85.61 | 1170/1170 |
+
+Switching the seed from 0 back to the prompt row index moves getty from 87.88 to 87.67 (−0.21). The first scoring of the row-seed images gave 87.32 (1169/1170: one judge call still failed after retries and was dropped from the stats); a `--force_rescore` pass on the same images gave 87.67. **Re-running the judge alone on identical images moved the score by 0.35 points**, more than the seed change did. Differences within roughly 0.3–0.5 points should be treated as noise.
 
 Under the same sampling, the getty run is 0.67 points above pre-SFT (orig +0.95, phi +0.42). Under the old sampling (1024, `base_768`, shift 3) it was 1.46 above pre-SFT (87.56 vs 86.10), but those two rows also differ in resolution and config; this pair is the single-variable comparison, and the gain shrinks but holds.
 

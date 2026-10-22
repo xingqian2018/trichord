@@ -15,6 +15,7 @@
 #SBATCH --qos normal
 #SBATCH --wckey=p1
 #SBATCH --no-kill
+#SBATCH --segment=4
 #SBATCH -N 4
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
@@ -65,7 +66,7 @@ launch_replica() {
                  --reasoning-parser kimi_k3 --enable-auto-tool-choice --tool-call-parser kimi_k3 \
                  --mm-processor-cache-gb 0 $headless' >> "$STATE/server-$r.log" 2>&1 &
     REPLICA_PID[$r]=$!
-    pool_attach "$r" "http://$K3_HEAD_HOST:$K3_PORT" moonshotai/Kimi-K3 SLURM_KIMI_K3_API_KEY 48 "${REPLICA_PID[$r]}"
+    pool_attach "$r" "http://$K3_HEAD_HOST:$K3_PORT" moonshotai/Kimi-K3 SLURM_KIMI_K3_API_KEY 512 "${REPLICA_PID[$r]}"
 }
 
 pool_start_broker

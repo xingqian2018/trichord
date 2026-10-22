@@ -30,6 +30,79 @@
 | c3p5_exp003_002_pretrain_getty_iter25000_noneg                   | 1170 png | **87.56** | **89.80** | **85.51** | 1170/1170    |
 | c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_noneg         | 待定     |           |           |           | (训练作业 2576199) |
 
+## 采样设置逐步改变:exp003_002 getty(1024×1024)
+
+所有 SFT checkpoint 一律用 1024×1024、`base_768` 测(只有 SFT 前 checkpoint 用 960×960、`base`)。同一个 checkpoint `exp003_002_pretrain_getty/iter_000025000`,noneg,guidance 4,50 步,EMA;相邻两行只差一个变量。
+
+| 设置 | 生成脚本 | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3,CFG [400, 1000],行号 seed(原设置) | `inference_ugb_i4.py` | 87.56 | 89.80 | 85.51 | 1170/1170 |
+| shift 3,全程 CFG,行号 seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 87.92 | 90.18 | 85.84 | 1170/1170 |
+| shift 6,CFG [400, 1000],行号 seed | `inference_ugb_i4_20261020.py` | 87.23 | 89.57 | 85.09 | 1170/1170 |
+| shift 6,全程 CFG,行号 seed | `inference_ugb_i4_20261020_fullcfg.py` | 87.62 | 89.69 | 85.72 | 1170/1170 |
+| shift 6,全程 CFG,seed 恒为 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | **88.14** | **90.26** | **86.19** | 1170/1170 |
+
+逐步变化:shift 3 → 6 为 −0.33,CFG [400, 1000] → 全程为 +0.39,行号 seed → seed 0 为 +0.52;原设置到完整 recipe 总共 +0.58。前两步都在 judge 重跑的约 0.35 噪声范围内,shift 6 本身在 1024 下没有带来提升。seed 0 这一步最大,而且在 960 下也是同方向(87.67 → 87.88),但 seed 只决定采样起点,不改变模型能力,不应作为模型改进来解读。
+
+输出目录:`.../v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_002_pretrain_getty_iter25000_1024_shift6_{cfg400to1000_seedrow,fullcfg_seedrow,fullcfg_seed0}_noneg`。judge 重跑一次的噪声约 0.35 个点。
+
+同一组设置在 exp003_000 pretrain(`exp003_000_pretrain/iter_000025000`)上验证,1024×1024、`base_768`、noneg:
+
+| 设置 | 生成脚本 | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3,CFG [400, 1000],行号 seed(原设置) | `inference_ugb_i4.py` | 86.29 | 88.83 | 83.97 | 1170/1170 |
+| shift 3,全程 CFG,行号 seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 86.37 | 88.72 | 84.20 | 1170/1170 |
+| shift 6,CFG [400, 1000],行号 seed | `inference_ugb_i4_20261020.py` | 86.00 | 88.88 | 83.36 | 1170/1170 |
+| shift 6,全程 CFG,行号 seed | `inference_ugb_i4_20261020_fullcfg.py` | 86.61 | 89.18 | 84.25 | 1170/1170 |
+| shift 6,全程 CFG,seed 恒为 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | 86.87 | 88.83 | 85.07 | 1170/1170 |
+
+**三个 checkpoint 的逐步变化(all):**
+
+| 步骤 | SFT 前(960) | exp003_000 pretrain(1024) | exp003_002 getty(1024) |
+|---|---|---|---|
+| shift 3 → 6 | +0.11 | −0.29 | −0.33 |
+| CFG [400, 1000] → 全程 | +0.82 | +0.61 | +0.39 |
+| 行号 seed → seed 0 | +0.18 | +0.26 | +0.52 |
+| 原设置 → 完整 recipe | +1.11 | +0.58 | +0.58 |
+
+**getty 相对 pretrain 的提升在每种采样设置下(1024):**
+
+| 设置 | pretrain | getty | Δ |
+|---|---|---|---|
+| shift 3,CFG [400, 1000],行号 seed | 86.29 | 87.56 | +1.27 |
+| shift 6,CFG [400, 1000],行号 seed | 86.00 | 87.23 | +1.23 |
+| shift 6,全程 CFG,行号 seed | 86.61 | 87.62 | +1.01 |
+| shift 6,全程 CFG,seed 恒为 0 | 86.87 | 88.14 | +1.27 |
+
+**shift × CFG 区间 2×2(行号 seed,all):**
+
+| checkpoint | shift 3 + [400, 1000] | shift 3 + 全程 | shift 6 + [400, 1000] | shift 6 + 全程 |
+|---|---|---|---|---|
+| SFT 前(960) | 86.10 | 86.72 | 86.21 | 87.03 |
+| exp003_000 pretrain(1024) | 86.29 | 86.37 | 86.00 | 86.61 |
+| exp003_002 getty(1024) | 87.56 | 87.92 | 87.23 | 87.62 |
+| getty − pretrain | +1.27 | +1.55 | +1.23 | +1.01 |
+
+全程 CFG 相对 [400, 1000] 在六组对比中都为正(shift 3 下 +0.62、+0.08、+0.36;shift 6 下 +0.82、+0.61、+0.39,平均约 +0.48);shift 3 → 6 有正有负(平均约 0)。getty 相对 pretrain 在五种采样设置下都在 +1.0 到 +1.55 之间。
+
+结论:
+- shift 6 本身在三个 checkpoint 上都没有作用(−0.33 到 +0.11,都在约 0.35 的 judge 噪声内)。
+- 全程 CFG 是采样设置里唯一稳定的提升,三个 checkpoint 都是正的(+0.39 到 +0.82)。
+- seed 0 三次都是正的(+0.18 到 +0.52),但单次都不超过噪声太多,不应作为模型改进解读。
+- getty 相对 pretrain 的提升在四种采样设置下都在 +1.0 到 +1.3 之间,不依赖采样设置,结论稳健。
+
+同一组设置在 SFT 前 checkpoint(exp003 的共同起点 `iter_000741260`)上验证,960×960、`base`、noneg:
+
+| 设置 | 生成脚本 | all | orig | phi | success |
+|---|---|---|---|---|---|
+| shift 3,CFG [400, 1000],行号 seed(原设置) | `inference_ugb_i4.py` | 86.10 | 88.01 | 84.34 | 1170/1170 |
+| shift 3,全程 CFG,行号 seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 86.72 | 88.24 | 85.33 | 1170/1170 |
+| shift 6,CFG [400, 1000],行号 seed | `inference_ugb_i4_20261020.py` | 86.21 | 87.88 | 84.67 | 1170/1170 |
+| shift 6,全程 CFG,行号 seed | `inference_ugb_i4_20261020_fullcfg.py` | 87.03 | 88.83 | 85.37 | 1170/1170 |
+| shift 6,全程 CFG,seed 恒为 0 | `inference_ugb_i4_20261020.py`(当时版本) | 87.21 | 89.18 | 85.40 | 1170/1170 |
+
+下面「Base checkpoint」一节里 getty 的两行 recipe 结果(87.88、87.67)是 960×960、`base` 测的,不符合上面的分辨率约定,以本节 1024 的结果为准。
+
 ## Base checkpoint — guidance 和 judge
 
 Checkpoint `60bm30b_v2p5_pretrain/checkpoints/iter_000741260`(SFT 前)。生成:`--experiment_name cosmos3p5_ga_60bm30b_base`,960×960,50 步,`--use_ema`,noneg,用 v2_1170L_gpt5p5_cosmos3p5_dense_hamid 的 prompt。所有格子的打分 prompt 都是 `v2_1170L`。GPT-5.5 的结果存为 `unigenbench_result_judge_gpt5p5.json`(`--signature judge_gpt5p5`),和 gemini 的 `unigenbench_result.json` 放在同一目录。
@@ -60,6 +133,9 @@ ruofan 两行是同事 ruofanl 用 cosmos-benchmarks 系统生成的图,从 gcpc
 |---|---|---|---|---|
 | c3p5_super_v2p5_iter741260_recipe_shift6_fullcfg_seed0(SFT 前) | 87.21 | 89.18 | 85.40 | 1170/1170 |
 | c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seed0_noneg | **87.88** | **90.13** | **85.82** | 1170/1170 |
+| c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seedrow_noneg(seed 改回 prompt 行号) | 87.67 | 89.92 | 85.61 | 1170/1170 |
+
+seed 从 0 改回 prompt 行号后,getty 从 87.88 变成 87.67(−0.21)。同一批行号 seed 的图第一次打分是 87.32(1169/1170,有 1 张 judge 调用重试后仍失败,被排除在统计外),`--force_rescore` 重打一遍后是 87.67:**同一批图只因 judge 重跑就差了 0.35 个点**,比换 seed 带来的变化还大。所以 0.3–0.5 个点以内的差异都要当作噪声看。
 
 同一套采样设置下,getty 实验比 SFT 前高 0.67 个点(orig +0.95,phi +0.42)。旧采样设置下(1024、`base_768`、shift 3)它比 SFT 前高 1.46 个点(87.56 vs 86.10),但那两行的分辨率和配置也不同,不是严格对比;这一组才是单变量对比,提升缩小但仍在。
 

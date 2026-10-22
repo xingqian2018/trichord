@@ -35,6 +35,7 @@ Every SFT checkpoint is evaluated at 1024×1024 with `base_768` (only the pre-SF
 | Setting | Generation script | all | orig | phi | success |
 |---|---|---|---|---|---|
 | shift 3, CFG [400, 1000], row seed (original) | `inference_ugb_i4.py` | 87.56 | 89.80 | 85.51 | 1170/1170 |
+| shift 3, CFG every step, row seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 87.92 | 90.18 | 85.84 | 1170/1170 |
 | shift 6, CFG [400, 1000], row seed | `inference_ugb_i4_20261020.py` | 87.23 | 89.57 | 85.09 | 1170/1170 |
 | shift 6, CFG every step, row seed | `inference_ugb_i4_20261020_fullcfg.py` | 87.62 | 89.69 | 85.72 | 1170/1170 |
 | shift 6, CFG every step, seed 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | **88.14** | **90.26** | **86.19** | 1170/1170 |
@@ -48,17 +49,54 @@ The same progression on exp003_000 pretrain (`exp003_000_pretrain/iter_000025000
 | Setting | Generation script | all | orig | phi | success |
 |---|---|---|---|---|---|
 | shift 3, CFG [400, 1000], row seed (original) | `inference_ugb_i4.py` | 86.29 | 88.83 | 83.97 | 1170/1170 |
-| shift 6, CFG [400, 1000], row seed | `inference_ugb_i4_20261020.py` | pending |  |  | (job 2582726) |
-| shift 6, CFG every step, row seed | `inference_ugb_i4_20261020_fullcfg.py` | pending |  |  | (job 2582727) |
-| shift 6, CFG every step, seed 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | pending |  |  | (job 2582728) |
+| shift 3, CFG every step, row seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 86.37 | 88.72 | 84.20 | 1170/1170 |
+| shift 6, CFG [400, 1000], row seed | `inference_ugb_i4_20261020.py` | 86.00 | 88.88 | 83.36 | 1170/1170 |
+| shift 6, CFG every step, row seed | `inference_ugb_i4_20261020_fullcfg.py` | 86.61 | 89.18 | 84.25 | 1170/1170 |
+| shift 6, CFG every step, seed 0 | `inference_ugb_i4_20261020_fullcfg_seed0.py` | 86.87 | 88.83 | 85.07 | 1170/1170 |
+
+**Step-by-step change across the three checkpoints (all):**
+
+| Step | pre-SFT (960) | exp003_000 pretrain (1024) | exp003_002 getty (1024) |
+|---|---|---|---|
+| shift 3 → 6 | +0.11 | −0.29 | −0.33 |
+| CFG [400, 1000] → every step | +0.82 | +0.61 | +0.39 |
+| row seed → seed 0 | +0.18 | +0.26 | +0.52 |
+| original → full recipe | +1.11 | +0.58 | +0.58 |
+
+**Getty over pretrain under each sampling setting (1024):**
+
+| Setting | pretrain | getty | Δ |
+|---|---|---|---|
+| shift 3, CFG [400, 1000], row seed | 86.29 | 87.56 | +1.27 |
+| shift 6, CFG [400, 1000], row seed | 86.00 | 87.23 | +1.23 |
+| shift 6, CFG every step, row seed | 86.61 | 87.62 | +1.01 |
+| shift 6, CFG every step, seed 0 | 86.87 | 88.14 | +1.27 |
+
+**shift × CFG interval 2×2 (row seed, all):**
+
+| Checkpoint | shift 3 + [400, 1000] | shift 3 + every step | shift 6 + [400, 1000] | shift 6 + every step |
+|---|---|---|---|---|
+| pre-SFT (960) | 86.10 | 86.72 | 86.21 | 87.03 |
+| exp003_000 pretrain (1024) | 86.29 | 86.37 | 86.00 | 86.61 |
+| exp003_002 getty (1024) | 87.56 | 87.92 | 87.23 | 87.62 |
+| getty − pretrain | +1.27 | +1.55 | +1.23 | +1.01 |
+
+CFG on every step beats [400, 1000] in all six comparisons (shift 3: +0.62, +0.08, +0.36; shift 6: +0.82, +0.61, +0.39; mean ≈ +0.48); shift 3 → 6 goes both ways (mean ≈ 0). Getty over pretrain stays between +1.0 and +1.55 under all five sampling settings.
+
+Conclusions:
+- shift 6 alone does nothing on any of the three checkpoints (−0.33 to +0.11, all inside the ~0.35-point judge noise).
+- CFG on every step is the only consistent sampling gain: positive on all three checkpoints (+0.39 to +0.82).
+- seed 0 is positive all three times (+0.18 to +0.52) but never far above noise; it should not be read as a model improvement.
+- Getty's gain over pretrain stays between +1.0 and +1.3 under all four sampling settings, so the result does not depend on the sampler.
 
 The same progression on the pre-SFT checkpoint (exp003's common start `iter_000741260`), 960×960, `base`, noneg:
 
 | Setting | Generation script | all | orig | phi | success |
 |---|---|---|---|---|---|
 | shift 3, CFG [400, 1000], row seed (original) | `inference_ugb_i4.py` | 86.10 | 88.01 | 84.34 | 1170/1170 |
-| shift 6, CFG [400, 1000], row seed | `inference_ugb_i4_20261020.py` | pending |  |  | (job 2582723) |
-| shift 6, CFG every step, row seed | `inference_ugb_i4_20261020_fullcfg.py` | pending |  |  | (job 2582724) |
+| shift 3, CFG every step, row seed | `inference_ugb_i4_20261020_shift3_fullcfg.py` | 86.72 | 88.24 | 85.33 | 1170/1170 |
+| shift 6, CFG [400, 1000], row seed | `inference_ugb_i4_20261020.py` | 86.21 | 87.88 | 84.67 | 1170/1170 |
+| shift 6, CFG every step, row seed | `inference_ugb_i4_20261020_fullcfg.py` | 87.03 | 88.83 | 85.37 | 1170/1170 |
 | shift 6, CFG every step, seed 0 | `inference_ugb_i4_20261020.py` (earlier version) | 87.21 | 89.18 | 85.40 | 1170/1170 |
 
 The two getty recipe rows in the "Base checkpoint" section below (87.88, 87.67) were rendered at 960×960 with `base`, which breaks the resolution rule above; this section's 1024 results supersede them.

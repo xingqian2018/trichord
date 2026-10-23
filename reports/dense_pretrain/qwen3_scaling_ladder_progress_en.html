@@ -1,0 +1,1645 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Qwen3-MoE scaling ladder — experiment progress tracker (Boxiang&#x27;s runs)</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+.neg { color:var(--good); }
+.pos { color:var(--bad); }
+hr { border:0; border-top:1px solid var(--border); margin:28px 0; }
+em { color:var(--muted); }
+</style></head>
+<body><nav><a href="#s1">0. Rung specs</a><a href="#s2">1. Main table</a><a href="#s3">1b. Main table</a><a href="#s4">2. Optimizer arms</a><a href="#s5">3. KD arm</a><a href="#s6">4. Tail-treatment screen</a><a href="#s7">5. Per-set results, all six validation sets</a><a href="#s8">6. Training progress snapshot</a><a href="#s9">7. Known issues / operations</a><a href="#s10">8. Changelog</a></nav><main>
+<h1>Qwen3-MoE scaling ladder — experiment progress tracker (Boxiang's runs)</h1>
+<p><em>Sources: Boxiang's repo <code>cosmos_base_training/cosmos_llm_scaling_ladder</code> (origin/main @ 908f38f) + slurm / run logs / eval directories.
+Doc-isolated results come from <code>results/&lt;Change ID&gt;/ckpts/&lt;rung&gt;/eval/RESULTS.md</code> (the new layout since 10-22 13:41), packed results from <code>results/&lt;Change ID&gt;/scores.json</code>.
+Results Boxiang has not filed yet are read directly from run logs or eval directories and marked †. Last sync: 2026-10-22 18:05.</em></p>
+<ul>
+<li><strong>Primary metric: val_v2_decon, doc-isolated protocol</strong> (each document evaluated on its own, no packing; protocol in <code>reports/val_protocol_doc_isolated_2026-10-20.md</code>).
+nats/token, lower is better; dCE = arm − reference, <strong>negative is better</strong>.</li>
+<li>Doc-isolated losses are ~0.013–0.016 below the packed numbers from training (BASE q0: 1.8226 vs 1.8372; q4: 1.2818 vs 1.2945), so the two protocols <strong>must not be compared with each other</strong>; within one protocol, however, the dCEs are nearly identical (differ by ≤ 0.002).</li>
+<li>One seed. Seed noise ≈ <strong>0.008 nats</strong> (range of the 3 BASE seeds at q0/q1, packed).</li>
+<li>Status: ✅ doc-isolated available · 🟡 training done, doc eval not out yet · ⏳ training / queued · ⏸ paused (checkpoint kept, resumable) · ⚠️ crashed, needs action · — not planned</li>
+<li>Scope: every arm runs q0–q5 first; q6 is deferred (BASE q6 paused at step 42000 / 260421). <strong>All q4 runs are currently paused; BASE is the only q5 still running.</strong></li>
+</ul>
+<hr />
+<h2 id="s1">0. Rung specs</h2>
+<table>
+<thead>
+<tr>
+<th>rung</th>
+<th>L × h</th>
+<th style="text-align:right">N_active (non-emb)</th>
+<th style="text-align:right">N_total (non-emb)</th>
+<th style="text-align:right">tokens @TPP200</th>
+<th style="text-align:right">iters</th>
+<th>est. cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>q0</td>
+<td>12 × 512</td>
+<td style="text-align:right">48.0M</td>
+<td style="text-align:right">0.47B</td>
+<td style="text-align:right">9.6B</td>
+<td style="text-align:right">4,575</td>
+<td>~25 GPU-h</td>
+</tr>
+<tr>
+<td>q1</td>
+<td>18 × 768</td>
+<td style="text-align:right">153.9M</td>
+<td style="text-align:right">1.59B</td>
+<td style="text-align:right">30.8B</td>
+<td style="text-align:right">14,682</td>
+<td>~170 GPU-h</td>
+</tr>
+<tr>
+<td>q2</td>
+<td>24 × 1024</td>
+<td style="text-align:right">355.5M</td>
+<td style="text-align:right">3.75B</td>
+<td style="text-align:right">71.1B</td>
+<td style="text-align:right">33,900</td>
+<td>~720 GPU-h</td>
+</tr>
+<tr>
+<td>q3</td>
+<td>30 × 1280</td>
+<td style="text-align:right">683.2M</td>
+<td style="text-align:right">7.32B</td>
+<td style="text-align:right">136.6B</td>
+<td style="text-align:right">65,157</td>
+<td>~2,300 GPU-h</td>
+</tr>
+<tr>
+<td>q4</td>
+<td>36 × 1536</td>
+<td style="text-align:right">1.17B</td>
+<td style="text-align:right">12.63B</td>
+<td style="text-align:right">233.6B</td>
+<td style="text-align:right">111,375</td>
+<td>~6,000 GPU-h</td>
+</tr>
+<tr>
+<td>q5</td>
+<td>42 × 1792</td>
+<td style="text-align:right">1.84B</td>
+<td style="text-align:right">20.05B</td>
+<td style="text-align:right">368.0B</td>
+<td style="text-align:right">175,482</td>
+<td>~13,700 GPU-h</td>
+</tr>
+<tr>
+<td>q6</td>
+<td>48 × 2048</td>
+<td style="text-align:right">2.73B</td>
+<td style="text-align:right">29.91B</td>
+<td style="text-align:right">546.1B</td>
+<td style="text-align:right">260,400</td>
+<td>~28k GPU-h (deferred)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="s2">1. Main table: val_v2_decon, doc-isolated (dCE vs BASE in parentheses)</h2>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE (AdamW + WSD)</td>
+<td>✅ 1.8226</td>
+<td>✅ 1.5718</td>
+<td>✅ 1.4361</td>
+<td>✅ 1.3442</td>
+<td>✅ 1.2818</td>
+<td>⏳</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>✅ 1.7752 (<span class="neg">−0.047</span>)</td>
+<td>✅ 1.5510 (<span class="neg">−0.021</span>)</td>
+<td>✅ 1.4197 (<span class="neg">−0.016</span>)</td>
+<td>✅ 1.3319 (<span class="neg">−0.012</span>)</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>✅ 1.7580 (<span class="neg">−0.065</span>)</td>
+<td>✅ 1.5419 (<span class="neg">−0.030</span>)</td>
+<td>✅ 1.4141 (<span class="neg">−0.022</span>)</td>
+<td>✅ 1.3266 (<span class="neg">−0.018</span>)</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>✅ 1.7318 (<span class="neg">−0.091</span>)</td>
+<td>✅ 1.5117 (<span class="neg">−0.060</span>)</td>
+<td>🟡</td>
+<td>⏳</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>✅ 1.7307 (<span class="neg">−0.092</span>)</td>
+<td>✅ 1.5118 (<span class="neg">−0.060</span>)</td>
+<td>🟡</td>
+<td>⏳</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>✅ 1.7297 (<span class="neg">−0.093</span>)</td>
+<td>✅ 1.5107 (<span class="neg">−0.061</span>)</td>
+<td>🟡</td>
+<td>⏳</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+</tbody>
+</table>
+<p>🟡: KD 0.7 / 0.8 / 0.9 q2 finished training at 12:47 / 13:02 / 16:50; not filed yet, and no doc eval submitted yet.</p>
+<hr />
+<h2 id="s3">1b. Main table: val_v2_decon, packed protocol (final validation at the end of training; dCE vs BASE in parentheses)</h2>
+<p>Packed is the final validation built into training: it is available as soon as a rung finishes, so it covers more rungs than doc-isolated; it is also what Boxiang's README / <code>scores.json</code> use. <strong>Do not compare these numbers with section 1</strong> — compare dCEs only within the same protocol.</p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE (AdamW + WSD)</td>
+<td>1.8372</td>
+<td>1.5874</td>
+<td>1.4517</td>
+<td>1.3592</td>
+<td>1.2945</td>
+<td>⏳</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>1.7896 (<span class="neg">−0.048</span>)</td>
+<td>1.5655 (<span class="neg">−0.022</span>)</td>
+<td>1.4349 (<span class="neg">−0.017</span>)</td>
+<td>1.3471 (<span class="neg">−0.012</span>)</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>1.7732 (<span class="neg">−0.064</span>)</td>
+<td>1.5566 (<span class="neg">−0.031</span>)</td>
+<td>1.4292 (<span class="neg">−0.023</span>)</td>
+<td>1.3421 (<span class="neg">−0.017</span>)</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>1.7467 (<span class="neg">−0.091</span>)</td>
+<td>1.5262 (<span class="neg">−0.061</span>)</td>
+<td>1.3984 (<span class="neg">−0.053</span>)†</td>
+<td>⏳</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>1.7455 (<span class="neg">−0.092</span>)</td>
+<td>1.5263 (<span class="neg">−0.061</span>)</td>
+<td>1.3980 (<span class="neg">−0.054</span>)†</td>
+<td>⏳</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>1.7447 (<span class="neg">−0.093</span>)</td>
+<td>1.5256 (<span class="neg">−0.062</span>)</td>
+<td>1.3987 (<span class="neg">−0.053</span>)†</td>
+<td>⏳</td>
+<td>⏸</td>
+<td>⏸</td>
+</tr>
+</tbody>
+</table>
+<p>Mean of six sets (packed): BASE 2.3442 / 2.0312 / 1.8501 / 1.7293 / 1.6491 (q0–q4); Muon 2.2839 / 2.0029 / 1.8283 / 1.7132 (q0–q3); MuonH 2.2670 / 1.9925 / 1.8243 / 1.7104 (q0–q3);
+KD α0.7 / 0.8 / 0.9: q0 2.2300 / 2.2287 / 2.2290, q1 1.9508 / 1.9510 / 1.9503, q2 1.7809† / 1.7800† / 1.7807†.</p>
+<p>BASE seed noise (packed): q0 s1–s3 = 1.8372 / 1.8377 / 1.8401, q1 = 1.5874 / 1.5951 / 1.5887. LR bracket (q1): 0.5× 1.5940, 1× 1.5874, 2× 1.5908.</p>
+<hr />
+<h2 id="s4">2. Optimizer arms: dCE vs BASE (doc-isolated)</h2>
+<table>
+<thead>
+<tr>
+<th>rung</th>
+<th>Muon: val_v2 / six-set mean</th>
+<th>MuonH: val_v2 / six-set mean</th>
+<th>MuonH − Muon: val_v2 / six-set mean</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>q0</td>
+<td><span class="neg">−0.047</span> / <span class="neg">−0.061</span></td>
+<td><span class="neg">−0.065</span> / <span class="neg">−0.078</span></td>
+<td><span class="neg">−0.017</span> / <span class="neg">−0.017</span></td>
+</tr>
+<tr>
+<td>q1</td>
+<td><span class="neg">−0.021</span> / <span class="neg">−0.028</span></td>
+<td><span class="neg">−0.030</span> / <span class="neg">−0.039</span></td>
+<td><span class="neg">−0.009</span> / <span class="neg">−0.011</span></td>
+</tr>
+<tr>
+<td>q2</td>
+<td><span class="neg">−0.016</span> / <span class="neg">−0.022</span></td>
+<td><span class="neg">−0.022</span> / <span class="neg">−0.026</span></td>
+<td><span class="neg">−0.006</span> / <span class="neg">−0.004</span></td>
+</tr>
+<tr>
+<td>q3</td>
+<td><span class="neg">−0.012</span> / <span class="neg">−0.016</span></td>
+<td><span class="neg">−0.018</span> / <span class="neg">−0.020</span></td>
+<td><span class="neg">−0.005</span> / <span class="neg">−0.004</span></td>
+</tr>
+<tr>
+<td>q4</td>
+<td><em>TBD</em> (⏸ at 54,600)</td>
+<td><em>TBD</em> (⏸ at 45,600)</td>
+<td></td>
+</tr>
+<tr>
+<td>q5</td>
+<td><em>TBD</em> (⏸)</td>
+<td><em>TBD</em> (⏸)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Ordering MuonH &lt; Muon &lt; AdamW holds on val_v2 at q0–q3.</li>
+<li><strong>Both optimizers' lead over BASE shrinks with scale</strong> (Muon −0.047 → −0.012, MuonH −0.065 → −0.018).</li>
+<li><strong>MuonH's lead over Muon shrinks faster</strong>: six-set mean from −0.017 to −0.004; at q3 MuonH is already behind Muon on uncheatable (+0.001) and codefresh (+0.002). On gpt-oss this lead was flat (~−0.009) over g1–g3.
+Boxiang's analysis: <code>reports/muonh_vs_muon_qwen3_2026-10-22.md</code>; the MuonH recipe test launched for it has been abandoned (see section 7).</li>
+</ul>
+<hr />
+<h2 id="s5">3. KD arm (TODO 1): alpha sweep on OPT_MUONH, top-64 + tail bucket</h2>
+<p>Loss = (1 − α)·CE + α·KL(teacher top-64 + tail ‖ student). Teacher: MiMo-V2.6-Pro-RL, cache <code>dpl.teacher_cache/2.1</code>. Step time ≈ 1.15× OPT_MUONH.</p>
+<p><strong>dCE vs OPT_MUONH (val_v2_decon / six-set mean)</strong></p>
+<table>
+<thead>
+<tr>
+<th>rung</th>
+<th>α 0.7</th>
+<th>α 0.8</th>
+<th>α 0.9</th>
+<th>protocol / notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>q0</td>
+<td><span class="neg">−0.026</span> / <span class="neg">−0.037</span></td>
+<td><span class="neg">−0.027</span> / <span class="neg">−0.037</span></td>
+<td><span class="neg">−0.028</span> / <span class="neg">−0.037</span></td>
+<td>doc; better on all six sets</td>
+</tr>
+<tr>
+<td>q1</td>
+<td><span class="neg">−0.030</span> / <span class="neg">−0.040</span></td>
+<td><span class="neg">−0.030</span> / <span class="neg">−0.040</span></td>
+<td><span class="neg">−0.031</span> / <span class="neg">−0.041</span></td>
+<td>doc; better on all six sets</td>
+</tr>
+<tr>
+<td>q2</td>
+<td><span class="neg">−0.031</span> / <span class="neg">−0.043</span>†</td>
+<td><span class="neg">−0.031</span> / <span class="neg">−0.044</span>†</td>
+<td><span class="neg">−0.031</span> / <span class="neg">−0.044</span>†</td>
+<td><strong>packed</strong>, doc eval not submitted</td>
+</tr>
+<tr>
+<td>q3</td>
+<td>⏳ (93 %)</td>
+<td>⏳ (91 %)</td>
+<td>⏳ (84 %)</td>
+<td>finals expected tonight / tomorrow morning</td>
+</tr>
+<tr>
+<td>q4</td>
+<td>⏸ at 50,400</td>
+<td>⏸ at 35,400</td>
+<td>⏸ at 25,200</td>
+<td>all q4 paused at 14:3x</td>
+</tr>
+<tr>
+<td>q5</td>
+<td>⏸ at 19,200</td>
+<td>⏸ at 23,200</td>
+<td>⏸ at 14,400</td>
+<td>stopped by Boxiang at 11:30</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>KD's gain grows slightly with scale</strong> (val_v2: q0 −0.027 → q1 −0.030 → q2 −0.031; six-set mean −0.037 → −0.040 → −0.044), the opposite of the optimizer arms' trend.</li>
+<li>Stacked with MuonH, KD at q2 is 0.053–0.054 below BASE (packed), of which MuonH alone contributes −0.023.</li>
+<li><strong>Pending decision</strong>: the three alphas are within 0.002 of each other at q0–q2 (all three at −0.031 at q2); the choice waits for q3. TODO 2 keeps using 0.8 for now.</li>
+<li>Reference from gpt-oss: KD lowered val_v2 by 0.024–0.062 at m0–m4, with the held-out gain 1.1–1.8× the val_v2 gain and growing with N.</li>
+</ul>
+<hr />
+<h2 id="s6">4. Tail-treatment screen (TODO 2): α 0.8, paired against KD_MUONH_A0P8 (B64 bucket)</h2>
+<p>Promotion rule: a variant goes on to q3–q5 only if it beats B64 by more than ~0.008 at <strong>every</strong> rung q0, q1, q2. Jobs 1176336–1176366. TODO 2 has <strong>packed results only</strong> so far; no doc eval yet.</p>
+<p><strong>dCE vs B64 (packed; q0 B64 = 1.7455, q1 B64 = 1.5263, q2 B64 = 1.3980†)</strong></p>
+<table>
+<thead>
+<tr>
+<th>variant</th>
+<th>description</th>
+<th>q0: val_v2 / six-set mean</th>
+<th>q1: val_v2</th>
+<th>q2</th>
+<th>promoted?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S64Y</td>
+<td>sampled + y exact</td>
+<td><span class="neg">−0.0034</span> / <span class="neg">−0.0049</span></td>
+<td>⏳ (95 %)</td>
+<td>⏳ (84 %)</td>
+<td><em>TBD</em></td>
+</tr>
+<tr>
+<td>S128</td>
+<td>top-128 sampled</td>
+<td><span class="neg">−0.0014</span> / <span class="neg">−0.0015</span></td>
+<td>⏳ (81 %)</td>
+<td>⏳ (75 %)</td>
+<td><em>TBD</em></td>
+</tr>
+<tr>
+<td>S64</td>
+<td>top-64 + sampled tail (4 draws)</td>
+<td><span class="neg">−0.0013</span> / <span class="neg">−0.0020</span></td>
+<td><span class="neg">−0.0032</span>†</td>
+<td>⏳ (83 %)</td>
+<td><em>TBD</em></td>
+</tr>
+<tr>
+<td>DROP64</td>
+<td>drop tail (control)</td>
+<td><span class="neg">−0.0010</span> / <span class="neg">−0.0011</span></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>B128</td>
+<td>top-128 bucket</td>
+<td><span class="neg">−0.0005</span> / <span class="neg">−0.0004</span></td>
+<td>⚠️ crashed at 85 %</td>
+<td>⏳ (75 %)</td>
+<td><em>TBD</em></td>
+</tr>
+<tr>
+<td>B64Y</td>
+<td>top-64 bucket + y exact</td>
+<td><span class="neg">−0.0002</span> / <span class="pos">+0.0007</span></td>
+<td><span class="neg">−0.0009</span>†</td>
+<td>⏳ (84 %)</td>
+<td><em>TBD</em></td>
+</tr>
+<tr>
+<td>DD64</td>
+<td>data draw (design 27)</td>
+<td><span class="pos">+0.0003</span> / <span class="neg">−0.0009</span></td>
+<td>⏳ (87 %)</td>
+<td>⏳ (77 %)</td>
+<td><em>TBD</em></td>
+</tr>
+</tbody>
+</table>
+<p>⚠️ B128 q1 (job 1176348) died at 17:59 at step 12,520 / 14,685 on an NCCL collective timeout; q1 has a single segment, so <strong>no resume segment is queued</strong> — it needs a resubmit from the latest checkpoint.</p>
+<ul>
+<li>At q0 every variant is inside the noise (paired-difference SD 0.003–0.008), but the ordering matches the dense report's expectation: the unbiased estimators (S64Y / S128 / S64) are slightly better; S64Y is below B64 at every in-loop point from step 3000 on and on all six sets.</li>
+<li>At q1, S64 is −0.0032, larger than its −0.0013 at q0 but still inside the noise; B64Y is still ≈ 0.</li>
+<li><strong>Top-64 vs top-128</strong> (pairs that differ only in k): at q0, B128 − B64 = −0.0005 and S128 − S64 = −0.0001, no measurable difference; top-128 is slower (B128 +2 %, S128 +7 % s/iter).</li>
+<li>DROP64 is not worse at q0: the &quot;over-confident student&quot; penalty the report expects does not show in packed CE; Boxiang suggests looking at calibration or the doc-isolated results.</li>
+<li>Prior: Xingqian's m1 study found the sampled tail 0.004–0.008 better than the bucket (one seed, inside the noise); this round confirms or refutes it with paired rungs.</li>
+</ul>
+<hr />
+<h2 id="s7">5. Per-set results, all six validation sets (doc-isolated and packed)</h2>
+<p>&lt;!-- settables:begin --&gt;
+Each cell is the loss with the dCE vs BASE in parentheses (negative is better); · = no result yet; † = not filed by Boxiang yet, read from the run log. This section is generated by <code>reports_xx/gen_tables.py</code>; do not edit by hand.</p>
+<p><strong>val_v2_decon — doc-isolated</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>1.8226</td>
+<td>1.5718</td>
+<td>1.4361</td>
+<td>1.3442</td>
+<td>1.2818</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>1.7752 (<span class="neg">−0.047</span>)</td>
+<td>1.5510 (<span class="neg">−0.021</span>)</td>
+<td>1.4197 (<span class="neg">−0.016</span>)</td>
+<td>1.3319 (<span class="neg">−0.012</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>1.7580 (<span class="neg">−0.065</span>)</td>
+<td>1.5419 (<span class="neg">−0.030</span>)</td>
+<td>1.4141 (<span class="neg">−0.022</span>)</td>
+<td>1.3266 (<span class="neg">−0.018</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>1.7318 (<span class="neg">−0.091</span>)</td>
+<td>1.5117 (<span class="neg">−0.060</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>1.7307 (<span class="neg">−0.092</span>)</td>
+<td>1.5118 (<span class="neg">−0.060</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>1.7297 (<span class="neg">−0.093</span>)</td>
+<td>1.5107 (<span class="neg">−0.061</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>uncheatable_decon — doc-isolated</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>2.2790</td>
+<td>1.9481</td>
+<td>1.7530</td>
+<td>1.6196</td>
+<td>1.5284</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>2.2147 (<span class="neg">−0.064</span>)</td>
+<td>1.9173 (<span class="neg">−0.031</span>)</td>
+<td>1.7305 (<span class="neg">−0.022</span>)</td>
+<td>1.6014 (<span class="neg">−0.018</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.1961 (<span class="neg">−0.083</span>)</td>
+<td>1.9065 (<span class="neg">−0.042</span>)</td>
+<td>1.7269 (<span class="neg">−0.026</span>)</td>
+<td>1.6025 (<span class="neg">−0.017</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.1513 (<span class="neg">−0.128</span>)</td>
+<td>1.8544 (<span class="neg">−0.094</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.1493 (<span class="neg">−0.130</span>)</td>
+<td>1.8550 (<span class="neg">−0.093</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.1480 (<span class="neg">−0.131</span>)</td>
+<td>1.8514 (<span class="neg">−0.097</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>codefresh_decon — doc-isolated</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>1.8133</td>
+<td>1.4556</td>
+<td>1.2677</td>
+<td>1.1449</td>
+<td>1.0675</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>1.7287 (<span class="neg">−0.085</span>)</td>
+<td>1.4205 (<span class="neg">−0.035</span>)</td>
+<td>1.2429 (<span class="neg">−0.025</span>)</td>
+<td>1.1287 (<span class="neg">−0.016</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>1.7185 (<span class="neg">−0.095</span>)</td>
+<td>1.4132 (<span class="neg">−0.042</span>)</td>
+<td>1.2432 (<span class="neg">−0.024</span>)</td>
+<td>1.1307 (<span class="neg">−0.014</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>1.6751 (<span class="neg">−0.138</span>)</td>
+<td>1.3693 (<span class="neg">−0.086</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>1.6734 (<span class="neg">−0.140</span>)</td>
+<td>1.3657 (<span class="neg">−0.090</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>1.6726 (<span class="neg">−0.141</span>)</td>
+<td>1.3655 (<span class="neg">−0.090</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>v3small_decon — doc-isolated</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>3.0675</td>
+<td>2.7475</td>
+<td>2.5579</td>
+<td>2.4307</td>
+<td>2.3398</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>3.0110 (<span class="neg">−0.056</span>)</td>
+<td>2.7181 (<span class="neg">−0.029</span>)</td>
+<td>2.5357 (<span class="neg">−0.022</span>)</td>
+<td>2.4141 (<span class="neg">−0.017</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.9948 (<span class="neg">−0.073</span>)</td>
+<td>2.7055 (<span class="neg">−0.042</span>)</td>
+<td>2.5312 (<span class="neg">−0.027</span>)</td>
+<td>2.4079 (<span class="neg">−0.023</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.9596 (<span class="neg">−0.108</span>)</td>
+<td>2.6677 (<span class="neg">−0.080</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.9605 (<span class="neg">−0.107</span>)</td>
+<td>2.6699 (<span class="neg">−0.078</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.9620 (<span class="neg">−0.105</span>)</td>
+<td>2.6691 (<span class="neg">−0.078</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>pile_test_decon — doc-isolated</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>2.4808</td>
+<td>2.1739</td>
+<td>2.0021</td>
+<td>1.8811</td>
+<td>1.7966</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>2.4264 (<span class="neg">−0.054</span>)</td>
+<td>2.1481 (<span class="neg">−0.026</span>)</td>
+<td>1.9790 (<span class="neg">−0.023</span>)</td>
+<td>1.8644 (<span class="neg">−0.017</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.4070 (<span class="neg">−0.074</span>)</td>
+<td>2.1354 (<span class="neg">−0.038</span>)</td>
+<td>1.9730 (<span class="neg">−0.029</span>)</td>
+<td>1.8568 (<span class="neg">−0.024</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.3720 (<span class="neg">−0.109</span>)</td>
+<td>2.0967 (<span class="neg">−0.077</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.3722 (<span class="neg">−0.109</span>)</td>
+<td>2.0973 (<span class="neg">−0.077</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.3725 (<span class="neg">−0.108</span>)</td>
+<td>2.0984 (<span class="neg">−0.076</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>pile_10k_decon — doc-isolated</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>2.5078</td>
+<td>2.1869</td>
+<td>1.9985</td>
+<td>1.8703</td>
+<td>1.7794</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>2.4512 (<span class="neg">−0.057</span>)</td>
+<td>2.1591 (<span class="neg">−0.028</span>)</td>
+<td>1.9761 (<span class="neg">−0.022</span>)</td>
+<td>1.8520 (<span class="neg">−0.018</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.4307 (<span class="neg">−0.077</span>)</td>
+<td>2.1471 (<span class="neg">−0.040</span>)</td>
+<td>1.9707 (<span class="neg">−0.028</span>)</td>
+<td>1.8467 (<span class="neg">−0.024</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.3956 (<span class="neg">−0.112</span>)</td>
+<td>2.1069 (<span class="neg">−0.080</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.3960 (<span class="neg">−0.112</span>)</td>
+<td>2.1071 (<span class="neg">−0.080</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.3963 (<span class="neg">−0.111</span>)</td>
+<td>2.1069 (<span class="neg">−0.080</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>six-set mean — doc-isolated</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>2.3285</td>
+<td>2.0140</td>
+<td>1.8359</td>
+<td>1.7151</td>
+<td>1.6322</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>2.2679 (<span class="neg">−0.061</span>)</td>
+<td>1.9857 (<span class="neg">−0.028</span>)</td>
+<td>1.8140 (<span class="neg">−0.022</span>)</td>
+<td>1.6988 (<span class="neg">−0.016</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.2509 (<span class="neg">−0.078</span>)</td>
+<td>1.9749 (<span class="neg">−0.039</span>)</td>
+<td>1.8098 (<span class="neg">−0.026</span>)</td>
+<td>1.6952 (<span class="neg">−0.020</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.2142 (<span class="neg">−0.114</span>)</td>
+<td>1.9345 (<span class="neg">−0.080</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.2137 (<span class="neg">−0.115</span>)</td>
+<td>1.9345 (<span class="neg">−0.080</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.2135 (<span class="neg">−0.115</span>)</td>
+<td>1.9337 (<span class="neg">−0.080</span>)</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>val_v2_decon — packed</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>1.8372</td>
+<td>1.5874</td>
+<td>1.4517</td>
+<td>1.3592</td>
+<td>1.2945</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>1.7896 (<span class="neg">−0.048</span>)</td>
+<td>1.5655 (<span class="neg">−0.022</span>)</td>
+<td>1.4349 (<span class="neg">−0.017</span>)</td>
+<td>1.3471 (<span class="neg">−0.012</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>1.7732 (<span class="neg">−0.064</span>)</td>
+<td>1.5566 (<span class="neg">−0.031</span>)</td>
+<td>1.4292 (<span class="neg">−0.022</span>)</td>
+<td>1.3421 (<span class="neg">−0.017</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>1.7467 (<span class="neg">−0.091</span>)</td>
+<td>1.5262 (<span class="neg">−0.061</span>)</td>
+<td>1.3984 (<span class="neg">−0.053</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>1.7455 (<span class="neg">−0.092</span>)</td>
+<td>1.5263 (<span class="neg">−0.061</span>)</td>
+<td>1.3980 (<span class="neg">−0.054</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>1.7447 (<span class="neg">−0.093</span>)</td>
+<td>1.5256 (<span class="neg">−0.062</span>)</td>
+<td>1.3987 (<span class="neg">−0.053</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>uncheatable_decon — packed</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>2.3089</td>
+<td>1.9783</td>
+<td>1.7835</td>
+<td>1.6502</td>
+<td>1.5582</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>2.2437 (<span class="neg">−0.065</span>)</td>
+<td>1.9463 (<span class="neg">−0.032</span>)</td>
+<td>1.7605 (<span class="neg">−0.023</span>)</td>
+<td>1.6313 (<span class="neg">−0.019</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.2260 (<span class="neg">−0.083</span>)</td>
+<td>1.9366 (<span class="neg">−0.042</span>)</td>
+<td>1.7572 (<span class="neg">−0.026</span>)</td>
+<td>1.6325 (<span class="neg">−0.018</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.1805 (<span class="neg">−0.128</span>)</td>
+<td>1.8833 (<span class="neg">−0.095</span>)</td>
+<td>1.7027 (<span class="neg">−0.081</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.1778 (<span class="neg">−0.131</span>)</td>
+<td>1.8838 (<span class="neg">−0.095</span>)</td>
+<td>1.6995 (<span class="neg">−0.084</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.1771 (<span class="neg">−0.132</span>)</td>
+<td>1.8802 (<span class="neg">−0.098</span>)</td>
+<td>1.6988 (<span class="neg">−0.085</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>codefresh_decon — packed</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>1.8260</td>
+<td>1.4728</td>
+<td>1.2859</td>
+<td>1.1625</td>
+<td>1.0860</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>1.7463 (<span class="neg">−0.080</span>)</td>
+<td>1.4416 (<span class="neg">−0.031</span>)</td>
+<td>1.2627 (<span class="neg">−0.023</span>)</td>
+<td>1.1483 (<span class="neg">−0.014</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>1.7322 (<span class="neg">−0.094</span>)</td>
+<td>1.4325 (<span class="neg">−0.040</span>)</td>
+<td>1.2637 (<span class="neg">−0.022</span>)</td>
+<td>1.1515 (<span class="neg">−0.011</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>1.6891 (<span class="neg">−0.137</span>)</td>
+<td>1.3847 (<span class="neg">−0.088</span>)</td>
+<td>1.2136 (<span class="neg">−0.072</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>1.6846 (<span class="neg">−0.141</span>)</td>
+<td>1.3821 (<span class="neg">−0.091</span>)</td>
+<td>1.2108 (<span class="neg">−0.075</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>1.6843 (<span class="neg">−0.142</span>)</td>
+<td>1.3806 (<span class="neg">−0.092</span>)</td>
+<td>1.2114 (<span class="neg">−0.074</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>v3small_decon — packed</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>3.0720</td>
+<td>2.7598</td>
+<td>2.5475</td>
+<td>2.4216</td>
+<td>2.3544</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>3.0153 (<span class="neg">−0.057</span>)</td>
+<td>2.7261 (<span class="neg">−0.034</span>)</td>
+<td>2.5256 (<span class="neg">−0.022</span>)</td>
+<td>2.4054 (<span class="neg">−0.016</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>3.0008 (<span class="neg">−0.071</span>)</td>
+<td>2.7148 (<span class="neg">−0.045</span>)</td>
+<td>2.5213 (<span class="neg">−0.026</span>)</td>
+<td>2.4008 (<span class="neg">−0.021</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.9643 (<span class="neg">−0.108</span>)</td>
+<td>2.6762 (<span class="neg">−0.084</span>)</td>
+<td>2.4799 (<span class="neg">−0.068</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.9646 (<span class="neg">−0.107</span>)</td>
+<td>2.6784 (<span class="neg">−0.081</span>)</td>
+<td>2.4804 (<span class="neg">−0.067</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.9669 (<span class="neg">−0.105</span>)</td>
+<td>2.6786 (<span class="neg">−0.081</span>)</td>
+<td>2.4821 (<span class="neg">−0.065</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>pile_test_decon — packed</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>2.4974</td>
+<td>2.1927</td>
+<td>2.0196</td>
+<td>1.8984</td>
+<td>1.8142</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>2.4420 (<span class="neg">−0.055</span>)</td>
+<td>2.1661 (<span class="neg">−0.027</span>)</td>
+<td>1.9962 (<span class="neg">−0.023</span>)</td>
+<td>1.8814 (<span class="neg">−0.017</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.4237 (<span class="neg">−0.074</span>)</td>
+<td>2.1542 (<span class="neg">−0.038</span>)</td>
+<td>1.9906 (<span class="neg">−0.029</span>)</td>
+<td>1.8747 (<span class="neg">−0.024</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.3885 (<span class="neg">−0.109</span>)</td>
+<td>2.1150 (<span class="neg">−0.078</span>)</td>
+<td>1.9487 (<span class="neg">−0.071</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.3884 (<span class="neg">−0.109</span>)</td>
+<td>2.1158 (<span class="neg">−0.077</span>)</td>
+<td>1.9491 (<span class="neg">−0.070</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.3889 (<span class="neg">−0.108</span>)</td>
+<td>2.1172 (<span class="neg">−0.075</span>)</td>
+<td>1.9504 (<span class="neg">−0.069</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>pile_10k_decon — packed</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>2.5236</td>
+<td>2.1964</td>
+<td>2.0124</td>
+<td>1.8838</td>
+<td>1.7875</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>2.4668 (<span class="neg">−0.057</span>)</td>
+<td>2.1718 (<span class="neg">−0.025</span>)</td>
+<td>1.9898 (<span class="neg">−0.023</span>)</td>
+<td>1.8657 (<span class="neg">−0.018</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.4462 (<span class="neg">−0.077</span>)</td>
+<td>2.1603 (<span class="neg">−0.036</span>)</td>
+<td>1.9841 (<span class="neg">−0.028</span>)</td>
+<td>1.8607 (<span class="neg">−0.023</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.4110 (<span class="neg">−0.113</span>)</td>
+<td>2.1195 (<span class="neg">−0.077</span>)</td>
+<td>1.9420 (<span class="neg">−0.070</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.4115 (<span class="neg">−0.112</span>)</td>
+<td>2.1197 (<span class="neg">−0.077</span>)</td>
+<td>1.9421 (<span class="neg">−0.070</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.4120 (<span class="neg">−0.112</span>)</td>
+<td>2.1198 (<span class="neg">−0.077</span>)</td>
+<td>1.9425 (<span class="neg">−0.070</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+</tbody>
+</table>
+<p><strong>six-set mean — packed</strong></p>
+<table>
+<thead>
+<tr>
+<th>arm</th>
+<th>q0</th>
+<th>q1</th>
+<th>q2</th>
+<th>q3</th>
+<th>q4</th>
+<th>q5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE</td>
+<td>2.3442</td>
+<td>2.0312</td>
+<td>1.8501</td>
+<td>1.7293</td>
+<td>1.6491</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUON</td>
+<td>2.2839 (<span class="neg">−0.060</span>)</td>
+<td>2.0029 (<span class="neg">−0.028</span>)</td>
+<td>1.8283 (<span class="neg">−0.022</span>)</td>
+<td>1.7132 (<span class="neg">−0.016</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>OPT_MUONH</td>
+<td>2.2670 (<span class="neg">−0.077</span>)</td>
+<td>1.9925 (<span class="neg">−0.039</span>)</td>
+<td>1.8243 (<span class="neg">−0.026</span>)</td>
+<td>1.7104 (<span class="neg">−0.019</span>)</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P7</td>
+<td>2.2300 (<span class="neg">−0.114</span>)</td>
+<td>1.9508 (<span class="neg">−0.080</span>)</td>
+<td>1.7809 (<span class="neg">−0.069</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P8</td>
+<td>2.2287 (<span class="neg">−0.115</span>)</td>
+<td>1.9510 (<span class="neg">−0.080</span>)</td>
+<td>1.7800 (<span class="neg">−0.070</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>KD_MUONH_A0P9</td>
+<td>2.2290 (<span class="neg">−0.115</span>)</td>
+<td>1.9503 (<span class="neg">−0.081</span>)</td>
+<td>1.7806 (<span class="neg">−0.069</span>)†</td>
+<td>·</td>
+<td>·</td>
+<td>·</td>
+</tr>
+<tr>
+<td>&lt;!-- settables:end --&gt;</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>KD's gain (α0.8, q1, vs MuonH) is largest on uncheatable / codefresh (−0.052 / −0.048) and smallest on v3small (−0.036).</li>
+<li>At q3, MuonH leads Muon only on val_v2, v3small and the two pile sets; it is already behind on uncheatable and codefresh.</li>
+</ul>
+<hr />
+<h2 id="s8">6. Training progress snapshot (2026-10-22 18:05, from slurm and run logs)</h2>
+<table>
+<thead>
+<tr>
+<th>run</th>
+<th style="text-align:right">job</th>
+<th style="text-align:right">nodes</th>
+<th style="text-align:right">iteration / total</th>
+<th style="text-align:right">progress</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BASE q5</td>
+<td style="text-align:right">1158003</td>
+<td style="text-align:right">64</td>
+<td style="text-align:right">111,690 / 175,497</td>
+<td style="text-align:right">64 %</td>
+<td>the only q5 still running; the previous segment 1158002 ended at 16:51 (step 108,600) and this one took over</td>
+</tr>
+<tr>
+<td>KD 0.7 q3</td>
+<td style="text-align:right">1174573</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">60,850 / 65,165</td>
+<td style="text-align:right">93 %</td>
+<td></td>
+</tr>
+<tr>
+<td>KD 0.8 q3</td>
+<td style="text-align:right">1174582</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">59,060 / 65,165</td>
+<td style="text-align:right">91 %</td>
+<td></td>
+</tr>
+<tr>
+<td>KD 0.9 q3</td>
+<td style="text-align:right">1174590</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">54,830 / 65,165</td>
+<td style="text-align:right">84 %</td>
+<td></td>
+</tr>
+<tr>
+<td>TODO 2 S64Y / S128 / DD64 q1</td>
+<td style="text-align:right">1176347 / 1176349 / 1176351</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">13,920 / 11,950 / 12,830</td>
+<td style="text-align:right">95 / 81 / 87 %</td>
+<td></td>
+</tr>
+<tr>
+<td>TODO 2 B128 q1</td>
+<td style="text-align:right">1176348</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">12,520 / 14,685</td>
+<td style="text-align:right">⚠️</td>
+<td>died at 17:59 on an NCCL timeout, no resume segment</td>
+</tr>
+<tr>
+<td>TODO 2 B64Y / S64 / S64Y q2</td>
+<td style="text-align:right">1176352–1176357</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">28,000–28,560 / 33,906</td>
+<td style="text-align:right">83–84 %</td>
+<td></td>
+</tr>
+<tr>
+<td>TODO 2 B128 / S128 / DD64 q2</td>
+<td style="text-align:right">1176360–1176364</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">25,270–26,070 / 33,906</td>
+<td style="text-align:right">75–77 %</td>
+<td></td>
+</tr>
+<tr>
+<td>KD 0.7 / 0.8 / 0.9 q2</td>
+<td style="text-align:right">1175522 / 1175527 / 1175533</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">33,906 / 33,906</td>
+<td style="text-align:right">✅</td>
+<td>finished 12:47 / 13:02 / 16:50, not filed yet</td>
+</tr>
+<tr>
+<td>TODO 2 B64Y / S64 q1</td>
+<td style="text-align:right">1176343 / 1176345</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">14,685 / 14,685</td>
+<td style="text-align:right">✅</td>
+<td>finished 09:22 / 09:52, not filed yet</td>
+</tr>
+<tr>
+<td>Muon q4 / MuonH q4</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">54,600 / 45,600</td>
+<td style="text-align:right">⏸</td>
+<td>all q4 paused by the user at 14:3x</td>
+</tr>
+<tr>
+<td>KD 0.7 / 0.8 / 0.9 q4</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">50,400 / 35,400 / 25,200</td>
+<td style="text-align:right">⏸</td>
+<td>same</td>
+</tr>
+<tr>
+<td>Muon q5 / MuonH q5</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">64</td>
+<td style="text-align:right">24,000 / 19,200</td>
+<td style="text-align:right">⏸</td>
+<td>paused 10-22 00:40</td>
+</tr>
+<tr>
+<td>KD 0.7 / 0.8 / 0.9 q5</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">64</td>
+<td style="text-align:right">19,200 / 23,200 / 14,400</td>
+<td style="text-align:right">⏸</td>
+<td>stopped by Boxiang at 11:30</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="s9">7. Known issues / operations</h2>
+<ul>
+<li><strong>None of Boxiang's runs use the evaluation settings we merged</strong> (checked 10-22 18:30 on the argv of all 148 runs): none sets <code>VAL_PER_SPLIT=1</code> (per-split validation on the 9 decon suites incl. private_internal, with dpl's tw / macro / overall), and none uses <code>EVAL_AT_ITERS</code> / <code>EVAL_TPP_STEP</code>.
+He uses his own protocol: 6 pooled validation sets (val_v2 not split into cc / python / arxiv, no private_internal), in-loop eval every 3500 steps, doc-isolated eval run afterwards. So the numbers here are not directly comparable with dpl's metrics.</li>
+<li><strong>All q4 runs paused</strong> (14:3x, user: &quot;stop them all once the checkpoints are saved&quot;): q4 is too slow (MuonH family at 1.34–1.40 s/it, ~41 h per run, the five runs held 160 nodes); the nodes go to the q0–q3 work first.
+Every run stopped right after a checkpoint save; resuming = resubmitting the chain. So the optimizer and KD arms have only q0–q3 for the fits for now.</li>
+<li><strong>q5 paused</strong>: Muon / MuonH q5 (00:40, user), KD q5 ×3 (11:30, Boxiang: the hash check restarting every 20k steps wasted too much of 64 nodes). BASE q5 is the only one still running.</li>
+<li><strong>MuonH DP-replica divergence at EP 8: workaround in place</strong>: <code>pretrain_hyperp.py</code> now re-syncs parameters and optimizer state every 1000 steps. With it, KD 0.9 q4 passed the 20000-step check with zero drift.
+Telemetry: drift appears only in the 4 EP groups whose two nodes share a rack (a multi-node NVLink domain); the 12 groups spanning two racks never drifted; 1–2 bf16 ulp per 1000 steps; unrelated to checkpoint saves.
+<strong>MNNVL hypothesis refuted</strong> (17:1x): fp32 all-reduce bit tests at 16 and 128 ranks with the training's NCCL environment, MNNVL on and off, found no rank ever differing from rank 0.
+New leading suspect: a timing race under <code>--overlap-grad-reduce</code> — a rank reads main-grad before its bucket's all-reduce has landed, and same-rack EP groups hit a different timing, so they are more exposed.
+Planned test: q4 layout, overlap on vs off, ~2000 steps each (re-sync every 100 steps). <strong>MuonH q0–q3 (EP 4) are unaffected.</strong></li>
+<li><strong>MuonH recipe test abandoned</strong> (launched 13:00, all cancelled and checkpoints deleted by 15:35): to explain MuonH's shrinking lead, three arms × q0–q3 tested LR 2×, LR 0.5× and the router on AdamW.
+Only mid-run readings exist: at q0, 2× is 0.11 worse and 0.5× is 0.02 worse, so the HyperP LR law looks near-optimal at q0; RTADAMW was misconfigured (router at the HyperP LR, routing collapsed). <strong>No verdict</strong>; q1–q3 can only be restarted from scratch.
+Follow-up (TODO 3 prep, <strong>not launched</strong>): experiment files and a report skeleton for a narrower LR bracket (×0.7 / ×1.4) are ready.</li>
+<li><strong>KD q4 stays paused with the other q4 chains</strong> (15:54, Boxiang); they resume together when the pause is lifted.</li>
+<li><strong>New reports from Boxiang</strong> in <code>reports/</code>: why MuonH is slow and how to make it fast (timers, micro-benchmarks, A/B/C plan; f3f8185), and a design review of an SWA hybrid-attention arm (research only, not launched; 85374fe).</li>
+</ul>
+<hr />
+<h2 id="s10">8. Changelog</h2>
+<table>
+<thead>
+<tr>
+<th>date</th>
+<th>update</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-10-22 07:40</td>
+<td>Table created; primary metric set to doc-isolated val_v2_decon. Doc results available: BASE / Muon / MuonH q0–q2. Added MuonH q3, KD q1 (packed), TODO 2 q0 (inside the noise), q5 pause, EP 8 divergence issue</td>
+</tr>
+<tr>
+<td>2026-10-22 10:15</td>
+<td>Synced to 8b56385. New doc-isolated: KD q0 ×3, KD q1 α0.7 / α0.9. BASE q4 finished (packed 1.2945). TODO 2 q1 B64Y / S64 finished. MuonH q4 on hold; KD 0.9 q4 and 0.7 q5 chains exhausted</td>
+</tr>
+<tr>
+<td>2026-10-22 15:45</td>
+<td>Synced to 75c268f (new layout: <code>results/&lt;Change ID&gt;/</code>). <strong>New doc-isolated: BASE q3 / q4, Muon q3, MuonH q3, KD α0.8 q1</strong>: at q3 Muon <span class="neg">−0.012</span>, MuonH <span class="neg">−0.018</span> vs BASE; MuonH's lead over Muon down to <span class="neg">−0.004</span> (six-set mean). <strong>KD q2 finished (α0.7 / 0.8, packed <span class="neg">−0.031</span> vs MuonH)</strong>; KD's gain grows slightly with scale. All q4 paused, KD q5 stopped; re-sync workaround for the EP 8 divergence; MuonH recipe test abandoned</td>
+</tr>
+<tr>
+<td>2026-10-22 18:05</td>
+<td>Synced to 908f38f. No new doc-isolated results. <strong>KD 0.9 q2 finished (packed 1.3987, <span class="neg">−0.031</span> vs MuonH)</strong>; all three alphas at <span class="neg">−0.031</span> at q2. KD q3 at 84–93 %. TODO 2 B128 q1 died at 85 % on an NCCL timeout, no resume segment. The MNNVL hypothesis for the EP 8 divergence was refuted by a bit test; new suspect is a race in the overlapped grad-reduce</td>
+</tr>
+<tr>
+<td>2026-10-22 18:30</td>
+<td>Section 5 now has per-set results for all six validation sets (7 tables each for doc-isolated and packed), generated by <code>reports_xx/gen_tables.py</code>. Section 7: none of Boxiang's runs use our per-split / TPP evaluation settings</td>
+</tr>
+</tbody>
+</table>
+</main></body></html>

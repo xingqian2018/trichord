@@ -17,11 +17,11 @@ from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RES = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/Project/trichord/dense_pretrain_result"
-RUNGS = ["q0", "q1", "q2", "q3", "q4"]
-N_ACTIVE = {"q0": 48.0e6, "q1": 153.9e6, "q2": 355.5e6, "q3": 683.2e6, "q4": 1.17e9}      # non-embedding active params
-N_LABEL = {"q0": "48M", "q1": "154M", "q2": "356M", "q3": "683M", "q4": "1.17B"}
-TOTAL = {"q0": "0.63B", "q1": "1.82B", "q2": "4.06B", "q3": "7.71B", "q4": "13.1B"}
-TOKENS = {"q0": "9.6B", "q1": "30.8B", "q2": "71.1B", "q3": "136.6B", "q4": "233.6B"}
+RUNGS = ["q0", "q1", "q2", "q3", "q4", "q5"]
+N_ACTIVE = {"q0": 48.0e6, "q1": 153.9e6, "q2": 355.5e6, "q3": 683.2e6, "q4": 1.17e9, "q5": 1.84e9}      # non-embedding active params
+N_LABEL = {"q0": "48M", "q1": "154M", "q2": "356M", "q3": "683M", "q4": "1.17B", "q5": "1.84B"}
+TOTAL = {"q0": "0.63B", "q1": "1.82B", "q2": "4.06B", "q3": "7.71B", "q4": "13.1B", "q5": "20.6B"}
+TOKENS = {"q0": "9.6B", "q1": "30.8B", "q2": "71.1B", "q3": "136.6B", "q4": "233.6B", "q5": "368.0B"}
 CE = "OPT_MUONH"
 KD = {"0.7": "KD_MUONH_A0P7", "0.8": "KD_MUONH_A0P8", "0.9": "KD_MUONH_A0P9"}
 ARMS = [("BASE", "AdamW", "CE", "—"), ("OPT_MUON", "Muon", "CE", "—"), ("OPT_MUONH", "MuonH", "CE", "—"),

@@ -293,27 +293,6 @@ Each cell is the loss with the dCE vs BASE in parentheses (negative is better); 
 
 ---
 
-## 6. Training progress snapshot (2026-10-22 18:05, from slurm and run logs)
-
-| run | job | nodes | iteration / total | progress | notes |
-|---|---:|---:|---:|---:|---|
-| BASE q5            | 1158003 | 64 | 111,690 / 175,497 | 64 % | the only q5 still running; the previous segment 1158002 ended at 16:51 (step 108,600) and this one took over |
-| KD 0.7 q3          | 1174573 | 16 | 60,850 / 65,165   | 93 % | |
-| KD 0.8 q3          | 1174582 | 16 | 59,060 / 65,165   | 91 % | |
-| KD 0.9 q3          | 1174590 | 16 | 54,830 / 65,165   | 84 % | |
-| TODO 2 S64Y / S128 / DD64 q1 | 1176347 / 1176349 / 1176351 | 8 | 13,920 / 11,950 / 12,830 | 95 / 81 / 87 % | |
-| TODO 2 B128 q1     | 1176348 | 8 | 12,520 / 14,685 | ⚠️ | died at 17:59 on an NCCL timeout, no resume segment |
-| TODO 2 B64Y / S64 / S64Y q2 | 1176352–1176357 | 16 | 28,000–28,560 / 33,906 | 83–84 % | |
-| TODO 2 B128 / S128 / DD64 q2 | 1176360–1176364 | 16 | 25,270–26,070 / 33,906 | 75–77 % | |
-| KD 0.7 / 0.8 / 0.9 q2 | 1175522 / 1175527 / 1175533 | 16 | 33,906 / 33,906 | ✅ | finished 12:47 / 13:02 / 16:50, not filed yet |
-| TODO 2 B64Y / S64 q1 | 1176343 / 1176345 | 8 | 14,685 / 14,685 | ✅ | finished 09:22 / 09:52, not filed yet |
-| Muon q4 / MuonH q4 | — | 32 | 54,600 / 45,600 | ⏸ | all q4 paused by the user at 14:3x |
-| KD 0.7 / 0.8 / 0.9 q4 | — | 32 | 50,400 / 35,400 / 25,200 | ⏸ | same |
-| Muon q5 / MuonH q5 | — | 64 | 24,000 / 19,200 | ⏸ | paused 10-22 00:40 |
-| KD 0.7 / 0.8 / 0.9 q5 | — | 64 | 19,200 / 23,200 / 14,400 | ⏸ | stopped by Boxiang at 11:30 |
-
----
-
 ## 7. Known issues / operations
 
 - **None of Boxiang's runs use the evaluation settings we merged** (checked 10-22 18:30 on the argv of all 148 runs): none sets `VAL_PER_SPLIT=1` (per-split validation on the 9 decon suites incl. private_internal, with dpl's tw / macro / overall), and none uses `EVAL_AT_ITERS` / `EVAL_TPP_STEP`.

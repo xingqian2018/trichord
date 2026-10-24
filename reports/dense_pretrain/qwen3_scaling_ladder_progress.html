@@ -23,7 +23,7 @@ td { font-variant-numeric:tabular-nums; }
 hr { border:0; border-top:1px solid var(--border); margin:28px 0; }
 em { color:var(--muted); }
 </style></head>
-<body><nav><a href="#s1">0. Rung 规格</a><a href="#s2">1. 主表</a><a href="#s3">1b. 主表</a><a href="#s4">2. 优化器 arm</a><a href="#s5">3. KD arm</a><a href="#s6">4. Tail-treatment screen</a><a href="#s7">5. 六个验证集逐集结果</a><a href="#s8">6. 训练进度快照</a><a href="#s9">7. 已知问题 / 运营状态</a><a href="#s10">8. 更新记录</a></nav><main>
+<body><nav><a href="#s1">0. Rung 规格</a><a href="#s2">1. 主表</a><a href="#s3">1b. 主表</a><a href="#s4">2. 优化器 arm</a><a href="#s5">3. KD arm</a><a href="#s6">4. Tail-treatment screen</a><a href="#s7">5. 六个验证集逐集结果</a><a href="#s8">7. 已知问题 / 运营状态</a><a href="#s9">8. 更新记录</a></nav><main>
 <h1>Qwen3-MoE scaling ladder — 实验进度跟踪（Boxiang 的 runs）</h1>
 <p><em>数据来源：Boxiang 的 repo <code>cosmos_base_training/cosmos_llm_scaling_ladder</code>（origin/main @ 908f38f）+ slurm / run log / eval 目录。
 doc-isolated 结果取自 <code>results/&lt;Change ID&gt;/ckpts/&lt;rung&gt;/eval/RESULTS.md</code>（10-22 13:41 起的新 layout），packed 结果取自 <code>results/&lt;Change ID&gt;/scores.json</code>。
@@ -1464,135 +1464,7 @@ Boxiang 的分析见 <code>reports/muonh_vs_muon_qwen3_2026-10-22.md</code>；�
 <li>q3 上 MuonH 只在 val_v2、v3small、pile 三个集上领先 Muon；uncheatable、codefresh 已落后。</li>
 </ul>
 <hr />
-<h2 id="s8">6. 训练进度快照（2026-10-22 18:05，来自 slurm 和 run log）</h2>
-<table>
-<thead>
-<tr>
-<th>run</th>
-<th style="text-align:right">job</th>
-<th style="text-align:right">节点</th>
-<th style="text-align:right">iteration / 总步数</th>
-<th style="text-align:right">进度</th>
-<th>备注</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>BASE q5</td>
-<td style="text-align:right">1158003</td>
-<td style="text-align:right">64</td>
-<td style="text-align:right">111,690 / 175,497</td>
-<td style="text-align:right">64 %</td>
-<td>唯一在跑的 q5；上一段 1158002 在 16:51（108,600 步）结束，这一段接着跑</td>
-</tr>
-<tr>
-<td>KD 0.7 q3</td>
-<td style="text-align:right">1174573</td>
-<td style="text-align:right">16</td>
-<td style="text-align:right">60,850 / 65,165</td>
-<td style="text-align:right">93 %</td>
-<td></td>
-</tr>
-<tr>
-<td>KD 0.8 q3</td>
-<td style="text-align:right">1174582</td>
-<td style="text-align:right">16</td>
-<td style="text-align:right">59,060 / 65,165</td>
-<td style="text-align:right">91 %</td>
-<td></td>
-</tr>
-<tr>
-<td>KD 0.9 q3</td>
-<td style="text-align:right">1174590</td>
-<td style="text-align:right">16</td>
-<td style="text-align:right">54,830 / 65,165</td>
-<td style="text-align:right">84 %</td>
-<td></td>
-</tr>
-<tr>
-<td>TODO 2 S64Y / S128 / DD64 q1</td>
-<td style="text-align:right">1176347 / 1176349 / 1176351</td>
-<td style="text-align:right">8</td>
-<td style="text-align:right">13,920 / 11,950 / 12,830</td>
-<td style="text-align:right">95 / 81 / 87 %</td>
-<td></td>
-</tr>
-<tr>
-<td>TODO 2 B128 q1</td>
-<td style="text-align:right">1176348</td>
-<td style="text-align:right">8</td>
-<td style="text-align:right">12,520 / 14,685</td>
-<td style="text-align:right">⚠️</td>
-<td>17:59 NCCL timeout 挂掉，没有续跑段</td>
-</tr>
-<tr>
-<td>TODO 2 B64Y / S64 / S64Y q2</td>
-<td style="text-align:right">1176352–1176357</td>
-<td style="text-align:right">16</td>
-<td style="text-align:right">28,000–28,560 / 33,906</td>
-<td style="text-align:right">83–84 %</td>
-<td></td>
-</tr>
-<tr>
-<td>TODO 2 B128 / S128 / DD64 q2</td>
-<td style="text-align:right">1176360–1176364</td>
-<td style="text-align:right">16</td>
-<td style="text-align:right">25,270–26,070 / 33,906</td>
-<td style="text-align:right">75–77 %</td>
-<td></td>
-</tr>
-<tr>
-<td>KD 0.7 / 0.8 / 0.9 q2</td>
-<td style="text-align:right">1175522 / 1175527 / 1175533</td>
-<td style="text-align:right">16</td>
-<td style="text-align:right">33,906 / 33,906</td>
-<td style="text-align:right">✅</td>
-<td>12:47 / 13:02 / 16:50 完成，还没归档</td>
-</tr>
-<tr>
-<td>TODO 2 B64Y / S64 q1</td>
-<td style="text-align:right">1176343 / 1176345</td>
-<td style="text-align:right">8</td>
-<td style="text-align:right">14,685 / 14,685</td>
-<td style="text-align:right">✅</td>
-<td>09:22 / 09:52 完成，还没归档</td>
-</tr>
-<tr>
-<td>Muon q4 / MuonH q4</td>
-<td style="text-align:right">—</td>
-<td style="text-align:right">32</td>
-<td style="text-align:right">54,600 / 45,600</td>
-<td style="text-align:right">⏸</td>
-<td>14:3x 用户决定全部 q4 暂停</td>
-</tr>
-<tr>
-<td>KD 0.7 / 0.8 / 0.9 q4</td>
-<td style="text-align:right">—</td>
-<td style="text-align:right">32</td>
-<td style="text-align:right">50,400 / 35,400 / 25,200</td>
-<td style="text-align:right">⏸</td>
-<td>同上</td>
-</tr>
-<tr>
-<td>Muon q5 / MuonH q5</td>
-<td style="text-align:right">—</td>
-<td style="text-align:right">64</td>
-<td style="text-align:right">24,000 / 19,200</td>
-<td style="text-align:right">⏸</td>
-<td>10-22 00:40 暂停</td>
-</tr>
-<tr>
-<td>KD 0.7 / 0.8 / 0.9 q5</td>
-<td style="text-align:right">—</td>
-<td style="text-align:right">64</td>
-<td style="text-align:right">19,200 / 23,200 / 14,400</td>
-<td style="text-align:right">⏸</td>
-<td>11:30 Boxiang 停掉</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="s9">7. 已知问题 / 运营状态</h2>
+<h2 id="s8">7. 已知问题 / 运营状态</h2>
 <ul>
 <li><strong>Boxiang 的 run 都没有用我们合进去的评测设置</strong>（10-22 18:30 核对，148 个 run 的 argv）：没有一个打开 <code>VAL_PER_SPLIT=1</code>（9 个 decon suite 按 split 算，含 private_internal，输出 dpl 的 tw / macro / overall），也没有用 <code>EVAL_AT_ITERS</code> / <code>EVAL_TPP_STEP</code>。
 他用的是自己的协议：6 个合并验证集（val_v2 不拆 cc / python / arxiv，没有 private_internal），in-loop eval 固定每 3500 步一次，事后再补 doc-isolated eval。所以本报告的数和 dpl 的指标不能直接对比。</li>
@@ -1611,7 +1483,7 @@ Boxiang 的分析见 <code>reports/muonh_vs_muon_qwen3_2026-10-22.md</code>；�
 <li><strong>Boxiang 新增的报告</strong>：<code>reports/</code> 下新加了两份，一份分析 MuonH 为什么慢、怎么提速（timer、micro-benchmark、A/B/C 方案，f3f8185），一份是 SWA 混合注意力 arm 的设计评审（只做了调研，没有启动，85374fe）。</li>
 </ul>
 <hr />
-<h2 id="s10">8. 更新记录</h2>
+<h2 id="s9">8. 更新记录</h2>
 <table>
 <thead>
 <tr>

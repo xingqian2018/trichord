@@ -1,6 +1,6 @@
 # Qwen3-MoE scaling ladder — 评测结果（doc-isolated，含 private_internal）
 
-_生成时间 2026-10-23 15:27，由 `reports_xx/gen_eval_md.py` 从 `trichord/dense_pretrain_result/*.json` 生成，不要手改。_
+_生成时间 2026-10-23 15:43，由 `reports_xx/gen_eval_md.py` 从 `trichord/dense_pretrain_result/*.json` 生成，不要手改。_
 
 ## 1. 说明
 
@@ -40,6 +40,12 @@ _生成时间 2026-10-23 15:27，由 `reports_xx/gen_eval_md.py` 从 `trichord/d
 | q3 | MuonH | KD | 0.8 | 1.2919 | 1.5421 | 1.0750 | 2.3661 | 1.8402 | 1.8114 | 1.8004 | 1.5595 | 1.6545 |
 | q3 | MuonH | KD | 0.9 | 1.2926 | 1.5411 | 1.0749 | 2.3688 | 1.8413 | 1.8137 | 1.8021 | 1.5598 | 1.6554 |
 | q4 | AdamW | CE | — | 1.2818 | 1.5284 | 1.0675 | 2.3398 | 1.8144 | 1.7966 | 1.7794 | 1.5462 | 1.6381 |
+| q5 | AdamW | CE | — | · | · | · | · | · | · | · | · | · |
+| q5 | Muon | CE | — | · | · | · | · | · | · | · | · | · |
+| q5 | MuonH | CE | — | · | · | · | · | · | · | · | · | · |
+| q5 | MuonH | KD | 0.7 | · | · | · | · | · | · | · | · | · |
+| q5 | MuonH | KD | 0.8 | · | · | · | · | · | · | · | · | · |
+| q5 | MuonH | KD | 0.9 | · | · | · | · | · | · | · | · | · |
 
 ## 3. KD − CE（相对 OPT_MUONH，负数 = KD 更好）
 
@@ -67,5 +73,6 @@ _生成时间 2026-10-23 15:27，由 `reports_xx/gen_eval_md.py` 从 `trichord/d
 | q2 | 24 × 1024 | 356M | 4.06B | 71.1B |
 | q3 | 30 × 1280 | 683M | 7.71B | 136.6B |
 | q4 | 36 × 1536 | 1.17B | 13.1B | 233.6B |
+| q5 | 42 × 1792 | 1.84B | 20.6B | 368.0B |
 
 MoE，每层 128 个 expert、每个 token 激活 8 个。

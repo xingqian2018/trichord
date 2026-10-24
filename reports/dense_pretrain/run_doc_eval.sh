@@ -6,7 +6,7 @@
 # his dir is read-only for us and the first attempt died on writing there). Build it once before the first launch:
 #   find <his cache> -maxdepth 1 -type f -print0 | xargs -0 -n 5000 ln -s -t $WORK_DIR/data_cache/corpus_v2
 #
-#   bash reports_xx/run_doc_eval.sh [--dry] [--after JOBID] [CHANGE/rung ...]   (default: every checkpoint in CKPTS below)
+#   bash reports_xx/run_doc_eval.sh [--dry] [--after JOBID] [CHANGE/rung[=run:<run name>] ...]   (default: every checkpoint in CKPTS below)
 #
 # Jobs run as a QUEUE, one node at a time: each job depends on the previous one (afterany); --after chains the first one too.
 #
@@ -31,7 +31,7 @@ declare -A CKPTS=(
   [KD_MUONH_A0P9/q0]=p [KD_MUONH_A0P9/q1]=p [KD_MUONH_A0P9/q2]=p [KD_MUONH_A0P9/q3]=p
 )
 # ~2x the pooled doc-eval times of Boxiang's runs (q0 1.1 h, q1-q2 1.7 h, q3 2.1 h, q4 2.7 h): splitting adds no tokens, private_internal adds ~3.2M
-declare -A LIMIT=([q0]=02:30:00 [q1]=03:30:00 [q2]=03:30:00 [q3]=04:30:00 [q4]=05:30:00)
+declare -A LIMIT=([q0]=02:30:00 [q1]=03:30:00 [q2]=03:30:00 [q3]=04:30:00 [q4]=05:30:00 [q5]=08:00:00 [q6]=12:00:00)
 
 stage() {   # unpromoted final: <WORK_DIR>/stage/<CHANGE>/ckpts/<rung>/ with argv.txt, run.json, latest_checkpointed_iteration.txt, iter_*
     local change="$1" rung="$2" run="$3" dst="${WORK_DIR}/stage/$1/ckpts/$2" src="${RUNS}/$3"
@@ -46,7 +46,8 @@ stage() {   # unpromoted final: <WORK_DIR>/stage/<CHANGE>/ckpts/<rung>/ with arg
 mkdir -p "${WORK_DIR}/sbatch"
 keys=("$@"); if (( ${#keys[@]} == 0 )); then mapfile -t keys < <(printf '%s\n' "${!CKPTS[@]}" | sort); fi
 for key in "${keys[@]}"; do
-    change="${key%/*}"; rung="${key#*/}"; src="${CKPTS[${key}]:-p}"   # any other CHANGE/rung: Boxiang's promoted dir
+    spec=""; if [[ "${key}" == *=* ]]; then spec="${key#*=}"; key="${key%%=*}"; fi   # CHANGE/rung=run:<run name>: a finished run not promoted yet
+    change="${key%/*}"; rung="${key#*/}"; src="${spec:-${CKPTS[${key}]:-p}}"   # any other CHANGE/rung: Boxiang's promoted dir
     if [[ "${src}" == p ]]; then ckpt="${PROMOTED}/${change}/ckpts/${rung}"; else ckpt="$(stage "${change}" "${rung}" "${src#run:}")"; fi
     [[ -f "${ckpt}/latest_checkpointed_iteration.txt" && -f "${ckpt}/argv.txt" ]] || { echo "ERROR: ${ckpt} is not a checkpoint dir" >&2; exit 1; }
     name="xxdoc-${change}-${rung}"

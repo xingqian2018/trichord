@@ -12,7 +12,7 @@ from datetime import datetime
 HERE = os.path.dirname(os.path.abspath(__file__))
 RES = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/Project/trichord/dense_pretrain_result"
 OUT = os.path.join(HERE, "qwen3_scaling_ladder_eval.md")
-RUNGS = ["q0", "q1", "q2", "q3", "q4"]
+RUNGS = ["q0", "q1", "q2", "q3", "q4", "q5"]
 # (Change ID, optimizer, loss type, alpha) - row order inside a rung
 ARMS = [("BASE", "AdamW", "CE", "—"), ("OPT_MUON", "Muon", "CE", "—"), ("OPT_MUONH", "MuonH", "CE", "—"),
         ("KD_MUONH_A0P7", "MuonH", "KD", "0.7"), ("KD_MUONH_A0P8", "MuonH", "KD", "0.8"), ("KD_MUONH_A0P9", "MuonH", "KD", "0.9")]
@@ -22,7 +22,8 @@ COLS = [("01_val_v2_overall_tw", "val_v2"), ("02_uncheatable_tw", "uncheatable")
         ("00_overall_tw", "overall_tw"), ("00_overall_macro", "overall_macro")]
 SIZES = {"q0": ("12 × 512", "48M", "0.63B", "0.20B", "9.6B"), "q1": ("18 × 768", "154M", "1.82B", "0.39B", "30.8B"),
          "q2": ("24 × 1024", "356M", "4.06B", "0.67B", "71.1B"), "q3": ("30 × 1280", "683M", "7.71B", "1.07B", "136.6B"),
-         "q4": ("36 × 1536", "1.17B", "13.1B", "1.64B", "233.6B")}
+         "q4": ("36 × 1536", "1.17B", "13.1B", "1.64B", "233.6B"),
+         "q5": ("42 × 1792", "1.84B", "20.6B", "2.39B", "368.0B")}
 
 
 def load():

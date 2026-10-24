@@ -51,7 +51,7 @@ T = {
   "lr_h": "MuonH 学习率测试：同一 MuonH、CE", "lr_note": "只改 MuonH 的峰值 LR（HyperP 规则给出的 LR × 0.5 / 0.7 / 1.4 / 2），其余相同；1× = 主线 MuonH（CE）。每个 rung 一条线；最低点就是这个 rung 上的最优 LR。",
   "lr_chart": "Δloss（该 LR − 1×），越低越好", "lr_table": "1× 的 loss，以及其他 LR 相对 1× 的差", "lr_x": "峰值 LR / HyperP 规则（对数坐标）",
   "find_v": "各种 KD loss（同一 α 0.8、MuonH）：采样 tail 的变体一直比 B64 好，但领先随规模缩小（overall_tw，q0 → q2：{sampled}）；bucket 类变体 ≈ 0（{bucket}）。",
-  "find_lr": "MuonH 学习率：最优倍数 {best}（括号内 = 相对 1× 的差）；HyperP 规则给出的 LR 接近最优。",
+  "find_lr": "MuonH 学习率（tsqw，抛物线拟合的最优倍数 m*，* = 落在扫描边界）：{best}。",
   "vn_title": "命名：字母 = tail 的处理方式 · 数字 = top-k 的大小 · 末尾 Y = 是否把 y 单独精确算", "vn_head": ["部分", "含义"],
   "vn_rows": [["B", "Bucket：top-k 以外的 tail 合成一个整体，只要求 student 在 tail 上的总概率对"],
               ["S", "Sampled：tail 用 cache 里预存的 4 个采样 token 来估计，结果无偏"],
@@ -59,6 +59,15 @@ T = {
               ["DROP", "丢掉 tail：teacher 只在 top-k 内重新归一化（对照组）"],
               ["64 / 128", "精确计算的 top-k 有多少个 token"],
               ["Y", "y exact：当真实的下一个 token y 落在 top-k 以外时，把 y 从 tail 里拆出来单独精确算"]],
+  "lri_h": "固定训练 token（9.6B），只加深模型", "lri_note": "q1 / q2 / q3 都只训 4,577 步（= q0 的 9.6B token）；对照 = 同预算的 1× run（runlong 的 (L, T) 实验）。<b>注意</b>：token 固定意味着模型越大越欠训练（TPP：q1 62、q2 27、q3 14，主线是 200），而训练越短最优 LR 通常越大，所以这里“越深越适合大 LR”混着欠训练的影响，<b>不能单独归因于深度</b>。这些 loss 不能和上图主线（TPP 200）比较。",
+  "lri_chart": "Δloss（该 LR − 同预算 1×），越低越好",
+  "g_metric": "本节固定只看 <b>{m}</b>（token-sqrt-weighted：全部 7 个集合，即 val_v2、uncheatable、codefresh、v3small、private_internal、pile_test、<b>pile_10k</b>，各自的 token 加权 loss 再按 √token 数加权平均；权重约 uncheatable 31%、pile_test 23%、val_v2 15%、codefresh 13%、pile_10k 8%、private_internal 5%、v3small 5%，介于 tw 和 macro 之间，避免最长或最短的集合主导；和 overall_tw / macro 不同，pile_10k 也算在内），不随上方的指标切换。",
+  "g_h": "MuonH 学习率：每个格子找最优 LR（同一 MuonH、CE）", "g_note": "每个格子 = 一个固定的（模型大小，训练 token 数）。格子里按 HyperP 公式算出的 LR 的 0.5 / 0.7 / 1 / 1.2 / 1.4 / 2 倍各训一个模型，纵轴 = 相对该格 1× 的 loss 差（越低越好）；格子里的大数字 = 拟合出的最优倍数 <b>m*</b>（m* &gt; 1 表示公式算低了），下面是对应的绝对 LR <b>η*</b>（括号里是该格 1× 的 LR，即 HyperP 公式按层数和训练 token 数算出的 LR）和最优点比 1× 好多少；主线 TPP 200 的格子沿对角线排列；<b>鼠标移到格子上显示该格的 LR 测试曲线</b>（虚线 = 在 log(倍数) 上拟合的抛物线，橙线 = m*）。同一列看深度、q0 一行看训练量。<b>不同格子的训练量不同，只在格子内部比较。</b>空白 = 不在设计里。",
+  "g_cols": {"9.6": "9.6B token", "30": "~30B token", "71": "71.1B token", "86": "86.4B token", "137": "136.6B token"}, "g_layers": "层",
+  "g_kind": {"main": "主线 TPP {tpp}", "main_x": "主线 TPP {tpp}（不在 TODO 3 里）", "tpp": "{tok}，TPP {tpp}", "it": "{tok}，TPP {tpp}（IT4577）", "it2": "{tok}，TPP {tpp}"},
+  "g_pending": "待测", "g_fewpts": "点数不足", "g_edge": "（边界）", "g_npts": "{n} 个点",
+  "sd_h": "Seed 噪声：同一配置换 seed（doc-isolated）", "sd_note": "同一模型、同一 recipe，只换 seed（seed k 的数据顺序在不同 arm 之间相同，所以 Muon − AdamW 可以按 seed 配对）。<b>极差</b> = 三个 seed 最大减最小，<b>sd</b> = 标准差。用来判断其他小节里的差值是否超出噪声。",
+  "sd_pair": "Muon − AdamW（按 seed 配对）", "sd_range": "极差",
   "tab_doc": "doc-isolated（xingqian的评测）", "tab_packed": "packed（Boxiang 训练时验证）",
   "p_notes": ["数据来自 Boxiang 的 <code>results/&lt;Change ID&gt;/scores.json</code>：训练结束时自带的 <b>packed</b> 验证（文档首尾拼接、不加 attention mask），我们不重新测。",
               "只有他的 6 个合并验证集（val_v2 不拆 split，没有 private_internal）；“六集平均”= 这 6 个的简单平均（Boxiang 的定义）。",
@@ -105,7 +114,7 @@ T = {
   "lr_h": "MuonH learning-rate test: same MuonH, CE", "lr_note": "Only MuonH's peak LR changes (the HyperP law's LR × 0.5 / 0.7 / 1.4 / 2); everything else is identical; 1× = the main MuonH (CE) run. One line per rung; its lowest point is that rung's best LR.",
   "lr_chart": "Δloss (this LR − 1×), lower is better", "lr_table": "1× loss, and every other LR's difference from 1×", "lr_x": "peak LR / HyperP law (log scale)",
   "find_v": "KD loss variants (same α 0.8, MuonH): the sampled-tail variants beat B64 consistently, but the lead shrinks with scale (overall_tw, q0 → q2: {sampled}); the bucket variants are ≈ 0 ({bucket}).",
-  "find_lr": "MuonH learning rate: best multiple {best} (in parentheses: difference from 1×); the HyperP law's LR is close to optimal.",
+  "find_lr": "MuonH learning rate (tsqw, parabola-fitted best multiple m*, * = at the edge of the sweep): {best}.",
   "vn_title": "Naming: letters = tail treatment · number = top-k size · trailing Y = y computed exactly", "vn_head": ["Part", "Meaning"],
   "vn_rows": [["B", "Bucket: the tail outside the top-k is merged into one outcome; only the student's total tail mass has to match"],
               ["S", "Sampled: the tail is estimated from the 4 tokens pre-sampled in the cache (unbiased)"],
@@ -113,6 +122,15 @@ T = {
               ["DROP", "Tail dropped: the teacher is renormalised over the top-k only (control)"],
               ["64 / 128", "how many top-k tokens are computed exactly"],
               ["Y", "y exact: when the actual next token y falls outside the top-k, y is taken out of the tail and computed exactly"]],
+  "lri_h": "Fixed training tokens (9.6B), depth only", "lri_note": "q1 / q2 / q3 all trained 4,577 iterations (= q0's 9.6B tokens); reference = the 1× run of the same budget (Runlong's (L, T) design). <b>Caveat</b>: fixed tokens means the bigger the model, the more under-trained (TPP: q1 62, q2 27, q3 14 vs 200 on the main ladder), and shorter training usually favours a larger LR - so a larger best LR at depth here is confounded with under-training and <b>cannot be attributed to depth alone</b>. These losses are not comparable with the main TPP 200 runs above.",
+  "lri_chart": "Δloss (this LR − 1× of the same budget), lower is better",
+  "g_metric": "This section always uses <b>{m}</b> (token-sqrt-weighted: all 7 collections - val_v2, uncheatable, codefresh, v3small, private_internal, pile_test, <b>pile_10k</b> - each at its token-weighted loss, averaged with weights ∝ √(scored tokens); weights ≈ uncheatable 31 %, pile_test 23 %, val_v2 15 %, codefresh 13 %, pile_10k 8 %, private_internal 5 %, v3small 5 % - between tw and macro, so neither the longest nor the shortest collection dominates; unlike overall_tw / macro, pile_10k is included); it does not follow the metric toggle above.",
+  "g_h": "MuonH learning rate: the best LR in each cell (same MuonH, CE)", "g_note": "Each cell = one fixed (model size, training tokens). In a cell, one model per 0.5 / 0.7 / 1 / 1.2 / 1.4 / 2 × the HyperP-law LR; y = loss difference to the cell's 1× (lower is better); the big number = the fitted best multiple <b>m*</b> (m* &gt; 1 means the law is too low), below it the absolute LR <b>η*</b> (in parentheses the cell's 1× LR, i.e. the HyperP-law LR for its depth and training tokens) and how much the optimum beats 1×; the main-ladder TPP 200 cells run along the diagonal; <b>hover a cell to see its LR sweep curve</b> (dashed = parabola in log(multiple), orange = m*). Read a column for depth, the q0 row for training length. <b>Cells have different budgets: compare only within a cell.</b> Blank = not in the design.",
+  "g_cols": {"9.6": "9.6B tokens", "30": "~30B tokens", "71": "71.1B tokens", "86": "86.4B tokens", "137": "136.6B tokens"}, "g_layers": "layers",
+  "g_kind": {"main": "main ladder, TPP {tpp}", "main_x": "main ladder, TPP {tpp} (not in TODO 3)", "tpp": "{tok}, TPP {tpp}", "it": "{tok}, TPP {tpp} (IT4577)", "it2": "{tok}, TPP {tpp}"},
+  "g_pending": "pending", "g_fewpts": "too few points", "g_edge": "(edge)", "g_npts": "{n} points",
+  "sd_h": "Seed noise: the same configuration with different seeds (doc-isolated)", "sd_note": "Same model and recipe, only the seed changes (seed k has the same data order across arms, so Muon − AdamW is paired by seed). <b>Range</b> = max − min over the three seeds, <b>sd</b> = standard deviation. Use it to judge whether the differences in the other sections exceed the noise.",
+  "sd_pair": "Muon − AdamW (paired by seed)", "sd_range": "range",
   "tab_doc": "doc-isolated (xingqian's eval)", "tab_packed": "packed (Boxiang's training-time validation)",
   "p_notes": ["From Boxiang's <code>results/&lt;Change ID&gt;/scores.json</code>: the <b>packed</b> final validation of each training run (documents concatenated, no attention mask); we do not re-measure it.",
               "Only his 6 pooled sets (val_v2 not split, no private_internal); “mean of 6” = the simple mean of those 6 (his definition).",
@@ -183,6 +201,7 @@ td.neg{color:var(--good)}
 .hit{fill:transparent;cursor:default}
 .toggle{position:sticky;top:38px;z-index:1;margin:22px 0 0;display:flex;gap:6px}.toggle button{font:inherit;font-size:13px;padding:4px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-secondary);cursor:pointer}.toggle button.on{background:var(--text-primary);color:var(--surface-1)}
 .ct{font-weight:600;font-size:13px;margin-bottom:2px}
+.lrgrid{display:table;border-collapse:separate;border-spacing:6px}.lrgrid td,.lrgrid th{border:none;white-space:normal;vertical-align:top}.lrgrid thead th{text-align:center;font-size:13px}.lrgrid th.grow{text-align:left;font-size:14px;color:var(--text-primary);padding-top:30px}.lrgrid th.grow span{font-size:11px;color:var(--muted);font-weight:400}.lrgrid td.gc{width:180px;height:112px;position:relative;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:default}.lrgrid td.gc:hover{border-color:var(--s1)}.mbig{font-size:26px;font-weight:600;margin:4px 0 0}.mbig small{font-size:11px;font-weight:400;color:var(--muted)}.mbig.muted{color:var(--muted)}.msub{font-size:11px;color:var(--muted)}.mlr{font-size:12px;margin:1px 0}.mlr span{color:var(--muted);font-size:11px}.pend{flex-direction:column}.pend span{font-size:11px}.lrgrid .pop{display:none;position:absolute;left:50%;top:100%;transform:translateX(-50%);z-index:5;width:300px;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px}.lrgrid td.gc:hover .pop{display:block}.lrgrid td.gc:hover{z-index:20}.lrgrid td.gc.up .pop{top:auto;bottom:100%}.lrgrid td.gx{width:180px;height:112px;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--grid) 6px 7px);border-radius:8px;opacity:.6}.glab{font-size:11px;color:var(--text-secondary)}.mstar{font-size:12.5px;margin:2px 0}.mstar span{float:right;color:var(--muted);font-size:11px}.mstar.muted,.pend{color:var(--muted);font-size:12px}.pend{height:80px;display:flex;align-items:center;justify-content:center}
 nav .tab{font:inherit;font-size:13px;padding:5px 14px;margin-right:6px;border-radius:999px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-secondary);cursor:pointer}nav .tab.on{background:var(--text-primary);color:var(--surface-1)}
 """
 JS = """
@@ -364,7 +383,9 @@ VBASE = "KD_MUONH_A0P8"      # TODO 2 baseline B64 = top-64 + one tail bucket; e
 VARIANTS = [("KD_MUONH_A0P8_S64Y", "S64Y"), ("KD_MUONH_A0P8_S64", "S64"), ("KD_MUONH_A0P8_S128", "S128"), ("KD_MUONH_A0P8_B64Y", "B64Y"),
             ("KD_MUONH_A0P8_B128", "B128"), ("KD_MUONH_A0P8_DD64", "DD64"), ("KD_MUONH_A0P8_DROP64", "DROP64")]
 VRUNGS = ["q0", "q1", "q2"]
-LRS = [("MUONH_LR0P5X", 0.5), ("MUONH_LR0P7X", 0.7), (None, 1.0), ("MUONH_LR1P4X", 1.4), ("MUONH_LR2X", 2.0)]   # None = OPT_MUONH (the HyperP law, 1x)
+LRS = [("MUONH_LR0P5X", 0.5), ("MUONH_LR0P7X", 0.7), (None, 1.0), ("MUONH_LR1P2X", 1.2), ("MUONH_LR1P4X", 1.4), ("MUONH_LR2X", 2.0)]   # None = OPT_MUONH (the HyperP law, 1x)
+LRS_IT = [("MUONH_LR0P5X_IT4577", 0.5), ("MUONH_LR0P7X_IT4577", 0.7), (None, 1.0), ("MUONH_LR1P2X_IT4577", 1.2), ("MUONH_LR1P4X_IT4577", 1.4), ("MUONH_LR2X_IT4577", 2.0)]
+BASE_IT = "MUONH_LR1X_IT4577"   # fixed-T cell: every rung trained 4,577 iterations (9.6B tokens); None above = this 1x run
 LRCOL = {"q0": "#86b6ef", "q1": "#3987e5", "q2": "#1c5cab", "q3": "#104281"}
 VCOL = {"q0": "#86b6ef", "q1": "#3987e5", "q2": "#1c5cab"}   # ordinal blue ramp (reference palette steps 250 / 400 / 550)
 
@@ -375,7 +396,11 @@ FINAL_RE = re.compile(r"validation-(\S+) loss at iteration (\d+) on validation s
 
 def log_final(change, q):
     """Packed final validation of a run from its training logs (the post-training pass at the highest iteration)."""
-    run = "qwen3_tpp200_" + change.lower().replace("kd_muonh_", "muonh_kd_") + f"-{q}-tpp200-s1"
+    mb = re.match(r"^(.*)_(IT|TPP)(\d+)$", change)
+    if mb:                                            # MUONH_LR1X_IT4577 -> ..._lr1x-q1-iters4577-s1; MUONH_LR1X_TPP600 -> ..._lr1x-q0-tpp600-s1
+        run = "qwen3_tpp200_" + mb.group(1).lower() + f"-{q}-" + ("iters" if mb.group(2) == "IT" else "tpp") + mb.group(3) + "-s1"
+    else:
+        run = "qwen3_tpp200_" + change.lower().replace("kd_muonh_", "muonh_kd_") + f"-{q}-tpp200-s1"
     vals, it = {}, -1
     for f in sorted(glob.glob(os.path.join(RUNS, run, "logs", "*.log"))):
         try:
@@ -394,14 +419,17 @@ def log_final(change, q):
 def load_packed():
     """Boxiang's packed final validation (scores.json, his 6 pooled sets) in the same {key: {loss}} shape; mean6 = his six-set mean."""
     R = {}
-    for ch in [a[0] for a in ARMS] + [v[0] for v in VARIANTS] + [c for c, _ in LRS if c]:
+    for ch in [a[0] for a in ARMS] + [v[0] for v in VARIANTS] + [c for c, _ in LRS if c] + [c for c, _ in LRS_IT if c] + [BASE_IT] + sorted({cell_change(sfx, tag) for sfx, *_ in GRID_CELLS.values() for _, tag in MULTS}):
         p = os.path.join(PACKED_ROOT, ch, "scores.json")
-        if not os.path.isfile(p):
-            continue
         try:
             rungs = json.load(open(p)).get("rungs", {})
-        except (OSError, ValueError):                   # the TODO 2 variants' scores.json are mode 600 (Boxiang only): read his run logs
-            rungs = {q: {"val": log_final(ch, q)} for q in RUNGS}
+        except (OSError, ValueError):                   # missing, or mode 600 (Boxiang only)
+            rungs = {}
+        for q in RUNGS:                                 # rungs without a filed final: his run logs (finished but not promoted yet)
+            if not all(k in ((rungs.get(q) or {}).get("val") or {}) for k, _ in PSETS):
+                lf = log_final(ch, q)
+                if lf:
+                    rungs[q] = {"val": lf}
         for q, r in rungs.items():
             v = r.get("val") or {}
             if q in RUNGS and all(k in v for k, _ in PSETS):
@@ -458,7 +486,7 @@ def chart_sections(R, t, metrics):
             [(n, c, pts_of(ch, dv, n), False) for n, c, ch in opt],
             {q: x for q, x in xs_ce.items() if val(R, "OPT_MUON", q, mkey) is not None}, t["vs_adamw"], lambda v: f"{v:.3f}")
         kds = [(t["alpha"].format(a=a), f"--a{a.replace('.', '')}", ch) for a, ch in KD.items()]
-        gk = lambda q, ch: val(R, ch, q, mkey) - val(R, CE, q, mkey)
+        gk = lambda q, ch: (val(R, ch, q, mkey) - val(R, CE, q, mkey)) if val(R, CE, q, mkey) is not None else None
         k2 = legend([(n, c) for n, c, _ in kds]) + line_chart(
             [(n, c, pts_of(ch, gk, n), False) for n, c, ch in kds], {q: N_ACTIVE[q] for q in qs_kd}, "Δloss (KD − CE)", lambda v: f"{v:.3f}",
             labels=False)
@@ -564,13 +592,201 @@ def variant_section(R, t, metrics, cols):
 <div class="card"><div class="ct">{esc(t['v_table'])}</div>{variant_table(R, t, cols)}</div>"""
 
 
-def lr_chart(R, t, mkey, mname, w=760, h=340):
+# MuonH LR grid (Runlong.md TODO 3): the user's predefined table - rows = model, columns = training-token budget; each "cell" is one
+# (L, T) point where the best LR multiple m* is found from a 5-point sweep (x0.7 / 1 / 1.2 / 1.4 / 2, + x0.5 where run).
+GRID_ROWS = [("q0", 12), ("q1", 18), ("q2", 24), ("q3", 30)]
+GRID_COLS = ["9.6", "30", "71", "86", "137"]
+MULTS = [(0.5, "0P5X"), (0.7, "0P7X"), (1.0, "1X"), (1.2, "1P2X"), (1.4, "1P4X"), (2.0, "2X")]
+# (rung, column) -> (Change-ID suffix, token label, TPP, label key); suffix "" = the main ladder (1x = OPT_MUONH)
+GRID_CELLS = {
+    ("q0", "9.6"): ("", "9.6B", 200, "main"), ("q0", "30"): ("_TPP600", "28.8B", 600, "tpp"), ("q0", "86"): ("_TPP1800", "86.4B", 1800, "tpp"),
+    ("q3", "137"): ("", "136.6B", 200, "main_x"),
+    ("q1", "9.6"): ("_IT4577", "9.6B", 62, "it"), ("q1", "30"): ("", "30.8B", 200, "main"),
+    ("q2", "9.6"): ("_IT4577", "9.6B", 27, "it"), ("q2", "30"): ("_IT14685", "30.8B", 87, "it2"), ("q2", "71"): ("", "71.1B", 200, "main"),
+    ("q3", "9.6"): ("_IT4577", "9.6B", 14, "it"), ("q3", "30"): ("_IT14685", "30.8B", 45, "it2"),
+}
+
+
+GRID_ITERS = {("q0", "9.6"): 4577, ("q0", "30"): 13730, ("q0", "86"): 41189, ("q1", "9.6"): 4577, ("q1", "30"): 14685,
+              ("q2", "9.6"): 4577, ("q2", "30"): 14685, ("q2", "71"): 33906, ("q3", "9.6"): 4577, ("q3", "30"): 14685, ("q3", "137"): 65165}
+
+
+def law_lr(L, iters):
+    """HyperP law: eta0 0.016 x sqrt(8 / L) x (T / 1.04e10)^-0.32, T = iters x 2^21 tokens (= the cell's 1x LR; matches every run's --lr)."""
+    return 0.016 * math.sqrt(8 / L) * (iters * 2 ** 21 / 1.04e10) ** -0.32
+
+
+def cell_change(suffix, tag):
+    if suffix == "" and tag == "1X":
+        return CE
+    return f"MUONH_LR{tag}{suffix}"
+
+
+def cell_points(R, rung, suffix, mkey):
+    """[(multiple, loss - loss(1x of this cell))] for the multiples that have a result; [] if the cell's 1x is missing."""
+    b = val(R, cell_change(suffix, "1X"), rung, mkey)
+    if b is None:
+        return []
+    return [(m, val(R, cell_change(suffix, tag), rung, mkey) - b) for m, tag in MULTS if val(R, cell_change(suffix, tag), rung, mkey) is not None]
+
+
+def fit_mstar(pts):
+    """Parabola in log(multiple) through the points (>= 3, with points on both sides of the minimum): (m*, loss at m* - loss at 1x, edge flag)."""
+    if len(pts) < 3:
+        return None
+    xs = [math.log(m) for m, _ in pts]; ys = [y for _, y in pts]
+    n = len(xs); sx = [sum(x ** k for x in xs) for k in range(5)]; sxy = [sum(y * x ** k for x, y in zip(xs, ys)) for k in range(3)]
+    A = [[sx[4], sx[3], sx[2]], [sx[3], sx[2], sx[1]], [sx[2], sx[1], n]]; bvec = [sxy[2], sxy[1], sxy[0]]
+    def det(M): return (M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1]) - M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0]) + M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]))
+    D = det(A)
+    if abs(D) < 1e-18:
+        return None
+    coef = []
+    for i in range(3):
+        Mi = [row[:] for row in A]
+        for r in range(3):
+            Mi[r][i] = bvec[r]
+        coef.append(det(Mi) / D)
+    a, b, c = coef
+    if a <= 0:
+        return None
+    x0 = -b / (2 * a)
+    edge = not (min(xs) < x0 < max(xs))
+    x0c = min(max(x0, min(xs)), max(xs))
+    return math.exp(x0c), a * x0c * x0c + b * x0c + c, edge
+
+
+def mini_lr(R, t, rung, suffix, mkey, mname, w=250, h=150, lr1=None):
+    pts = cell_points(R, rung, suffix, mkey)
+    if len(pts) <= 1:                                   # nothing beyond the cell's own 1x yet
+        return f'<div class="pend">{esc(t["g_pending"])}' + (f'<span>1× = {lr1:.4f}</span>' if lr1 else "") + '</div>'
+    w, h = 300, 190
+    ml, mr, mt, mb = 40, 8, 8, 30
+    lx0, lx1 = math.log(0.45), math.log(2.2)
+    fit = fit_mstar(pts)
+    ys = [y for _, y in pts] + [0.0]
+    if fit:
+        ys.append(fit[1])
+    lo, hi = min(ys), max(ys); pad = (hi - lo) * 0.12 or 0.005; lo, hi = lo - pad, hi + pad
+    X = lambda m: ml + (math.log(m) - lx0) / (lx1 - lx0) * (w - ml - mr)
+    Y = lambda y: mt + (hi - y) / (hi - lo) * (h - mt - mb)
+    o = [f'<svg viewBox="0 0 {w} {h}" width="100%" role="img">']
+    for v in (lo + (hi - lo) * k / 3 for k in range(4)):
+        o.append(f'<line x1="{ml}" x2="{w-mr}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" stroke="var(--grid)"/><text x="{ml-4}" y="{Y(v)+3:.1f}" text-anchor="end" style="font-size:9px">{v:+.3f}</text>')
+    o.append(f'<line x1="{ml}" x2="{w-mr}" y1="{Y(0):.1f}" y2="{Y(0):.1f}" stroke="var(--axis)"/>')
+    for m, _ in MULTS:
+        o.append(f'<text x="{X(m):.1f}" y="{h-14}" text-anchor="middle" style="font-size:9px">{m:g}×</text>')
+        if lr1:
+            o.append(f'<text x="{X(m):.1f}" y="{h-3}" text-anchor="middle" style="font-size:8px;fill:var(--muted)">{m * lr1:.4f}</text>')
+    if fit:                                               # fitted parabola + m* marker
+        xs = [math.log(m) for m, _ in pts]
+        a_lo, a_hi = min(xs), max(xs)
+        curve = []
+        for k in range(41):
+            x = a_lo + (a_hi - a_lo) * k / 40
+            pts_x = [(math.log(m), y) for m, y in pts]
+        # re-evaluate the parabola from three fitted values: refit coefficients locally
+        n = len(xs); sx = [sum(x ** k for x in xs) for k in range(5)]; sxy = [sum(y * math.log(m) ** k for m, y in pts) for k in range(3)]
+        A = [[sx[4], sx[3], sx[2]], [sx[3], sx[2], sx[1]], [sx[2], sx[1], n]]
+        import itertools
+        def solve(A, b):
+            M = [A[i][:] + [b[i]] for i in range(3)]
+            for i in range(3):
+                piv = max(range(i, 3), key=lambda r: abs(M[r][i])); M[i], M[piv] = M[piv], M[i]
+                for r in range(3):
+                    if r != i:
+                        f = M[r][i] / M[i][i]
+                        M[r] = [x - f * y for x, y in zip(M[r], M[i])]
+            return [M[i][3] / M[i][i] for i in range(3)]
+        qa, qb, qc = solve(A, [sxy[2], sxy[1], sxy[0]])
+        d = " ".join(f"{'M' if k == 0 else 'L'}{X(math.exp(a_lo + (a_hi - a_lo) * k / 40)):.1f},{Y(qa * (a_lo + (a_hi - a_lo) * k / 40) ** 2 + qb * (a_lo + (a_hi - a_lo) * k / 40) + qc):.1f}" for k in range(41))
+        o.append(f'<path d="{d}" fill="none" stroke="var(--s1)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.8"/>')
+        mstar, ystar, edge = fit
+        o.append(f'<line x1="{X(mstar):.1f}" x2="{X(mstar):.1f}" y1="{mt}" y2="{h-mb}" stroke="var(--a08)" stroke-width="1.5"/>')
+    for m, y in pts:
+        tip = (f"{esc(rung)} · {m:g}× (η = {m * lr1:.5f})" if lr1 else f"{esc(rung)} · {m:g}×") + f"<br>{esc(mname)}: {y:+.4f} vs 1×"
+        o.append(f'<circle cx="{X(m):.1f}" cy="{Y(y):.1f}" r="3.5" fill="var(--s1)" stroke="var(--surface-1)" stroke-width="1.5"/>'
+                 f'<circle class="hit" cx="{X(m):.1f}" cy="{Y(y):.1f}" r="10" data-tip="{tip}"/>')
+    o.append("</svg>")
+    npts = t["g_npts"].format(n=len(pts))
+    if fit:
+        mstar, ystar, edge = fit
+        head = (f'<div class="mbig">{mstar:.2f}×{"<small> " + esc(t["g_edge"]) + "</small>" if edge else ""}</div>'
+                + (f'<div class="mlr">η* = <b>{mstar * lr1:.4f}</b> <span>(1× = {lr1:.4f})</span></div>' if lr1 else "")
+                + f'<div class="msub">{ystar:+.4f} vs 1× · {esc(npts)}</div>')
+    else:
+        head = (f'<div class="mbig muted">—</div>' + (f'<div class="mlr"><span>1× = {lr1:.4f}</span></div>' if lr1 else "")
+                + f'<div class="msub">{esc(t["g_fewpts"])} · {esc(npts)}</div>')
+    return head + '<div class="pop">' + "".join(o) + "</div>"
+
+
+SEED_ARMS = [("AdamW", ["BASE", "BASE_S2", "BASE_S3"]), ("Muon", ["OPT_MUON", "OPT_MUON_S2", "OPT_MUON_S3"])]
+SEED_METRICS = [("00_overall_tsqw", "tsqw"), ("01_val_v2_overall_tw", "val_v2"), ("00_overall_tw", "overall_tw")]
+
+
+def seed_section(R, t):
+    """Seed noise: the same model trained with seeds 1-3 (same data per seed index), and the Muon - AdamW difference paired by seed."""
+    rows = []
+    for q in RUNGS:
+        first = True
+        for arm, ids in SEED_ARMS:
+            if sum(R.get((c, q)) is not None for c in ids) < 2:
+                continue
+            cells = []
+            for k, _ in SEED_METRICS:
+                xs = [val(R, c, q, k) for c in ids]
+                got = [x for x in xs if x is not None]
+                sd = (sum((x - sum(got) / len(got)) ** 2 for x in got) / (len(got) - 1)) ** 0.5 if len(got) > 1 else None
+                cells.append(" / ".join(f"{x:.4f}" if x is not None else "·" for x in xs) + f'</td><td><b>{max(got) - min(got):.4f}</b></td><td>{sd:.4f}')
+            rows.append(f'<tr class="{"sep" if first else ""}"><td class="l">{q}</td><td class="l">{arm}</td><td>' + "</td><td>".join(cells) + "</td></tr>")
+            first = False
+        ds = {k: [val(R, a, q, k) - val(R, b, q, k) for a, b in zip(SEED_ARMS[1][1], SEED_ARMS[0][1])
+                  if val(R, a, q, k) is not None and val(R, b, q, k) is not None] for k, _ in SEED_METRICS}
+        if len(ds[SEED_METRICS[0][0]]) >= 2:
+            cells = []
+            for k, _ in SEED_METRICS:
+                d = ds[k]; sd = (sum((x - sum(d) / len(d)) ** 2 for x in d) / (len(d) - 1)) ** 0.5
+                cells.append(" / ".join(f"{'−' if x < 0 else '+'}{abs(x):.4f}" for x in d) + f'</td><td><b>{max(d) - min(d):.4f}</b></td><td>{sd:.4f}')
+            rows.append(f'<tr class="kd"><td class="l">{q}</td><td class="l">{esc(t["sd_pair"])}</td><td>' + "</td><td>".join(cells) + "</td></tr>")
+    if not rows:
+        return ""
+    head = (f'<tr><th class="l">rung</th><th class="l"></th>' + "".join(f'<th>{esc(n)}: s1 / s2 / s3</th><th>{esc(t["sd_range"])}</th><th>sd</th>' for _, n in SEED_METRICS) + "</tr>")
+    return f"""<h2>{esc(t['sd_h'])}</h2><p class="note">{t['sd_note']}</p>
+<div class="card"><table><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table></div>"""
+
+
+def grid_section(R, t, metrics):
+    def table(mkey, mname):
+        head = '<tr><th></th>' + "".join(f'<th>{esc(t["g_cols"][c])}</th>' for c in GRID_COLS) + "</tr>"
+        rows = []
+        for rung, L in GRID_ROWS:
+            cells = []
+            for c in GRID_COLS:
+                spec = GRID_CELLS.get((rung, c))
+                if spec is None:
+                    cells.append('<td class="gx"></td>')
+                    continue
+                suffix, tok, tpp, kind = spec
+                lab = t["g_kind"][kind].format(tok=tok, tpp=tpp)
+                lr1 = law_lr(L, GRID_ITERS[(rung, c)])
+                up = " up" if rung in (GRID_ROWS[-1][0], GRID_ROWS[-2][0]) else ""   # bottom rows: pop the curve upward
+                cells.append(f'<td class="gc{up}"><div class="glab">{esc(lab)}</div>{mini_lr(R, t, rung, suffix, mkey, mname, lr1=lr1)}</td>')
+            rows.append(f'<tr><th class="grow">{rung}<br><span>{L} {esc(t["g_layers"])} · {N_LABEL[rung]}</span></th>{"".join(cells)}</tr>')
+        return f'<table class="lrgrid"><thead>{head}</thead><tbody>{"".join(rows)}</tbody></table>'
+    m, n = metrics                                        # ONE fixed metric for this section (not tied to the toggle above)
+    return f"""<h2>{esc(t['g_h'])}</h2><p class="note">{t['g_metric'].format(m=esc(n))} {t['g_note']}</p>
+<div class="card" style="overflow:visible">{table(m, n)}</div>"""
+
+
+
+def lr_chart(R, t, mkey, mname, w=760, h=340, lrs=None, base=None):
     """x = LR multiple of the HyperP law (log), y = loss - loss(1x), one line per rung (ordinal blue)."""
-    ch_of = lambda c: c or CE
-    qs = [q for q in RUNGS if val(R, CE, q, mkey) is not None and sum(val(R, ch_of(c), q, mkey) is not None for c, _ in LRS) >= 3]
+    LRS_, B = lrs or LRS, base or CE
+    ch_of = lambda c: c or B
+    qs = [q for q in RUNGS if val(R, B, q, mkey) is not None and sum(val(R, ch_of(c), q, mkey) is not None for c, _ in LRS_) >= 3]
     if not qs:
         return f'<p class="note">{esc(t["pending"])}</p>'
-    pts = {q: [(m, val(R, ch_of(c), q, mkey) - val(R, CE, q, mkey)) for c, m in LRS if val(R, ch_of(c), q, mkey) is not None] for q in qs}
+    pts = {q: [(m, val(R, ch_of(c), q, mkey) - val(R, B, q, mkey)) for c, m in LRS_ if val(R, ch_of(c), q, mkey) is not None] for q in qs}
     ys = [y for v in pts.values() for _, y in v] + [0.0]
     lo, hi = min(ys), max(ys)
     pad = (hi - lo) * 0.08 or 0.01
@@ -583,7 +799,7 @@ def lr_chart(R, t, mkey, mname, w=760, h=340):
         v = lo + (hi - lo) * i / 4
         o.append(f'<line x1="{ml}" x2="{w-mr}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" stroke="var(--grid)"/><text x="{ml-6}" y="{Y(v)+4:.1f}" text-anchor="end">{v:+.3f}</text>')
     o.append(f'<line x1="{ml}" x2="{w-mr}" y1="{Y(0):.1f}" y2="{Y(0):.1f}" stroke="var(--axis)" stroke-width="1.5"/>')
-    for _, m in LRS:
+    for _, m in LRS_:
         o.append(f'<text x="{X(m):.1f}" y="{h-mb+18}" text-anchor="middle">{m:g}×</text>')
     o.append(f'<text x="{(ml+w-mr)/2:.0f}" y="{h-6}" text-anchor="middle" style="fill:var(--muted)">{esc(t["lr_x"])}</text>')
     o.append(f'<text x="14" y="{(h-mb+mt)/2:.0f}" transform="rotate(-90 14 {(h-mb+mt)/2:.0f})" text-anchor="middle">Δloss (LR − 1×)</text>')
@@ -592,9 +808,9 @@ def lr_chart(R, t, mkey, mname, w=760, h=340):
         o.append(f'<path d="{d}" fill="none" stroke="{LRCOL[q]}" stroke-width="2"/>')
         for m, y in pts[q]:
             o.append(f'<circle cx="{X(m):.1f}" cy="{Y(y):.1f}" r="4" fill="{LRCOL[q]}" stroke="var(--surface-1)" stroke-width="2"/>')
-    for i, (_, m) in enumerate(LRS):                    # hover band per LR: every rung at that LR, largest on top
-        a = (X(m) + X(LRS[i-1][1])) / 2 if i else ml
-        b = (X(m) + X(LRS[i+1][1])) / 2 if i + 1 < len(LRS) else w - mr
+    for i, (_, m) in enumerate(LRS_):                    # hover band per LR: every rung at that LR, largest on top
+        a = (X(m) + X(LRS_[i-1][1])) / 2 if i else ml
+        b = (X(m) + X(LRS_[i+1][1])) / 2 if i + 1 < len(LRS_) else w - mr
         rows = sorted(((q, y) for q in qs for mm, y in pts[q] if mm == m), key=lambda r: r[1], reverse=True)
         if rows:
             tip = f"<b>{m:g}× · {esc(mname)}</b>" + "".join(f'<br><span style="color:{LRCOL[q]}">●</span> {q} ({N_LABEL[q]}): {y:+.4f}' for q, y in rows)
@@ -603,16 +819,17 @@ def lr_chart(R, t, mkey, mname, w=760, h=340):
     return '<div class="legend">' + "".join(f'<span><i style="background:{LRCOL[q]}"></i>{q} · {N_LABEL[q]}</span>' for q in qs) + "</div>" + "".join(o)
 
 
-def lr_table(R, t, cols):
+def lr_table(R, t, cols, lrs=None, base=None):
+    LRS_, B = lrs or LRS, base or CE
     head = '<th class="l">LR</th><th class="l">rung</th>' + "".join(f"<th>{esc(n)}</th>" for _, n in cols)
     rows = []
     for q in RUNGS:
-        b = R.get((CE, q))
-        if b is None or not any(R.get((c, q)) for c, _ in LRS if c):
+        b = R.get((B, q))
+        if b is None or not any(R.get((c, q)) for c, _ in LRS_ if c):
             continue
         first = True
-        for c, m in LRS:
-            r = R.get((c or CE, q))
+        for c, m in LRS_:
+            r = R.get((c or B, q))
             if r is None:
                 continue
             if c is None:
@@ -627,9 +844,13 @@ def lr_table(R, t, cols):
 
 def lr_section(R, t, metrics, cols):
     blocks = "".join(f'<div data-metric="{m}"{"" if j == 0 else " hidden"}>{lr_chart(R, t, m, n)}</div>' for j, (m, n) in enumerate(metrics))
+    it_blocks = "".join(f'<div data-metric="{m}"{"" if j == 0 else " hidden"}>{lr_chart(R, t, m, n, lrs=LRS_IT, base=BASE_IT)}</div>' for j, (m, n) in enumerate(metrics))
     return f"""<h2>{esc(t['lr_h'])}</h2><p class="note">{t['lr_note']}</p>
 <div class="card one"><div class="ct">{esc(t['lr_chart'])}</div>{blocks}</div>
-<div class="card"><div class="ct">{esc(t['lr_table'])}</div>{lr_table(R, t, cols)}</div>"""
+<div class="card"><div class="ct">{esc(t['lr_table'])}</div>{lr_table(R, t, cols)}</div>
+<h3>{esc(t['lri_h'])}</h3><p class="note">{t['lri_note']}</p>
+<div class="card one"><div class="ct">{esc(t['lri_chart'])}</div>{it_blocks}</div>
+<div class="card"><div class="ct">{esc(t['lr_table'])}</div>{lr_table(R, t, cols, lrs=LRS_IT, base=BASE_IT)}</div>"""
 
 
 def build(lang, R, RP):
@@ -672,13 +893,12 @@ def build(lang, R, RP):
         finds.append(t["find_v"].format(sampled="；".join(f"{a} {b}" for a, b in sv if b) if lang == "zh" else "; ".join(f"{a} {b}" for a, b in sv if b),
                                          bucket="；".join(f"{a} {b}" for a, b in bk if b) if lang == "zh" else "; ".join(f"{a} {b}" for a, b in bk if b)))
     lr_best = []
-    for q in RUNGS:
-        cand = [(val(R, c or CE, q), m) for c, m in LRS if val(R, c or CE, q) is not None]
-        if len(cand) >= 3:
-            lb, mb = min(cand)
-            lr_best.append(f"{q}: {mb:g}× ({lb - val(R, CE, q):+.4f})")
+    for (rung, c), (suffix, tok, tpp, kind) in GRID_CELLS.items():
+        f = fit_mstar(cell_points(R, rung, suffix, "00_overall_tsqw"))
+        if f:
+            lr_best.append(f"{rung}@{tok}（TPP {tpp}）{f[0]:.2f}×{'*' if f[2] else ''}（η* {f[0] * law_lr(dict(GRID_ROWS)[rung], GRID_ITERS[(rung, c)]):.4f}）")
     if lr_best:
-        finds.append(t["find_lr"].format(best=", ".join(lr_best)))
+        finds.append(t["find_lr"].format(best="；".join(lr_best) if lang == "zh" else "; ".join(lr_best).replace("（", " (").replace("）", ")")))
     t1, _ = tables(R, t, COLS)
     pcols = [(key, n) for k, key in PSETS for kk, n in COLS if kk == key] + [("mean6", t["mean6"])]
     p1, p2 = tables(RP, t, pcols)
@@ -688,14 +908,12 @@ def build(lang, R, RP):
 {token_pie(t)}
 {chart_sections(R, t, METRICS)}
 {variant_section(R, t, METRICS, COLS)}
-{lr_section(R, t, METRICS, COLS)}
-<h2>{esc(t['c3_h'])}</h2><p class="note">{esc(t['c3_note'])}</p><div class="card" style="overflow-x:auto">{heatmap(R, t)}</div>
+{grid_section(R, t, ("00_overall_tsqw", "tsqw"))}
 <h2>{esc(t['t1_h'])}</h2><p class="note">{esc(t['pending'])}</p><div class="card">{t1}</div>
 <h2>{esc(t['notes_h'])}</h2><div class="card"><ul class="f">{''.join(f'<li>{n}</li>' for n in t['notes'])}</ul></div>"""
     packed = f"""<div class="card"><ul class="f">{''.join(f'<li>{n}</li>' for n in t['p_notes'])}</ul></div>
 {chart_sections(RP, t, PMETRICS)}
 {variant_section(RP, t, PMETRICS, pcols)}
-{lr_section(RP, t, PMETRICS, pcols)}
 <h2>{esc(t['t2_h'])}</h2><div class="card">{p2}</div>
 <h2>{esc(t['t1_h'])}</h2><p class="note">{esc(t['pending'])}</p><div class="card">{p1}</div>"""
     tabs = "".join(f'<button class="tab{" on" if i == 0 else ""}" data-tab="{k}">{esc(n)}</button>' for i, (k, n) in enumerate((("doc", t["tab_doc"]), ("packed", t["tab_packed"]))))

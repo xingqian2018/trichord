@@ -13,6 +13,7 @@ plus the checkpoint, iteration and eval job. Nothing else is written.
 import argparse
 import glob
 import json
+import math
 import os
 import re
 import shutil
@@ -72,6 +73,18 @@ def main():
             tok = sum(s["tokens"])
             out_suites[n] = {"loss_tw": sum(l * t for l, t in zip(s["loss"], s["tokens"])) / tok, "tokens": tok,
                              "splits": {lab: {"loss": l, "tokens": t} for lab, l, t in zip(s["labels"], s["loss"], s["tokens"])}}
+        # tsqw (Xingqian, 2026-10-23): all 7 collections (val_v2, uncheatable, codefresh, v3small, private_internal, pile_test, pile_10k;
+        # unlike 00_overall_*, pile_10k is IN), each its token-weighted loss, weighted by sqrt(scored tokens) - between tw and macro
+        tsqw_cols = {"01_val_v2_overall_tw": ("cosmos_val_v2_cc", "cosmos_val_v2_python", "cosmos_val_v2_arxiv"), "02_uncheatable_tw": ("uncheatable",),
+                     "03_codefresh_tw": ("codefresh",), "04_v3small_tw": ("v3small",), "04_private_internal_tw": ("private_internal",),
+                     "05_pile_test_tw": ("pile_test",), "05_pile_10k_tw": ("pile_10k",)}   # 7 collections incl. pile_10k (user)
+        num = den = 0.0
+        for key, prefixes in tsqw_cols.items():
+            n_tok = sum(v["tokens"] for k, v in out_suites.items() if k.startswith(prefixes))
+            if key in metrics and n_tok:
+                num += math.sqrt(n_tok) * metrics[key]["loss"]; den += math.sqrt(n_tok)
+        if den:
+            metrics["00_overall_tsqw"] = {"loss": num / den, "ppl": math.exp(num / den)}
         load, ckpt = ckpt_of(eval_dir)
         out = {"change": change, "rung": rung, "iteration": rec["iteration"], "protocol": rec["protocol"],
                "checkpoint": ckpt, "eval_job": int(job), "eval_dir": eval_dir, "evaluated_at": rec["time"],

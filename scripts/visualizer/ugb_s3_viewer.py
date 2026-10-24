@@ -17,11 +17,15 @@ RESULT_DIRS = [
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/qwen_image_2p1_nope",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/qwen_image_2p1_pe",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_super_v2p5_iter741260_noneg",
-    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_000_pretrain_iter25000",
-    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_001_pretrain_midtrain_iter25000",
-    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_000_pretrain_iter25000_noneg",
-    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_001_pretrain_midtrain_iter25000_noneg",
-    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_002_pretrain_getty_iter25000_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_002_pretrain_getty_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/gpt_image_2p5_sunburst",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/gpt_image_2p5_sunburst_quality_high",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/krea2_turbo",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/flux3_klein",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/flux3_klein_base",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/ideogram4_nf4",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/fibo2_dev",
 ]
 IMAGES_PER_PAGE = 25
 UGB_PROMPTS_URI = "s3://datasets/unigenbench/v2/v2_1170L_G3F.csv"
@@ -160,6 +164,7 @@ def score_table(runs: list[str], results: dict[str, dict | None]) -> pd.DataFram
     for run in runs:
         result = results[run]
         if not result:
+            table[run_label(run)] = {key: float("nan") for key in ("all", "orig", "phi", *PRIMARY_DIMENSIONS)}
             continue
         stats = result["stats"]
         column = {subset: 100 * stats[subset]["overall_accuracy"] for subset in ("all", "orig", "phi")}
@@ -189,7 +194,7 @@ with st.sidebar:
     selected_runs = st.multiselect(
         "Result folders (RESULT_DIRS)",
         RESULT_DIRS,
-        default=RESULT_DIRS[:2],
+        default=[],
         format_func=lambda run: f"{run_benchmark(run)}/{run_label(run)}",
     )
     if not selected_runs:
@@ -216,7 +221,7 @@ st.caption(f"judge prompts: {UGB_PROMPTS_URI}")
 
 table = score_table(selected_runs, results)
 if not table.empty:
-    st.dataframe(table, width="stretch")
+    st.dataframe(table.style.format(precision=2, na_rep="-"), width="stretch")
 missing = [run for run in selected_runs if not results[run]]
 if missing:
     st.caption("no judge result yet: " + ", ".join(missing))
@@ -231,7 +236,7 @@ judgements_by_id = {pid: {run: judgement(results[run], pid) for run in selected_
 if not jump:
     prompt_ids = [pid for pid in prompt_ids if passes_filter(pid, judgements_by_id[pid], dimension, failed_in, disagree)]
 
-per_page = max(1, IMAGES_PER_PAGE // len(selected_runs))
+per_page = IMAGES_PER_PAGE
 pages = max(1, (len(prompt_ids) + per_page - 1) // per_page)
 top = st.columns([3, 1])
 top[0].markdown(f"**{len(prompt_ids):,}** prompts · {pages} pages")
@@ -251,7 +256,7 @@ for prompt_id in batch:
     for column, run in zip(columns, selected_runs):
         with column:
             verdicts = judgements_by_id[prompt_id][run]
-            score = f" · {sum(ok for _, ok, _ in verdicts)}/{len(verdicts)}" if verdicts else ""
+            score = f" · {sum(ok for _, ok, _ in verdicts)}/{len(verdicts)}" if verdicts else " · -"
             st.markdown(f"**{run_label(run)}**{score}")
             uri = images[run].get(prompt_id)
             if uri:
@@ -263,7 +268,9 @@ for prompt_id in batch:
                 if generation_prompt:
                     with st.expander("generation prompt"):
                         st.write(generation_prompt)
-            if show_verdicts and verdicts:
+            if show_verdicts:
                 with st.expander("judge verdicts", expanded=any(not ok for _, ok, _ in verdicts)):
+                    if not verdicts:
+                        st.markdown("-")
                     for testpoint, ok, analysis in verdicts:
                         st.markdown(f"{'✅' if ok else '❌'} **{testpoint}** — {analysis}")

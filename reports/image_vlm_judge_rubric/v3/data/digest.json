@@ -1,0 +1,1750 @@
+{
+ "new": [
+  {
+   "name": "optical_content_mismatch",
+   "description": "A lens, magnifier, mirror or screen shows content that is not what lies behind/under it (or shows nothing when it should magnify).",
+   "examples": [
+    "orig4/gpt_image_2_quality_high: lens shows a full boot print over plain cobbles; real print is far lower right",
+    "orig4/flux3_klein: lens shows his paw, footprint outside it",
+    "orig4/qwen_image_2p1_nope: lens empty, instead projects a spotlight circle"
+   ],
+   "why_not_v2": "A12 mentions reflections only; refraction/magnification and screen content correspondence are not covered.",
+   "chunk": "chunk00"
+  },
+  {
+   "name": "convention_coded_marking_error",
+   "description": "Objects whose markings follow a fixed real-world code (pool balls, dice, clock faces, cards, keyboards, traffic lights) show duplicated, invalid or colour-mismatched codes.",
+   "examples": [
+    "phi482/qwen_image_2p1_pe: three brown '4' balls",
+    "phi482/krea2_turbo: '4' on green and on red stripe, '0' on blue",
+    "phi482/fibo2_dev: black ball labelled '6'"
+   ],
+   "why_not_v2": "A02/A03 check spelling/legibility, not validity or uniqueness of coded identifiers.",
+   "chunk": "chunk00"
+  },
+  {
+   "name": "impossible_device_state",
+   "description": "A functional device is in a state it cannot be in: traffic light with red+green (or all three) lit simultaneously, etc.",
+   "examples": [
+    "phi242/qwen_image_2p1_pe: middle signal red+amber+green lit",
+    "phi242/flux3_klein: each head red and green lit"
+   ],
+   "why_not_v2": "A10 is about physical construction ('could exist and work'), judges rarely apply it to lamp states.",
+   "chunk": "chunk00"
+  },
+  {
+   "name": "requested_text_on_wrong_carrier",
+   "description": "Text requested for one place (overlay, sign) bleeds onto another object.",
+   "examples": [
+    "phi242/fibo2_dev: bus destination sign shows '10.4 2023' copied from the timestamp overlay"
+   ],
+   "why_not_v2": "B04 covers unrequested prompt words, not requested text duplicated onto a wrong surface.",
+   "chunk": "chunk00"
+  },
+  {
+   "name": "unrequested_slogan_text",
+   "description": "Model inserts invented slogans/titles/brand copy on posters, books, mugs, billboards ('A BRIGHTER TOMORROW', 'TRUTH ALWAYS FINDS ITS WAY'). Spelled correctly, so passes A02/A03, but changes the image's message.",
+   "examples": [
+    "orig4/gpt_image_2p5_sunburst_quality_high: four slogan signs",
+    "phi242/gpt_image_2p5_sunburst: 'A CLEANER GREENER BRIGHTER TOMORROW'",
+    "phi361/gpt_image_2p5_sunburst_quality_high: 'Good People Brighter Days'"
+   ],
+   "why_not_v2": "B07 requires scene-changing extras; B04 only prompt words. Systematic in sunburst models across 5/10 prompts.",
+   "chunk": "chunk00"
+  },
+  {
+   "name": "viewer_facing_document_orientation",
+   "description": "A page being drawn/written/read by an in-scene person is oriented for the camera, i.e. upside-down for that person.",
+   "examples": [
+    "orig123/flux3_klein: signature reads upright from camera while Leonardo draws from the far side",
+    "orig123/gpt_image_2p5_sunburst: Vitruvian figure on parchment upright to viewer"
+   ],
+   "why_not_v2": "No criterion addresses orientation consistency between an object and its in-scene user.",
+   "chunk": "chunk00"
+  },
+  {
+   "name": "unintended_translucency",
+   "description": "A solid object becomes partly see-through where it overlaps another layer (double exposure), without being glass or ghost.",
+   "examples": [
+    "orig365/gpt_image_2p5_sunburst: ring stones visible through Jupiter's lower limb"
+   ],
+   "why_not_v2": "A11 covers ordering, A15 pasted-in elements; neither names see-through solids.",
+   "chunk": "chunk00"
+  },
+  {
+   "name": "internal_text_inconsistency",
+   "description": "Two legible, correctly spelled strings contradict each other (name in header vs caption, mismatched IDs).",
+   "examples": [
+    "orig483/gemini_3_1_flash_image: header 'Pet Lana' with caption 'Luna's new toy!'",
+    "phi1/gpt_image_2: well-formed but invalid orientation codes 'AHL','PHA','RHA'"
+   ],
+   "why_not_v2": "A02 measures letter accuracy only.",
+   "chunk": "chunk00"
+  },
+  {
+   "name": "slogan_filler_text",
+   "description": "Unrequested, correctly-spelled motivational/marketing slogans stamped on many surfaces (posters, erasers, laptops, concrete, pods). Template set-dressing made of text.",
+   "examples": [
+    "phi378/gpt_image_2p5_sunburst_quality_high: slogans on 8 surfaces incl. eraser 'Keep Going', robot 'Better Learners Brighter Tomorrows'",
+    "phi134/gpt_image_2p5_sunburst: 'BUILD SAFER SMARTER TOGETHER' on banner, 'PROGRESS BUILDS TOMORROW' on concrete",
+    "orig375/gpt_image_2p5_sunburst_quality_high: 'LIFE PRESERVATION FOR A BRIGHTER TOMORROW' etched on cryo-pod"
+   ],
+   "why_not_v2": "A02/A03 only fire on misspellings; B04 covers prompt words leaking; B07 lists objects (brick walls, plants) not text. Correct but unrequested text has no home.",
+   "chunk": "chunk01"
+  },
+  {
+   "name": "semantic_text_error",
+   "description": "Text spelled correctly but factually/semantically impossible: wrong station names, impossible dates, wrong place combos.",
+   "examples": [
+    "phi255/qwen_image_2p1_pe: 'Union Square 42 Street'",
+    "orig257/gpt_image_2: 'FW 3025 COLLECTION'",
+    "phi255/fibo2_dev: '2023/1114' date"
+   ],
+   "why_not_v2": "A02 checks letters, not meaning; no rule on well-formed-but-wrong text.",
+   "chunk": "chunk01"
+  },
+  {
+   "name": "wrong_tool_form / functional object misrender",
+   "description": "A specific functional instrument replaced by a lookalike that cannot do the job (laryngoscope -> pen/rod/dental probe/syringe, LiDAR -> camera, hose plugged into laryngoscope).",
+   "examples": [
+    "phi10/flux3_klein_base: long curved probe instead of laryngoscope",
+    "phi10/krea2_turbo: breathing hose attached to laryngoscope handle",
+    "phi134/qwen_image_2p1_nope: 360 camera instead of LiDAR"
+   ],
+   "why_not_v2": "Split between A10 and B02 with no guidance for 'nearly the right tool'; judges disagree on which code.",
+   "chunk": "chunk01"
+  },
+  {
+   "name": "temporal_moment_mismatch",
+   "description": "Prompt specifies a moment (before impact, mid-swing) and the image shows a different moment (impact under way, debris burst).",
+   "examples": [
+    "phi495/ideogram4_nf4: ball hitting wall with debris",
+    "phi495/krea2_turbo: dust burst at contact"
+   ],
+   "why_not_v2": "B03 is about action/pose; 'timing of an event' is not mentioned, so judges skip it.",
+   "chunk": "chunk01"
+  },
+  {
+   "name": "prompt_word_literalism",
+   "description": "A figurative word is rendered literally (cactus 'branch' as arm -> real woody tree branch with leaves).",
+   "examples": [
+    "orig495/qwen_image_2p1_pe: cactus arm becomes leafy tree branch"
+   ],
+   "why_not_v2": "Shows up as A08 fusion but the cause is semantic; a B-level check 'figurative language rendered literally' would catch it more reliably.",
+   "chunk": "chunk01"
+  },
+  {
+   "name": "viewpoint_device_in_frame",
+   "description": "Prompt describes the capturing device/POV (surveillance camera mounted high, dashcam, drone) and the model draws that device inside the image, often large and occluding the scene.",
+   "examples": [
+    "phi262/qwen_image_2p1_nope: giant dome camera hangs in centre occluding forklift load",
+    "phi262/krea2_turbo: large bullet camera top-left",
+    "phi262/gpt_image_2: Hikvision dome top-left",
+    "phi262/gemini, gpt_image_2_quality_high, ideogram4_nf4: smaller dome in corner"
+   ],
+   "why_not_v2": "B07 lists extras that change the scene but not the specific failure of rendering the camera instead of shooting from it; B08 is about shot size.",
+   "chunk": "chunk02"
+  },
+  {
+   "name": "simile_literalisation",
+   "description": "A comparison in the prompt ('flying like a flock of birds', 'resembles a lightsaber') is rendered as the compared entity itself or fused into the subject.",
+   "examples": [
+    "orig508/ideogram4_nf4: real robins among the flying books",
+    "orig508/qwen_image_2p1_nope: every flying book has a bird head and body attached"
+   ],
+   "why_not_v2": "B02 checks requested objects present, not that compared-to entities must be absent; A08 catches only the fused variant.",
+   "chunk": "chunk02"
+  },
+  {
+   "name": "unrequested_slogan_text",
+   "description": "Model inserts clean, well-spelled motivational slogans/captions on banners, posters and plaques that were not requested.",
+   "examples": [
+    "orig508/gpt_image_2p5_sunburst: 'KNOWLEDGE FUELS A BRIGHTER TOMORROW'",
+    "orig508/gpt_image_2p5_sunburst_quality_high: 'A BRIGHTER TOMORROW THROUGH KNOWLEDGE'",
+    "phi388/gpt_image_2p5_sunburst_quality_high: 'A BRIGHTER HUMAN TOMORROW'"
+   ],
+   "why_not_v2": "A02/A03 only flag misspellings; B04 only flags prompt words leaking into text. A recurring model-signature slogan passes everything.",
+   "chunk": "chunk02"
+  },
+  {
+   "name": "hybrid_as_juxtaposition",
+   "description": "'X has grown Y' / 'X made of Y' rendered as a separate Y placed on/next to X (butterfly perched on teapot; jellyfish decorating a steel tower) rather than a true hybrid.",
+   "examples": [
+    "orig23/krea2_turbo: butterfly perched on handle of a teapot sitting on a rock",
+    "orig23/flux3_klein: teapot stacked on a full butterfly body",
+    "orig145/fibo2_dev: steel tower with jellyfish ornaments"
+   ],
+   "why_not_v2": "B02 sees both objects present and passes; B05 material check is not phrased for composition-type hybrids.",
+   "chunk": "chunk02"
+  },
+  {
+   "name": "load_support_mismatch",
+   "description": "A lifting/carrying machine's load is not on its lifting element (forks on floor while load hangs at mast top; forks raised empty while pallet sits on rack).",
+   "examples": [
+    "phi262/qwen_image_2p1_nope: forks on floor, pallets stuck to mast top",
+    "phi262/flux3_klein_base: forks down, pallet above mast"
+   ],
+   "why_not_v2": "Fits A09/A10 loosely; VLMs miss it because each object looks fine; worth an explicit example under A09 (mechanical support).",
+   "chunk": "chunk02"
+  },
+  {
+   "name": "functional_semantics_inconsistency (traffic/diagram logic)",
+   "description": "Signs, road markings, arrows or diagram annotations are each well formed, but their combined meaning is contradictory or nonsensical: opposing flow arrows, double-headed lane arrows, meshing gears drawn rotating the same way, a yield line drawn as a zebra.",
+   "examples": [
+    "phi399/flux3_klein: near-side circulatory arrows point left while the chevrons point right",
+    "phi399/flux3_klein_base: up/down double arrow in the ego lane",
+    "orig155/gemini_3_1_flash_image: both meshing gears annotated clockwise",
+    "phi399/fibo2_dev: left arrow and right-curving arrow in one entry lane"
+   ],
+   "why_not_v2": "A10 asks whether a diagram makes sense, but VLMs read it as object structure; A19 covers out-of-place objects, not wrong semantics among in-place ones.",
+   "chunk": "chunk03"
+  },
+  {
+   "name": "container_continuity_violation",
+   "description": "The contents of a transparent container are larger than the container where they sit, the glass wall vanishes or ends at the content, or content appears outside the walls.",
+   "examples": [
+    "orig399/gpt_image_2: Earth 2x the width of the hourglass neck, glass walls vanish into it",
+    "orig399/flux3_klein: sand rings orbit outside the glass",
+    "orig399/gpt_image_2p5_sunburst: glass ends at the globe"
+   ],
+   "why_not_v2": "A08 covers interpenetration of opaque objects; transparent glass makes the violation subtle, and none of the examples cover containers.",
+   "chunk": "chunk03"
+  },
+  {
+   "name": "material_state_error",
+   "description": "A material is shown in the wrong physical state, such as solid agar as liquid broth with floating beads, or colonies visible inside the gel depth.",
+   "examples": [
+    "phi34/krea2_turbo: deep liquid agar with floating bead colonies, colonies seen through the side wall",
+    "phi34/gpt_image_2: colonies look like droplets on liquid"
+   ],
+   "why_not_v2": "A12 lists liquids and cloth behaviour but not the case where a solid is rendered as a liquid.",
+   "chunk": "chunk03"
+  },
+  {
+   "name": "competing_unrequested_text",
+   "description": "Correctly spelled, legible but unrequested slogans or labels added near or behind the requested text, diluting it or paraphrasing the prompt.",
+   "examples": [
+    "orig514/gpt_image_2p5_sunburst_quality_high: 5 sharp background slogans around the requested T-shirt quote",
+    "orig155/gemini_3_1_flash_image: \"SLOW ROTATION\", \"DRIVE SOURCE\" labels"
+   ],
+   "why_not_v2": "B04 covers prompt words as unrequested text only partly; B07 is about objects. A03 does not apply because the text is not pseudo-text.",
+   "chunk": "chunk03"
+  },
+  {
+   "name": "requested_format_missing",
+   "description": "The prompt names an output format or genre (an app onboarding page, a poster, a UI), and the model renders only the subject illustration with no format elements.",
+   "examples": [
+    "orig38: 7 of 12 models (fibo2_dev, flux3_klein, gpt_image_2, gpt_image_2p5_sunburst_quality_high, ideogram4_nf4, krea2_turbo, qwen_image_2p1_nope) have no UI chrome"
+   ],
+   "why_not_v2": "B05 covers style and medium; it is ambiguous whether a missing page or UI wrapper is B02 or B05.",
+   "chunk": "chunk03"
+  },
+  {
+   "name": "slogan_stuffing",
+   "description": "Unrequested invented corporate/motivational slogans scattered on walls, boxes, clothing and monitors to make a scene look 'designed'.",
+   "examples": [
+    "phi287/gpt_image_2p5_sunburst: six slogans incl. 'LOGISTICS FOR A BRIGHTER TOMORROW' on a worker's shirt",
+    "phi287/gpt_image_2p5_sunburst_quality_high: 'SAME DAY A BRIGHTER TOMORROW', 'PACK SHIP REPEAT'",
+    "phi528/gpt_image_2p5_sunburst_quality_high: 'SAFETY BUILDS TOMORROW', 'MELT CAST REPEAT'"
+   ],
+   "why_not_v2": "B07 lists template set dressing (brick walls, plants, bystanders) but not text; A03 only checks legibility, and these slogans are perfectly spelled.",
+   "chunk": "chunk04"
+  },
+  {
+   "name": "ego_viewpoint_misplacement",
+   "description": "The implied camera/vehicle sits in a physically or legally wrong place (dashcam straddling the double-yellow centreline).",
+   "examples": [
+    "phi403/flux3_klein",
+    "phi403/ideogram4_nf4",
+    "phi403/qwen_image_2p1_pe",
+    "phi403/flux3_klein_base"
+   ],
+   "why_not_v2": "All criteria judge visible objects; nothing covers where the viewer/camera itself is. Closest is A19.",
+   "chunk": "chunk04"
+  },
+  {
+   "name": "flow_from_empty_source",
+   "description": "A stream (sand, liquid, molten metal) flows out of a container that is visibly empty.",
+   "examples": [
+    "orig45/gpt_image_2p5_sunburst: sand thread from an empty upper bulb",
+    "phi528/flux3_klein: molten stream from a dark empty crucible"
+   ],
+   "why_not_v2": "Fits A12 but no example; VLMs rarely check source-sink consistency.",
+   "chunk": "chunk04"
+  },
+  {
+   "name": "unanchored_wing/appendage",
+   "description": "Fantasy appendages (wings) float beside a figure with no attachment point to the body.",
+   "examples": [
+    "orig169/ideogram4_nf4: one wing hangs beside her shoulder while she faces camera"
+   ],
+   "why_not_v2": "A05 is about limbs; wings/tails on fantasy characters not mentioned, A09 is about objects.",
+   "chunk": "chunk04"
+  },
+  {
+   "name": "slogan_injection",
+   "description": "Unrequested feel-good marketing copy (posters, banners, engraved rocks, tab labels) such as 'A BRIGHTER TOMORROW', 'For a Kinder World', 'CLEAN WORKSPACE SAFE SCIENCE' inserted into scenes. Text is spelled correctly, so A02/A03 never fire; it is a model-signature behaviour.",
+   "examples": [
+    "orig53/gpt_image_2p5_sunburst_quality_high: rocks engraved 'A Happier Playlist Ahead', 'Pets Make Life Sound Better'",
+    "orig174/gpt_image_2p5_sunburst_quality_high: banners 'A BRIGHTER HUMAN TOMORROW', 'BEAUTY CONNECTS US'",
+    "phi176/gpt_image_2p5_sunburst: 'ROBOTS FOR A BRIGHTER TOMORROW'",
+    "phi50/gpt_image_2p5_sunburst_quality_high: 'CLEAN WORKSPACE SAFE SCIENCE'"
+   ],
+   "why_not_v2": "B04 covers prompt words leaking into the image; B07 needs extras that change the scene. Correctly spelled, unrequested text that adds a message is not named anywhere. Suggest a B04 sub-clause: 'unrequested legible slogans/taglines' (minor; moderate when prominent).",
+   "chunk": "chunk05"
+  },
+  {
+   "name": "functional_graphic_state_mismatch",
+   "description": "A functional UI/graphic element contradicts itself: progress indicator not where the fill ends, two controls for one function, time shown three times, template field labels ('Title', 'Artist', 'Time') shown as content.",
+   "examples": [
+    "orig53/qwen_image_2p1_pe: dark fill to mid-bar, caterpillar at the start; hedgehog 'Paused' plus a second pause button",
+    "orig53/gemini_3_1_flash_image: 'Title/Artist/Time' captions and times 03:45 / 04:20 / 04:20",
+    "orig53/krea2_turbo: slider thumb and caterpillar both mark progress"
+   ],
+   "why_not_v2": "A18 checks alignment, overlaps and hierarchy, not semantics. A07 'duplicated UI card' partly fits. v3 A18 should add: 'state consistency — indicator, fill and labels agree; one control per function; no placeholder captions'.",
+   "chunk": "chunk05"
+  },
+  {
+   "name": "attribute_binding_to_wrong_entity",
+   "description": "A requested attribute appears on the image but on the wrong object (the colour of the elapsed path is painted on the caterpillar).",
+   "examples": [
+    "orig53/fibo2_dev: caterpillar's rear segments dark green, branch stays brown"
+   ],
+   "why_not_v2": "B05 asks whether the attribute is realised, so a judge sees 'dark green present' and passes it. Needs explicit 'bound to the right object' wording (the Layer B preamble mentions it but B05 does not).",
+   "chunk": "chunk05"
+  },
+  {
+   "name": "hose/cable_topology_error",
+   "description": "Linear flexible objects (hoses, cables, ropes) whose ends do not make sense: both ends run into the same reel, the held object is mid-span with a coupling, a hose dives into a puddle like a solid surface.",
+   "examples": [
+    "phi294/flux3_klein: both hose ends go into the reel, gripper holds a mid-span coupling",
+    "phi294/krea2_turbo: gripper clamps the reel hub",
+    "phi294/qwen_image_2p1_nope: hose pierces a puddle with a splash"
+   ],
+   "why_not_v2": "A10 is about manufactured objects working; A12 about cloth/liquid. Tracing a continuous object end-to-end is not prompted. Add to A10: 'trace hoses, cables, ropes, chains end to end'.",
+   "chunk": "chunk05"
+  },
+  {
+   "name": "inverted_relief / negative-space error",
+   "description": "An impression, mould, dent or engraving is rendered as a raised positive shape (or vice versa): a hand imprint that bulges up as a fabric hand, a footprint that is a raised foot.",
+   "examples": [
+    "phi545/fibo2_dev: hand print is a convex fabric hand with palm creases sitting in a pit"
+   ],
+   "why_not_v2": "A12 talks about rigid shape and gravity; nothing asks whether a trace is concave or convex. VLMs see \"a hand shape\" and pass it.",
+   "chunk": "chunk06"
+  },
+  {
+   "name": "trace_cause_mismatch",
+   "description": "A trace does not match the thing that made it: wiped area not under the wiper, imprint with wrong digit count or mirrored copies, shadows starting in mid-air instead of at the object, rain drops on a dashboard indoors.",
+   "examples": [
+    "phi420/ideogram4_nf4: clean dome-shaped area sits below wipers that rest in the upper glass",
+    "phi545/flux3_klein_base: one palm with 5 finger grooves up and 5 down",
+    "orig189/gemini_3_1_flash_image: three shadows fan out from one point in the sand",
+    "phi420/flux3_klein: rain drops beaded on the interior dashboard"
+   ],
+   "why_not_v2": "A12 says \"cause produces effect\" but only with examples of missing effects (no wet ground); it does not ask whether a present effect matches its cause in location, count and geometry.",
+   "chunk": "chunk06"
+  },
+  {
+   "name": "required_text_occluded",
+   "description": "A requested text string is partly hidden behind a foreground subject, so letters are missing although rendered correctly.",
+   "examples": [
+    "orig540/gpt_image_2: shoulder covers \"t\" of through and \"e\" of expectation",
+    "orig540/gpt_image_2_quality_high: woman's head covers \"e\" of expectation"
+   ],
+   "why_not_v2": "A02 checks glyphs, A17 only frame edges, B04 equality of legible text; occlusion falls between them.",
+   "chunk": "chunk06"
+  },
+  {
+   "name": "inconsistent_implied_altitude",
+   "description": "Aerial or satellite views mix cues from different heights: planetary horizon curvature with block-level detail, or fisheye tilt without a lens reason.",
+   "examples": [
+    "phi68/flux3_klein_base: orbital curvature with ships readable as from ~2 km"
+   ],
+   "why_not_v2": "A11 covers convergence and order, A20 relative sizes; neither covers camera-height consistency.",
+   "chunk": "chunk06"
+  },
+  {
+   "name": "layer_order_paradox",
+   "description": "In flat 2D art an element is drawn in front of a second element at one point and behind it at another without any wrap-around, so the drawing is self-contradictory (or an object enters and exits a body with no visible path).",
+   "examples": [
+    "orig75/flux3_klein: bamboo in front of the panda's forehead, yet nose and mouth drawn over the bamboo",
+    "orig75/flux3_klein_base: bamboo pokes out above the head between the ears and reappears below the mouth"
+   ],
+   "why_not_v2": "A08 describes interpenetration in 3D and A11 is gated on 'scene has depth'; flat vector images are easy to exempt from both. Add explicit wording: occlusion order must be consistent even in flat styles.",
+   "chunk": "chunk07"
+  },
+  {
+   "name": "copyrighted_character_lookalike",
+   "description": "Generated figure reproduces a recognisable fictional character (costume, hair accessory, companion animal) typically triggered by an artist/studio style cue.",
+   "examples": [
+    "orig195/gpt_image_2p5_sunburst: girl with red bow and dark dress = Kiki",
+    "orig195/gpt_image_2p5_sunburst_quality_high: red-bow girl with black cat = Kiki and Jiji"
+   ],
+   "why_not_v2": "C01 covers real trademarks, real persons and real landmarks only.",
+   "chunk": "chunk07"
+  },
+  {
+   "name": "filter_layer_effect",
+   "description": "A requested physical effect (rain-washed ink, blur) is applied as a uniform 2D filter over a whole element, ignoring the surface it sits on, so the element looks like a separate blurred layer.",
+   "examples": [
+    "orig554/krea2_turbo: entire text block Gaussian-blurred while paper creases are sharp and the letters ignore the wrinkles"
+   ],
+   "why_not_v2": "Partly A15 (decal ignoring surface) and partly B05, but neither says 'effect applied uniformly as a filter instead of locally/physically'.",
+   "chunk": "chunk07"
+  },
+  {
+   "name": "style_triggered_protagonist",
+   "description": "A style or studio reference ('Miyazaki style') causes the model to add a stock protagonist who becomes the focal subject of a scene-only prompt.",
+   "examples": [
+    "orig195/gpt_image_2: girl with book fills left third",
+    "orig195/gpt_image_2_quality_high: girl and cat at desk",
+    "orig195/qwen_image_2p1_pe: boy reading in foreground"
+   ],
+   "why_not_v2": "B07 covers it in principle, but its examples (bystander, brick walls) do not cue VLMs to flag a large, attractive added main character.",
+   "chunk": "chunk07"
+  },
+  {
+   "name": "emission_source_mismatch",
+   "description": "A flow or emission the prompt ties to a specific part (rain from a spout, smoke from a chimney, light from a lamp) comes from the wrong part of the object, or from several parts, while the intended outlet is inert.",
+   "examples": [
+    "orig448/qwen_image_2p1_pe: a water torrent pours from a hole in the bottom of the pot, spout dry",
+    "orig448/fibo2_dev: rain drips from the base of the pot",
+    "orig448/flux3_klein_base, qwen_image_2p1_nope: rain curtain falls from the whole underside, not the spout"
+   ],
+   "why_not_v2": "A12 cause/effect covers 'fire gives light' but not 'the effect comes from the right outlet'; B03 is the only fallback and gives no Layer-A signal when there is no prompt.",
+   "chunk": "chunk08"
+  },
+  {
+   "name": "embedded_data_inconsistency (maps/charts/screens)",
+   "description": "Information rendered inside a map, chart or UI contradicts itself or plain geography: legend range vs labels, scale bar vs the land shown, identical values repeated across different terrain, feature labels in the wrong place, a route crossing land, duplicated map furniture.",
+   "examples": [
+    "phi80/gpt_image_2: legend -4100…-6200 m but labels read -6800 m",
+    "phi80/qwen_image_2p1_pe: 1:250,000 / 25 nm scale with all of Cuba on screen",
+    "phi80/fibo2_dev: cable runs over land; deep-water labels on the shallow shelf",
+    "phi80/krea2_turbo: two north arrows, '20m' ocean depths"
+   ],
+   "why_not_v2": "A10 says only 'does every diagram make sense', with circuit/UI examples. Judges don't know whether world-knowledge or geographic errors count, or how to grade them; A18 covers only alignment and layout.",
+   "chunk": "chunk08"
+  },
+  {
+   "name": "functional_part_misplacement",
+   "description": "A tool or vessel has its functional parts in a non-working arrangement, e.g. handle and spout on the same side, or a vessel with an extra opening.",
+   "examples": [
+    "orig448/flux3_klein: teapot handle arcs directly above the spout on the same side",
+    "orig323/qwen_image_2p1_pe: one-sided ring flap on a mushroom stalk"
+   ],
+   "why_not_v2": "It falls under A10, but A10's examples are all machines and UI. Adding 'part arrangement on everyday objects (handles, spouts, lids)' would make judges look for it.",
+   "chunk": "chunk08"
+  },
+  {
+   "name": "tool_output_mismatch",
+   "description": "The effect produced by an instrument does not match the instrument's contents or state (white-cream piping bag writes brown chocolate lines; pen colour vs ink).",
+   "examples": [
+    "orig574/qwen_image_2p1_nope: white cream bag, all letters brown chocolate"
+   ],
+   "why_not_v2": "A12 cause->effect examples are environmental physics; a VLM does not check tool contents vs produced marks.",
+   "chunk": "chunk09"
+  },
+  {
+   "name": "anthropomorphic_end_effector",
+   "description": "Human body parts (gloved hand, fingers) grafted onto machines/robots, or robots using human hand tools as if they were people.",
+   "examples": [
+    "phi93/flux3_klein_base: black gloved hand at ABB wrist holds gravity spray gun",
+    "phi93/krea2_turbo: grey gloved hand at robot wrist grips pistol gun"
+   ],
+   "why_not_v2": "A05 is about bodies, A10 about machines working; the hybrid human-machine part is in neither's examples.",
+   "chunk": "chunk09"
+  },
+  {
+   "name": "screen_viewpoint_logic",
+   "description": "Content shown on a screen/feed/mirror contradicts its stated source (an excavator's forward camera showing the whole excavator in third person).",
+   "examples": [
+    "phi338/fibo2_dev, flux3_klein, flux3_klein_base, ideogram4_nf4, krea2_turbo, qwen x2: monitor shows whole excavator from outside"
+   ],
+   "why_not_v2": "B03/B06 check interactions and placement, not logical consistency of depicted media.",
+   "chunk": "chunk09"
+  },
+  {
+   "name": "invented_slogan_flooding",
+   "description": "Generator fills posters, mugs, hats, vests, notebooks with unrequested motivational/brand slogans, turning set dressing into text-heavy template.",
+   "examples": [
+    "phi338/gpt_image_2p5_sunburst_quality_high: 'REAL SITES REAL PROGRESS', 'SAFER CLEANER STRONGER', 'BUILD SMARTER TOGETHER', 'PLAN OPERATE IMPROVE'",
+    "orig339/gpt_image_2p5_sunburst: 'HUMANITY A HIGHER VERSION'"
+   ],
+   "why_not_v2": "B04 only flags prompt words written as text; B07 lists brick walls/plants as template dressing but not invented slogans; A03 only checks if text is gibberish, and these are correctly spelled.",
+   "chunk": "chunk09"
+  },
+  {
+   "name": "semantic_text_error",
+   "description": "Legible, correctly spelled technical text that is nonsensical in context (non-existent package codes, mismatched part specs).",
+   "examples": [
+    "phi216/gemini_3_1_flash_image: 'U4 QFN16 0605'",
+    "phi216/gpt_image_2p5_sunburst_quality_high: 'Murata 0605 100nF'"
+   ],
+   "why_not_v2": "A02/A03 are letter-level only.",
+   "chunk": "chunk09"
+  },
+  {
+   "name": "decal_orientation_mismatch",
+   "description": "Printed text/logo stays upright to the viewer although the object it is printed on is tipped or rotated.",
+   "examples": [
+    "orig339/qwen_image_2p1_pe: toppled mug with horizontally upright Japanese text"
+   ],
+   "why_not_v2": "A15 mentions decals ignoring curvature only, not object pose.",
+   "chunk": "chunk09"
+  },
+  {
+   "name": "mixed_altitude_viewpoint",
+   "description": "Foreground shot from ground level combined with a background seen from orbit/altitude (planet limb behind beach surf).",
+   "examples": [
+    "orig458/krea2_turbo: beach waves running up to curved Earth limb"
+   ],
+   "why_not_v2": "A11 is phrased as line convergence/overlap ordering.",
+   "chunk": "chunk09"
+  },
+  {
+   "name": "process_state_inconsistency",
+   "description": "An object shows the result of a process at a stage before that process happens (printed traces on the unwind/supply reel, sealant on parts not yet dispensed).",
+   "examples": [
+    "phi221/gpt_image_2: supply reel already covered in circuit traces",
+    "phi221/flux3_klein: both reels and drum printed",
+    "phi221/gpt_image_2_quality_high: film leaving unwind reel already printed"
+   ],
+   "why_not_v2": "A10 covers objects that could not work, A12 physics; neither covers cause-order of a depicted workflow. Proposed: extend A12 'cause produces effect' with 'effects must appear only downstream of their cause'.",
+   "chunk": "chunk10"
+  },
+  {
+   "name": "unrequested_slogan_and_branding_text",
+   "description": "Model fills walls, glass and machines with marketing slogans and real brand logos ('A CLEANER TOMORROW', 'HUMAN IN THE LOOP FOR A SAFER TOMORROW', KUKA, Henkel, TOYOTA, COGNEX).",
+   "examples": [
+    "phi221/gpt_image_2p5_sunburst: 'PRINT CONNECT A CLEANER TOMORROW'",
+    "phi340/gpt_image_2p5_sunburst_quality_high: 'HUMAN IN THE LOOP FOR A SAFER TOMORROW', TOYOTA",
+    "phi101/gpt_image_2p5_sunburst_quality_high: 'SCA Bonding for a cleaner tomorrow', Henkel"
+   ],
+   "why_not_v2": "B07 lists template set dressing objects but not text; A03 only fires on pseudo-text, and these slogans are spelled correctly. A systematic stylistic tic of one model family goes unflagged.",
+   "chunk": "chunk10"
+  },
+  {
+   "name": "unrequested_thematic_text_overlay",
+   "description": "Equations / captions floating in the scene because they are stereotypically associated with the subject (Einstein -> E=mc²).",
+   "examples": [
+    "orig469/gpt_image_2: formulas floating in space",
+    "orig469/qwen_image_2p1_pe: column of chalk equations and a graph"
+   ],
+   "why_not_v2": "B04 only covers prompt words rendered as text; associated-concept text is not covered.",
+   "chunk": "chunk10"
+  },
+  {
+   "name": "material_weathering_leak",
+   "description": "Weathering specific to one material (bronze verdigris) spread onto an adjacent different material (granite base).",
+   "examples": [
+    "orig583/flux3_klein: green patina blotches on gray stone base",
+    "orig583/flux3_klein_base: green-tinted base"
+   ],
+   "why_not_v2": "Fits A22 in spirit but A22 examples are uniform grime/grain; add explicit 'material-specific wear on the wrong material' example.",
+   "chunk": "chunk10"
+  },
+  {
+   "name": "unrequested_slogan_text",
+   "description": "Well-spelled motivational or thematic slogans that nobody asked for, used as set dressing on billboards, banners and bins ('A BRIGHTER TOMORROW', 'HUMANITY PERSISTS'). Often the same phrase repeats across several signs in one image.",
+   "examples": [
+    "phi112/gpt_image_2p5_sunburst_quality_high: 'PLASTICS SHAPE A BRIGHTER TOMORROW' + 'BETTER PARTS A STRONGER TOMORROW'",
+    "orig593/gpt_image_2p5_sunburst_quality_high: 'A BRIGHTER TOMORROW' on two billboards",
+    "orig479/gpt_image_2p5_sunburst: 'HUMANITY PERSISTS', 'A CLEANER TOMORROW SOMEDAY'",
+    "phi353/gpt_image_2p5_sunburst: 'PEOPLE TECHNOLOGY A BRIGHTER TOMORROW'",
+    "phi239/gpt_image_2p5_sunburst: 'BUILD A BETTER TOMORROW'"
+   ],
+   "why_not_v2": "A03 catches only pseudo-text. B04 covers only quoted prompt text and prompt-word leakage. B07 covers only extras that change the scene. Well-formed but editorialising text falls between all three. It is a strong fingerprint of one model family (5/9 prompts).",
+   "chunk": "chunk11"
+  },
+  {
+   "name": "wrong_symbol_or_icon",
+   "description": "A pictogram, icon or standard symbol is wrong for the object it sits on, even when the text is spelled correctly. Examples are a road-sign glyph whose meaning contradicts the sign text, or a nonsense icon.",
+   "examples": [
+    "phi477/gpt_image_2: two-way-traffic arrows on a DIVIDED HIGHWAY BEGINS sign",
+    "phi477/krea2_turbo: pedestrian icon",
+    "phi477/qwen_image_2p1_nope: pickup-truck icon",
+    "phi477/fibo2_dev: 'H' glyph"
+   ],
+   "why_not_v2": "A02/A03 judge letters only. B02 is about objects. Icons and standard symbols have no home, so judges pass these signs as 'text correct'.",
+   "chunk": "chunk11"
+  },
+  {
+   "name": "technical_term_literalism",
+   "description": "A technical or compound term is drawn by its literal words instead of what it means in the domain.",
+   "examples": [
+    "phi239/flux3_klein_base: 'cable chains' drawn as drooping metal link chains",
+    "phi239/krea2_turbo: concrete 'beads' as rows of balls, with pellets spilled at the base",
+    "phi353/qwen_image_2p1_nope: 'brain-computer interface' headset drawn as a brain-textured cap"
+   ],
+   "why_not_v2": "B02 says 'right kind, including real-world object', but judges treat the literal object as matching the noun. An explicit rule that domain terms are judged by their domain meaning is needed.",
+   "chunk": "chunk11"
+  },
+  {
+   "name": "functional_logic_violation",
+   "description": "A scene breaks the operating rules of the domain. Examples are a vehicle in the opposing lanes driving away from the camera (wrong-way), a person inside a robot cell with no guard, or a robot outside its own enclosure.",
+   "examples": [
+    "phi477/flux3_klein_base: pickup on the opposing side of the new median, seen from behind",
+    "phi353/krea2_turbo: operator handles the bracket the robot is gripping, no screen",
+    "phi353/qwen_image_2p1_pe: robot outside the glass enclosure"
+   ],
+   "why_not_v2": "A19 covers out-of-place objects and A12 physics. Rule or affordance violations (traffic direction, safety guarding) are not named, so judges miss them.",
+   "chunk": "chunk11"
+  }
+ ],
+ "issues": [
+  {
+   "criterion": "B01 count_mismatch",
+   "problem": "Wheel/leg counts on vehicles need counting per visible side and inferring the hidden side; judges miscount. Rule needs guidance for symmetric objects.",
+   "examples": [
+    "phi125/flux3_klein: 4 visible right wheels => 8",
+    "phi125/fibo2_dev: 4 wheels"
+   ],
+   "proposed_fix": "Add: for bilaterally symmetric objects count one visible side and double; flag when visible side alone contradicts the count.",
+   "chunk": "chunk00"
+  },
+  {
+   "criterion": "A06 face_anatomy",
+   "problem": "Featureless faces in low-poly/mannequin styles: unclear whether stylistic.",
+   "examples": [
+    "orig242/flux3_klein_base",
+    "orig242/qwen_image_2p1_nope",
+    "orig242/ideogram4_nf4"
+   ],
+   "proposed_fix": "Count as minor A06 unless the style family normally omits faces (mannequin, chess piece) and the prompt implies no expression.",
+   "chunk": "chunk00"
+  },
+  {
+   "criterion": "A12 physics_lighting",
+   "problem": "Cause/effect timing in frozen action not explicit; effect shown before cause.",
+   "examples": [
+    "phi482/gpt_image_2p5_sunburst: cue ball still at cue tip while rack explodes"
+   ],
+   "proposed_fix": "Add example: struck/acting object still at rest while its effect has already happened.",
+   "chunk": "chunk00"
+  },
+  {
+   "criterion": "A16 non_content_overlay",
+   "problem": "Requested overlays (timestamps/HUD) are fine, but medium-native borders (watercolour paper margin) are ambiguous.",
+   "examples": [
+    "orig4/flux3_klein_base"
+   ],
+   "proposed_fix": "Border native to the requested medium is not A16 unless it consumes >10% of the canvas or crops focal content.",
+   "chunk": "chunk00"
+  },
+  {
+   "criterion": "B03 action_pose_interaction",
+   "problem": "'Examining X with a tool' needs the tool aimed at X; many models hold the magnifier in the air.",
+   "examples": [
+    "orig4/krea2_turbo",
+    "orig4/ideogram4_nf4"
+   ],
+   "proposed_fix": "Add: instrument-use actions require the instrument's working end to point at the named target.",
+   "chunk": "chunk00"
+  },
+  {
+   "criterion": "A16 non_content_overlay (split panel)",
+   "problem": "Concept-art prompts legitimately yield character sheets with inset panels; A16 says 'split panel' is a defect.",
+   "examples": [
+    "orig134/gpt_image_2p5_sunburst",
+    "orig134/gpt_image_2p5_sunburst_quality_high"
+   ],
+   "proposed_fix": "Split panels/insets are intended when the requested medium is concept art, character sheet, storyboard, comic, or reference sheet.",
+   "chunk": "chunk01"
+  },
+  {
+   "criterion": "B06 spatial_layout (egocentric left/right)",
+   "problem": "'To her left ... to her right' with a camera-facing subject: all 12 models used viewer-left; strictly that is mirrored. Rubric does not say which frame to use.",
+   "examples": [
+    "orig375: all 12 models put pod at viewer-left"
+   ],
+   "proposed_fix": "When left/right is relative to a character facing the camera, accept either frame (or explicitly default to viewer frame) and do not flag; only flag when both objects are on the same side.",
+   "chunk": "chunk01"
+  },
+  {
+   "criterion": "A02 vs requested overlays",
+   "problem": "Requested timecode/overlay text (CCTV) has no quoted string; is it A02 or B04? Malformed timecode should be A02 major since it is the requested text.",
+   "examples": [
+    "phi255/krea2_turbo",
+    "phi255/qwen_image_2p1_nope"
+   ],
+   "proposed_fix": "Requested-but-unquoted text (timecode, date, label) is A02 intended text; judge its format plausibility (valid date/time) rather than exact string.",
+   "chunk": "chunk01"
+  },
+  {
+   "criterion": "B05 requested degradation looks",
+   "problem": "CCTV prompts ask for compression artifacts and motion blur; nearly every model outputs a clean photo. B05 mentions grain/blur but not compression/CCTV looks, and A21-A23 might penalise them if present.",
+   "examples": [
+    "phi255/fibo2_dev",
+    "phi255/flux3_klein"
+   ],
+   "proposed_fix": "List compression artifacts, low-res CCTV, scanlines in B05 looks; state that requested degradation is excluded from A21/A23.",
+   "chunk": "chunk01"
+  },
+  {
+   "criterion": "A03 notebook / handwritten notes",
+   "problem": "Notebooks full of pseudo-math are everywhere; unclear whether a notebook a prompt mentions ('math notes') is intended text (A02) or incidental (A03).",
+   "examples": [
+    "phi378/gpt_image_2_quality_high pseudo-glyph notes",
+    "phi378/gpt_image_2p5_sunburst correct quadratic derivation"
+   ],
+   "proposed_fix": "Text whose content the prompt names (math notes, a menu) is A02; grade it as content-correct vs pseudo-glyph.",
+   "chunk": "chunk01"
+  },
+  {
+   "criterion": "A16 non_content_overlay",
+   "problem": "Lists 'signature, seal' as overlay, but seals and inscriptions are native to requested Chinese ink painting; strict reading over-flags 9/12 orig23 images.",
+   "examples": [
+    "orig23/qwen_image_2p1_pe: real inscription 澄心遠趣 with seals",
+    "orig23/gemini: 云山飞壶 with seals"
+   ],
+   "proposed_fix": "Exempt medium-idiomatic marks (seals, colophons, artist signatures in traditional painting) from A16; judge their glyphs under A03 instead.",
+   "chunk": "chunk02"
+  },
+  {
+   "criterion": "A03 background_pseudo_text",
+   "problem": "Unclear whether unrequested decorative calligraphy is 'incidental' (A03) or 'intended' (A02); gibberish calligraphy is common.",
+   "examples": [
+    "orig23/gpt_image_2: three columns of invented glyphs",
+    "orig23/flux3_klein: malformed 畫-like glyph"
+   ],
+   "proposed_fix": "State: unrequested inscriptions/colophons are incidental -> A03; severity moderate when they are large and prominent in the composition.",
+   "chunk": "chunk02"
+  },
+  {
+   "criterion": "A15 style_leak",
+   "problem": "Focal object rendered photographically on a painted background is the most common failure in the ink-wash prompt, but rubric example is 'colour tiger in charcoal room'; VLMs tend to accept it because the object looks high quality.",
+   "examples": [
+    "orig23/qwen_image_2p1_nope and _pe: photographic teapot cut-out",
+    "orig23/krea2_turbo"
+   ],
+   "proposed_fix": "Add example: 'photoreal product-shot object pasted into a requested ink/watercolour painting = A15 moderate, on focal'.",
+   "chunk": "chunk02"
+  },
+  {
+   "criterion": "A09 floating_unsupported (fantasy)",
+   "problem": "In fantasy scenes floating items may be intended magic; rubric gives no rule.",
+   "examples": [
+    "orig269/gemini: books float around tree",
+    "orig269/flux3_klein"
+   ],
+   "proposed_fix": "In non-photographic/fantasy mode, flag floating only if the prompt states attachment or the scene's own logic shows support elsewhere; otherwise treat as style intent.",
+   "chunk": "chunk02"
+  },
+  {
+   "criterion": "A07 phantom_duplicate",
+   "problem": "Examples are all parts (heads, poles); a duplicated unique entity (landmark) isn't mentioned.",
+   "examples": [
+    "orig145/qwen_image_2p1_pe: second normal Eiffel Tower beside the jellyfish one"
+   ],
+   "proposed_fix": "Add: 'a unique named entity (landmark, specific person) appearing twice' is A07.",
+   "chunk": "chunk02"
+  },
+  {
+   "criterion": "A02 primary_text_error (timestamps/data)",
+   "problem": "Rubric checks spelling but not semantic validity of formatted data (dates, times). '2023-14' has no misspelt glyph.",
+   "examples": [
+    "phi262/fibo2_dev: '2023-14 14:32:15'",
+    "phi262/krea2_turbo: '3-043-11 23 2083 02:6'"
+   ],
+   "proposed_fix": "Under A02: formatted strings (dates, times, prices, phone numbers) must be valid in their format; an impossible month/garbled field counts as an error.",
+   "chunk": "chunk02"
+  },
+  {
+   "criterion": "B03 action (directional interaction)",
+   "problem": "Directional relations like 'hugs from behind' are failed by 8/12 models with symmetric side-by-side hugs; judges tend to accept any hug.",
+   "examples": [
+    "orig380/krea2_turbo, gemini, flux3_klein, qwen_image_2p1_pe"
+   ],
+   "proposed_fix": "Add explicit instruction: verify the direction/role of each interaction (who is behind/in front, who acts on whom); a symmetric version of an asymmetric action is a B03 moderate.",
+   "chunk": "chunk02"
+  },
+  {
+   "criterion": "A10 impossible_structure",
+   "problem": "No explicit guidance for mechanisms (gears) or functional markings, so overlapping coplanar gears and contradictory arrows are easy to pass.",
+   "examples": [
+    "orig155/krea2_turbo red gear superimposed on blue",
+    "orig155: 7/12 gears overlap rather than mesh"
+   ],
+   "proposed_fix": "Add: \"For mechanisms, gears must interleave without overlapping, meshing gears counter-rotate, and belts and chains must close. Arrows and markings must not contradict each other.\"",
+   "chunk": "chunk03"
+  },
+  {
+   "criterion": "B03 action_pose_interaction",
+   "problem": "Prompts with negated physics (\"sand does NOT flow down\") or partial reveals (\"only ears and eyes visible\") fail most often; v2 has no note that the stereotypical default (sand falls, whole fox shown) is the failure mode to check.",
+   "examples": [
+    "orig399: 6/12 show normal sand flow",
+    "orig276: 6/12 show the full fox face or body"
+   ],
+   "proposed_fix": "Add to Layer B: \"When the prompt negates a default behaviour or limits visibility, verify that the default did not occur; the default is major when it is the prompt's point.\"",
+   "chunk": "chunk03"
+  },
+  {
+   "criterion": "A02 primary_text_error",
+   "problem": "A font or style switch inside one word (italic \"on\" in \"rebellion\") is not listed.",
+   "examples": [
+    "orig514/ideogram4_nf4"
+   ],
+   "proposed_fix": "Add \"inconsistent typeface/weight/slant within one string\" to the A02 checklist.",
+   "chunk": "chunk03"
+  },
+  {
+   "criterion": "B04 text_content_mismatch",
+   "problem": "Quote marks from the prompt printed into the image, and prompt jargon (\"ego\") leaking into overlays, are unaddressed.",
+   "examples": [
+    "orig514/gemini_3_1_flash_image prints ‘…’",
+    "phi399/gemini_3_1_flash_image \"ego 23 mph\""
+   ],
+   "proposed_fix": "Printed prompt delimiters = minor B04; prompt meta-words (ego, photorealistic, 35mm) written into the image = B04 moderate.",
+   "chunk": "chunk03"
+  },
+  {
+   "criterion": "C01",
+   "problem": "It does not separate requested brands from injected ones.",
+   "examples": [
+    "phi150/gpt_image_2p5_sunburst \"United Rentals\" truck when only Boston Dynamics was requested"
+   ],
+   "proposed_fix": "Report requested vs unrequested brands separately.",
+   "chunk": "chunk03"
+  },
+  {
+   "criterion": "B05 / B08 camera viewpoint",
+   "problem": "Requested camera height or angle (\"upward from street level\", \"low dashcam\") has no clear home: B08 is shot size and B06 is layout.",
+   "examples": [
+    "phi511/fibo2_dev looks down on the roof",
+    "phi399/gemini_3_1_flash_image camera at mirror height"
+   ],
+   "proposed_fix": "Extend B08 to \"shot size, framing and camera viewpoint/height/angle\".",
+   "chunk": "chunk03"
+  },
+  {
+   "criterion": "Layer B (state/negation)",
+   "problem": "Prompts that specify states or negations ('upper bulb empty', 'containing no sand at all', 'not flapping') have no clear code; I used B05 but it's neither attribute nor action.",
+   "examples": [
+    "orig45/krea2_turbo: sand in both bulbs of the hourglass that must be empty",
+    "orig45/qwen_image_2p1_pe: sand at bottom of the 'no sand' hourglass"
+   ],
+   "proposed_fix": "Add B09 state_negation: object state, fill level, on/off, explicit 'no X' about a requested object. Severity major when the negation is the point of the prompt.",
+   "chunk": "chunk04"
+  },
+  {
+   "criterion": "A02 text_accuracy",
+   "problem": "Character-share scoring does not penalise correct words in wrong order or a sentence split across pages out of sequence.",
+   "examples": [
+    "orig524/flux3_klein: 'Knowledge always / to a brighter future.' + 'illuminates the path to'",
+    "orig524/qwen_image_2p1_pe: 'the path to' duplicated across lines"
+   ],
+   "proposed_fix": "State that word-order errors and repeated phrases each count as wrong words; text must read correctly in natural reading order.",
+   "chunk": "chunk04"
+  },
+  {
+   "criterion": "B03 handedness",
+   "problem": "Left/right of character vs viewer is not defined; many models point with the wrong hand.",
+   "examples": [
+    "orig524/flux3_klein and flux3_klein_base point with the character's left hand"
+   ],
+   "proposed_fix": "Add: 'left/right in a prompt refers to the character's own side unless the prompt says viewer's'; wrong hand = moderate.",
+   "chunk": "chunk04"
+  },
+  {
+   "criterion": "A16 watermark",
+   "problem": "Small sparkle logo marks in starry/fantasy scenes are easily read as scene sparkles.",
+   "examples": [
+    "orig169/ideogram4_nf4: grey 4-point sparkle in bottom-right corner"
+   ],
+   "proposed_fix": "Add: a flat, unlit glyph in a corner that ignores scene lighting/perspective is a watermark.",
+   "chunk": "chunk04"
+  },
+  {
+   "criterion": "A17 vs A18 clipping",
+   "problem": "Focal illustration cut by its own container inside a UI is neither frame crop nor obviously A18.",
+   "examples": [
+    "orig400/flux3_klein_base: Notre Dame drawing cut off at portal level inside the glass card"
+   ],
+   "proposed_fix": "A18: 'an element clipped by its container or overlapped by another UI element'.",
+   "chunk": "chunk04"
+  },
+  {
+   "criterion": "B01 count with stacked/occluded rows",
+   "problem": "Rack/rows with overlapping rims make counts hard; doubled rims (fibo) are A07 vs extra tubes (qwen nope) B01.",
+   "examples": [
+    "phi49/fibo2_dev: doubled rims",
+    "phi49/qwen_image_2p1_nope: 10 complete tubes"
+   ],
+   "proposed_fix": "Add example: a second rim/ghost outline on the same item is A07; a complete extra item is B01 (already in boundary rule, add a glassware example).",
+   "chunk": "chunk04"
+  },
+  {
+   "criterion": "B06 spatial_layout",
+   "problem": "Left/right relative to a character facing the camera is ambiguous: 10 of 12 models placed 'to his left' on the viewer's left.",
+   "examples": [
+    "orig414: crater viewer-left/prints viewer-right in fibo2_dev, flux3_klein, gpt_image_2, qwen models"
+   ],
+   "proposed_fix": "State that 'his/her left' means the subject's own frame; when the subject faces the viewer this is the viewer's right. Either score a mirror swap as minor B06 or declare it tolerated, but define it.",
+   "chunk": "chunk05"
+  },
+  {
+   "criterion": "A12 physics_lighting",
+   "problem": "Light direction vs. shadow direction is the most common photographic failure here, but A12 does not give a concrete check, and judges let 'shadow toward the light' and 'front-lit subject with a backlit shadow' pass.",
+   "examples": [
+    "orig414/gemini: sun top-left, shadow goes left",
+    "orig414/flux3_klein: shadow toward camera, suit evenly front-lit",
+    "orig294/gpt_image_2p5_sunburst: one robe, two diverging shadows"
+   ],
+   "proposed_fix": "Add explicit sub-checks: (1) shadows point away from the visible/implied light; (2) the lit side of the subject matches the shadow direction; (3) one occluder casts one connected shadow of matching shape; (4) a transparent object casts a light, caustic shadow, not a solid black one.",
+   "chunk": "chunk05"
+  },
+  {
+   "criterion": "A02 vs general rule 3 (codec limit)",
+   "problem": "Requested text rendered tiny and illegible could be excused by the codec-limit rule.",
+   "examples": [
+    "orig535/ideogram4_nf4: the warning line is a green scribble on a small screen"
+   ],
+   "proposed_fix": "Rule 3 should state it never applies to text the prompt requests; illegible requested text is A02 (major if it is the requested headline) and B04.",
+   "chunk": "chunk05"
+  },
+  {
+   "criterion": "B04 text_content_mismatch",
+   "problem": "Requested text repeated on a second unrequested surface (head screen + chest screen) and word-level duplication across a line break are not clearly assigned.",
+   "examples": [
+    "orig535/qwen_image_2p1_nope: same warning on head and chest screens with different errors",
+    "orig535/qwen_image_2p1_pe: 'detected, system / system requires'"
+   ],
+   "proposed_fix": "Clarify: repeated word inside the string = A02; the whole requested string duplicated on an extra surface = A07 (+B04 if the copies differ).",
+   "chunk": "chunk05"
+  },
+  {
+   "criterion": "A15 style_leak (UI)",
+   "problem": "In UI mock-ups models paste photographic assets (photo hedgehog) into flat/cartoon UI. Album-art photos are legitimately photographic, so judges need a rule for which elements may be photographic.",
+   "examples": [
+    "orig53/qwen_image_2p1_nope: photo hedgehog button next to clay caterpillar and flat icons"
+   ],
+   "proposed_fix": "In UI/graphic mode, content panes (album art, thumbnails) may be any style; controls and icons should share one style. A photographic control in an illustrated UI is A15.",
+   "chunk": "chunk05"
+  },
+  {
+   "criterion": "A12 physics_lighting",
+   "problem": "\"Cause produces effect\" lists missing effects only; judges do not check that a present effect matches its cause in position, count, direction, or the side of a barrier it is on.",
+   "examples": [
+    "phi420/ideogram4_nf4 wiper vs clean arc",
+    "orig189/gemini shadows from a point",
+    "phi420/fibo2_dev rain on the interior dashboard"
+   ],
+   "proposed_fix": "Add sub-check: \"Every trace (shadow, imprint, wiped area, splash, wake) starts at its cause, has the cause's shape and count, and lies on the physically reachable side of glass/roofs. Sun shadows are parallel.\"",
+   "chunk": "chunk06"
+  },
+  {
+   "criterion": "B05 / mode for \"animation scene\"",
+   "problem": "The prompt says \"animation scene\" but 6 of 12 models made photoreal composites. v2 says the requested style decides the mode, but gives no rule on whether a photoreal output of an animation request is judged photographic (and B05 flagged) or non_photographic.",
+   "examples": [
+    "orig424/krea2_turbo",
+    "orig424/fibo2_dev",
+    "orig424/gpt_image_2"
+   ],
+   "proposed_fix": "State: mode for Layer A follows what is rendered; a mismatch with the requested medium is recorded once under B05 (moderate when the whole image is in the wrong medium).",
+   "chunk": "chunk06"
+  },
+  {
+   "criterion": "A08 vs intended magic transformation",
+   "problem": "Solid figures merging into fluids (a statue whose robe becomes a water spout) can be a defect or a deliberate VFX look.",
+   "examples": [
+    "orig424/gpt_image_2",
+    "orig424/qwen_image_2p1_nope"
+   ],
+   "proposed_fix": "Count it as A08 unless the prompt asks for a transformation or dissolve; cap at moderate when the effect is clearly stylised.",
+   "chunk": "chunk06"
+  },
+  {
+   "criterion": "B01 vs B02 for symbol variants",
+   "problem": "A requested symbol rendered as a related symbol (eighth note -> beamed pair or sixteenths) does not fit \"count\" or \"object kind\" cleanly.",
+   "examples": [
+    "orig69/gpt_image_2",
+    "orig69/qwen_image_2p1_pe",
+    "orig69/krea2_turbo"
+   ],
+   "proposed_fix": "Wrong symbol variant = B02; a malformed glyph that is no valid symbol = A10.",
+   "chunk": "chunk06"
+  },
+  {
+   "criterion": "A16 non_content_overlay vs genre overlays",
+   "problem": "Dashcam timestamps, film borders and paper edges come with the requested genre (\"dashcam footage\", \"retro film\"), but the A16 wording would flag them.",
+   "examples": [
+    "phi420/gemini_3_1_flash_image timestamp/GPS overlay",
+    "orig189/gpt_image_2_quality_high aged print border"
+   ],
+   "proposed_fix": "Exclude overlays implied by the requested medium from A16; still check their text under A02.",
+   "chunk": "chunk06"
+  },
+  {
+   "criterion": "Layer B (size)",
+   "problem": "Explicit relative-size comparisons between entities ('bamboo thicker than its body', 'immense size vs gentle action') have no clear code. A20 says size words are Layer B context but no B code owns them.",
+   "examples": [
+    "orig75: all 12 models draw bamboo thinner than the body"
+   ],
+   "proposed_fix": "Add 'stated sizes and size comparisons' to B05 (attribute) or a dedicated B09 size_comparison; severity moderate when the comparison is an explicit testpoint.",
+   "chunk": "chunk07"
+  },
+  {
+   "criterion": "B06 spatial_layout",
+   "problem": "'To its left' (subject-relative) vs viewer-left ambiguity. All 12 bears have the sapling on viewer's left = the bear's right.",
+   "examples": [
+    "orig314: all models"
+   ],
+   "proposed_fix": "State a default: when the subject faces the viewer and the prompt says 'to its left', accept either reading unless the prompt says 'from the viewer's perspective'; do not flag.",
+   "chunk": "chunk07"
+  },
+  {
+   "criterion": "B04 text_content_mismatch",
+   "problem": "Prompt quotes text with trailing sentence punctuation inside the quotes ('...dreams,'). Some models copy the comma, others drop it or add a period. Unclear which is correct.",
+   "examples": [
+    "orig554/flux3_klein 'DREAMS,'",
+    "orig554/qwen_image_2p1_nope 'dreams,'",
+    "orig554/gpt_image_2p5_sunburst 'dreams.'"
+   ],
+   "proposed_fix": "Ignore trailing punctuation that belongs to the prompt sentence; at most minor B04, never A02.",
+   "chunk": "chunk07"
+  },
+  {
+   "criterion": "A02 / text_accuracy",
+   "problem": "When the prompt requests degraded text (rain-washed, blurred letters), smeared letters are correct; letter-by-letter reading would penalise them.",
+   "examples": [
+    "orig554/gpt_image_2p5_sunburst 'believe' smeared",
+    "orig554/gpt_image_2_quality_high faded 'future'"
+   ],
+   "proposed_fix": "If degradation is requested, count a character as correct when its identity is still inferable or its smearing is consistent with the requested effect; flag only substituted/invented letters.",
+   "chunk": "chunk07"
+  },
+  {
+   "criterion": "B05 lighting direction",
+   "problem": "Requests like 'low sun from the northwest' need slope-orientation reasoning; hillshade relief easily reads inverted, so a judge can flag correct images (I initially misjudged krea and qwen_nope).",
+   "examples": [
+    "phi72/krea2_turbo: NW wall in shadow, SE wall lit = correct for NW light"
+   ],
+   "proposed_fix": "Require the judge to name a specific slope and its facing direction as evidence; if the relief could be read inverted, mark 'unverifiable' instead of present.",
+   "chunk": "chunk07"
+  },
+  {
+   "criterion": "A02 vs A03",
+   "problem": "Prompt-requested signage in photos ('warning placards', 'labeled floor') is intended text but is small and photographic; the design-role test in v2 does not settle it.",
+   "examples": [
+    "phi318/fibo2_dev 'CANGER:' placard",
+    "phi433/ideogram4_nf4 'POOLICE'"
+   ],
+   "proposed_fix": "Text explicitly requested by the prompt is A02 regardless of size; unrequested incidental text is A03.",
+   "chunk": "chunk07"
+  },
+  {
+   "criterion": "C01",
+   "problem": "Only real trademarks/persons/landmarks; fictional copyrighted characters are not covered.",
+   "examples": [
+    "orig195/gpt_image_2p5_sunburst(_quality_high): Kiki lookalike"
+   ],
+   "proposed_fix": "Extend C01 to 'recognisable copyrighted fictional characters'.",
+   "chunk": "chunk07"
+  },
+  {
+   "criterion": "B07 scene_changing_extra",
+   "problem": "Objects implied by world knowledge but not requested (pieces on a chessboard) — unclear if extras.",
+   "examples": [
+    "orig432: flux3_klein, gpt_image_2*, sunburst* add full chess sets"
+   ],
+   "proposed_fix": "Implied accessories are fine unless they become the focal content or hide a requested attribute; then minor-moderate B07.",
+   "chunk": "chunk07"
+  },
+  {
+   "criterion": "B05 vs A15 (requested uniform style)",
+   "problem": "When a prompt asks for one uniform medium (e.g. 'entire artwork pointillist') and the model applies it to the background only, both A15 (style leak) and B05 fire for the same pixels. The rubric doesn't say whether to double-record or which one sets severity.",
+   "examples": [
+    "orig323/fibo2_dev: realistic-fur panda over a dotted sky",
+    "orig323/qwen_image_2p1_pe: near-photo grass under a painted sky"
+   ],
+   "proposed_fix": "Record A15 when elements differ in medium from each other. Record B05 when the whole image misses the requested medium (orig323/gemini, ideogram). If both apply, put the severity on A15 and mark B05 'partial'.",
+   "chunk": "chunk08"
+  },
+  {
+   "criterion": "A02 vs A03 for requested-but-unspecified text",
+   "problem": "The prompt asks for 'cardboard signs and banners' but gives no wording. Is gibberish sign text A02 (part of the design) or A03 (incidental)? The signs are focal in a protest scene.",
+   "examples": [
+    "phi449/fibo2_dev: 'DESTIIOR / INPAR PE'",
+    "phi449/flux3_klein: banner 'RFOD…'"
+   ],
+   "proposed_fix": "Requested text carriers whose wording is unspecified go to A03, at moderate severity when they sit in the focal area. A02 stays for text whose wording is specified, or for text that is the subject.",
+   "chunk": "chunk08"
+  },
+  {
+   "criterion": "A09 floating",
+   "problem": "A09 could fire on an object caught mid-fall (krea apple). In a photo that is a legitimate frozen-motion moment.",
+   "examples": [
+    "orig80/krea2_turbo: apple frozen mid-air"
+   ],
+   "proposed_fix": "Add an exclusion: objects plausibly in motion (falling, thrown, splashing droplets) are not A09. Check only whether the motion is consistent.",
+   "chunk": "chunk08"
+  },
+  {
+   "criterion": "C01 incidental brands",
+   "problem": "Strong models fill scenes with real-world names (YMCA, Universal Robots, Dell, Mitutoyo, Hawaiki, SF Muni routes, Portland street signs). C01 gives no severity guidance or threshold.",
+   "examples": [
+    "phi449/gpt_image_2: YMCA, '49 VAN NESS/MISSION'",
+    "phi328/gpt_image_2p5_sunburst: UR logo",
+    "phi80/gpt_image_2_quality_high: 'Hawaiki Cable'"
+   ],
+   "proposed_fix": "Split C01 into C01a, a logo or brand mark on the focal object, and C01b, an incidental real name or street sign. Report C01b only, with no severity.",
+   "chunk": "chunk08"
+  },
+  {
+   "criterion": "B04 units / 'labels in meters'",
+   "problem": "It is unclear whether the unit must appear on every label or only in the legend.",
+   "examples": [
+    "phi80/gpt_image_2_quality_high: legend 'Depth (m)', bare labels",
+    "phi80/flux3_klein: no unit anywhere"
+   ],
+   "proposed_fix": "The unit is satisfied if a legend or axis title states it. Flag only when no unit appears anywhere.",
+   "chunk": "chunk08"
+  },
+  {
+   "criterion": "B06 'in the center'",
+   "problem": "'A frame hanging in the center' could mean the centre of the wall or the centre of the image. Most models put the frame right of the image centre to make room for the vases.",
+   "examples": [
+    "orig562/flux3_klein, gpt_image_2, krea2_turbo"
+   ],
+   "proposed_fix": "Read placement words relative to the named reference object (here the wall). Do not flag when the reference extends beyond the frame.",
+   "chunk": "chunk08"
+  },
+  {
+   "criterion": "Layer B negation",
+   "problem": "Explicit exclusions of a body part ('with no tail') are routinely violated (7/12 models) and it is unclear whether to log B02, B03 or B07.",
+   "examples": [
+    "orig96/gemini, ideogram, krea, qwen x2, fibo: tail present"
+   ],
+   "proposed_fix": "State in B07 (or new B09 negation) that any explicitly excluded object, part or attribute that is present is major when on the focal subject.",
+   "chunk": "chunk09"
+  },
+  {
+   "criterion": "B02 real-world object / world knowledge",
+   "problem": "Standard-design objects (traffic signs) rendered with wrong canonical shape while text is correct; or hybrid of two sign designs.",
+   "examples": [
+    "phi452: 5 models draw a yellow diamond YIELD; sunburst draws red yield triangle inside diamond"
+   ],
+   "proposed_fix": "Add: regulatory signs, flags, instruments must have the canonical shape for the stated type; a merged design of two standards is A10.",
+   "chunk": "chunk09"
+  },
+  {
+   "criterion": "A16 non_content_overlay",
+   "problem": "Dashcam OSD timestamp/speed bar is a requested-by-implication overlay ('dashcam view'), and could be over-flagged as subtitle bar.",
+   "examples": [
+    "phi452/gemini_3_1_flash_image: '2023-10-27 15:42:09 GMT 58 MPH'"
+   ],
+   "proposed_fix": "Overlays native to a requested capture device (dashcam OSD, CCTV timestamp, viewfinder HUD) are not A16.",
+   "chunk": "chunk09"
+  },
+  {
+   "criterion": "A12 cause->effect",
+   "problem": "Does not mention instrument contents vs produced marks, or self-luminous-looking passive objects under flat light.",
+   "examples": [
+    "orig574/qwen_image_2p1_nope brown lines from white cream",
+    "phi452/qwen_image_2p1_nope sign glowing like a lightbox under overcast"
+   ],
+   "proposed_fix": "Add examples: 'white icing bag makes white lines', 'non-emissive sign does not glow under overcast'.",
+   "chunk": "chunk09"
+  },
+  {
+   "criterion": "A06 clones",
+   "problem": "Prompts asking for two people with matching outfits produce identical faces; v2 gives no severity or A06 vs A13 rule.",
+   "examples": [
+    "orig226/krea2_turbo mirrored twin",
+    "orig226/gemini_3_1_flash_image same face twice",
+    "orig226/qwen_image_2p1_pe"
+   ],
+   "proposed_fix": "State: identical face on 2+ people is A06 (moderate; major when they are the focal pair and also share pose), regardless of matching costume; A13 only for crowds of 3+.",
+   "chunk": "chunk10"
+  },
+  {
+   "criterion": "B04 text_content_mismatch",
+   "problem": "Sign names in caps without quotes ('DO NOT ENTER sign') – unclear whether wording is required; half the models render a wordless roundel.",
+   "examples": [
+    "phi465/fibo2_dev",
+    "phi465/gpt_image_2_quality_high",
+    "phi465/qwen_image_2p1_nope"
+   ],
+   "proposed_fix": "Treat unquoted sign names as type descriptors: missing wording is at most minor B04; quoted strings are required.",
+   "chunk": "chunk10"
+  },
+  {
+   "criterion": "B05 translucent/hologram looks",
+   "problem": "'translucent hologram' is almost always rendered as an opaque planet; judges need an explicit check.",
+   "examples": [
+    "orig346/fibo2_dev",
+    "orig346/flux3_klein_base"
+   ],
+   "proposed_fix": "Add translucency/holographic/glass looks to the B05 looks list: opaque rendering of a requested translucent element is a miss.",
+   "chunk": "chunk10"
+  },
+  {
+   "criterion": "A16 vs genre overlays",
+   "problem": "Dashcam timestamp OSD and similar genre UI is requested-genre content, not a watermark; but small generator sparkle logos in corners are real A16.",
+   "examples": [
+    "phi465/gemini_3_1_flash_image timestamp",
+    "orig346/ideogram4_nf4 sparkle",
+    "orig101/ideogram4_nf4 sparkle"
+   ],
+   "proposed_fix": "A16 exception: overlays native to the requested capture genre (dashcam OSD, CCTV stamp, camera viewfinder) are not defects; explicitly list 'generator logo glyph in a corner' as A16.",
+   "chunk": "chunk10"
+  },
+  {
+   "criterion": "B08 scene-defining wide shot",
+   "problem": "Industrial prompts asking for 'wide shot showing rails, cable carriers' get close-ups; B08 examples focus on people.",
+   "examples": [
+    "phi101/qwen_image_2p1_nope",
+    "orig101/krea2_turbo tower cut in half"
+   ],
+   "proposed_fix": "Add example: requested wide/establishing shot rendered as a detail close-up, or a landmark whose full silhouette is requested cut by the frame, is major B08.",
+   "chunk": "chunk10"
+  },
+  {
+   "criterion": "A02 vs A03",
+   "problem": "The prompt asks for unquoted text ('elegant printed text' on book pages). Neither A02 (intended) nor A03 (incidental) clearly applies, and severity differs.",
+   "examples": [
+    "orig230/flux3_klein, qwen_image_2p1_nope: full pages of pseudo-text"
+   ],
+   "proposed_fix": "Requested but unspecified text: judge legibility under A03 with severity one step higher (moderate when it covers a focal surface). There is no B04 because there is no target string.",
+   "chunk": "chunk11"
+  },
+  {
+   "criterion": "B05 / negation testpoints",
+   "problem": "Prompts with negations ('thornless', 'no sharp accessories') are often violated (spines). v2 gives no severity anchor, so judges treat spines as natural cactus detail.",
+   "examples": [
+    "orig116/krea2_turbo: long spines everywhere",
+    "orig116/ideogram4_nf4, qwen_image_2p1_nope"
+   ],
+   "proposed_fix": "Add to B05/B07: an explicitly negated attribute that is present on the focal subject is at least moderate, and major when it is prominent across the subject.",
+   "chunk": "chunk11"
+  },
+  {
+   "criterion": "B03 gaze/attention",
+   "problem": "'looking up at', 'gazing at' are judged from the head pose. The pupils often point elsewhere.",
+   "examples": [
+    "orig355/qwen_image_2p1_nope: giant's pupils look away from the hamster",
+    "orig355/flux3_klein: both characters look at the camera"
+   ],
+   "proposed_fix": "For a requested gaze, trace the pupil and head direction to the target. Looking at the camera counts as a miss.",
+   "chunk": "chunk11"
+  },
+  {
+   "criterion": "B04 prompt-word leakage",
+   "problem": "Prompt adjectives turned into in-scene signage are missed because B04 reads like a caption rule.",
+   "examples": [
+    "orig479/gemini_3_1_flash_image: 'NEON CHAOS', 'RUSTY PATH' neon signs",
+    "orig593/fibo2_dev: 'Guardian 383349' billboard"
+   ],
+   "proposed_fix": "State that B04 leakage includes signs, billboards and labels that restate prompt words or the quoted string somewhere other than the requested location.",
+   "chunk": "chunk11"
+  },
+  {
+   "criterion": "C01",
+   "problem": "Photoreal industrial prompts get real OEM branding on almost every gpt/gemini image (FANUC, KUKA, ARBURG, NISSEI, COBOD, EMOTIV), sometimes with the wrong model number ('HITACHI SE180DU').",
+   "examples": [
+    "phi112/gpt_image_2p5_sunburst_quality_high",
+    "phi239/gpt_image_2p5_sunburst"
+   ],
+   "proposed_fix": "Keep C01 as a flag but add a sub-flag 'brand_model_mismatch'. A wrong pairing is a factual error that could go to Layer A (A19) as well.",
+   "chunk": "chunk11"
+  },
+  {
+   "criterion": "A16",
+   "problem": "Small AI-provenance sparkle marks look like glints and are not listed.",
+   "examples": [
+    "phi353/ideogram4_nf4: four-point sparkle at bottom-right"
+   ],
+   "proposed_fix": "Name 'generator provenance marks (sparkle/star logos in a corner)' under A16, always at least moderate.",
+   "chunk": "chunk11"
+  }
+ ],
+ "traps": [
+  {
+   "description": "Requested on-screen overlays (CCTV timestamp, camera ID) look like A16 subtitle bars but are required; only judge them under A02/B04.",
+   "examples": [
+    "phi242 all models"
+   ],
+   "chunk": "chunk00"
+  },
+  {
+   "description": "Recognizable real artworks/landmarks in a historically-themed prompt (Mona Lisa, Vitruvian Man, Big Ben) are C01 flags, not Layer A defects.",
+   "examples": [
+    "orig123/gpt_image_2",
+    "orig4/gpt_image_2p5_sunburst"
+   ],
+   "chunk": "chunk00"
+  },
+  {
+   "description": "Motion blur on foreground balls could be read as A21, but here it is a B05 miss (prompt asked frozen crisp motion); do not double-count under A21.",
+   "examples": [
+    "phi482/gpt_image_2p5_sunburst_quality_high"
+   ],
+   "chunk": "chunk00"
+  },
+  {
+   "description": "Earth shown much larger/closer than physically possible next to Saturn/Jupiter is surreal intent (prompt says surrealism); not A20.",
+   "examples": [
+    "orig365 all"
+   ],
+   "chunk": "chunk00"
+  },
+  {
+   "description": "Avatar elements (bandana, ears) breaking a circular mask can be a deliberate 'pop-out' design, flag only minor at most.",
+   "examples": [
+    "orig483/gpt_image_2_quality_high"
+   ],
+   "chunk": "chunk00"
+  },
+  {
+   "description": "Vertical wrecking-ball cable during 'mid-swing' is physically correct (bottom of arc); do not flag as not swinging.",
+   "examples": [
+    "phi495/gpt_image_2",
+    "phi495/qwen_image_2p1_pe"
+   ],
+   "chunk": "chunk01"
+  },
+  {
+   "description": "Tape over patient eyes, face shields, eye protection during intubation are real clinical practice, not anomalies.",
+   "examples": [
+    "phi10/flux3_klein",
+    "phi10/flux3_klein_base"
+   ],
+   "chunk": "chunk01"
+  },
+  {
+   "description": "Motion blur on a LiDAR head expresses 'spinning' and is requested, not A21.",
+   "examples": [
+    "phi134/qwen_image_2p1_pe"
+   ],
+   "chunk": "chunk01"
+  },
+  {
+   "description": "Upside-down face (camera at patient's feet looking at the chin) reads as melted/odd anatomy at a glance but is correct foreshortening.",
+   "examples": [
+    "phi10/gpt_image_2",
+    "phi10/gpt_image_2_quality_high"
+   ],
+   "chunk": "chunk01"
+  },
+  {
+   "description": "Gown displayed on headless dress form - reads as missing head but is a mannequin; only a B question.",
+   "examples": [
+    "orig257/krea2_turbo",
+    "orig257/qwen_image_2p1_nope"
+   ],
+   "chunk": "chunk01"
+  },
+  {
+   "description": "Blurred potted plant outside the window looks like a ghost/duplicate reflection but is just a balcony object behind glass.",
+   "examples": [
+    "orig495/krea2_turbo"
+   ],
+   "chunk": "chunk01"
+  },
+  {
+   "description": "Seals, signatures and inscriptions in a requested traditional Chinese painting are medium conventions, not A16 overlays; well-formed ones are not defects.",
+   "examples": [
+    "orig23/qwen_image_2p1_pe",
+    "orig23/gpt_image_2p5_sunburst_quality_high '雲壺飛遠'"
+   ],
+   "chunk": "chunk02"
+  },
+  {
+   "description": "Dali-style long-legged elephants and figures in a prompt requesting 'Dali-esque' are requested style, not B07 extras.",
+   "examples": [
+    "orig145/gpt_image_2",
+    "orig145/gpt_image_2_quality_high"
+   ],
+   "chunk": "chunk02"
+  },
+  {
+   "description": "Fisheye bezel, REC dot and dark vignette in a prompt that asks for a surveillance camera view are requested look, not A16 border/vignette.",
+   "examples": [
+    "phi262/flux3_klein_base"
+   ],
+   "chunk": "chunk02"
+  },
+  {
+   "description": "Mirrored text reflected on an adjacent glossy ball is correct physics, not A03 mirrored pseudo-text.",
+   "examples": [
+    "phi507/gemini_3_1_flash_image: red ball shows mirrored reflection of 'SALUC' printing"
+   ],
+   "chunk": "chunk02"
+  },
+  {
+   "description": "Ghost/streak of a ball in requested motion blur, and pink reflection disc of the red ball on the cue ball, are not A07 duplicates.",
+   "examples": [
+    "phi507/krea2_turbo",
+    "phi507/gpt_image_2p5_sunburst"
+   ],
+   "chunk": "chunk02"
+  },
+  {
+   "description": "Android robot elbows on table with hands clasped can look like 4 arms at preview size; trace each forearm before calling A05.",
+   "examples": [
+    "phi388/gemini_3_1_flash_image"
+   ],
+   "chunk": "chunk02"
+  },
+  {
+   "description": "Dashcam overlays (timestamp, speed) and dashcam fisheye vignettes are genre-appropriate when a dashcam view is requested; they should not be A16, unless they write prompt words or cover content.",
+   "examples": [
+    "phi399/gemini_3_1_flash_image timestamp \"2024-08-15 12:48:10\"",
+    "phi399/ideogram4_nf4 circular vignette"
+   ],
+   "chunk": "chunk03"
+  },
+  {
+   "description": "Regional variants of road signs (UK \"GIVE WAY\", Nordic red-yellow yield sign, triangle give-way road marking) are correct realisations of a \"triangular yield sign\", not B02 or A19.",
+   "examples": [
+    "phi399/gpt_image_2p5_sunburst_quality_high",
+    "phi399/qwen_image_2p1_pe"
+   ],
+   "chunk": "chunk03"
+  },
+  {
+   "description": "Requested brand text on the requested product (Boston Dynamics on Spot) is correct Layer B content; flag C01 only as a risk, not as a defect.",
+   "examples": [
+    "phi150/gpt_image_2",
+    "phi150/gpt_image_2p5_sunburst"
+   ],
+   "chunk": "chunk03"
+  },
+  {
+   "description": "Unrequested background planets, moons and galaxies in a space scene, and unrequested robot model labels (AURA, HOME-BOT), serve the scene and are not B07.",
+   "examples": [
+    "orig399/gpt_image_2",
+    "phi273/gpt_image_2p5_sunburst"
+   ],
+   "chunk": "chunk03"
+  },
+  {
+   "description": "Herds of similar animals are naturally similar; A13 should fire only for identical pose or markings, or rigid even spacing, not for the same species and colour.",
+   "examples": [
+    "orig276/gpt_image_2 varied herd = fine vs orig276/flux3_klein_base clones"
+   ],
+   "chunk": "chunk03"
+  },
+  {
+   "description": "Glowing exterior of a crucible just out of a furnace is physically correct, not a lighting error.",
+   "examples": [
+    "phi528/gemini_3_1_flash_image red-hot crucible exterior"
+   ],
+   "chunk": "chunk04"
+  },
+  {
+   "description": "Unrequested logo title text ('READING COACH', 'GUIDING THE WAY TO SUCCESS') on a logo prompt serves the design; flag only if it displaces requested text (B04 'prompt words written as unrequested text' may over-flag).",
+   "examples": [
+    "orig524/gpt_image_2, gemini_3_1_flash_image"
+   ],
+   "chunk": "chunk04"
+  },
+  {
+   "description": "Second blurred Notre Dame / Eiffel tower in the bokeh background of a Paris app is scene-appropriate, not A07.",
+   "examples": [
+    "orig400/gpt_image_2p5_sunburst",
+    "orig400/gpt_image_2"
+   ],
+   "chunk": "chunk04"
+  },
+  {
+   "description": "Motion blur of road foreground in a moving dashcam shot is motivated, not A21.",
+   "examples": [
+    "phi403/flux3_klein",
+    "phi403/flux3_klein_base"
+   ],
+   "chunk": "chunk04"
+  },
+  {
+   "description": "Rear-view mirror at the top of a dashcam frame is plausible camera placement.",
+   "examples": [
+    "phi403/qwen_image_2p1_pe"
+   ],
+   "chunk": "chunk04"
+  },
+  {
+   "description": "Blank UI buttons are acceptable when the prompt only says 'function buttons'; don't flag A02/B04.",
+   "examples": [
+    "orig400/krea2_turbo",
+    "orig400/qwen_image_2p1_nope"
+   ],
+   "chunk": "chunk04"
+  },
+  {
+   "description": "Prompt self-contradiction: 'slight camera shake suggests vibration' plus '1/1000s to freeze the spray'. A sharp image should not be penalised for missing shake under B05.",
+   "examples": [
+    "phi533: all 12 images are sharp; none should get B05 for 'no camera shake'"
+   ],
+   "chunk": "chunk05"
+  },
+  {
+   "description": "Correct mirror reflections of text on a glossy car hood (reversed letters) are physics, not A03 pseudo-text.",
+   "examples": [
+    "phi414/ideogram4_nf4: 'CITY SANITATION' reflected reversed on the hood"
+   ],
+   "chunk": "chunk05"
+  },
+  {
+   "description": "Cartoon hedgehog 'curled into a ball' with a face peeking out is a style convention; don't flag B03 unless the hedgehog is clearly uncurled (walking or lying in profile).",
+   "examples": [
+    "orig53/gpt_image_2*: round spiky ball with face — fine",
+    "orig53/flux3_klein_base: walking hedgehog — flag"
+   ],
+   "chunk": "chunk05"
+  },
+  {
+   "description": "Rainbow caustics spread widely over a dark floor around a crystal sculpture under spotlights are plausible dispersion, not A23 over-processing, unless they appear where no light passes through the crystal.",
+   "examples": [
+    "orig174/flux3_klein, gpt_image_2: strong rainbow patches"
+   ],
+   "chunk": "chunk05"
+  },
+  {
+   "description": "Licence plates, council names and street signs that are readable real-format text (e.g. 'BX70 KZV', 'Southwark Council') are not A03 defects; they may deserve C01 at most.",
+   "examples": [
+    "phi414/gpt_image_2p5_sunburst_quality_high",
+    "phi414/gemini_3_1_flash_image"
+   ],
+   "chunk": "chunk05"
+  },
+  {
+   "description": "Robot push-ups on closed fists ('knuckle push-ups') match 'knuckle-like joints' and are not hand anatomy errors.",
+   "examples": [
+    "phi176/gpt_image_2p5_sunburst, gpt_image_2p5_sunburst_quality_high"
+   ],
+   "chunk": "chunk05"
+  },
+  {
+   "description": "Overlays that the prompt's genre implies (dashcam OSD, aged photo border, film scratches/dust) are not A16 or A22.",
+   "examples": [
+    "phi420/gemini_3_1_flash_image",
+    "orig189/gpt_image_2_quality_high",
+    "orig189/gpt_image_2p5_sunburst",
+    "orig189/qwen_image_2p1_nope dust specks"
+   ],
+   "chunk": "chunk06"
+  },
+  {
+   "description": "Floating 3D road shields or labels in a \"Google Earth style\" render follow the requested UI style; they are not pseudo-text or overlays.",
+   "examples": [
+    "phi68/gemini_3_1_flash_image interstate shields"
+   ],
+   "chunk": "chunk06"
+  },
+  {
+   "description": "A requested real landmark (Statue of Liberty, Giza pyramids, Manhattan skyline) should not be counted as a C01 risk the same way as an unrequested brand.",
+   "examples": [
+    "orig424 all models",
+    "orig189 all models"
+   ],
+   "chunk": "chunk06"
+  },
+  {
+   "description": "Extra but scene-serving elements (camel rider in pyramids, glass UI cards in a glassmorphism image, distant camels) should not be B07.",
+   "examples": [
+    "orig189/gpt_image_2",
+    "orig69/gpt_image_2_quality_high",
+    "orig189/gpt_image_2p5_sunburst"
+   ],
+   "chunk": "chunk06"
+  },
+  {
+   "description": "Hand placement offset from imprint (hand lifted away after pressing) is correct for \"just releases pressure\"; do not flag missing contact.",
+   "examples": [
+    "phi545/gpt_image_2p5_sunburst",
+    "phi545/gemini_3_1_flash_image"
+   ],
+   "chunk": "chunk06"
+  },
+  {
+   "description": "Motion-blurred or ghosted wiper blades are requested (mid-swipe) and are not A07 duplicates.",
+   "examples": [
+    "phi420/gpt_image_2",
+    "phi420/krea2_turbo"
+   ],
+   "chunk": "chunk06"
+  },
+  {
+   "description": "Dashcam/camera OSD (timestamp, REC dot) when the prompt asks for a dashcam view is genre-appropriate, not A16.",
+   "examples": [
+    "phi433/flux3_klein '2024-11-18 15:42:07'",
+    "phi433/gemini_3_1_flash_image timestamp",
+    "phi433/ideogram4_nf4 'REC' + date"
+   ],
+   "chunk": "chunk07"
+  },
+  {
+   "description": "Requested text degradation (rain-blurred letters) should not be read as A02 misspelling.",
+   "examples": [
+    "orig554/gpt_image_2p5_sunburst",
+    "orig554/gpt_image_2p5_sunburst_quality_high"
+   ],
+   "chunk": "chunk07"
+  },
+  {
+   "description": "Animal paw with palm/pads facing the viewer and claws curled toward the viewer around a leaf is a consistent grip, not the A04 'palm faces camera while fingers curl over front' error.",
+   "examples": [
+    "orig314/gpt_image_2p5_sunburst",
+    "orig314/flux3_klein_base"
+   ],
+   "chunk": "chunk07"
+  },
+  {
+   "description": "Hillshade light-direction judgements: a correctly lit DEM can look wrong when relief is perceived inverted; verify a named slope before flagging.",
+   "examples": [
+    "phi72/krea2_turbo",
+    "phi72/qwen_image_2p1_nope"
+   ],
+   "chunk": "chunk07"
+  },
+  {
+   "description": "Floating bookshelves, floating islands and books in a fantasy 'suspended library' are style intent, not A09.",
+   "examples": [
+    "orig195/fibo2_dev",
+    "orig195/gemini_3_1_flash_image"
+   ],
+   "chunk": "chunk07"
+  },
+  {
+   "description": "Dashcam on-screen timestamp and fisheye or dark lens vignette when the prompt asks for a dashcam view. Under A16 these could be flagged as a 'subtitle bar' or 'vignette frame', but they belong to the requested capture device.",
+   "examples": [
+    "phi449/fibo2_dev: '2023-10-14 14:32:10'",
+    "phi449/ideogram4_nf4: timestamp + circular vignette"
+   ],
+   "chunk": "chunk08"
+  },
+  {
+   "description": "Unrequested on-theme props and signage (a Principia book next to Newton, safety signs in a scrapyard, lab signs). B07 should not fire; they serve the scene.",
+   "examples": [
+    "orig80/gpt_image_2: 'PHILOSOPHIAE NATURALIS PRINCIPIA MATHEMATICA' book",
+    "orig200/gpt_image_2: 'SAFETY IS NOT OPTIONAL'"
+   ],
+   "chunk": "chunk08"
+  },
+  {
+   "description": "Requested haze or glare that softens the image is not A21/A23.",
+   "examples": [
+    "phi449/qwen_image_2p1_nope: hazy sunlit crowd",
+    "phi80/flux3_klein_base: diagonal glare streak on the monitor"
+   ],
+   "chunk": "chunk08"
+  },
+  {
+   "description": "Asymmetric but buildable designs (different-coloured pontoons, robots with no head) are not A10.",
+   "examples": [
+    "phi208/flux3_klein: one white and one orange pontoon",
+    "orig200/flux3_klein: headless robot with a claw arm"
+   ],
+   "chunk": "chunk08"
+  },
+  {
+   "description": "Text written by a subject facing the camera appears upside-down/mirrored to the viewer; this is physically correct and should be transcribed after rotating, not flagged.",
+   "examples": [
+    "orig574/gemini_3_1_flash_image cake text reads from chef's side"
+   ],
+   "chunk": "chunk09"
+  },
+  {
+   "description": "Reflections of text on glossy surfaces are correctly mirrored and should not count as A03 mirrored characters.",
+   "examples": [
+    "phi452/gemini_3_1_flash_image hood reflection of YIELD sign reads mirrored"
+   ],
+   "chunk": "chunk09"
+  },
+  {
+   "description": "Dashcam timestamp/speed overlay when a dashcam view is requested is genre-appropriate, not A16.",
+   "examples": [
+    "phi452/gemini_3_1_flash_image"
+   ],
+   "chunk": "chunk09"
+  },
+  {
+   "description": "Robot covered in a protective paint suit looks like a draped cloth blob but is realistic paint-booth practice.",
+   "examples": [
+    "phi93/gpt_image_2_quality_high"
+   ],
+   "chunk": "chunk09"
+  },
+  {
+   "description": "Prompt-requested colour that contradicts modern convention (yellow YIELD sign = pre-1971 US) should not be flagged; only the shape error counts.",
+   "examples": [
+    "phi452 all models yellow"
+   ],
+   "chunk": "chunk09"
+  },
+  {
+   "description": "Dashcam hood/windshield edge occupying the bottom of frame and timestamp OSD are requested by 'dashcam image' – not A16/A17 occlusion.",
+   "examples": [
+    "phi465/gpt_image_2",
+    "phi465/krea2_turbo",
+    "phi465/gemini_3_1_flash_image"
+   ],
+   "chunk": "chunk10"
+  },
+  {
+   "description": "Laika statue wearing a harness/vest is historically accurate, not an unrequested extra.",
+   "examples": [
+    "orig583/gpt_image_2",
+    "orig583/gpt_image_2p5_sunburst_quality_high"
+   ],
+   "chunk": "chunk10"
+  },
+  {
+   "description": "Paris storefront signs ('CAFE FLORE', 'LIBRAIRIE', 'PONT D'IENA') in Ghibli scenes are correct incidental text and scene-serving extras; don't flag as B07.",
+   "examples": [
+    "orig101/gpt_image_2",
+    "orig101/gemini_3_1_flash_image"
+   ],
+   "chunk": "chunk10"
+  },
+  {
+   "description": "Inkjet/dispensing heads with visible thin fluid stream are plausible; only flag when the stream does not reach the work or falls from far above.",
+   "examples": [
+    "phi101/ideogram4_nf4",
+    "phi221/fibo2_dev"
+   ],
+   "chunk": "chunk10"
+  },
+  {
+   "description": "Correct non-Latin text in cyberpunk scenes is easy to over-flag as pseudo-text. Read the script before calling A03.",
+   "examples": [
+    "orig479/gpt_image_2: '未来は死んだ' is correct Japanese",
+    "orig479/qwen_image_2p1_pe: '未来已死', '機械' are correct"
+   ],
+   "chunk": "chunk11"
+  },
+  {
+   "description": "Requested reflections can look like ghost duplicates.",
+   "examples": [
+    "phi353/qwen_image_2p1_nope: faint reflection of the head cap on the safety glass (requested 'subtle reflections')",
+    "phi477/gpt_image_2_quality_high: reflection of the sign on the car hood"
+   ],
+   "chunk": "chunk11"
+  },
+  {
+   "description": "Prompt-mandated impossibilities are not A12: lava poured onto a flower that does not burn, a hologram floating beside the chest.",
+   "examples": [
+    "orig479 all models",
+    "orig593/flux3_klein_base: screen floating off the chest"
+   ],
+   "chunk": "chunk11"
+  },
+  {
+   "description": "Insect leg counts on thin or partly occluded legs are unreliable at 1024px. Flag B01 only when the count is clearly not 6.",
+   "examples": [
+    "orig230: most butterflies show 4-6 visible legs with others hidden behind wings"
+   ],
+   "chunk": "chunk11"
+  },
+  {
+   "description": "Stylised character limbs (a cactus arm ending in a rounded fold, a cactus with stubby legs) are style choices in non-photographic mode, not A04/A05 defects.",
+   "examples": [
+    "orig116/flux3_klein",
+    "orig116/gpt_image_2p5_sunburst_quality_high"
+   ],
+   "chunk": "chunk11"
+  }
+ ]
+}

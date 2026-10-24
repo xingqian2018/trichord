@@ -26,7 +26,9 @@ Generation: `inference_ugb_i4.py`, `--experiment_name cosmos3p5_ga_60bm30b_base_
 | c3p5_exp003_000_pretrain_iter25000_noneg                         | 1170 png | 86.29     | 88.83     | 83.97     | 1170/1170    |
 | c3p5_exp003_001_pretrain_midtrain_iter25000_noneg                | 1170 png | 86.44     | 88.88     | 84.20     | 1170/1170    |
 | c3p5_exp003_002_pretrain_getty_iter25000_noneg                   | 1170 png | **87.56** | **89.80** | **85.51** | 1170/1170    |
-| c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_noneg         | pending  |           |           |           | (train job 2576199) |
+| c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ | 1170 png | 87.88 | 90.13 | 85.82 | 1170/1170 |
+
+¹ exp003_003 was generated with shift 3, **CFG on every step**, per-prompt row seed (the new `Cosmos3p5Generator` default, `cd2022e3408`), not the CFG [400, 1000] used by the other rows of this table, so it is not directly comparable to them. It is compared only with exp003_002, which shares lr 2e-5; exp003_000 / 001 use lr 1e-4 and are not compared. Under the same setting (1024, shift 3, full CFG, row seed, noneg): exp003_002 getty 87.92, exp003_003 midtrain **87.88**, a difference of −0.04, inside the ~0.35 judge noise, so the two are indistinguishable.
 
 ## Sampling progression on exp003_002 getty (1024×1024)
 

@@ -1,0 +1,191 @@
+<title>UGB 推理设置扫描</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 布局：单栏长报告，先结论后证据；每张图下面附原始数据表 */
+:root {
+  --bg: #f7f8f9;
+  --surface: #ffffff;
+  --ink: #15191d;
+  --ink-2: #4c545c;
+  --ink-3: #7b838b;
+  --rule: #dfe3e7;
+  --noise: #eceff2;
+  --accent: #2a78d6;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #8a5cd6;
+  --muted-mark: #9aa3ab;
+  --good: #0ca30c;
+  --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141618; --surface: #1c1f22; --ink: #eef0f2; --ink-2: #b9c0c6; --ink-3: #8a929a;
+    --rule: #30353a; --noise: #262a2e; --accent: #3987e5; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9b72e0;
+    --muted-mark: #6f7880; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141618; --surface: #1c1f22; --ink: #eef0f2; --ink-2: #b9c0c6; --ink-3: #8a929a;
+  --rule: #30353a; --noise: #262a2e; --accent: #3987e5; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9b72e0;
+  --muted-mark: #6f7880; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.7; }
+.page { max-width: 880px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 40px; }
+header { display: flex; flex-direction: column; gap: 8px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; color: var(--ink-3); }
+h1 { font-size: 30px; line-height: 1.3; margin: 0; font-weight: 700; text-wrap: balance; }
+h2 { font-size: 20px; margin: 0; font-weight: 700; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; color: var(--ink-2); }
+.lede { font-size: 16px; color: var(--ink-2); }
+section { display: flex; flex-direction: column; gap: 14px; }
+.findings { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.findings li { display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: baseline; padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+.verdict { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; text-align: center; white-space: nowrap; }
+.v-yes { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--ink); }
+.v-no { background: var(--noise); color: var(--ink-2); }
+.v-mid { background: color-mix(in srgb, var(--s2) 16%, transparent); color: var(--ink); }
+.findings b { color: var(--ink); font-weight: 600; }
+.fig { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 18px 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fig-title { font-weight: 600; font-size: 15px; }
+.fig-sub { font-size: 13px; color: var(--ink-3); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.sw-band { width: 18px; height: 10px; border-radius: 2px; background: var(--noise); border: 1px dashed var(--ink-3); }
+svg { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { fill: var(--ink-2); font-family: var(--font-body); font-size: 12px; }
+svg .mono { font-family: var(--font-mono); font-size: 11px; }
+svg .axis { stroke: var(--rule); stroke-width: 1; }
+svg .grid { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 2 3; }
+svg .zero { stroke: var(--ink-3); stroke-width: 1; }
+svg .band { fill: var(--noise); }
+svg .dot { stroke: var(--surface); stroke-width: 2; cursor: pointer; }
+svg .dot:hover { stroke: var(--ink); }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 13px; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { color: var(--ink-3); font-weight: 500; }
+td.num, th.num { text-align: right; font-family: var(--font-mono); }
+details summary { cursor: pointer; font-size: 13px; color: var(--ink-3); }
+details summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 6px 9px; border-radius: 4px; line-height: 1.5; z-index: 20; max-width: 420px; }
+.note { font-size: 13px; color: var(--ink-3); }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--noise); padding: 1px 5px; border-radius: 3px; }
+@media (max-width: 520px) { .findings li { grid-template-columns: 1fr; gap: 6px; } .verdict { justify-self: start; } h1 { font-size: 24px; } }
+</style>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">UNIGENBENCH · COSMOS3.5 60BM30B · 2026-10-23</div>
+    <h1>UGB 推理设置扫描：哪个设置真正提分</h1>
+    <p class="lede">同一个 checkpoint 只改推理设置，逐个变量对比 shift、CFG 区间和 seed。生成用 hamid（GPT-5.5 改写）prompt，打分用原版 <code>v2_1170L</code> testpoint，judge 为 Gemini 3.1 Pro。同一批图重打一次分的噪声约 <b>0.35</b>。</p>
+  </header>
+
+  <section>
+    <div class="fig">
+      <div class="fig-title">各实验相对基准的 overall 变化（百分点）</div>
+      <div class="fig-sub">基准 = 0：shift 3、CFG 区间 [400, 1000]、行号 seed（0–1169）；guidance 4、不带 neg 为默认设置，所有 run 都一样。每个 checkpoint 都减去自己的基准分。灰带为 ±0.35 judge 噪声。</div>
+      <div class="legend" id="leg1"></div>
+      <div id="chart1"></div>
+      <details><summary>查看数据</summary><div class="tbl-wrap" id="tbl1"></div></details>
+    </div>
+  </section>
+
+  <section>
+    <h2>对 Ultra（470bm235b）评测的建议</h2>
+    <p>单独比较 shift 3 和 6 信息量不大。更值得跑的是：① 原设置（对齐 Super 的 86.10）；② 全程 CFG（验证这条结论在 Ultra 上是否成立，对齐 86.72 / 87.03）；③ 完整 recipe（对齐 Super 最好的 87.21 和生产配置的 87.22）。Ultra 推理要用 <code>cosmos3p5_ga_470bm235b_base_cp1_for_eval</code>（context parallel = 1），否则会卡在 all-to-all。</p>
+    <p class="note">数据来源：S3 <code>unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/</code> 下各 run 的 <code>unigenbench_result.json</code> 与 <code>config.json</code>；逐步消融原始记录见 <code>score_report_20261020_dataset_ablation/ugb.md</code>；文字版见同目录 <code>ugb_evaluation_swipe.md</code>。</p>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const CKPTS = [
+  { key: "base", name: "SFT 前 Super（960）", color: "var(--s1)" },
+  { key: "e000", name: "exp003_000 pretrain（1024）", color: "var(--s2)" },
+  { key: "e002", name: "exp003_002 getty（1024）", color: "var(--s3)" },
+];
+const EXPS = [
+  { name: "shift 3 · [400, 1000] · 行号 seed（基准）", color: "var(--muted-mark)", dash: true, v: { base: 86.10, e000: 86.29, e002: 87.56 } },
+  { name: "shift 3 · 全程 CFG · 行号 seed", color: "var(--s1)", v: { base: 86.72, e000: 86.37, e002: 87.92 } },
+  { name: "shift 6 · [400, 1000] · 行号 seed", color: "var(--s2)", v: { base: 86.21, e000: 86.00, e002: 87.23 } },
+  { name: "shift 6 · 全程 CFG · 行号 seed", color: "var(--s3)", v: { base: 87.03, e000: 86.61, e002: 87.62 } },
+  { name: "shift 6 · 全程 CFG · seed 0", color: "var(--s4)", v: { base: 87.21, e000: 86.87, e002: 88.14 } },
+];
+const BASE = { base: 86.10, e000: 86.29, e002: 87.56 };
+const NOISE = 0.35;
+const NS = "http://www.w3.org/2000/svg";
+const fmt = (x, sign) => (sign && x > 0 ? "+" : "") + x.toFixed(2);
+
+function el(tag, attrs, parent, text) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text != null) n.textContent = text;
+  if (parent) parent.appendChild(n);
+  return n;
+}
+const tip = document.getElementById("tip");
+function bindTip(node, html) {
+  node.setAttribute("tabindex", "0");
+  const show = e => {
+    tip.innerHTML = html; tip.hidden = false;
+    const r = node.getBoundingClientRect();
+    const x = (e && e.clientX) || r.left + r.width / 2, y = (e && e.clientY) || r.top;
+    tip.style.left = Math.max(8, Math.min(x + 12, window.innerWidth - tip.offsetWidth - 8)) + "px";
+    tip.style.top = (y + 14) + "px";
+  };
+  node.addEventListener("mousemove", show);
+  node.addEventListener("focus", () => show());
+  node.addEventListener("mouseleave", () => (tip.hidden = true));
+  node.addEventListener("blur", () => (tip.hidden = true));
+}
+function table(id, head, rows, numCols) {
+  const t = document.createElement("table");
+  const tr = t.insertRow();
+  head.forEach((h, i) => { const th = document.createElement("th"); th.textContent = h; if (numCols.includes(i)) th.className = "num"; tr.appendChild(th); });
+  rows.forEach(r => { const row = t.insertRow(); r.forEach((c, i) => { const td = row.insertCell(); td.textContent = c; if (numCols.includes(i)) td.className = "num"; }); });
+  document.getElementById(id).appendChild(t);
+}
+
+(function chart1() {
+  const leg = document.getElementById("leg1");
+  EXPS.forEach(e => { const s = document.createElement("span"); s.innerHTML = `<span style="display:inline-block;width:18px;border-top:2px ${e.dash ? "dashed" : "solid"} ${e.color}"></span>${e.name}`; leg.appendChild(s); });
+  const n = document.createElement("span"); n.innerHTML = `<span class="sw-band"></span>±0.35 噪声`; leg.appendChild(n);
+  const W = 820, L = 44, R = 30, T = 16, B = 52, H = 360;
+  const y0 = -0.5, y1 = 1.3, sy = v => T + (y1 - v) / (y1 - y0) * (H - T - B);
+  const gw = (W - L - R) / CKPTS.length, sx = i => L + gw * (i + 0.5);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "各设置在三个 checkpoint 上相对基准的折线图" }, document.getElementById("chart1"));
+  el("rect", { class: "band", x: L, y: sy(NOISE), width: W - L - R, height: sy(-NOISE) - sy(NOISE) }, svg);
+  [-0.5, 0, 0.5, 1.0].forEach(v => {
+    el("line", { class: "grid", x1: L, x2: W - R, y1: sy(v), y2: sy(v) }, svg);
+    el("text", { class: "mono", x: L - 6, y: sy(v) + 4, "text-anchor": "end" }, svg, fmt(v, true));
+  });
+  CKPTS.forEach((c, i) => {
+    el("text", { x: sx(i), y: H - B + 22, "text-anchor": "middle", style: "fill:var(--ink);font-weight:600" }, svg, c.name);
+    el("text", { x: sx(i), y: H - B + 38, "text-anchor": "middle", style: "font-size:11px;fill:var(--ink-3)" }, svg, `基准 ${BASE[c.key].toFixed(2)}`);
+  });
+  EXPS.forEach(e => {
+    const pts = CKPTS.map((c, i) => [sx(i), sy(e.v[c.key] - BASE[c.key])]);
+    el("polyline", { points: pts.map(p => p.join(",")).join(" "), style: `fill:none;stroke:${e.color};stroke-width:2${e.dash ? ";stroke-dasharray:5 4" : ""}` }, svg);
+    CKPTS.forEach((c, i) => el("circle", { cx: pts[i][0], cy: pts[i][1], r: 5, fill: e.color, style: "stroke:var(--surface);stroke-width:2" }, svg));
+  });
+  CKPTS.forEach((c, i) => {
+    const guide = el("line", { x1: sx(i), x2: sx(i), y1: T, y2: H - B, style: "stroke:var(--ink-3);stroke-width:1;visibility:hidden" }, svg);
+    const rows = EXPS.map(e => ({ e, d: e.v[c.key] - BASE[c.key] })).sort((a, b) => b.d - a.d)
+      .map(({ e, d }) => `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${e.color};margin-right:6px"></span>${e.name}：<b>${e.v[c.key].toFixed(2)}</b>（${fmt(d, true)}）`).join("<br>");
+    const hit = el("rect", { x: sx(i) - gw / 2, y: T, width: gw, height: H - B - T, style: "fill:transparent;cursor:crosshair" }, svg);
+    bindTip(hit, `<b>${c.name}</b><br>${rows}`);
+    hit.addEventListener("mouseenter", () => (guide.style.visibility = "visible"));
+    hit.addEventListener("focus", () => (guide.style.visibility = "visible"));
+    hit.addEventListener("mouseleave", () => (guide.style.visibility = "hidden"));
+    hit.addEventListener("blur", () => (guide.style.visibility = "hidden"));
+  });
+  table("tbl1", ["设置", ...CKPTS.map(c => c.name)],
+    EXPS.map(e => [e.name, ...CKPTS.map(c => `${e.v[c.key].toFixed(2)}（${fmt(e.v[c.key] - BASE[c.key], true)}）`)]), [1, 2, 3]);
+})();
+</script>

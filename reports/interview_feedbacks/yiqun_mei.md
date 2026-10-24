@@ -14,7 +14,7 @@ Beyond the distillation itself, Yiqun also explored a sparse attention structure
 - During inference, attention weights between frame tokens that fall below a relevance threshold are cut off to zero, making generation sparse.
 - The resulting sparsity reduces the KV cache, which is what makes long video generation practical.
 
-The project is directly relevant to where Cosmos is heading (for example, controllable, long-horizon generation), and Yiqun was able to explain the design choices and the motivation behind them.
+The project is somewhat relevant to Cosmos (for example, controllable, long-horizon generation), and Yiqun can explain the design choices and the motivation behind them.
 
 Next We went through two diffusion related short question.
 

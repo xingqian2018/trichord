@@ -1,124 +1,193 @@
 ---
 name: ssh_run
-description: Run a command on a remote cluster over SSH. Default hosts are `awscode` and `gcpcode`. The skill wraps the user's command in `ssh <host> '<cmd>'`, reports that it launched, and — if the remote invocation produces a Slurm job id — points at where the Slurm log lives on the remote.
+description: 在远端集群（awscode / gcpcode / gb300）上通过 SSH 执行命令或提交 slaunch / Slurm 任务。本地写启动脚本 → scp（-S ~/Software/cluster_run）到远端 ~/tmp → ~/Software/cluster_run 执行，提交后报告 Slurm job id 和远端日志位置。用于任何"在集群上跑 X / 提交任务 / 查任务状态"的请求。
 user_invocable: true
 ---
 
-# Step 1: Read the Rules! ⚠️
+# 第一步：先读规则 ⚠️
 
-## ⚠️ Don't Directly `ssh ...` or `scp ...`. It will not Work
+## 不要直接写 `ssh` / `scp`，用 `~/Software/cluster_run`
 
-Use `/usr/bin/ssh ...` and `/usr/bin/scp ...`
+- 连远端一律用 `~/Software/cluster_run`。它是 ssh 客户端的一个副本，参数和 ssh 完全一样：`~/Software/cluster_run <host> '<远端命令>'`。
+- 拷文件用 `/usr/bin/scp -S ~/Software/cluster_run <本地文件> <host>:<远端路径>`（`-S` 让 scp 走 cluster_run）。
+- 直接写 `ssh` / `/usr/bin/ssh` 会被权限设置拒绝；`scp` 也统一加 `-S ~/Software/cluster_run`。
 
-## Rule for `scancel` on ANY Slurm Job
+## `scancel` 规则（任何 Slurm 任务都适用）
 
-- NEVER run `scancel` on any Slurm job without first asking the user and getting an explicit "yes" for the specific job id(s).** This applies to *every* invocation, including:
-- "relaunch" / "re-run" / "fix and re-submit" requests — even if the user implied the prior submission is broken, still ask. Phrase it as: *"This will require `scancel <jobids>` — confirm?"*
-- Cancelling **your own** previous submissions in the same thread — still ask.
-- Duplicates found by the dedupe check — still ask.
-- "Obviously wrong" jobs (wrong cluster, wrong cred, wrong nodes) — still ask.
+- **未经用户对具体 job id 明确回答"是"，绝不执行 `scancel`。** 以下情况同样适用：
+  - "重新提交 / 重跑 / 修完再提交"——即使用户暗示之前的任务有问题，也要先问。问法：*"这需要 `scancel <jobids>`，确认吗？"*
+  - 取消自己在本对话里刚提交的任务——也要问。
+  - 查重时发现的重复任务——也要问。
+  - "明显错了"的任务（集群错、凭证错、节点数错）——也要问。
+- **不要默认用户想杀掉旧任务。** 新旧任务可能需要并存。确认时贴出准确的 job id。
+- **原因：** 杀错任务会浪费数小时到数天的算力，而且无法恢复。"重跑"≠"先 scancel 再重跑"，除非用户明确这么说。
 
-**Never assume the user wants the prior job killed.** A re-launch may be intended to coexist. Always confirm. Paste the *exact* job ids so the user can sanity-check.
+## 主机
 
-**Why this matters.** Killing the wrong job costs hours-to-days of compute. A typo or wrong assumption about scope can destroy a run with no recovery. "Relaunch" ≠ "scancel and relaunch" unless the user spells it out.
+| 主机 | 说明 |
+|---|---|
+| `awscode` | AWS 集群登录节点 |
+| `gcpcode` | GCP 集群登录节点 |
+| `gb300` | GB300 集群登录节点 |
 
-## Hosts
+按用户说法选："aws" → `awscode`，"gcp" → `gcpcode`，"gb300" → `gb300`。不明确时先问。
 
-- `awscode` — AWS cluster head node
-- `gcpcode` — GCP cluster head node
-- `gb300` — GB300 cluster head node
+## 提交前先给用户看命令
 
-Pick from the user's phrasing: "aws" / "awscode" → `awscode`; "gcp" / "gcpcode" → `gcpcode`; "gb300" → `gb300`; ambiguous → ask.
+完整的启动命令（多行展开）先贴给用户，用户说"提交 / 执行 / 跑"之后再提交。用户已经明确说过"直接跑"的除外。
 
-## `slurm` / `slaunch` Pre-flight Dedupe Check Required
-
-**Before any Slurm submission, check whether the same job is already running on the target host.**
-
-```bash
-/usr/bin/ssh <host> 'squeue -u $USER -o "%i %j %T %R" | grep <job_name>'
-```
-
-- Match by job name and/or identifying args (`--signature`, output path, etc.).
-- For multi-variant batches, check **each** variant — don't check one and assume the rest are clear.
-- If a duplicate is found, **stop and ask**. Acceptable resolutions: skip / cancel-and-rerun / submit-anyway.
-
-
-# Step 2: How to Run SSH! (There Are Customized Things So Please READ! ⚠️)
-
-## For Simple One Line Command
-
-Default shape for any simple "run X on cluster" request.
+## 提交前必须查重
 
 ```bash
-/usr/bin/ssh <host> '<remote command>'
+~/Software/cluster_run <host> 'squeue -u $USER -o "%i %j %T %R"' | grep <任务名>
 ```
 
-- Quote remote commands with **single quotes** so the local shell doesn't expand `$` / `` ` ``.
-- If the remote command contains single quotes, escape with `'"'"'`.
-- Chain a `cd` when the script needs a specific working directory: `cd <dir> && <cmd>`.
+- 按任务名和关键参数（输出路径、`--signature` 等）匹配。
+- 一批多个变体时，每个都要查，不能只查一个。
+- 发现重复就停下来问：跳过 / 取消后重跑 / 照样提交。
 
-## For `slurm` and `slaunch` and Other Long Multi-line Command
+## 远端登录 shell 是 csh
 
-- Scratch a shell at a local temporary folder `~/tmp/<name_at_your_choice>.sh`
-- `~/tmp/` is persistent, quota-tracked, and easy to inspect: `/usr/bin/ssh <host> 'ls ~/tmp/'`.
-- Use `/usr/bin/scp ...` copy local `~/tmp/<name_at_your_choice>.sh` to remote `~/tmp/<name_at_your_choice>.sh`.
-  - i.e. `/usr/bin/scp ~/tmp/sshrun/<name_at_your_choice>.sh <host>:~/tmp/<name_at_your_choice>.sh`
-- Create if needed: `/urs/bin/ssh <host> 'mkdir -p ~/tmp'`. Leave files in place after use.
-- DON'T use `/tmp/` as your temporary folder.
+- 在 ssh 引号里写 `2>/dev/null`、`VAR=x cmd`、`export`、复杂的双引号嵌套，都会报错（例如 `Ambiguous output redirect`、`Unmatched "`）。
+- 管道、grep、重定向尽量放在**本地**一侧：`~/Software/cluster_run gcpcode 'cmd' | grep xxx`。
+- 一定要在远端用 bash 语法时，写成脚本再 `bash ~/tmp/<name>.sh`。
 
-### Heredoc ban (absolute)
+# 第二步：怎么执行
 
-**Never use heredoc syntax.** No `<<EOF`, `<<-EOF`, `<<'EOF'`, `<<"EOF"`, no custom terminators — anywhere, ever.
+## 简单的单行命令
 
-When the remote command has complex quoting, use **write-locally → scp → ssh-execute**:
+```bash
+~/Software/cluster_run <host> '<远端命令>'
+```
 
-- Write the script locally to `/tmp/sshrun/<name>.sh` using the Write tool.
-- `/usr/bin/scp /tmp/sshrun/<name>.sh <host>:~/tmp/<name>.sh`
-- `/usr/bin/ssh <host> 'bash ~/tmp/<name>.sh'`
+- 远端命令用**单引号**包起来，避免本地 shell 展开 `$` 和反引号。
+- 远端命令本身含单引号时，用 `'"'"'` 转义。
+- 需要特定目录时串一个 `cd`：`cd <dir> && <cmd>`。
 
-**Why the ban is absolute.** The pattern `/usr/bin/ssh host "cat > foo.sh <<'EOF' ... EOF; bash foo.sh"` causes two failure modes together:
+## slaunch / Slurm / 其他多行命令（标准流程）
 
-- The heredoc body is a double-quoted local arg. Backslash-newline continuations get eaten by the remote shell's tokenizer before heredoc collection completes, collapsing lines.
-- With lines collapsed the `EOF` terminator isn't recognized, so `cat` slurps the trailing `bash foo.sh` into the script body — making it self-recursive. The script then re-invokes itself in a runaway loop.
+### 1. 本地写启动脚本
+
+用 Write 工具写到本地 `~/tmp/sshrun/<任务名>.sh`，固定格式：
+
+```bash
+#!/bin/bash
+shopt -s expand_aliases
+source ~/Project/bashrc/bashrc_my.sh
+
+cd /home/xingqianx/Project/imaginaire4_sila
+
+CONTAINER_WORKDIR=/home/xingqianx/Project/imaginaire4_sila \
+slaunch cpu 16x4 <任务名> \
+    pipelines/image/text_rendering/<脚本>.py \
+    --参数1 ... \
+    --参数2 ...
+```
+
+- 前两行不能省：`slaunch` 是 bashrc 里的 alias，非交互 bash 默认不展开 alias。
+- 写完用 `bash -n ~/tmp/sshrun/<任务名>.sh` 检查语法。
+- `slaunch` 的第二个参数必须是 `.py` 路径，不能是 `bash -c "..."`（slaunch 会把它包进 torchrun）。
+- 节点规格写法：`cpu NxM`（N 个节点、每节点 M 个进程）。gcp 的 cpu 分区排队很深时可改用 `ulong`（每节点固定 4 个进程，一次性单进程脚本要加 rank 判断）。
+
+### 2. 查重 → 拷贝 → 提交
+
+```bash
+~/Software/cluster_run <host> 'squeue -u $USER -o "%i %j %T %R"' | grep <任务名>
+~/Software/cluster_run <host> 'mkdir -p ~/tmp'
+/usr/bin/scp -S ~/Software/cluster_run ~/tmp/sshrun/<任务名>.sh <host>:~/tmp/<任务名>.sh
+~/Software/cluster_run <host> 'bash ~/tmp/<任务名>.sh' 2>&1 | grep -o "Submitted batch job [0-9]*"
+```
+
+- 远端 `~/tmp/` 是持久目录，用完不删，方便事后查看。
+- 不要用 `/tmp/` 当临时目录。
+
+### 3. slaunch 在集群上做了什么（以 gcpcode 为例）
+
+`slaunch` → `~/Project/bashrc/sbatch_launch/main.sh` → `sbatch_launch_gcp_cpu.sh`：
+
+- `srun` 起 pyxis 容器，挂载 `/lustre/fsw/portfolios/cosmos` 和 `$HOME`。
+- 容器工作目录 = `CONTAINER_WORKDIR`，并设置 `PYTHONPATH=.`（所以仓库里的 `pipelines.*` 可以直接 import）。
+- 用 `.venv/bin/python -m torch.distributed.run`（c10d rendezvous）跑目标脚本。
+- 默认排除坏节点 `cpu-large-025`；临时排除别的节点用 `SBATCH_EXCLUDE=<node>`。
+- 日志写在远端 `~/log/slurm/<任务名>.<jobid>.e` 和 `.o`。
+
+### 4. 代码从哪来
+
+- **默认用远端已 checkout 的仓库**（`~/Project/imaginaire4_sila` 等）。代码同步（commit / push / pull、切分支、装环境）由用户负责，不要自己动集群上的仓库。
+- **绝不把文件 scp 进集群上的仓库目录。**
+- **新代码还没同步时：** 把脚本放到远端 `~/tmp/<名字>/` 的**独立子目录**，启动脚本里传绝对路径：
+
+  ```bash
+  slaunch cpu 16x4 <任务名> \
+      /home/xingqianx/tmp/<名字>/<脚本>.py \
+      --参数 ...
+  ```
+
+  因为容器挂载了 `$HOME`、且 `PYTHONPATH=.` 指向仓库，脚本照样能 import 仓库里的依赖。用独立子目录是为了避免 `~/tmp` 下其他 `.py` 文件抢先被 import。
+
+### Heredoc 禁令（绝对）
+
+**任何地方都不要用 heredoc**：`<<EOF`、`<<-EOF`、`<<'EOF'`、`<<"EOF"`、自定义结束符都不行。
+
+引号复杂时一律走"本地写文件 → scp → ssh 执行"：
+
+- 用 Write 工具写本地 `~/tmp/sshrun/<name>.sh`
+- `/usr/bin/scp -S ~/Software/cluster_run ~/tmp/sshrun/<name>.sh <host>:~/tmp/<name>.sh`
+- `~/Software/cluster_run <host> 'bash ~/tmp/<name>.sh'`
+
+**原因：** `~/Software/cluster_run host "cat > foo.sh <<'EOF' ... EOF; bash foo.sh"` 会同时出两个问题：反斜杠换行在 heredoc 收集前被远端 shell 吃掉导致行合并；行合并后 `EOF` 认不出来，`cat` 把后面的 `bash foo.sh` 也写进脚本，脚本递归调用自己，无限循环。
 
 ---
 
-## Composing with other Skills
+## 与其他 skill 组合
 
-`ssh_run` can carry another skill's work onto the remote host. Trigger: the user names another skill alongside `ssh_run` (e.g. "ssh_run meow on awscode").
+用户在提到 `ssh_run` 的同时提到另一个 skill（例如"ssh_run meow on awscode"）时：
 
-- Read the inner skill's SKILL.md from `cc/<skill_name>/SKILL.md` to get the exact shell command.
-- Run that command on the remote via `/usr/bin/ssh <host> '<cmd>'` — do **not** invoke the inner skill locally.
-- Slurm job id reporting still applies.
-- If the inner skill's steps are non-trivial to translate into a single remote command, say so and ask.
+- 读 `cc/<skill_name>/SKILL.md` 拿到准确的 shell 命令。
+- 用 `~/Software/cluster_run <host> '<cmd>'` 在远端执行，**不要**在本地调用那个 skill。
+- Slurm job id 报告规则照常适用。
+- 如果那个 skill 的步骤很难翻译成一条远端命令，说明情况并询问。
 
-Counter-case: if the user invokes the other skill without mentioning `ssh_run`, run it locally as normal.
+反例：用户只调用另一个 skill、没提 `ssh_run`，就在本地正常执行。
 
 ---
 
-# Step 3: Reporting
+# 第三步：报告
 
-After the ssh command returns:
+ssh 返回后：
 
-- **Announce launch:** one short line — `Launched on <host>: <short description>`.
-- **Do NOT stream or summarize remote stdout** beyond extracting a Slurm job id.
-- **If a Slurm job id is found** (look for `Submitted batch job <N>` or a bare numeric id), report:
+- **一句话说明已提交：** `Launched on <host>: <简短描述>`。
+- **不要转述远端 stdout**，只提取 Slurm job id。
+- **拿到 job id**（`Submitted batch job <N>` 或单独的数字）时，按下面格式报告：
 
 ```
-Launched on <host>: <job name or command>
+Launched on <host>: <任务名或命令>
 Slurm job id: <jobid>
-Remote log:   ~/log/slurm/*.<jobid>.e  (stderr)
-               ~/log/slurm/*.<jobid>.o  (stdout)
-To tail:      ssh <host> 'tail -f ~/log/slurm/*.<jobid>.e'
+Remote log:   ~/log/slurm/<任务名>.<jobid>.e  (stderr)
+              ~/log/slurm/<任务名>.<jobid>.o  (stdout)
+To tail:      ~/Software/cluster_run <host> 'tail -f ~/log/slurm/<任务名>.<jobid>.e'
 ```
 
-The parsed number is the **Slurm job id** — not the short-lived OS PID of the `slaunch`/`sbatch` wrapper. Always label it "Slurm job id". Log files are on the **remote** machine.
+这个数字是 **Slurm job id**，不是 `slaunch` / `sbatch` 包装进程的 PID，统一标注为 "Slurm job id"。日志文件在**远端**。
 
-- **If ssh exits non-zero**, report the exit code and last few lines of stderr. Do not retry automatically.
+- **ssh 返回非零：** 报告退出码和 stderr 最后几行，不要自动重试。
 
-## What this skill does NOT do
+## 查状态（用户问"跑完了吗 / 怎么样"时）
 
-- Does not edit files locally or remotely.
-- Does not poll job status — for status, the user invokes `/checkrun` or asks explicitly.
-- Does not install or modify crontab entries without the user spelling out the exact schedule and command; if vague, ask first.
-- Does not choose between `awscode` and `gcpcode` when ambiguous — ask.
+不挂持续监控，用户问的时候查一次：
+
+```bash
+~/Software/cluster_run <host> 'sacct -j <jobid> -X -o JobID,State,Start,Elapsed,ExitCode'
+~/Software/cluster_run <host> 'grep -v "it/s]" ~/log/slurm/<任务名>.<jobid>.e' | grep -E "Progress|SUCCESS|Task failed|Traceback|Error" | tail -10
+```
+
+- `.e` 日志里的 Progress / SUCCESS 行最能说明进度。
+- 任务结束时常见的 `RendezvousConnectionError` / `TCPStore` 堆栈多半是退出阶段的噪音，先确认 `sacct` 状态和最后的 SUCCESS 行，再判断是否真失败。
+- 结果文件（例如 S3 JSON）要实际下载下来核对，不只看日志。
+
+## 本 skill 不做的事
+
+- 不改本地或远端的仓库代码。
+- 不主动轮询任务状态；用户要状态时用 `/checkrun` 或直接问。
+- 不装、不改 crontab，除非用户写清楚了具体时间表和命令；说法模糊时先问。
+- `awscode` / `gcpcode` 不明确时不替用户选，先问。

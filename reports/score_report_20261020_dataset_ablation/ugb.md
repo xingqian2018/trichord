@@ -28,7 +28,9 @@
 | c3p5_exp003_000_pretrain_iter25000_noneg                         | 1170 png | 86.29     | 88.83     | 83.97     | 1170/1170    |
 | c3p5_exp003_001_pretrain_midtrain_iter25000_noneg                | 1170 png | 86.44     | 88.88     | 84.20     | 1170/1170    |
 | c3p5_exp003_002_pretrain_getty_iter25000_noneg                   | 1170 png | **87.56** | **89.80** | **85.51** | 1170/1170    |
-| c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_noneg         | 待定     |           |           |           | (训练作业 2576199) |
+| c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ | 1170 png | 87.88 | 90.13 | 85.82 | 1170/1170 |
+
+¹ exp003_003 用的是 shift 3、**全程 CFG**、行号 seed（`Cosmos3p5Generator` 的新默认，`cd2022e3408`），不是本表其他行的 CFG [400, 1000]，不能和本表直接比。只和 lr 相同（2e-5）的 exp003_002 比；exp003_000 / 001 是 lr 1e-4，不做对比。同设置（1024、shift 3、全程 CFG、行号 seed、noneg）下：exp003_002 getty 87.92，exp003_003 midtrain **87.88**，相差 −0.04，在 judge 约 0.35 的噪声内，看不出差别。
 
 ## 采样设置逐步改变:exp003_002 getty(1024×1024)
 

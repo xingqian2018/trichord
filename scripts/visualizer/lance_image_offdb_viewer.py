@@ -8,7 +8,7 @@ import boto3
 import streamlit as st
 from botocore.config import Config
 
-# cd /home/xingqianx/Project/trichord && streamlit run scripts/visualizer/t2i_data_viewer.py
+# cd /home/xingqianx/Project/trichord && streamlit run scripts/visualizer/lance_image_offdb_viewer.py
 
 DEFAULT_JSONL = os.path.expanduser("~/data/t2i_data/t2i_cosmos3_kimik3_structured_v0_first50k.jsonl")
 DEFAULT_S3_ROOT = "s3://nv-00-10206-vfm/debug/xingqianx/t2i_data/t2i_cosmos3_kimik3_structured_v0"
@@ -16,7 +16,7 @@ CREDENTIAL_PATH = os.path.expanduser("~/Project/trichord/credentials/gcs.secret"
 IMAGE_NAME = "image.webp"
 URL_EXPIRES = 3600
 
-st.set_page_config(page_title="T2I Data Viewer", page_icon="🖼️", layout="wide")
+st.set_page_config(page_title="Lance Image OffDB Viewer", page_icon="🖼️", layout="wide")
 
 
 @st.cache_resource

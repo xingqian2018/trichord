@@ -12,9 +12,9 @@ import lance
 import yaml
 
 MAIN_TABLE = "gs://nv-00-10206-lancedb/prod/image/image_meta_table_full.lance"
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 CATEGORIES_PATH = REPO_ROOT / "reports/image_data_stats/dataset_categories.json"
-OUTPUT_PATH = Path(__file__).resolve().parent / "midtrain_fragment_map.json"
+OUTPUT_PATH = Path(__file__).resolve().parent / "visualizer" / "midtrain_fragment_map.json"
 CANDIDATE_RANGES = [(37045, 37045), (37159, 37159), (37168, 37171), (40561, 10 ** 9)]
 GCS_CONFIG_PATH = os.path.expanduser("~/.config/dir/config.yaml")
 GCS_CONFIG_PROFILE = "team-gcs-cosmos"

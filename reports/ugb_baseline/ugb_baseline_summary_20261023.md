@@ -22,22 +22,42 @@
 
 ---
 
+## 0b. Baseline 测试原则：每个模型用它最擅长的分辨率（2026-10-27 起）
+
+公开模型的 baseline 一律按**各家官方推荐的 1:1 分辨率**生成，不再统一 1024²。宽高比固定 1:1；upsampler 仍按各家官方流程（见 [ugb_public_t2i_models_20261022.md](../ugb_public_t2i_models_20261022.md) 第 3 节）。
+
+| 模型 | 分辨率 | 依据 |
+|---|---|---|
+| Krea 2 Turbo | **2048²** | 官方 codebase 推理示例 `--width 2048 --height 2048 --mu 1.15`；turbo checkpoint 固定 `mu=1.15`（= `max_shift`，对应 ≥ 6400 图像 token 的高分辨率）。diffusers 默认 1024 不是它的最佳分辨率 |
+| Ideogram 4 nf4 | **2048²** | README：*"For the highest-quality images, set `--height 2048 --width 2048`"*；diffusers pipeline 默认 2048、48 步 |
+| Qwen-Image 2.1（pe / nope） | **2048²** | README 的 1:1 尺寸即 2048×2048；pipeline 默认按此出图 |
+| FLUX.3 klein / klein-base | 1024² | modular pipeline 默认 1024；README 没有更高的推荐分辨率 |
+| Fibo 2.0 dev | 1024² | README：*"about one megapixel, the area Fibo 2.0 was trained at … `1024×1024` (the default)"* |
+| GPT-image-2 / 2.5 sunburst | 1024² | API 标准尺寸 |
+| Gemini 3.1 flash image | 1024²（`1k`） | `NvidiaGatewayImageGenerator` 目前只支持 `1k`；2K 是否原生生成未确认 |
+
+**对本报告的影响：** 第 1 节的 UGB 结果是按旧做法生成的（除 Qwen-Image 2.1 外都是 1024²），所以 **Krea 2 Turbo 和 Ideogram 4 的分数可能被低估**。UGB 暂未按新原则重跑；新原则先用于 CVTG baseline。
+
+---
+
 ## 1. 公开模型对比（`v2_1170L`，原版 prompt）
 
-| 模型 | run | overall | orig | phi | success | judge |
+| 模型 | overall | orig | phi | success | judge | run |
 |---|---|---|---|---|---|---|
-| GPT-image-2.5 sunburst, quality high | `gpt_image_2p5_sunburst_quality_high` | **94.45** | 96.45 | 92.60 | 1165/1170 | gemini-3.1-pro@nvidia |
-| GPT-image-2.5 sunburst, low（默认） | `gpt_image_2p5_sunburst` | 94.22 | 95.89 | 92.69 | 1167/1170 | gemini-3.1-pro@nvidia |
-| GPT-image-2, low（默认） | `gpt_image_2` | 93.09 | 95.43 | 90.93 | 1168/1170 | gemini-3.1-pro@nvidia |
-| GPT-image-2, quality high | `gpt_image_2_quality_high` | 92.97 | 95.48 | 90.64 | 1166/1170 | gemini-3.1-pro@nvidia |
-| Gemini 3.1 flash image | `gemini_3_1_flash_image` | 92.17 | 94.20 | 90.31 | 1169/1170 | gemini-3.1-pro@nvidia |
-| FLUX.3 klein-base（5.6B，50 步，cfg 3.5） | `flux3_klein_base` | 90.63 | 91.84 | 89.51 | 1167/1170 | gemini-3.1-pro@nvidia |
-| FLUX.3 klein（5.6B，蒸馏 16 步） | `flux3_klein` | 89.72 | 91.71 | 87.89 | 1167/1170 | gemini-3.1-pro@nvidia |
-| Fibo 2.0 dev（8.1B） | `fibo2_dev` | 87.43 | 89.20 | 85.81 | 1167/1170 | gemini-3.1-pro@nvidia |
-| Qwen-Image 2.1, nope | `qwen_image_2p1_nope` | 86.99 | 90.71 | 83.57 | 1170/1170 | gemini-3.1-pro |
-| Ideogram 4（nf4，9.3B×2） | `ideogram4_nf4` | 86.19 | 86.89 | 85.54 | 1166/1170 | gemini-3.1-pro@nvidia |
-| Qwen-Image 2.1, pe | `qwen_image_2p1_pe` | 85.80 | 88.34 | 83.48 | 1170/1170 | gemini-3.1-pro |
-| Krea 2 Turbo（12.8B，8 步） | `krea2_turbo` | 85.60 | 87.19 | 84.13 | 1170/1170 | gemini-3.1-pro@nvidia |
+| GPT-image-2.5 sunburst, quality high | **94.45** | 96.45 | 92.60 | 1165/1170 | gemini-3.1-pro@nvidia | `gpt_image_2p5_sunburst_quality_high` |
+| GPT-image-2.5 sunburst, low（默认） | 94.22 | 95.89 | 92.69 | 1167/1170 | gemini-3.1-pro@nvidia | `gpt_image_2p5_sunburst` |
+| GPT-image-2, low（默认） | 93.09 | 95.43 | 90.93 | 1168/1170 | gemini-3.1-pro@nvidia | `gpt_image_2` |
+| GPT-image-2, quality high | 92.97 | 95.48 | 90.64 | 1166/1170 | gemini-3.1-pro@nvidia | `gpt_image_2_quality_high` |
+| Gemini 3.1 flash image | 92.17 | 94.20 | 90.31 | 1169/1170 | gemini-3.1-pro@nvidia | `gemini_3_1_flash_image` |
+| **cosmos3-super-text2image** | **91.63** | 93.85 | 89.59 | 1170/1170 | gemini-3.1-pro@nvidia | `c3_dense_exp009_sft0_iter31000` |
+| FLUX.3 klein-base（5.6B，50 步，cfg 3.5） | 90.63 | 91.84 | 89.51 | 1167/1170 | gemini-3.1-pro@nvidia | `flux3_klein_base` |
+| FLUX.3 klein（5.6B，蒸馏 16 步） | 89.72 | 91.71 | 87.89 | 1167/1170 | gemini-3.1-pro@nvidia | `flux3_klein` |
+| **Cosmos3.5 Ultra v3p4 iter360000** 预训练 | **88.45** | 90.26 | 86.80 | 1170/1170 | gemini-3.1-pro@nvidia | `c3p5_ultra_v3p4_iter360000_shift3_fullcfg_seedrow_noneg` |
+| Fibo 2.0 dev（8.1B） | 87.43 | 89.20 | 85.81 | 1167/1170 | gemini-3.1-pro@nvidia | `fibo2_dev` |
+| Qwen-Image 2.1, nope | 86.99 | 90.71 | 83.57 | 1170/1170 | gemini-3.1-pro | `qwen_image_2p1_nope` |
+| Ideogram 4（nf4，9.3B×2） | 86.19 | 86.89 | 85.54 | 1166/1170 | gemini-3.1-pro@nvidia | `ideogram4_nf4` |
+| Qwen-Image 2.1, pe | 85.80 | 88.34 | 83.48 | 1170/1170 | gemini-3.1-pro | `qwen_image_2p1_pe` |
+| Krea 2 Turbo（12.8B，8 步） | 85.60 | 87.19 | 84.13 | 1170/1170 | gemini-3.1-pro@nvidia | `krea2_turbo` |
 
 观察：
 - **闭源 API 模型整体领先。** GPT-image-2.5 sunburst 最高（94.2–94.5）。最弱的 API（Gemini 92.17）比最强的开源（FLUX.3 klein-base 90.63）高 1.5 分，最强的 API 比最弱的开源（Krea 85.60）高 8.9 分。
@@ -106,6 +126,7 @@
 |---|---|---|---|---|---|
 | `c3p5_exp003_002_pretrain_getty_iter25000_1024_shift6_fullcfg_seed0_noneg` | **88.14** | 90.26 | 86.19 | 1170/1170 | gemini-3.1-pro@nvidia |
 | `c3p5_exp003_002_pretrain_getty_iter25000_1024_shift3_fullcfg_seedrow_noneg` | 87.92 | 90.18 | 85.84 | 1170/1170 | gemini-3.1-pro@nvidia |
+| `c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | 87.88 | 90.13 | 85.82 | 1170/1170 | gemini-3.1-pro@nvidia |
 | `c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seed0_noneg` | 87.88 | 90.13 | 85.82 | 1170/1170 | gemini-3.1-pro@nvidia |
 | `c3p5_exp003_002_pretrain_getty_iter25000_recipe_shift6_fullcfg_seedrow_noneg` | 87.67 | 89.92 | 85.61 | 1170/1170 | gemini-3.1-pro@nvidia |
 | `c3p5_exp003_002_pretrain_getty_iter25000_1024_shift6_fullcfg_seedrow_noneg` | 87.62 | 89.69 | 85.72 | 1170/1170 | gemini-3.1-pro@nvidia |
@@ -124,6 +145,30 @@
 - **`002_pretrain_getty` 是三个 SFT 数据配方里最好的**：最佳 88.14，五组相同设置下比 `000_pretrain` 高 1.0–1.6 分，`noneg` 设置下比 `001_midtrain` 高 1.1 分。
 - 推理设置的规律和第 3 节一致：shift 6 加每步 CFG 最好；只在 [400, 1000] 区间做 CFG 最差。
 - exp003 最佳（88.14）比 Super base 最佳（87.22）高 0.9 分。
+- **lr 2e-5 的两组（002 getty、003 midtrain）**：在 cfg 4、shift 3、全程 CFG、行号 seed、noneg 下分别是 87.92 和 87.88，差 −0.04，在噪声内，看不出区别。000 / 001 的 lr 是 1e-4，不和它们比。
+
+---
+
+## 4b. Cosmos3.5 Ultra（470bm235b，hamid prompt）
+
+checkpoint：`s3://nv-00-10206-checkpoint/cosmos3_generator/3p5_production_runs/470bm235b_v3p4_pretrain/checkpoints/iter_000360000/`（预训练，未 SFT）。experiment：`cosmos3p5_ga_470bm235b_base_cp1_for_eval`（CP=1）。960×960，cfg 4，shift 3，全程 CFG，行号 seed，noneg，EMA。生成 job 2629685，4 节点，3 小时 13 分。
+
+| run | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|
+| `c3p5_ultra_v3p4_iter360000_shift3_fullcfg_seedrow_noneg` | **88.45** | 90.26 | 86.80 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+同设置（cfg 4、shift 3、全程 CFG、行号 seed、noneg）对比：
+
+| 模型 | 阶段 | 分辨率 | overall |
+|---|---|---|---|
+| **Ultra v3p4 iter360000** | 预训练 | 960 | **88.45** |
+| exp003_002 getty | Super + SFT | 1024 | 87.92 |
+| exp003_003 midtrain lr2e-5 | Super + SFT | 1024 | 87.88 |
+| Super v2p5 iter741260 | 预训练 | 960 | 86.72 |
+
+- 同为预训练、同分辨率，**Ultra 比 Super 高 +1.73**，远超约 0.35 的 judge 噪声。
+- Ultra 预训练已经比 Super 做完 SFT 后的最好结果高约 0.5。但分辨率和训练阶段都不同，这一项只作参考。
+- 这是目前 Cosmos3.5 在 hamid prompt 上的最高分。
 
 ---
 
@@ -145,7 +190,7 @@
 
 | run | 状态 | 原因 |
 |---|---|---|
-| `v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_ultra_v3p5_iter384000` | 0 张图 | 470B 权重加载成功，但 Ultra 的配置里 `context_parallel_shard_degree=8`。推理脚本让每个 rank 跑不同的 prompt，CP 组内的 all-to-all 对不上，于是卡死。修复方案：在 `Cosmos3Generator` 里强制 CP=1，待确认 |
+| `v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_ultra_v3p5_iter384000` | 0 张图 | 用原 Ultra base（`context_parallel_shard_degree=8`）跑时卡在 CP all-to-all。之后改用 `cosmos3p5_ga_470bm235b_base_cp1_for_eval` 测了 v3p4 `iter_000360000`（见 4b 节）；v3p5 这个 checkpoint 没有重跑 |
 | `.../c3p5_super_v2p5_iter741260_cfg16` | 160 张 | 按要求中途取消，没有打分 |
 | `v2_1170L/fibo2_dev` | 1167 张 | 已经用换 seed 重试补回了 103 张，剩下 3 张 upsampler 始终没能产出合法 JSON |
 

@@ -5,6 +5,7 @@ import csv
 import io
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import boto3
 import pandas as pd
@@ -13,12 +14,9 @@ from botocore.config import Config
 
 # cd /home/xingqianx/Project/trichord && streamlit run scripts/visualizer/ugb_s3_viewer.py
 
-RESULT_DIRS = [
+BASELINE_DIRS = [
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/qwen_image_2p1_nope",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/qwen_image_2p1_pe",
-    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_super_v2p5_iter741260_noneg",
-    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_002_pretrain_getty_iter25000_1024_shift3_fullcfg_seedrow_noneg",
-    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/gpt_image_2p5_sunburst",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/gpt_image_2p5_sunburst_quality_high",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/krea2_turbo",
@@ -27,6 +25,26 @@ RESULT_DIRS = [
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/ideogram4_nf4",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L/fibo2_dev",
 ]
+FEATURED_COSMOS_DIRS = [
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_super_v2p5_iter741260_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_ultra_v3p4_iter360000_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_opus/c3_dense_exp009_sft0_iter31000",
+]
+COSMOS_DIRS = FEATURED_COSMOS_DIRS + [
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_super_v2p5_iter741260_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_002_pretrain_getty_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp004_000_pretrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp004_001_pretrain_mha_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp004_002_pretrain_mha_dense_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+]
+VIEWS = {
+    "Baselines": BASELINE_DIRS + FEATURED_COSMOS_DIRS,
+    "Cosmos": COSMOS_DIRS,
+}
+DISPLAY_NAMES = {
+    "c3_dense_exp009_sft0_iter31000": "cosmos3_super_text2image",
+}
 IMAGES_PER_PAGE = 25
 UGB_PROMPTS_URI = "s3://datasets/unigenbench/v2/v2_1170L_G3F.csv"
 GENERATION_PROMPT_URIS = {
@@ -41,6 +59,13 @@ PRIMARY_DIMENSIONS = [
     "Relationship", "Style", "Text Generation", "World Knowledge",
 ]
 URL_EXPIRES = 3600
+GRID_CSS = """<style>
+[class*="st-key-grid_"] p { margin: 0; line-height: 1.3; }
+[class*="st-key-grid_"] button { min-height: 0; padding: 0; line-height: 1.3; }
+[class*="st-key-grid_"] [data-testid="stHorizontalBlock"] { border-bottom: 1px solid rgba(128, 128, 128, 0.15); padding: 1px 0; }
+[class*="st-key-head_"] { padding-bottom: 6px; margin-bottom: 4px; border-bottom: 2px solid rgba(128, 128, 128, 0.5); }
+[class*="st-key-head_"] [data-testid="stHorizontalBlock"] { border-bottom: none; }
+</style>"""
 
 st.set_page_config(page_title="UGB S3 Viewer", page_icon="🧪", layout="wide")
 
@@ -87,7 +112,8 @@ def run_benchmark(run: str) -> str:
 
 
 def run_label(run: str) -> str:
-    return run_uri(run).rsplit("/", 1)[-1]
+    name = run_uri(run).rsplit("/", 1)[-1]
+    return DISPLAY_NAMES.get(name, name)
 
 
 @st.cache_data(ttl=300, show_spinner="Listing images...")
@@ -103,12 +129,24 @@ def list_images(run: str) -> dict[str, str]:
     return images
 
 
-@st.cache_data(ttl=300, show_spinner="Loading judge results...")
-def load_result(run: str) -> dict | None:
+def fetch_result(run: str, client) -> dict | None:
+    bucket, key = split_uri(f"{run_uri(run)}/{RESULT_FILE}")
     try:
-        return json.loads(read_object(f"{run_uri(run)}/{RESULT_FILE}"))
-    except gcs().exceptions.NoSuchKey:
+        return json.loads(client.get_object(Bucket=bucket, Key=key)["Body"].read())
+    except client.exceptions.NoSuchKey:
         return None
+
+
+@st.cache_resource(show_spinner="Loading all judge results...")
+def load_all_results(runs: tuple[str, ...]) -> dict[str, dict | None]:
+    client = gcs()
+    with ThreadPoolExecutor(16) as pool:
+        return dict(zip(runs, pool.map(lambda run: fetch_result(run, client), runs)))
+
+
+def reload_all() -> None:
+    load_all_results.clear()
+    list_images.clear()
 
 
 @st.cache_data(show_spinner="Loading UGB prompts...")
@@ -159,20 +197,21 @@ def prompt_id_sort_key(prompt_id: str) -> tuple[str, int]:
     return prefix, int(suffix) if suffix else -1
 
 
-def score_table(runs: list[str], results: dict[str, dict | None]) -> pd.DataFrame:
+def score_table(runs: list[str], results: dict[str, dict | None], total: int) -> pd.DataFrame:
     table = {}
     for run in runs:
         result = results[run]
         if not result:
-            table[run_label(run)] = {key: float("nan") for key in ("all", "orig", "phi", *PRIMARY_DIMENSIONS)}
+            table[run_label(run)] = {key: float("nan") for key in ("all", "orig", "phi", *PRIMARY_DIMENSIONS)} | {"success": "-"}
             continue
         stats = result["stats"]
         column = {subset: 100 * stats[subset]["overall_accuracy"] for subset in ("all", "orig", "phi")}
+        column["success"] = f"{len(result.get('breakdown', {}))}/{total}"
         for dimension in PRIMARY_DIMENSIONS:
             entry = stats["all"]["big_class_stats"].get(dimension)
             column[dimension] = 100 * entry["accuracy"] if entry else float("nan")
         table[run_label(run)] = column
-    return pd.DataFrame(table).round(2)
+    return pd.DataFrame.from_dict(table, orient="index")
 
 
 def passes_filter(prompt_id: str, judgements: dict[str, list], dimension: str, failed_in: str, disagree: bool) -> bool:
@@ -189,42 +228,71 @@ def passes_filter(prompt_id: str, judgements: dict[str, list], dimension: str, f
     return True
 
 
+def toggle_run(key: str, run: str) -> None:
+    runs = st.session_state[key]
+    st.session_state[key] = [r for r in runs if r != run] if run in runs else [*runs, run]
+
+
+def score_grid(runs: list[str], table: pd.DataFrame, key: str) -> None:
+    st.html(GRID_CSS)
+    grid = st.container(key=f"grid_{key}", gap=None)
+    widths = [4] + [1] * len(table.columns)
+    header = grid.container(key=f"head_{key}").columns(widths, vertical_alignment="bottom")
+    sort_key = f"sort_{key}"
+    st.session_state.setdefault(sort_key, table.columns[0])
+    for cell, name in zip(header[1:], table.columns):
+        arrow = " ▼" if st.session_state[sort_key] == name else ""
+        cell.button(f"**{name}**{arrow}", key=f"sortby_{key}_{name}", type="tertiary", on_click=st.session_state.__setitem__, args=(sort_key, name))
+    order = pd.to_numeric(table[st.session_state[sort_key]].astype(str).str.split("/").str[0], errors="coerce")
+    ranked = order.sort_values(ascending=False, na_position="last", kind="stable").index
+    by_label = {run_label(run): run for run in runs}
+    for run in [by_label[label] for label in ranked]:
+        row = grid.columns(widths, vertical_alignment="center")
+        picked = run in st.session_state[key]
+        row[0].button(f"{'✅ ' if picked else ''}{run_label(run)}", key=f"pick_{key}_{run}", type="tertiary", on_click=toggle_run, args=(key, run))
+        for cell, name in zip(row[1:], table.columns):
+            value = table.at[run_label(run), name]
+            cell.markdown(value if isinstance(value, str) else "-" if pd.isna(value) else f"{value:.2f}")
+
+
 with st.sidebar:
+    view = st.segmented_control("View", list(VIEWS), default="Baselines", required=True)
+    runs_key = f"runs_{view}"
+    st.session_state.setdefault(runs_key, [])
     st.header("Runs")
     selected_runs = st.multiselect(
-        "Result folders (RESULT_DIRS)",
-        RESULT_DIRS,
-        default=[],
+        "Result folders",
+        VIEWS[view],
         format_func=lambda run: f"{run_benchmark(run)}/{run_label(run)}",
+        key=runs_key,
     )
-    if not selected_runs:
-        st.info("Pick at least one run.")
-        st.stop()
 
     st.header("Filter")
     subset = st.radio("Subset", ["all", "orig", "phi"], horizontal=True)
     dimension = st.selectbox("Has testpoint in", ["any"] + PRIMARY_DIMENSIONS)
-    failed_in = st.selectbox("Failed a testpoint in run", ["none"] + selected_runs)
+    failed_in = st.selectbox("Failed a testpoint in run", ["none"] + selected_runs, format_func=lambda run: run if run == "none" else run_label(run), key=f"failed_in_{view}")
     disagree = st.checkbox("Only prompts where runs score differently", False)
     jump = st.text_input("Jump to prompt id (e.g. orig20, phi115)", "").strip()
 
     st.header("Layout")
     show_verdicts = st.checkbox("Show judge verdicts", True)
     show_generation_prompt = st.checkbox("Show generation prompt per run", False)
+    st.button("Reload scores from S3", on_click=reload_all)
 
-results = {run: load_result(run) for run in selected_runs}
-images = {run: list_images(run) for run in selected_runs}
-ugb_prompts = load_ugb_prompts()
+loaded = load_all_results(tuple(dict.fromkeys(run for runs in VIEWS.values() for run in runs)))
+all_results = {run: loaded[run] for run in VIEWS[view]}
 
-st.title("🧪 UGB S3 Viewer")
+st.title(f"🧪 UGB S3 Viewer · {view}")
 st.caption(f"judge prompts: {UGB_PROMPTS_URI}")
 
-table = score_table(selected_runs, results)
-if not table.empty:
-    st.dataframe(table.style.format(precision=2, na_rep="-"), width="stretch")
-missing = [run for run in selected_runs if not results[run]]
-if missing:
-    st.caption("no judge result yet: " + ", ".join(missing))
+ugb_prompts = load_ugb_prompts()
+score_grid(VIEWS[view], score_table(VIEWS[view], all_results, len(ugb_prompts)), runs_key)
+if not selected_runs:
+    st.info("Click a run name above (or pick in the sidebar) to compare images.")
+    st.stop()
+
+results = {run: all_results[run] for run in selected_runs}
+images = {run: list_images(run) for run in selected_runs}
 
 prompt_ids = sorted(set().union(*(set(found) for found in images.values())), key=prompt_id_sort_key)
 if jump:

@@ -1,7 +1,8 @@
 #!/bin/bash
-# reports_xx/auto_doc_eval.sh - every 20 min: submit the doc-isolated per-split eval (run_doc_eval.sh) for every checkpoint Boxiang has
-# promoted (results/<Change ID>/ckpts/<rung>/) that we have neither evaluated nor queued. At most 10 of our eval jobs at a time: beyond
-# that, new ones are chained (afterany) behind our newest job. Stops after 48 h or when $WORK_DIR/auto.stop exists.
+# reports_xx/auto_doc_eval.sh - every 20 min: submit the doc-isolated per-split eval (run_doc_eval.sh) for every final checkpoint of
+# Boxiang's - finished runs not promoted yet (find_finished_runs.py) and promoted ones (results/<Change ID>/ckpts/<rung>/) - that we have
+# neither evaluated nor queued. At most 10 of our eval jobs queued or running at a time: beyond that, nothing is submitted until a
+# later round (chaining behind our newest job serialised everything). Stops after 48 h or when $WORK_DIR/auto.stop exists.
 #
 #   nohup bash reports_xx/auto_doc_eval.sh > /dev/null 2>&1 &        log: $WORK_DIR/auto.log      stop: touch $WORK_DIR/auto.stop
 set -uo pipefail
@@ -13,6 +14,18 @@ log() { echo "$(date '+%F %T') $*" >> "${LOG}"; }
 rm -f "${WORK_DIR}/auto.stop"; log "start (pid $$)"
 while (( $(date +%s) < END )) && [[ ! -e "${WORK_DIR}/auto.stop" ]]; do
     queued="$(squeue -u "${USER}" -h -o '%i %j' | awk '$2 ~ /^xxdoc-/ {sub(/^xxdoc-/, "", $2); print $1, $2}')"
+    # finished runs Boxiang has not promoted yet (evaluated straight from his run dir; skipped once evaluated / queued, promoted or not)
+    while IFS= read -r spec; do
+        key="${spec%%=*}"; change="${key%/*}"; rung="${key#*/}"
+        [[ "${change}" =~ _S[0-9]+$ ]] && continue                                               # extra seeds: not evaluated (user)
+        compgen -G "${WORK_DIR}/${change}-${rung}-*/eval/val_splits_*" > /dev/null && continue
+        grep -q " ${change}-${rung}\$" <<<"${queued}" && continue
+        [[ -d "${PROMOTED}/${change}/ckpts/${rung}" ]] && continue                               # promoted: handled by the loop below
+        n="$(grep -c . <<<"${queued}")"; after=()
+        if (( n >= MAX_JOBS )); then continue; fi             # cap reached: try again next round (no afterany chains: they serialise)
+        out="$(bash "${HERE}/run_doc_eval.sh" "${after[@]}" "${spec}" 2>&1)"; log "submit ${spec}: ${out}"
+        queued="$(squeue -u "${USER}" -h -o '%i %j' | awk '$2 ~ /^xxdoc-/ {sub(/^xxdoc-/, "", $2); print $1, $2}')"
+    done < <(python3 "${HERE}/find_finished_runs.py")
     for d in "${PROMOTED}"/*/ckpts/q[0-9]; do
         change="$(basename "$(dirname "$(dirname "${d}")")")"; rung="$(basename "${d}")"
         [[ -r "${d}/latest_checkpointed_iteration.txt" && -r "${d}/argv.txt" ]] || continue
@@ -20,7 +33,7 @@ while (( $(date +%s) < END )) && [[ ! -e "${WORK_DIR}/auto.stop" ]]; do
         compgen -G "${WORK_DIR}/${change}-${rung}-*/eval/val_splits_*" > /dev/null && continue    # evaluated
         grep -q " ${change}-${rung}\$" <<<"${queued}" && continue                                 # queued / running
         n="$(grep -c . <<<"${queued}")"; after=()
-        if (( n >= MAX_JOBS )); then after=(--after "$(awk '{print $1}' <<<"${queued}" | sort -n | tail -1)"); fi
+        if (( n >= MAX_JOBS )); then continue; fi             # cap reached: try again next round (no afterany chains: they serialise)
         out="$(bash "${HERE}/run_doc_eval.sh" "${after[@]}" "${change}/${rung}" 2>&1)"; log "submit ${change}/${rung}: ${out}"
         queued="$(squeue -u "${USER}" -h -o '%i %j' | awk '$2 ~ /^xxdoc-/ {sub(/^xxdoc-/, "", $2); print $1, $2}')"
     done

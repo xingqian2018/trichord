@@ -2,7 +2,7 @@
 request with the bytes sent and the seconds the send took (to tell a slow network from a slow client).
 
     python3 reports_xx/serve_report.py PORT reports_xx
-    -> http://<host>:PORT/qwen3_scaling_ladder_progress_en.html   (no index.html here, so "/" is a 404)
+    -> http://<host>:PORT/qwen3_scaling_ladder_eval_en.html   (no index.html here, so "/" is a 404)
 
 Copied verbatim from runlongl's Dense-Pretraining-LMs tools/analysis/serve_report.py (83518b2, 2026-10-16).
 """

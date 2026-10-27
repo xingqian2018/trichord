@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render a reports_xx markdown report to a self-contained HTML page (no external assets).
 
-Usage: python3 reports_xx/render_html.py reports_xx/qwen3_scaling_ladder_progress_en.md [out.html]
+Usage: python3 reports_xx/render_html.py reports_xx/<report>.md [out.html]
 Default output: same path with .html.
 """
 import html

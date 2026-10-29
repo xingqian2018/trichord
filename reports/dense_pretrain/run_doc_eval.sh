@@ -35,6 +35,7 @@ declare -A LIMIT=([q0]=02:30:00 [q1]=03:30:00 [q2]=03:30:00 [q3]=04:30:00 [q4]=0
 
 stage() {   # unpromoted final: <WORK_DIR>/stage/<CHANGE>/ckpts/<rung>/ with argv.txt, run.json, latest_checkpointed_iteration.txt, iter_*
     local change="$1" rung="$2" run="$3" dst="${WORK_DIR}/stage/$1/ckpts/$2" src="${RUNS}/$3"
+    if [[ "${run}" == /* ]]; then src="${run}"; fi           # run:/abs/path = a run outside Boxiang's group dir (e.g. our own q3 KD runs)
     local it; it="$(cat "${src}/checkpoints/latest_checkpointed_iteration.txt")"
     mkdir -p "${dst}"
     ln -sfn "${src}/argv.txt" "${dst}/argv.txt"; ln -sfn "${src}/run.json" "${dst}/run.json"
@@ -50,13 +51,15 @@ for key in "${keys[@]}"; do
     change="${key%/*}"; rung="${key#*/}"; src="${spec:-${CKPTS[${key}]:-p}}"   # any other CHANGE/rung: Boxiang's promoted dir
     if [[ "${src}" == p ]]; then ckpt="${PROMOTED}/${change}/ckpts/${rung}"; else ckpt="$(stage "${change}" "${rung}" "${src#run:}")"; fi
     [[ -f "${ckpt}/latest_checkpointed_iteration.txt" && -f "${ckpt}/argv.txt" ]] || { echo "ERROR: ${ckpt} is not a checkpoint dir" >&2; exit 1; }
+    limit="${LIMIT[${rung}]}"                                # off-ladder depth cells (_L<n>H<h>): ~4 min per layer (L 48 took 3:10)
+    if [[ "${change}" =~ _L([0-9]+)H[0-9]+ ]]; then nl="${BASH_REMATCH[1]}"; h=$(( nl * 6 / 60 + 1 )); (( h > ${limit%%:*} )) && limit="$(printf %02d "${h}"):00:00"; fi
     name="xxdoc-${change}-${rung}"
     dep=(); if [[ -n "${PREV}" ]]; then dep=(--dependency="afterany:${PREV}"); fi
     cmd=(sbatch --parsable "${dep[@]}" -A cosmos_base_training -p batch_long --qos=hero-res --reservation=sla_res_cosmos --segment=1 --nodes=1 --ntasks-per-node=4
-         --gres=gpu:4 --exclusive --mem=0 --time="${LIMIT[${rung}]}" --job-name="${name}" --output="${WORK_DIR}/sbatch/${name}_%j.log"
+         --gres=gpu:4 --exclusive --mem=0 --time="${limit}" --job-name="${name}" --output="${WORK_DIR}/sbatch/${name}_%j.log"
          --export=ALL,VAL_PER_SPLIT=1,LADDER_DIR="${LADDER_CODE}",EVAL_DATA_CACHE="${WORK_DIR}/data_cache/corpus_v2"
          --wrap="export EVAL_DIR=${WORK_DIR}/${change}-${rung}-\${SLURM_JOB_ID}; exec bash ${LADDER_CODE}/sh/eval_ckpt.sh ${ckpt} doc")
-    if (( DRY )); then echo "[dry] ${key}: ${ckpt} (${LIMIT[${rung}]})${PREV:+ after ${PREV}}"; PREV="dry"; continue; fi
+    if (( DRY )); then echo "[dry] ${key}: ${ckpt} (${limit})${PREV:+ after ${PREV}}"; PREV="dry"; continue; fi
     PREV="$("${cmd[@]}")"; PREV="${PREV%%;*}"
-    echo "${key}: job ${PREV} (${LIMIT[${rung}]})${dep[*]:+ ${dep[*]}}"
+    echo "${key}: job ${PREV} (${limit})${dep[*]:+ ${dep[*]}}"
 done

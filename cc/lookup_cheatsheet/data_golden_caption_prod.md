@@ -276,7 +276,7 @@ slaunch cpu 1x1 gcprod_mx_tier1_nocap_red \
     --batch_size 1000 \
     --timeout 200 \
     --max_retry 3 \
-    --force_model gemini-3.1-pro@nvidiams
+    --force_model gemini-3.1-pro@nvidiak
 ```
 
 ```bash

@@ -255,7 +255,7 @@ def main() -> None:
 
     rows = load_rows(table_uri, fragment_id, source_dataset, row_limit, st.session_state["sample_seed"])
     if not rows:
-        st.warning(f"No {source_dataset} rows in fragment {fragment_id}. The fragment map may be stale; rerun build_midtrain_fragment_map.py.")
+        st.warning(f"No {source_dataset} rows in fragment {fragment_id}. The fragment map may be stale; rerun scripts/build_midtrain_fragment_map.py.")
         return
     st.subheader(f"{source_dataset} · fragment {fragment_id} · {len(rows)} sampled row(s)")
     if view == "Grid":

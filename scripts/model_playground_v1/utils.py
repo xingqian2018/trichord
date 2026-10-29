@@ -77,14 +77,6 @@ GATEWAY_CONFIG = {
             "openai/openai/gpt-image-2",
         ],
     },
-    "nvidiams": {
-        "url": "https://inference-api.nvidia.com/v1",
-        "api": load_credential_secret("NVIDIA_GATEWAY_MS"),
-        "modelstr": [
-            "gcp/google/gemini-3.1-pro-preview",
-            "aws/anthropic/bedrock-claude-opus-4-7",
-        ],
-    },
     "hpsv3": {
         "url": "https://b5k2m9x7-scorer-hpsv3.xenon.lepton.run/v1",
         "api": load_credential_secret("LEPTON_REWARD"),
@@ -132,7 +124,6 @@ MODEL_CHOICE = {
     "gpt-image-2.0-azure":       "azure/openai/gpt-image-2",
     "opus-4.7@nvidia":           "aws/anthropic/bedrock-claude-opus-4-7",
     "opus-4.7@nvidiak":          "aws/anthropic/bedrock-claude-opus-4-7",
-    "opus-4.7@nvidiams":         "aws/anthropic/bedrock-claude-opus-4-7",
     "hpsv3":                     "hpsv3",
     "pickscore":                 "pickscore",
     "paddleocrv5":               "paddleocrv5",

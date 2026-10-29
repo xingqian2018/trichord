@@ -29,6 +29,7 @@ FEATURED_COSMOS_DIRS = [
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_super_v2p5_iter741260_shift3_fullcfg_seedrow_noneg",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_ultra_v3p4_iter360000_shift3_fullcfg_seedrow_noneg",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_opus/c3_dense_exp009_sft0_iter31000",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_opus/cosmos3_super_text2image_before_uhg",
 ]
 COSMOS_DIRS = FEATURED_COSMOS_DIRS + [
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_super_v2p5_iter741260_noneg",
@@ -37,6 +38,10 @@ COSMOS_DIRS = FEATURED_COSMOS_DIRS + [
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp004_000_pretrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp004_001_pretrain_mha_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp004_002_pretrain_mha_dense_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/c3p5_exp004_003_pretrain_mha_dense_constlr_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/cosmos3p5_ultra_ruofan_20261027_iter30k_best",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_img_a4/cosmos3p5_ultra_ruofan_20261027_iter30k_best",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_img_a4/cosmos3_super_text2image_before_uhg",
 ]
 VIEWS = {
     "Baselines": BASELINE_DIRS + FEATURED_COSMOS_DIRS,
@@ -44,27 +49,32 @@ VIEWS = {
 }
 DISPLAY_NAMES = {
     "c3_dense_exp009_sft0_iter31000": "cosmos3_super_text2image",
+    "v2_1170L_gpt5p5_img_a4/cosmos3p5_ultra_ruofan_20261027_iter30k_best": "cosmos3p5_ultra_ruofan_20261027_iter30k_best_a4",
+    "v2_1170L_gpt5p5_img_a4/cosmos3_super_text2image_before_uhg": "cosmos3_super_text2image_before_uhg_a4",
 }
 IMAGES_PER_PAGE = 25
 UGB_PROMPTS_URI = "s3://datasets/unigenbench/v2/v2_1170L_G3F.csv"
 GENERATION_PROMPT_URIS = {
     "v2_1170L_gpt5p5_cosmos3p5_dense_hamid": "s3://nv-00-10206-vfm/debug/xingqianx/evaluation/unigenbench/v2_1170L_gpt5p5_for_cosmos3p5_dense_upsampled_hamid.json",
     "v2_1170L_opus_cosmos3p5_dense_xingqian": "s3://nv-00-10206-vfm/debug/xingqianx/evaluation/unigenbench/v2_1170L_opus_for_cosmos3p5_dense_upsampled_xingqian.json",
+    "v2_1170L_gpt5p5_img_a4": "s3://nv-00-10206-vfm/debug/xingqianx/evaluation/unigenbench/v2_1170L_gpt5p5_img_a4.json",
 }
 GCS_CREDENTIAL_PATH = os.path.expanduser("~/Project/trichord/credentials/gcs.secret")
 PDX_CREDENTIAL_PATH = os.path.expanduser("~/Project/imaginaire4_alt/credentials/pdx_benchmark.secret")
 RESULT_FILE = "unigenbench_result.json"
+HPSV3_PREFIX = "result_hpsv3"
 PRIMARY_DIMENSIONS = [
     "Action", "Attribute", "Compound", "Entity Layout", "Grammar", "Logical Reasoning",
     "Relationship", "Style", "Text Generation", "World Knowledge",
 ]
 URL_EXPIRES = 3600
 GRID_CSS = """<style>
-[class*="st-key-grid_"] p { margin: 0; line-height: 1.3; }
-[class*="st-key-grid_"] button { min-height: 0; padding: 0; line-height: 1.3; }
+[class*="st-key-grid_"] p { margin: 0; line-height: 1.3; font-size: 0.8rem; }
+[class*="st-key-grid_"] button { min-height: 0; padding: 0; line-height: 1.3; font-size: 0.8rem; }
 [class*="st-key-grid_"] [data-testid="stHorizontalBlock"] { border-bottom: 1px solid rgba(128, 128, 128, 0.15); padding: 1px 0; }
 [class*="st-key-head_"] { padding-bottom: 6px; margin-bottom: 4px; border-bottom: 2px solid rgba(128, 128, 128, 0.5); }
 [class*="st-key-head_"] [data-testid="stHorizontalBlock"] { border-bottom: none; }
+[class*="st-key-grid_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child { border-left: 2px solid rgba(128, 128, 128, 0.5); padding-left: 8px; }
 </style>"""
 
 st.set_page_config(page_title="UGB S3 Viewer", page_icon="🧪", layout="wide")
@@ -112,8 +122,8 @@ def run_benchmark(run: str) -> str:
 
 
 def run_label(run: str) -> str:
-    name = run_uri(run).rsplit("/", 1)[-1]
-    return DISPLAY_NAMES.get(name, name)
+    benchmark, name = run_uri(run).rsplit("/", 2)[-2:]
+    return DISPLAY_NAMES.get(f"{benchmark}/{name}", DISPLAY_NAMES.get(name, name))
 
 
 @st.cache_data(ttl=300, show_spinner="Listing images...")
@@ -144,8 +154,22 @@ def load_all_results(runs: tuple[str, ...]) -> dict[str, dict | None]:
         return dict(zip(runs, pool.map(lambda run: fetch_result(run, client), runs)))
 
 
+def fetch_hpsv3(run: str, client) -> dict | None:
+    bucket, key = split_uri(f"{run_uri(run)}/{HPSV3_PREFIX}")
+    keys = sorted(obj["Key"] for obj in client.list_objects_v2(Bucket=bucket, Prefix=key).get("Contents", []) if obj["Key"].endswith(".json"))
+    return json.loads(client.get_object(Bucket=bucket, Key=keys[-1])["Body"].read()) if keys else None
+
+
+@st.cache_resource(show_spinner="Loading all HPSv3 results...")
+def load_all_hpsv3(runs: tuple[str, ...]) -> dict[str, dict | None]:
+    client = gcs()
+    with ThreadPoolExecutor(16) as pool:
+        return dict(zip(runs, pool.map(lambda run: fetch_hpsv3(run, client), runs)))
+
+
 def reload_all() -> None:
     load_all_results.clear()
+    load_all_hpsv3.clear()
     list_images.clear()
 
 
@@ -197,12 +221,13 @@ def prompt_id_sort_key(prompt_id: str) -> tuple[str, int]:
     return prefix, int(suffix) if suffix else -1
 
 
-def score_table(runs: list[str], results: dict[str, dict | None], total: int) -> pd.DataFrame:
+def score_table(runs: list[str], results: dict[str, dict | None], hpsv3: dict[str, dict | None], total: int) -> pd.DataFrame:
     table = {}
     for run in runs:
         result = results[run]
+        hps = hpsv3[run]["stats"]["hpsv3"] if hpsv3[run] else float("nan")
         if not result:
-            table[run_label(run)] = {key: float("nan") for key in ("all", "orig", "phi", *PRIMARY_DIMENSIONS)} | {"success": "-"}
+            table[run_label(run)] = {key: float("nan") for key in ("all", "orig", "phi")} | {"success": "-"} | {key: float("nan") for key in PRIMARY_DIMENSIONS} | {"hpsv3": hps}
             continue
         stats = result["stats"]
         column = {subset: 100 * stats[subset]["overall_accuracy"] for subset in ("all", "orig", "phi")}
@@ -210,6 +235,7 @@ def score_table(runs: list[str], results: dict[str, dict | None], total: int) ->
         for dimension in PRIMARY_DIMENSIONS:
             entry = stats["all"]["big_class_stats"].get(dimension)
             column[dimension] = 100 * entry["accuracy"] if entry else float("nan")
+        column["hpsv3"] = hps
         table[run_label(run)] = column
     return pd.DataFrame.from_dict(table, orient="index")
 
@@ -279,14 +305,16 @@ with st.sidebar:
     show_generation_prompt = st.checkbox("Show generation prompt per run", False)
     st.button("Reload scores from S3", on_click=reload_all)
 
-loaded = load_all_results(tuple(dict.fromkeys(run for runs in VIEWS.values() for run in runs)))
+all_runs = tuple(dict.fromkeys(run for runs in VIEWS.values() for run in runs))
+loaded = load_all_results(all_runs)
+loaded_hpsv3 = load_all_hpsv3(all_runs)
 all_results = {run: loaded[run] for run in VIEWS[view]}
 
 st.title(f"🧪 UGB S3 Viewer · {view}")
 st.caption(f"judge prompts: {UGB_PROMPTS_URI}")
 
 ugb_prompts = load_ugb_prompts()
-score_grid(VIEWS[view], score_table(VIEWS[view], all_results, len(ugb_prompts)), runs_key)
+score_grid(VIEWS[view], score_table(VIEWS[view], all_results, loaded_hpsv3, len(ugb_prompts)), runs_key)
 if not selected_runs:
     st.info("Click a run name above (or pick in the sidebar) to compare images.")
     st.stop()

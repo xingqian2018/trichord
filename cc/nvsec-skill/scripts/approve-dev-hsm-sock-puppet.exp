@@ -1,0 +1,85 @@
+#!/usr/bin/expect -f
+
+# Submit one Dev-only SSA fixture approval without exposing protected values.
+set timeout 180
+
+if {$argc ni {5 6}} {
+    puts stderr "usage: approve-dev-hsm-sock-puppet.exp NVSEC_SOURCE PYTHON E2E_ROOT CEREMONY_ID ?TOKEN_REQUEST_ID? IDENTITY"
+    exit 2
+}
+
+set token_request_id ""
+if {$argc == 6} {
+    lassign $argv nvsec_source python e2e_root ceremony_id token_request_id identity
+} else {
+    lassign $argv nvsec_source python e2e_root ceremony_id identity
+    unset -nocomplain env(NVSEC_3S_HSM_TOKEN)
+}
+if {$identity ni {crabman jschmo rusty}} {
+    puts stderr "identity must be crabman, jschmo, or rusty"
+    exit 2
+}
+if {![string is integer -strict $ceremony_id] || $ceremony_id < 1} {
+    puts stderr "ceremony id must be a positive integer"
+    exit 2
+}
+if {$argc == 6 && (![string is integer -strict $token_request_id] || $token_request_id < 1)} {
+    puts stderr "token request id must be a positive integer"
+    exit 2
+}
+
+set approver_key "$e2e_root/data/hsm_dev_quorum/3s_approver_test_keys/$identity.key"
+set hsm_key "$e2e_root/data/hsm_dev_quorum/approver_test_keys/co_$identity.key"
+if {![file isfile $approver_key] || ![file isfile $hsm_key]} {
+    puts stderr "reviewed Dev signer fixtures are unavailable"
+    exit 2
+}
+
+if {[info exists env(PYTHONPATH)] && $env(PYTHONPATH) ne ""} {
+    set env(PYTHONPATH) "$nvsec_source:$env(PYTHONPATH)"
+} else {
+    set env(PYTHONPATH) $nvsec_source
+}
+set approval_command [list $python -m cli.nvsec 3s approve-hsm \
+    --use_dev \
+    --auth ssa \
+    --request_id $ceremony_id \
+    --approver_private_key $approver_key \
+    --hsm_private_key $hsm_key \
+    --impersonate $identity \
+    --comments "DEV nvsec-skill staged approve-hsm verification"]
+if {$argc == 6} {
+    lappend approval_command --token_request_id $token_request_id
+}
+spawn {*}$approval_command
+
+set saw_approver_prompt 0
+set saw_hsm_prompt 0
+expect {
+    -re {Enter 3S approver private key passphrase:} {
+        set saw_approver_prompt 1
+        send -- "$identity\r"
+        exp_continue
+    }
+    -re {Enter passphrase for private key:} {
+        set saw_hsm_prompt 1
+        send -- "$identity\r"
+        exp_continue
+    }
+    timeout {
+        puts stderr "timed out waiting for nvsec approval prompts"
+        exit 124
+    }
+    eof
+}
+
+set wait_result [wait]
+set exit_code [lindex $wait_result 3]
+if {$exit_code != 0} {
+    exit $exit_code
+}
+if {!$saw_approver_prompt || !$saw_hsm_prompt} {
+    puts stderr "nvsec completed without both expected fixture-key prompts"
+    exit 1
+}
+exit 0

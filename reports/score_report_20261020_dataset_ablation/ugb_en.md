@@ -12,6 +12,7 @@ Experiments: `cosmos3p5_ga_60bm30b_t2ionly_moe_exp003_*`, 25k steps each from
 | exp004_000_pretrain | same as exp003_000 (only lr changed) | 2e-5 |
 | exp004_001_pretrain_mha | same as exp004_000, gen pathway GQA → MHA (`gen_num_key_value_heads=32`) | 2e-5 |
 | exp004_002_pretrain_mha_dense | same as exp004_001, gen MoE MLP → dense (`gen_dense_mlp_intermediate_size=6912`, 8 × 768 routed + 768 shared) | 2e-5 |
+| exp004_003_pretrain_mha_dense_constlr | same as exp004_002, strictly constant lr (no warmup, no decay) | 2e-5 |
 
 Scoring for every row: `compute_unigenbench_metric.py --benchmark_name v2_1170L` (original, non-upsampled UGB prompts and testpoints), judge `gemini-3.1-pro`.
 
@@ -33,12 +34,13 @@ Generation: `inference_ugb_i4.py`, `--experiment_name cosmos3p5_ga_60bm30b_base_
 | c3p5_exp004_000_pretrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ | 1170 png | 88.12 | 90.36 | 86.08 | 1170/1170 |
 | c3p5_exp004_001_pretrain_mha_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ ² | 1170 png | 87.73 | 90.18 | 85.49 | 1170/1170 |
 | c3p5_exp004_002_pretrain_mha_dense_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ ³ | 1170 png | 84.30 | 86.22 | 82.54 | 1170/1170 |
+| c3p5_exp004_003_pretrain_mha_dense_constlr_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ ³ | 1170 png | 84.36 | 86.61 | 82.31 | 1170/1170 |
 
 ¹ exp003_003 was generated with shift 3, **CFG on every step**, per-prompt row seed (the new `Cosmos3p5Generator` default, `cd2022e3408`), not the CFG [400, 1000] used by the other rows of this table, so it is not directly comparable to them. It is compared only with exp003_002, which shares lr 2e-5; exp003_000 / 001 use lr 1e-4 and are not compared. Under the same setting (1024, shift 3, full CFG, row seed, noneg): exp003_002 getty 87.92, exp003_003 midtrain **87.88**, a difference of −0.04, inside the ~0.35 judge noise, so the two are indistinguishable. exp004_000 uses the same setting and scores **88.12**: +0.20 over exp003_002 and +0.24 over exp003_003, both inside the noise, so all three are tied. exp004_000 differs from exp003_000 only in lr. Under the same setting exp003_000 (lr 1e-4) scores 86.37, and exp004_000 (lr 2e-5) is **+1.75** higher, well beyond the noise. So the earlier gain of exp003_002 / 003 over exp003_000 / 001 comes mainly from lowering lr to 2e-5, not from the getty or midtrain data.
 
 ² exp004_001 was generated with `--experiment_name cosmos3p5_ga_60bm30b_base_768_gen_mha32` (the MHA eval config); every other setting matches exp004_000. It differs from exp004_000 only in the gen pathway's GQA → MHA and scores **87.73**, 0.39 lower, about the size of the judge noise, so GQA → MHA shows no gain on UGB.
 
-³ exp004_002 was generated with `--experiment_name cosmos3p5_ga_60bm30b_base_768_gen_mha32_dense`; every other setting matches exp004_001. It differs from exp004_001 only in replacing the gen MoE MLP with a dense MLP of the same activated width, and scores **84.30**, **3.43** lower, well beyond the noise and also below the pre-SFT 86.10. Text Generation drops from 16.35% to 4.81% (10/208). After the MoE → dense conversion, 25k steps did not recover the MoE level.
+³ exp004_002 was generated with `--experiment_name cosmos3p5_ga_60bm30b_base_768_gen_mha32_dense`; every other setting matches exp004_001. It differs from exp004_001 only in replacing the gen MoE MLP with a dense MLP of the same activated width, and scores **84.30**, **3.43** lower, well beyond the noise and also below the pre-SFT 86.10. Text Generation drops from 16.35% to 4.81% (10/208). After the MoE → dense conversion, 25k steps did not recover the MoE level. exp004_003 differs from exp004_002 only in the lr schedule (constant 2e-5, dropping the 2k-step warmup and the final 2.5k-step linear decay to 0), with the same generation settings, and scores **84.36**, 0.06 above exp004_002, inside the noise, so the two are tied; Text Generation is 7.69% (16/208). The WSD warmup and decay show no effect in this setting.
 
 ## Sampling progression on exp003_002 getty (1024×1024)
 

@@ -77,6 +77,7 @@
 | GPT-image-2（low） | `gpt_image_2` | 94.25 | 96.08 | 92.56 | 1165/1170 | gemini-3.1-pro@nvidia |
 | Gemini 3.1 flash image | `gemini_3_1_flash_image` | 91.91 | 93.79 | 90.19 | 1169/1170 | gemini-3.1-pro@nvidia |
 | Cosmos3 64bm32b dense，exp009 sft0，iter31000 | `c3_dense_exp009_sft0_iter31000` | 91.63 | 93.85 | 89.59 | 1170/1170 | gemini-3.1-pro@nvidia |
+| Cosmos3 64bm32b dense，exp009 union5（UHQ SFT 前），iter25000 | `cosmos3_super_text2image_before_uhg` | 91.09 | 93.06 | 89.28 | 1170/1170 | gemini-3.1-pro@nvidia |
 | Cosmos3 runlong RL，iter100 | `c3_runlong_rl_iter100` | 90.75 | 93.65 | 88.09 | 1170/1170 | gemini-3.1-pro@nvidia |
 | Cosmos3 runlong RL，iter80 | `c3_runlong_rl_iter80` | 90.70 | 93.37 | 88.25 | 1170/1170 | gemini-3.1-pro@nvidia |
 | Cosmos3.5 Super v2p5 iter741260（960²，cfg4，neg） | `c3p5_super_v2p5_iter741260_ts1000` | 87.79 | 89.52 | 86.22 | 1170/1170 | gemini-3.1-pro@nvidia |
@@ -168,7 +169,56 @@ checkpoint：`s3://nv-00-10206-checkpoint/cosmos3_generator/3p5_production_runs/
 
 - 同为预训练、同分辨率，**Ultra 比 Super 高 +1.73**，远超约 0.35 的 judge 噪声。
 - Ultra 预训练已经比 Super 做完 SFT 后的最好结果高约 0.5。但分辨率和训练阶段都不同，这一项只作参考。
+- 测完时是 Cosmos3.5 在 hamid prompt 上的最高分，之后被 4c 节 ruofan 的 iter30k（90.15）超过。
+
+---
+
+## 4c. Cosmos3.5 Ultra 图像混合训练（ruofan，hamid prompt）
+
+checkpoint：`s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/image_mix_ultra/real70hq30_c3sdg15_text15_res10_30_60_seed42/checkpoints/iter_000030000/`（ruofan 2026-10-27 给的 best）。仓库里没有这个实验的 config，用 `cosmos3p5_ga_470bm235b_base_cp1_for_eval` 加载。1024×1024，cfg 4，shift 3，全程 CFG，行号 seed，noneg，EMA。生成 job 2710684，16 节点，1 小时。打分时 `v2_1170L` 已改为读 `v2_1170L.json`，与原 CSV 的打分输入逐行一致。
+
+| run | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` | **90.15** | 92.17 | 88.30 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+同设置（cfg 4、shift 3、全程 CFG、行号 seed、noneg）对比：
+
+| 模型 | 阶段 | 分辨率 | overall | orig | phi |
+|---|---|---|---|---|---|
+| **Ultra ruofan iter30k** | Ultra + 图像混合训练 | 1024 | **90.15** | 92.17 | 88.30 |
+| Ultra v3p4 iter360000 | 预训练 | 960 | 88.45 | 90.26 | 86.80 |
+| exp003_002 getty | Super + SFT | 1024 | 87.92 | 90.18 | 85.84 |
+| Super v2p5 iter741260 | 预训练 | 960 | 86.72 | 88.24 | 85.33 |
+
+- 比 Ultra v3p4 预训练高 **+1.70**，约为 judge 噪声（0.35）的 5 倍。但分辨率不同（1024 对 960），分辨率贡献了多少还分不开。
 - 这是目前 Cosmos3.5 在 hamid prompt 上的最高分。
+- 分项最弱的是 Text Generation（92/208，44.23%），其次是 Logical Reasoning（125/155，80.65%）；Style（98.71%）和 World Knowledge（95.41%）最强。
+
+### 4c-a4. 同一 checkpoint 换 a4 prompt
+
+生成用新 benchmark `v2_1170L_gpt5p5_img_a4`（gpt5p5 改写的 prompt），其余设置同上，8 节点。打分仍用 `v2_1170L` 的原始 prompt 和 testpoint。
+
+| run | 生成 prompt | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|---|
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` | a4 | **91.25** | 92.50 | 90.10 | 1170/1170 | gemini-3.1-pro@nvidia |
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` | hamid | 90.15 | 92.17 | 88.30 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+- a4 比 hamid 高 **+1.10**，提升主要来自 phi（+1.80），orig 只高 0.33。
+- Text Generation 从 44.23% 升到 51.44%（107/208），仍是最弱项；Logical Reasoning 80.00%（124/155），与 hamid 基本持平。
+- 最弱的动作类：Action - Hand 61.08%、Action - Full-body 69.50%。
+
+## 4d. Cosmos3 Super UHQ SFT 前（exp009 union5 iter25000）
+
+checkpoint：`s3://nv-00-10206-checkpoint/cosmos3_vfm/cosmos3_ga_t2ionly/cosmos3_ga_64bm32b_t2ionly_exp009_union5_from_frozen_midtrain_lr5em5/checkpoints/iter_000025000/model`，即 exp009 sft0（UHQ SFT）的起点。experiment：`cosmos3_ga_64bm32b_t2ionly_base_mini`。1024×1024，cfg 4，50 步，EMA，Cosmos3 默认 negative prompt。4 节点，约 45 分钟。打分统一用 `v2_1170L`。
+
+| run | 生成 prompt | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|---|
+| `cosmos3_super_text2image_before_uhg` | opus | **91.09** | 93.06 | 89.28 | 1170/1170 | gemini-3.1-pro@nvidia |
+| `cosmos3_super_text2image_before_uhg` | a4 | 88.09 | 90.38 | 85.98 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+- 用 opus prompt 时，比 UHQ SFT 之后的 exp009 sft0 iter31000（91.63）低 0.54，UHQ SFT 的增益不大。
+- a4 prompt 对 Cosmos3 不利：比 opus 低 **3.00**。Text Generation 从 66.83% 掉到 47.60%，Logical Reasoning 从 76.13% 掉到 70.97%，Action - Hand 从 72.97% 掉到 64.86%。Cosmos3.5 Ultra（4c-a4）正相反，a4 比 hamid 高 1.10。
+- 所以 Cosmos3 按惯例用 opus prompt 评测，a4 分数不宜和 Cosmos3.5 的 a4 分数直接横比。
 
 ---
 
@@ -196,6 +246,60 @@ checkpoint：`s3://nv-00-10206-checkpoint/cosmos3_generator/3p5_production_runs/
 
 ---
 
+## 7. HPSv3（人类偏好分，2026-10-28 起补算）
+
+HPSv3 衡量的是图像整体好不好看、是否贴合 prompt（人类偏好），与 UGB 的逐 testpoint 准确率是两种指标，不能直接混比。
+
+- 打分模型：HPSv3 reward service（Lepton gateway `scorer-hpsv3`），内部是官方 `HPSv3RewardInferencer`，取输出的 `mu`。
+- 打分 prompt：一律用原版 `v2_1170L` 的**普通 prompt**（不是生成时的 opus / hamid / a4 改写 prompt），与 UGB 打分保持一致。
+- 每组分数先对每个 prompt 求平均，再对 1170 个 prompt 求平均；`std` 是 prompt 之间的标准差。缺图不计入。
+- 结果文件：各目录下的 `result_hpsv3_v2_1170L.json`。
+
+viewer（`ugb_s3_viewer.py`）里的 21 组已全部算完。缺图的 6 组只少了本来就缺的那几张，其余都是 1170/1170。UGB overall 取自同目录的 `unigenbench_result.json`。
+
+### 7.1 公开模型与 Cosmos3 super（按 HPSv3 排序）
+
+| run | 生成 prompt | HPSv3 | std | success | UGB overall |
+|---|---|---|---|---|---|
+| `v2_1170L/gpt_image_2p5_sunburst` | 原版 | **12.253** | 1.574 | 1167/1170 | 94.22 |
+| `v2_1170L/gpt_image_2p5_sunburst_quality_high` | 原版 | 12.245 | 1.571 | 1165/1170 | 94.45 |
+| `v2_1170L/qwen_image_2p1_pe` | 原版 | 11.788 | 1.613 | 1170/1170 | 85.80 |
+| `v2_1170L_opus/c3_dense_exp009_sft0_iter31000`（cosmos3-super-text2image） | opus | 11.598 | 1.613 | 1170/1170 | 91.63 |
+| `v2_1170L/flux3_klein` | 原版 | 11.575 | 1.589 | 1167/1170 | 89.72 |
+| `v2_1170L/krea2_turbo` | 原版 | 11.463 | 1.690 | 1170/1170 | 85.60 |
+| `v2_1170L/fibo2_dev` | 原版 | 11.391 | 1.650 | 1167/1170 | 87.43 |
+| `v2_1170L/flux3_klein_base` | 原版 | 11.123 | 1.593 | 1167/1170 | 90.63 |
+| `v2_1170L/ideogram4_nf4` | 原版 | 10.767 | 2.114 | 1166/1170 | 86.19 |
+| `v2_1170L/qwen_image_2p1_nope` | 原版 | 10.694 | 1.700 | 1170/1170 | 86.99 |
+
+### 7.2 Cosmos3.5（按 HPSv3 排序）
+
+| run | 生成 prompt | HPSv3 | std | success | UGB overall |
+|---|---|---|---|---|---|
+| `c3p5_ultra_v3p4_iter360000_shift3_fullcfg_seedrow_noneg` | hamid | **10.978** | 1.600 | 1170/1170 | 88.45 |
+| `c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.800 | 1.644 | 1170/1170 | 87.88 |
+| `c3p5_super_v2p5_iter741260_shift3_fullcfg_seedrow_noneg` | hamid | 10.747 | 1.628 | 1170/1170 | 86.72 |
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` | hamid | 10.727 | 1.621 | 1170/1170 | 90.15 |
+| `c3p5_exp004_003_pretrain_mha_dense_constlr_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.702 | 1.662 | 1170/1170 | 84.36 |
+| `c3p5_exp004_002_pretrain_mha_dense_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.700 | 1.618 | 1170/1170 | 84.30 |
+| `c3p5_exp004_000_pretrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.667 | 1.633 | 1170/1170 | 88.12 |
+| `c3p5_exp004_001_pretrain_mha_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.639 | 1.629 | 1170/1170 | 87.73 |
+| `c3p5_super_v2p5_iter741260_noneg` | hamid | 10.609 | 1.648 | 1170/1170 | 86.10 |
+| `c3p5_exp003_002_pretrain_getty_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.594 | 1.632 | 1170/1170 | 87.92 |
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best`（`v2_1170L_gpt5p5_img_a4`） | a4 | 10.565 | 1.594 | 1170/1170 | 91.25 |
+
+除最后一行在 `v2_1170L_gpt5p5_img_a4` 下，其余都在 `v2_1170L_gpt5p5_cosmos3p5_dense_hamid` 下。
+
+观察：
+- **HPSv3 与 UGB 基本不相关。** 21 组的 Spearman ρ = 0.29；9 个公开模型内部 0.42；11 组 Cosmos3.5 内部 −0.06。两个指标要分开看，不能用一个代替另一个。
+- **Cosmos3.5 全部落在 HPSv3 最低的一档（10.57–10.98）**，低于除 Ideogram 4 和 Qwen nope 以外的所有公开模型，也比 Cosmos3 super（11.60）低 0.6–1.0。但 Cosmos3.5 是用 hamid dense prompt 生成、用原版短 prompt 打分，公开模型是原版 prompt 生成，这里分不开是模型差异还是生成 prompt 的差异。
+- **Cosmos3.5 内部 HPSv3 几乎拉不开**：11 组只差 0.41，而 UGB 差 6.95（84.30–91.25）。exp004_002 / 003（mha_dense）的 UGB 比 exp004_000 低约 3.8，HPSv3 却基本一样。
+- **UGB 上的提升没有带来 HPSv3 提升**：ruofan iter30k 换 a4 prompt，UGB +1.10，HPSv3 −0.16；ruofan 是 UGB 最高的 Cosmos3.5（hamid 90.15），HPSv3 却低于 Ultra v3p4 预训练（10.73 对 10.98）。
+- **公开模型里，UGB 和 HPSv3 的取舍方向相反的有两对**：FLUX.3 klein 蒸馏版 HPSv3 比 klein-base 高 0.45，UGB 低 0.91；Qwen-Image 2.1 的 prompt enhancer 让 HPSv3 从 10.69 升到 11.79，UGB 却降了 1.19。
+- GPT-image-2.5 的 `quality=high` 在 HPSv3 上也没有收益（12.245 对 12.253）。
+
+---
+
 ## 附：打分协议
 
 ```bash
@@ -208,3 +312,15 @@ PYTHONPATH=. python projects/cosmos3/cosmos3/evaluation/text_to_image/compute_un
 ```
 
 本次新打的 18 组都是在本地跑的：打分只用 CPU，调用 gateway，每组约 6 分钟，3 组并行。
+
+HPSv3（第 7 节）：
+
+```bash
+PYTHONPATH=. python projects/cosmos3/cosmos3/evaluation/text_to_image/compute_hpsv3_metric.py \
+  --io_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/<benchmark>/<run> \
+  --io_cred credentials/gcs.secret \
+  --benchmark_name v2_1170L \
+  --image_extension png
+```
+
+同样在本地跑，只调 HPSv3 gateway；单组顺序跑约 3–9 分钟。

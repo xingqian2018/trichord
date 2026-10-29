@@ -14,6 +14,7 @@
 | exp004_000_pretrain | 同 exp003_000(只改 lr) | 2e-5 |
 | exp004_001_pretrain_mha | 同 exp004_000,gen 路径 GQA → MHA(`gen_num_key_value_heads=32`) | 2e-5 |
 | exp004_002_pretrain_mha_dense | 同 exp004_001,gen MoE MLP → dense(`gen_dense_mlp_intermediate_size=6912`,8 × 768 routed + 768 shared) | 2e-5 |
+| exp004_003_pretrain_mha_dense_constlr | 同 exp004_002,lr 严格恒定(无 warmup、无退火) | 2e-5 |
 
 所有行的打分方式:`compute_unigenbench_metric.py --benchmark_name v2_1170L`(UGB 原版、未 upsample 的 prompt 和测试点),judge 为 `gemini-3.1-pro`。
 
@@ -35,12 +36,13 @@
 | c3p5_exp004_000_pretrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ | 1170 png | 88.12 | 90.36 | 86.08 | 1170/1170 |
 | c3p5_exp004_001_pretrain_mha_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ ² | 1170 png | 87.73 | 90.18 | 85.49 | 1170/1170 |
 | c3p5_exp004_002_pretrain_mha_dense_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ ³ | 1170 png | 84.30 | 86.22 | 82.54 | 1170/1170 |
+| c3p5_exp004_003_pretrain_mha_dense_constlr_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg ¹ ³ | 1170 png | 84.36 | 86.61 | 82.31 | 1170/1170 |
 
 ¹ exp003_003 用的是 shift 3、**全程 CFG**、行号 seed（`Cosmos3p5Generator` 的新默认，`cd2022e3408`），不是本表其他行的 CFG [400, 1000]，不能和本表直接比。只和 lr 相同（2e-5）的 exp003_002 比；exp003_000 / 001 是 lr 1e-4，不做对比。同设置（1024、shift 3、全程 CFG、行号 seed、noneg）下：exp003_002 getty 87.92，exp003_003 midtrain **87.88**，相差 −0.04，在 judge 约 0.35 的噪声内，看不出差别。exp004_000 也用同一设置，得分 **88.12**，比 exp003_002 高 0.20，比 exp003_003 高 0.24，都在噪声内，三者打平。exp004_000 和 exp003_000 只差 lr。同设置下 exp003_000（lr 1e-4）是 86.37，exp004_000（lr 2e-5）高 **+1.75**，远超噪声。所以前面 exp003_002 / 003 相对 exp003_000 / 001 的提升，主要来自 lr 降到 2e-5，不是来自 getty 或 midtrain 数据。
 
 ² exp004_001 生成用 `--experiment_name cosmos3p5_ga_60bm30b_base_768_gen_mha32`(MHA 版 eval config),其余设置同 exp004_000。和 exp004_000 只差 gen 路径的 GQA → MHA,得分 **87.73**,低 0.39,约等于 judge 噪声,GQA → MHA 在 UGB 上看不出收益。
 
-³ exp004_002 生成用 `--experiment_name cosmos3p5_ga_60bm30b_base_768_gen_mha32_dense`,其余设置同 exp004_001。和 exp004_001 只差 gen MLP 由 MoE 换成同激活宽度的 dense,得分 **84.30**,低 **3.43**,远超噪声,也低于 SFT 前的 86.10。Text Generation 从 16.35% 掉到 4.81%(10/208)。MoE → dense 转换后 25k 步没有恢复到 MoE 的水平。
+³ exp004_002 生成用 `--experiment_name cosmos3p5_ga_60bm30b_base_768_gen_mha32_dense`,其余设置同 exp004_001。和 exp004_001 只差 gen MLP 由 MoE 换成同激活宽度的 dense,得分 **84.30**,低 **3.43**,远超噪声,也低于 SFT 前的 86.10。Text Generation 从 16.35% 掉到 4.81%(10/208)。MoE → dense 转换后 25k 步没有恢复到 MoE 的水平。exp004_003 和 exp004_002 只差 lr 调度(恒定 2e-5,去掉 2k 步 warmup 和最后 2.5k 步线性退火到 0),生成设置相同,得分 **84.36**,比 exp004_002 高 0.06,在噪声内,打平;Text Generation 7.69%(16/208)。WSD 的 warmup 和退火在这个设置下看不出作用。
 
 ## 采样设置逐步改变:exp003_002 getty(1024×1024)
 

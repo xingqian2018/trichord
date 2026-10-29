@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import io
@@ -44,7 +45,6 @@ STATUS_COLUMNS = [
 ]
 GRID_COLUMNS = 4
 GRID_MAX_SIDE = 512
-DETAIL_MAX_SIDE = 1600
 
 Image.MAX_IMAGE_PIXELS = None
 CAPTION_PREVIEW_CHARS = 160
@@ -172,6 +172,20 @@ def show_image(row: dict, max_side: int) -> None:
         st.error(f"Failed to load image: {e}")
 
 
+def show_original_image(row: dict) -> None:
+    uri = row.get("image_s3_range")
+    if not uri:
+        st.info("No image_s3_range")
+        return
+    try:
+        data = download_image_bytes(uri)
+        mime = Image.MIME.get(Image.open(io.BytesIO(data)).format, "application/octet-stream")
+        encoded = base64.b64encode(data).decode("ascii")
+        st.html(f'<img src="data:{mime};base64,{encoded}" style="width:100%;height:auto">')
+    except Exception as e:
+        st.error(f"Failed to load image: {e}")
+
+
 def render_grid(rows: list[dict]) -> None:
     for start in range(0, len(rows), GRID_COLUMNS):
         cols = st.columns(GRID_COLUMNS)
@@ -198,10 +212,10 @@ def render_detail(rows: list[dict], key: str) -> None:
     with col_jump:
         st.session_state[key] = st.slider("Row", 0, len(rows) - 1, st.session_state[key])
     row = rows[st.session_state[key]]
-    img_col, meta_col = st.columns([2, 3])
-    with img_col:
-        show_image(row, DETAIL_MAX_SIDE)
-        st.caption(f"original {row.get('width')}×{row.get('height')} · {status_line(row)}")
+    show_original_image(row)
+    st.caption(f"original {row.get('width')}×{row.get('height')} · {status_line(row)}")
+    caption_col, meta_col = st.columns([3, 2])
+    with caption_col:
         for name, text in caption_items(row):
             st.markdown(f"**{name}**")
             st.write(text)

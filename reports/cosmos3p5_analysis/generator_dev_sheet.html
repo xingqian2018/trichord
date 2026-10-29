@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cosmos3 生成器实验汇总</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<style>
+:root {
+  --bg: #f4f6f8;
+  --surface: #fcfcfb;
+  --ink: #111418;
+  --ink-2: #4b535d;
+  --muted: #78808a;
+  --rule: #e2e6eb;
+  --main: #1f9e89;
+  --on-main: #ffffff;
+  --neg: #c2553a;
+  --focus: #2a78d6;
+  --f-display: "Noto Serif SC", "Songti SC", serif;
+  --f-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121315; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8e8d87; --rule: #2d2e30; --main: #2bb39b; --on-main: #121315; --neg: #e07a5f; --focus: #6da7ec; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121315; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8e8d87; --rule: #2d2e30; --main: #2bb39b; --on-main: #121315; --neg: #e07a5f; --focus: #6da7ec; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-block: 36px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(26px, 4vw, 36px); line-height: 1.2; margin: 0; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 21px; margin: 0; scroll-margin-top: 16px; }
+h3 { font-size: 15.5px; font-weight: 700; margin: 6px 0 0; }
+.lede { color: var(--ink-2); max-width: 82ch; margin: 0; }
+p { margin: 0; }
+code { font-family: var(--f-mono); font-size: .86em; background: var(--rule); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 18px 20px; display: grid; gap: 12px; min-width: 0; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px; }
+nav.toc a { font-size: 13px; color: var(--ink-2); text-decoration: none; border: 1px solid var(--rule); border-radius: 999px; padding: 2px 11px; background: var(--surface); }
+nav.toc a:hover { color: var(--ink); border-color: var(--main); }
+a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+ul.key { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+ul.key li { max-width: 92ch; }
+.note { color: var(--ink-2); font-size: 13.5px; max-width: 92ch; }
+.verdict { border-left: 3px solid var(--main); padding: 2px 0 2px 12px; color: var(--ink); max-width: 92ch; }
+.tag { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+.tw { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 5px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--rule); }
+th { font-weight: 500; color: var(--ink-2); background: color-mix(in oklab, var(--rule) 40%, var(--surface)); position: sticky; top: 0; }
+th:first-child, td:first-child { text-align: left; }
+td.l, th.l { text-align: left; }
+tr:last-child td { border-bottom: 0; }
+td b { color: var(--main); }
+td.bad { color: var(--neg); }
+tr.ref td { color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--f-mono); font-size: 11px; fill: var(--ink-2); }
+.chart .axis-t { fill: var(--muted); }
+.chart .grid { stroke: var(--rule); }
+.chart .bar { fill: var(--main); }
+.chart .bar.dim { fill: color-mix(in oklab, var(--main) 40%, var(--surface)); }
+.chart .line { fill: none; stroke: var(--main); stroke-width: 2; stroke-linejoin: round; }
+.chart .dot { fill: var(--main); stroke: var(--surface); stroke-width: 2; }
+.chart .hit { fill: transparent; cursor: default; }
+.chart .hl { fill: color-mix(in oklab, var(--ink) 6%, transparent); }
+.cap { font-size: 13px; color: var(--ink-2); }
+.multi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .multi { grid-template-columns: minmax(0, 1fr); } }
+.multi .t { font-size: 12.5px; color: var(--ink-2); margin-bottom: 2px; }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--surface); font-size: 12.5px; line-height: 1.5; padding: 6px 9px; border-radius: 6px; font-family: var(--f-mono); max-width: 320px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Google Sheet · Experiment: Cosmos3 Generator development · 34 个 tab · 读取于 2026-10-27</div>
+    <h1>Cosmos3 / 3.5 生成器实验汇总</h1>
+    <p class="lede">把这个实验表 34 个 tab 的内容按主题整理：Cosmos3.5 的 30B-A3B MoE 训练配方、优化器和 MoE router、架构与条件注入、早期超参扫描、推理设置，以及 RL 和 Edge 小模型。数字照抄原表，除非另有说明，加粗表示该组里最好的一项。</p>
+  </header>
+
+  <nav class="toc" aria-label="目录">
+    <a href="#tldr">结论速览</a>
+    <a href="#moe">3.5 MoE 配方</a>
+    <a href="#opt">优化器</a>
+    <a href="#router">Router 稳定性</a>
+    <a href="#arch">架构与条件</a>
+    <a href="#early">早期超参</a>
+    <a href="#infer">推理设置</a>
+    <a href="#rl">RL</a>
+    <a href="#edge">Edge 2B</a>
+    <a href="#gaps">未完成</a>
+  </nav>
+
+  <section class="card" id="tldr">
+    <h2>结论速览</h2>
+    <ul class="key">
+      <li><b>shift 选 1.5 / 3.5 / 6</b>（256p / 480p / 720p）：四组里最好，UGB 0.684，基线 1 / 3 / 5 是 0.650，AutoHUE 0.675 对 0.607。跟现在 3.5 v2 pretrain 配置的 shift 一致。</li>
+      <li><b>LR 1e-4</b>：LR × global batch 扫描里，4 种 global batch 下都是 1e-4 最好；3e-4 和 1e-5 都明显掉分。</li>
+      <li><b>token 总量固定时，小 batch、多步数更好</b>：同样约 568B token，64 节点 60k 步 UGB 0.608，256 节点 7.5k 步只有 0.468。</li>
+      <li><b>图像数据占比越高越好</b>，视频指标也一起涨：动作固定 10%，图像占比从 5% 提到 40%，UGB 从 0.369 涨到 0.707，PAI T2V 从 67.8 涨到 74.2。</li>
+      <li><b>三阶段训练按 33 / 33 / 33 分配最好</b>，只跑 stage 3 最差（480p UGB 0.813 对 0.770）。</li>
+      <li><b>DION2 明显好于 AdamW</b>：2B dense 的 PAI T2V 从 68.1 涨到 74.4，30B MoE 从 76.1 涨到 78.3。但 lr_scale 超过 1 后参数范数一直涨，MoE 在 lr_scale 2 时崩到 61.7。</li>
+      <li><b>Router 改动主要提升健康度，跑分基本不变</b>：长训练后各方案 PAI T2V 都在 77.9–78.8，有效专家数从 8.5 提到 10.9。dot-product + sigmoid router 把 routing 健康度从约 0.002 提到约 0.13。</li>
+      <li><b>AdaLN（shared）在 8B dense 上 +2.5 PAI T2V</b>（75.9 → 78.4）；MoE 版本还在跑。加 modality embedding 反而掉分。</li>
+    </ul>
+  </section>
+
+  <section class="card" id="moe">
+    <h2>Cosmos3.5 MoE 配方（30B-A3B）</h2>
+    <p class="tag">tab：MoE recipe ablations · 基线 run <code>cosmos3p5_ga_60bm30b_lrdecaystudy_lr_1e4_warmup_linear_100k_round2</code></p>
+    <p class="note">这一节所有实验都在 30B-A3B MoE（<code>cosmos3p5_ga_60bm30b</code>，即 3.5 Super 的规模）上做。这一页的指标：UGB 是 0–1 分制，PAI 是 T2V / I2V 的 overall，AutoHUE 只看 I2V。大多数 run 训练 100k 步。</p>
+
+    <div class="grid2">
+      <div class="card" style="padding:14px 16px">
+        <h3>shift 扫描（UGB）</h3>
+        <div class="chart" id="cShift"></div>
+        <p class="cap">分辨率依次为 256p / 480p / 720p，悬停可看 PAI 和 AutoHUE。</p>
+      </div>
+      <div class="card" style="padding:14px 16px">
+        <h3>token 总量固定（约 568B），改变 batch 和步数（UGB）</h3>
+        <div class="chart" id="cBudget"></div>
+        <p class="cap">每条 74K token，2 个 seed。batch 越大、步数越少，分数越低。</p>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px 16px">
+      <h3>LR × global batch（UGB，100k 步，WSD 5% 冷却）</h3>
+      <div class="chart" id="cHeat"></div>
+      <p class="cap">每格的 global batch = 节点数 × 每节点序列长度。每一列里 1e-4 都最好；batch 翻倍一般也涨分，但训练看到的 token 也同步翻倍。</p>
+    </div>
+
+    <div class="card" style="padding:14px 16px">
+      <h3>模态比例：动作固定 10%，横轴是图像占比</h3>
+      <div class="multi" id="cMix"></div>
+      <p class="cap">图像占比 i 越高，三个指标都在涨，i40 / v50 / a10 最好。另一组固定图像:视频 = 1:4、改变动作占比：动作从 25% 降到 5%，UGB 从 0.547 涨到 0.595，PAI T2V 从 71.0 涨到 72.7。</p>
+    </div>
+
+    <h3>序列长度和节点数（global batch = 节点数 × 每节点序列长度，75k 步）</h3>
+    <div class="tw"><table>
+      <tr><th>router</th><th>配置</th><th>global</th><th>UGB</th><th>PAI T2V</th><th>PAI I2V</th><th>AutoHUE</th></tr>
+      <tr><td class="l">cosine</td><td class="l">4 节点 × 50k</td><td>800k</td><td>0.581</td><td>72.60</td><td>78.60</td><td>0.578</td></tr>
+      <tr><td class="l">cosine</td><td class="l">8 节点 × 25k</td><td>800k</td><td>0.584</td><td>72.30</td><td>78.60</td><td>0.570</td></tr>
+      <tr><td class="l">cosine</td><td class="l">8 节点 × 50k</td><td>1600k</td><td>0.657</td><td>75.30</td><td>79.70</td><td>0.643</td></tr>
+      <tr><td class="l">cosine</td><td class="l">16 节点 × 25k</td><td>1600k</td><td>0.669</td><td>74.90</td><td>79.94</td><td>0.636</td></tr>
+      <tr><td class="l">dot + sigmoid</td><td class="l">4 节点 × 50k</td><td>800k</td><td>0.625</td><td>73.15</td><td>79.17</td><td>0.593</td></tr>
+      <tr><td class="l">dot + sigmoid</td><td class="l">8 节点 × 25k</td><td>800k</td><td>0.605</td><td>72.71</td><td>78.72</td><td>0.561</td></tr>
+      <tr><td class="l">dot + sigmoid</td><td class="l">8 节点 × 50k</td><td>1600k</td><td>0.681</td><td><b>74.93</b></td><td>79.63</td><td><b>0.634</b></td></tr>
+      <tr><td class="l">dot + sigmoid</td><td class="l">16 节点 × 25k</td><td>1600k</td><td><b>0.685</b></td><td><b>74.98</b></td><td><b>79.72</b></td><td>0.619</td></tr>
+    </table></div>
+    <p class="verdict">global batch 相同时，长序列少节点和短序列多节点差不多；global batch 从 800k 翻到 1600k，UGB 涨 0.06–0.08。</p>
+
+    <h3>LR 调度（100k 步）</h3>
+    <div class="tw"><table>
+      <tr><th>调度</th><th>R1 UGB</th><th>R1 PAI T2V</th><th>R1 AutoHUE</th><th>R1 routing 健康度</th><th>R2 UGB</th><th>R2 PAI T2V</th><th>R2 AutoHUE</th><th>R2 routing 健康度</th></tr>
+      <tr><td>常数（带 warmup）</td><td>–</td><td>–</td><td>–</td><td>–</td><td><b>0.651</b></td><td>73.6</td><td><b>0.616</b></td><td>0.130</td></tr>
+      <tr><td>cosine</td><td>0.620</td><td class="bad">71.90</td><td>0.597</td><td>0.0031</td><td>0.638</td><td>73.4</td><td>0.610</td><td>0.143</td></tr>
+      <tr><td>linear</td><td>0.609</td><td>72.30</td><td><b>0.634</b></td><td>0.0031</td><td>0.650</td><td>73.5</td><td>0.607</td><td><b>0.147</b></td></tr>
+      <tr><td>WSD 5% 冷却</td><td>0.634</td><td><b>74.20</b></td><td>0.595</td><td>0.0021</td><td>0.647</td><td>73.8</td><td>0.610</td><td>0.129</td></tr>
+      <tr><td>WSD 10%</td><td><b>0.638</b></td><td>73.90</td><td>0.608</td><td>0.0022</td><td>0.640</td><td><b>74.0</b></td><td>0.576</td><td>0.129</td></tr>
+      <tr><td>WSD 15%</td><td>0.630</td><td>73.60</td><td>0.595</td><td>0.0021</td><td>0.635</td><td>73.6</td><td>0.600</td><td>0.128</td></tr>
+      <tr><td>WSD 5% + weight decay 0.15</td><td>0.625</td><td>74.00</td><td class="bad">0.514</td><td>0.0021</td><td>0.635</td><td>73.8</td><td class="bad">0.468</td><td>0.103</td></tr>
+      <tr><td>长 linear 衰减到 0.7 + 5% 冷却</td><td>–</td><td>–</td><td>–</td><td>–</td><td>0.644</td><td>73.6</td><td>0.605</td><td>0.142</td></tr>
+      <tr><td>长 linear 衰减到 0.9 + 5% 冷却</td><td>–</td><td>–</td><td>–</td><td>–</td><td>0.642</td><td>73.7</td><td>0.615</td><td>0.135</td></tr>
+    </table></div>
+    <p class="verdict">R1 用 cosine router，R2 换成 dot-product + sigmoid router、routing 权重用 AdamW。R1 下 WSD 比 cosine 和 linear 衰减好 2 个点左右的 PAI T2V；到 R2 各调度差距缩到 0.016 UGB 以内。weight decay 加大到 0.15 时 AutoHUE 明显掉。R2 的 routing 健康度比 R1 高约 50 倍。</p>
+
+    <div class="grid2">
+      <div>
+        <h3>三阶段训练的步数分配（156k 步）</h3>
+        <div class="tw"><table>
+          <tr><th>stage 1/2/3</th><th>UGB 480p/256p</th><th>PAI T2V 480p</th><th>PAI I2V 480p</th><th>AutoHUE 480p</th></tr>
+          <tr><td>33 / 33 / 33</td><td><b>0.813</b> / <b>0.749</b></td><td><b>78.91</b></td><td><b>81.87</b></td><td><b>0.781</b></td></tr>
+          <tr><td>20 / 30 / 50</td><td>0.807 / 0.733</td><td>78.72</td><td>81.71</td><td>0.780</td></tr>
+          <tr><td>0 / 75 / 25</td><td>0.798 / 0.732</td><td>78.68</td><td>81.41</td><td>0.762</td></tr>
+          <tr><td>0 / 50 / 50</td><td>0.786 / 0.718</td><td>78.66</td><td>81.46</td><td>0.751</td></tr>
+          <tr><td>0 / 25 / 75</td><td>0.777 / 0.710</td><td>78.32</td><td>81.18</td><td>0.751</td></tr>
+          <tr><td>只跑 stage 3</td><td class="bad">0.770 / 0.690</td><td>78.10</td><td>81.12</td><td>0.744</td></tr>
+        </table></div>
+      </div>
+      <div>
+        <h3>shift 详细</h3>
+        <div class="tw"><table>
+          <tr><th>shift 256/480/720</th><th>UGB</th><th>PAI T2V</th><th>PAI I2V</th><th>AutoHUE</th></tr>
+          <tr><td>1 / 2 / 3</td><td>0.641</td><td>74.3</td><td>79.3</td><td>0.625</td></tr>
+          <tr><td>1 / 2.5 / 4</td><td>0.660</td><td>74.5</td><td>79.6</td><td>0.635</td></tr>
+          <tr class="ref"><td>1 / 3 / 5（基线）</td><td>0.650</td><td>73.5</td><td>79.1</td><td>0.607</td></tr>
+          <tr><td>1.5 / 3.5 / 6</td><td><b>0.684</b></td><td><b>74.6</b></td><td><b>79.8</b></td><td><b>0.675</b></td></tr>
+        </table></div>
+        <h3 style="margin-top:14px">模态 embedding、插帧模式</h3>
+        <div class="tw"><table>
+          <tr><th>改动</th><th>UGB</th><th>PAI T2V</th><th>PAI I2V</th></tr>
+          <tr class="ref"><td>基线（无 modality embedding）</td><td>0.650</td><td>73.5</td><td>79.1</td></tr>
+          <tr><td>图像 / 视频各自一个 embedding</td><td class="bad">0.624</td><td class="bad">72.1</td><td>78.7</td></tr>
+          <tr><td>图像和视频共享一个 embedding</td><td class="bad">0.631</td><td class="bad">72.3</td><td>78.8</td></tr>
+          <tr><td>加插帧模式</td><td>0.642</td><td>73.5</td><td>–</td></tr>
+        </table></div>
+      </div>
+    </div>
+    <p class="note">分辨率比例（11 组 256p / 480p / 720p 配比，65k 步）和 IterativeJointDataLoader 对比 RandomJointDataLoader 两项都已经开跑，表里还没有分数。</p>
+  </section>
+
+  <section class="card" id="opt">
+    <h2>优化器：DION2 / Muon 对比 AdamW</h2>
+    <p class="tag">tab：DION2 / Muon vs AdamW Optimizer Study · Optimizer Ablations</p>
+    <div class="grid2">
+      <div class="card" style="padding:14px 16px">
+        <h3>2B dense · PAI T2V 随 lr_scale 变化（200k 步）</h3>
+        <div class="chart" id="cDion"></div>
+        <p class="cap">最左边是 AdamW，其余都是 DION2 + AdamW。</p>
+      </div>
+      <div>
+        <div class="tw"><table>
+          <tr><th>30B-A3B</th><th>优化器</th><th>PAI T2V</th><th>PAI I2V</th></tr>
+          <tr class="ref"><td class="l">无 LBL</td><td class="l">AdamW</td><td>76.10</td><td>79.90</td></tr>
+          <tr><td class="l">无 LBL</td><td class="l">DION2，lr_scale 1</td><td><b>78.30</b></td><td><b>81.60</b></td></tr>
+          <tr class="ref"><td class="l">LBL 5e-4</td><td class="l">AdamW</td><td>76.50</td><td>80.20</td></tr>
+          <tr><td class="l">LBL 5e-4</td><td class="l">DION2，lr_scale 0.2</td><td>78.20</td><td>81.50</td></tr>
+          <tr><td class="l">LBL 5e-4</td><td class="l">DION2，lr_scale 0.5</td><td><b>78.40</b></td><td><b>81.70</b></td></tr>
+          <tr><td class="l">LBL 5e-4</td><td class="l">DION2，lr_scale 0.8</td><td>78.10</td><td><b>81.70</b></td></tr>
+          <tr><td class="l">LBL 5e-4</td><td class="l">DION2，lr_scale 1</td><td>78.30</td><td>81.60</td></tr>
+          <tr><td class="l">LBL 5e-4</td><td class="l">DION2，lr_scale 2</td><td class="bad">61.70</td><td class="bad">74.70</td></tr>
+        </table></div>
+      </div>
+    </div>
+    <p class="verdict">表里的解释：Muon 类优化器把每步更新的大小归一化掉，每一步往 2D 权重里注入固定量的范数，只有 weight decay 能把它去掉。lr_scale 调大但 weight decay 不变，平衡时的范数就会一直涨；大规模训练时 lr_scale 不宜超过 1。</p>
+    <ul class="key">
+      <li><b>训练 loss（2B，T2I，70k 步）</b>：AdamW 1.591；Muon lr_scale 1 是 1.503；DION2 lr_scale 2 是 1.492。每步耗时：AdamW 0.531 s，DION2 约 0.585 s，Muon 约 0.9 s；DION2 比 Muon 快很多，只比 AdamW 慢约 10%。</li>
+      <li><b>2B dense 大规模（1024 卡）</b>：DION2 每步 1.56 s，AdamW 2.67 s；30k 步时 loss 1.410（DION2，lr_scale 2）对 1.613（AdamW）。</li>
+      <li><b>30B-A3B 的 DION2</b>：lr_scale 1 和 2 时 loss 飙到 13.3。表里怀疑 Batched-MM 没被 DION2 当成 linear 层，这是个潜在 bug。</li>
+      <li><b>router 用 Manifold Muon</b>：momentum 版本直接崩（UGB 0.245）；gradient 版本 + 1D weight decay 也比基线低 0.03–0.07 UGB，所以没采用。</li>
+    </ul>
+  </section>
+
+  <section class="card" id="router">
+    <h2>MoE router 稳定性</h2>
+    <p class="tag">tab：MoE Router Stability Analysis Experiments · Hyperparameter sweep 里的 LBL 部分</p>
+    <div class="tw"><table>
+      <tr><th>30B-A3B，先短训练再加训 150k 步（128 节点）</th><th>PAI T2V</th><th>PAI I2V</th><th>routing 健康度</th><th>有效专家数</th><th>负载均衡分</th></tr>
+      <tr class="ref"><td>参考：8B dense / 32B dense（短训练）</td><td>75.90 / 78.00</td><td>79.90 / 81.00</td><td>–</td><td>–</td><td>–</td></tr>
+      <tr class="ref"><td>MoE 基线（短训练）</td><td>76.10</td><td>79.90</td><td>0.059</td><td>8.60</td><td>0.001</td></tr>
+      <tr><td>基线 + LBL 5e-4</td><td>78.60</td><td><b>81.80</b></td><td>0.134</td><td>8.46</td><td>0.161</td></tr>
+      <tr><td>基线 + LBL 0.01</td><td>78.60</td><td>81.70</td><td>0.231</td><td>9.34</td><td>0.479</td></tr>
+      <tr><td>去 input bias + batch 均值中心化 + cosine router + loss-free LB + LBL 5e-4</td><td>77.90</td><td>81.10</td><td><b>0.593</b></td><td>8.98</td><td><b>0.679</b></td></tr>
+      <tr><td>同上 + 1D 参数不做 weight decay</td><td><b>78.80</b></td><td>81.70</td><td>0.111</td><td>10.92</td><td>0.621</td></tr>
+      <tr><td>同上，LBL 改为 0.01</td><td>78.60</td><td>81.50</td><td>0.122</td><td><b>12.81</b></td><td>0.656</td></tr>
+      <tr><td>改用 EMA 均值中心化</td><td>78.70</td><td><b>81.80</b></td><td>0.075</td><td>10.95</td><td>0.377</td></tr>
+    </table></div>
+    <p class="verdict">表里的结论：用 cosine router、去掉 input bias、加 LBL、1D 参数不做 weight decay，LBL 系数倾向 5e-4。loss-free LB 能提高有效专家数和 routing 健康度，小规模下跑分差不多。noisy top-k gating 会加速专家坍缩，已经取消。</p>
+    <p class="note">更早的 T2I 实验（30B-A3B，50k 步）：LBL 系数在 0 到 0.01 之间、local 或 global 统计，UGB 都在 0.69–0.73 之间波动，没有明显规律。</p>
+  </section>
+
+  <section class="card" id="arch">
+    <h2>架构与条件注入</h2>
+    <p class="tag">tab：AdaLN Ablations · Conditioning ablation · CR2 Swap · Reasoner swap ablation · Just Image Transformer</p>
+    <div class="grid2">
+      <div class="tw"><table>
+        <tr><th>AdaLN（200k 步）</th><th>PAI T2V</th><th>PAI I2V</th></tr>
+        <tr class="ref"><td>8B dense 基线</td><td>75.90</td><td>79.90</td></tr>
+        <tr><td>8B + shared AdaLN（新增约 25M 参数）</td><td><b>78.40</b></td><td><b>81.30</b></td></tr>
+        <tr class="ref"><td>30B-A3B 基线（仅 50k 步）</td><td>75.10</td><td>80.00</td></tr>
+        <tr><td>30B-A3B + AdaLN，router 吃调制后的 hidden</td><td>74.60</td><td>–</td></tr>
+        <tr><td>30B-A3B + AdaLN，router 吃未调制的 hidden</td><td colspan="2" class="l">排队中</td></tr>
+      </table></div>
+      <div class="tw"><table>
+        <tr><th>时间步调制（2B，256p 图像）</th><th>UGB @100k</th><th>UGB @160k</th><th>UGB @190k</th></tr>
+        <tr class="ref"><td>基线</td><td>65.27%</td><td>65.09%</td><td>–</td></tr>
+        <tr><td>逐 block 残差</td><td><b>68.45%</b></td><td>66.09%</td><td>–</td></tr>
+        <tr><td>AdaLN</td><td>65.91%</td><td>66.09%</td><td>–</td></tr>
+        <tr><td>AdaLN 低秩</td><td>67.36%</td><td>66.00%</td><td><b>70.00%</b></td></tr>
+        <tr><td>AdaLN shared</td><td>66.18%</td><td><b>67.73%</b></td><td>69.18%</td></tr>
+        <tr><td>AdaLN 低秩 + 拼接 modality embedding</td><td>62.64%</td><td>64.09%</td><td>64.82%</td></tr>
+      </table></div>
+    </div>
+    <ul class="key">
+      <li><b>理解分支换成 CR2</b>（2B，480p 图像 + 视频）：20k 步时 UGB 从 69.32% 涨到 70.27%，10k 步时差距最大（67.53% 对 71.95%）。</li>
+      <li><b>换 reasoner</b>（Nano GA midtrain 12k 之后）：换完 1k–2.8k 步，PAI T2V / I2V 保持在 79.7–79.8 / 82.4–82.5，没有掉分。</li>
+      <li><b>Just Image Transformer</b>（去掉 tokenizer，直接投影像素）：基线只有 tokenizer 版本，WAN2.1（16×16 压缩）64.55% 对 WAN2.2（32×32）55.09%；投影层低秩、MLP 深度和宽度的实验都还没出分。</li>
+    </ul>
+  </section>
+
+  <section class="card" id="early">
+    <h2>早期超参扫描（Cosmos3 起步阶段）</h2>
+    <p class="tag">tab：Hyperparameter and model sweep ablation · Small-scale good config · Video tokenizer and shift ablations · Edge model ablation · native lance · Rectified flow debugging</p>
+    <div class="tw"><table>
+      <tr><th class="l">实验</th><th class="l">设置</th><th class="l">结果</th><th class="l">结论</th></tr>
+      <tr><td>LR（仅图像）</td><td class="l">2B Qwen3，bs 4k，450k 步</td><td class="l">1e-3: 2.965 · 4e-4: 2.914 · <b>1e-4: 2.874</b> · 6e-5: 2.898 · 2e-5: 3.081（训练 loss）</td><td class="l">1e-4 最好</td></tr>
+      <tr><td>weight decay</td><td class="l">同上，0.05 对 0.01</td><td class="l">2.874 对 2.875</td><td class="l">几乎没影响</td></tr>
+      <tr><td>LR，大 batch</td><td class="l">bs 16k，900k 步</td><td class="l"><b>1e-4: 1.363</b> · 4e-4: 1.380</td><td class="l">大规模下仍是 1e-4</td></tr>
+      <tr><td>tokenizer</td><td class="l">0.5B，GenEval</td><td class="l"><b>WAN2.1 p2: 0.73</b> · WAN2.2 p1: 0.70 · WAN2.2 p2: 0.65</td><td class="l">WAN2.1 patch 2 最好</td></tr>
+      <tr><td>LLM 骨干</td><td class="l">0.5B，GenEval</td><td class="l">Predict2.5 DiT 0.71 · Qwen2.5 0.73 · <b>Qwen3 / Qwen3-VL 0.74</b></td><td class="l">Qwen3 系列最好</td></tr>
+      <tr><td>LR（图像 + 视频）</td><td class="l">0.6B 和 2B，225–250k 步</td><td class="l">2e-4 的 loss 最低（0.6B 1.435，2B 1.382）</td><td class="l">联合训练用 2e-4</td></tr>
+      <tr><td>模型尺寸</td><td class="l">仅图像，bs 131k，UGB @125k</td><td class="l">2B 0.710 · 4B 0.701 · 8B 0.717 · 32B（@50k）0.721 · <b>30B-A3B 0.761</b></td><td class="l">MoE 最好</td></tr>
+      <tr><td>global batch</td><td class="l">30B-A3B，64–1024 卡</td><td class="l">loss 从 1.447 降到 1.351；UGB 0.709 → 0.724</td><td class="l">越大越好</td></tr>
+      <tr><td>FP8</td><td class="l">8B，MXFP8</td><td class="l">辅助层留 BF16 时 loss 1.518–1.520，全部 MXFP8 时 1.537</td><td class="l">time embedder 等辅助层保持 BF16</td></tr>
+      <tr><td>小规模配置</td><td class="l">0.6B，200k 步</td><td class="l">bs 8k、LR 4e-4、WAN2.1 最好：64.55%；WAN2.2 最好只有 55.09%</td><td class="l">LR 4e-4、bs 8k、WAN2.1 最好</td></tr>
+      <tr><td>视频 tokenizer</td><td class="l">2B 480p 视频，PAI</td><td class="l">WAN2.1 0.620 · WAN2.2 0.610</td><td class="l">差距不大</td></tr>
+      <tr><td>waver 调度</td><td class="l">8B 多分辨率，17k 步，PAI T2V</td><td class="l">logit-normal 75.8 · <b>waver 76.1</b></td><td class="l">视频改用 waver</td></tr>
+      <tr><td>类别重平衡</td><td class="l">8B，45k 步，PAI T2V</td><td class="l">不平衡 75.9 · 加权少数类 76.1 · 等 cluster 权重 76.0 · <b>平方根采样 76.5</b></td><td class="l">平方根采样（这组比例有 bug）</td></tr>
+      <tr><td>caption 格式</td><td class="l">Edge 2B，30–112k 步</td><td class="l">纯 JSON 对 JSON + 50% dense caption：UGB 0.715–0.724，PAI 基本相同</td><td class="l">没有区别</td></tr>
+      <tr><td>native lance 数据</td><td class="l">Edge 2B，56k / 112k 步</td><td class="l">UGB 0.392 → 0.382，0.528 → 0.520；PAI I2V 略高</td><td class="l">和原 loader 持平</td></tr>
+    </table></div>
+    <p class="note">结论列里，LR、weight decay、tokenizer、LLM 骨干、联合训练 LR 这几行是表里写明的 Decision，其余是我按数字读出来的。</p>
+    <p class="note">Rectified flow debugging tab 是 2025 年 9 月的计划表（σ 分布、大 batch、EDM wrapper 对比、DiT 对比 Qwen MoT），状态都还是 “Not started”，没有结果。Edge 的 tokenizer 对比（WAN2.2、DC-AE 4×32×32、UniAE）只列了 run，没有分数。</p>
+  </section>
+
+  <section class="card" id="infer">
+    <h2>推理设置</h2>
+    <p class="tag">tab：Prompt upsampler study · Small-Scale Ablation Negative Prompt Sweep · GA Run Negative Prompt Study · PaiBench summary · FPS control ablations · 3D MRoPE FPS Control Ablations · NTK Ablations</p>
+    <div class="grid2">
+      <div class="tw"><table>
+        <tr><th>prompt upsampler（T2I，UGB）</th><th>Nano GA 85k</th><th>Super GA 14.5k</th></tr>
+        <tr class="ref"><td>不改写（EA 1.1）</td><td>76.64</td><td>76.20</td></tr>
+        <tr><td>Opus</td><td><b>84.85</b></td><td><b>87.20</b></td></tr>
+        <tr><td>Qwen3-VL（8B / 32B）</td><td>78.87</td><td>84.88</td></tr>
+        <tr><td>Cosmos Reasoner</td><td>76.86</td><td>79.76</td></tr>
+      </table></div>
+      <div class="tw"><table>
+        <tr><th>8B 仅图像，JSON prompt 训练</th><th>16K 序列</th><th>48K 序列</th></tr>
+        <tr class="ref"><td>dense prompt 基线</td><td>84.47</td><td>–</td></tr>
+        <tr><td>Reasoner 改写</td><td>90.12</td><td>91.03</td></tr>
+        <tr><td>Qwen3-VL 改写</td><td>88.04</td><td>89.15</td></tr>
+        <tr><td>Opus 改写</td><td><b>93.63</b></td><td><b>94.11</b></td></tr>
+        <tr><td>NanoBanana GT caption</td><td>88.17</td><td>89.27</td></tr>
+      </table></div>
+    </div>
+    <p class="verdict">upsampler 的选择对 UGB 影响很大：Opus 比 Cosmos 自己的 Reasoner 高 8–9 分。用 JSON prompt 训练的模型配 Opus 改写能到 93–94。PAI T2V 上也一样，Qwen3-VL 改写只有 74.3，Opus 是 79.3。</p>
+    <ul class="key">
+      <li><b>负向提示 ga_v1 对比 v1</b>：PAI domain 分下降、quality 分上升，overall 基本持平（2B 200k：domain 67.4 → 62.1，quality 68.9 → 70.9）。GA 模型上 HUE T2V 略降（Nano 88.80 → 86.91）。midtrain 时 ga_v1 让 I2V HUE 从 0.882 提到 0.891。</li>
+      <li><b>帧数和 fps</b>（8B，480p）：帧数越多 domain 分越高，61 → 285 帧时 domain 81.3 → 84.0、quality 70.4 → 69.8；fps 越低 domain 越高、fps 越高 quality 越高。189 帧 10 fps 的 overall 最高（480p 77.2，720p 77.3）。</li>
+      <li><b>FPS 控制</b>：Cosmos3 Nano 上，文本 + 3D MRoPE 组合分最高（9.81；不加控制 8.51）。但更早的 2B 实验里，加 RoPE FPS 后视频质量分从约 11.4 掉到 3–5，这组数字没有后续说明。</li>
+      <li><b>NTK / 位置编码缩放</b>（2B）：现有的仅时间维 index scaling 平均质量最高（全 fps 平均 7.775）；改成时空 index scaling 或 NTK 缩放，在 5 fps 和 720p 上会掉分。base theta 取 5M 时 dynamic degree 更高。</li>
+    </ul>
+  </section>
+
+  <section class="card" id="rl">
+    <h2>RL（DDRL）</h2>
+    <p class="tag">tab：Cosmos3 Generator RL · Reproducing Cosmos2.5 DDRL</p>
+    <ul class="key">
+      <li><b>Cosmos3 EA1.01 8B 上跑 DDRL</b>：LR 1e-5，64 步，overall 从 1.845 降到 1.748（VQ 0.308 → 0.267，MQ −0.155 → −0.206，TA 基本不变）。目前只有这一组，RL 后变差。</li>
+      <li><b>在 cosmos-rl 里复现 Predict2.5-2B 的 DDRL</b>：起点是 SFT + model soup（TA 1.09）。i4 官方实现 288 步 TA 1.36，cosmos-rl 复现 1.35–1.44，算是复现成功。VQ 和 MQ 在 −0.6 到 −1.1 之间波动，<code>same_seed</code> 开不开没有稳定差别。</li>
+    </ul>
+  </section>
+
+  <section class="card" id="edge">
+    <h2>Cosmos3 Edge（2B）</h2>
+    <p class="tag">tab：Cosmos3 Edge Production Pretrain Evals · Production Midtrain evals · HUE sprint models · HUE results</p>
+    <div class="tw"><table>
+      <tr><th>模型</th><th>UGB</th><th>PAI T2V</th><th>PAI I2V</th><th>HUE I2V</th><th>RBench</th><th>PhysicsIQ</th></tr>
+      <tr class="ref"><td>Cosmos2.5 2B post-trained 480p</td><td>54.9</td><td>75.4</td><td>80.3</td><td>64.5</td><td>45.9</td><td>24.7</td></tr>
+      <tr class="ref"><td>LingBot Video 1.3B 480p</td><td>–</td><td>75.5</td><td>79.1</td><td>62.6</td><td><b>55.7</b></td><td>20.8</td></tr>
+      <tr class="ref"><td>Cosmos3 Nano 480p</td><td>–</td><td><b>79.2</b></td><td><b>82.4</b></td><td><b>76.6</b></td><td>54.5</td><td><b>41.2</b></td></tr>
+      <tr><td>Edge pretrain，加 QK norm 前，374k 步</td><td>72.0</td><td>76.3</td><td>80.0</td><td>55.8</td><td>–</td><td>28.6</td></tr>
+      <tr><td>QK norm 修复，没重置 EMA，512k 步</td><td class="bad">32.6</td><td class="bad">67.4</td><td class="bad">75.8</td><td>–</td><td>–</td><td>–</td></tr>
+      <tr><td>QK norm 修复 + 重置 EMA，24.75k 步</td><td>72.2</td><td>76.7</td><td>80.3</td><td>50.2</td><td>–</td><td>28.3</td></tr>
+      <tr><td>换 reasoner，12.25k 步</td><td><b>73.5</b></td><td>77.1</td><td>80.5</td><td>–</td><td>–</td><td>28.9</td></tr>
+      <tr><td>midtrain video-boost 67k @24fps</td><td>70.7</td><td>77.1</td><td>81.2</td><td>59.4</td><td>50.2</td><td>27.5</td></tr>
+      <tr><td>SIGGRAPH 版（task arithmetic 合并 SFT）</td><td>–</td><td>–</td><td>81.2</td><td>59.2</td><td>51.9</td><td>25.8</td></tr>
+    </table></div>
+    <ul class="key">
+      <li><b>QK norm 修复必须同时重置 EMA</b>：不重置时 UGB 掉到 32.6，重置后 25k 步内回到 72。</li>
+      <li><b>HUE I2V 的噪声很大</b>：同一个 checkpoint 重跑能差 1–2 分（60.1 对 58.1），95% 置信区间约 ±1–2。各 base 和 SFT 变体（不含蒸馏版）都在 57.6–60.1，看不出明确的赢家；蒸馏版 56.6。</li>
+      <li><b>midtrain 把动作数据占比从 40% 降到 25%</b>（video-boost）：AutoHUE 从 77.9 提到 79.9，其他指标基本不变。</li>
+      <li>HUE sprint 主要比较几种 SFT 合并方法（model soup、task arithmetic、TIES、DARE）和 DPO checkpoint，表里只登记了 checkpoint 路径，分数都填在 HUE results tab。</li>
+    </ul>
+  </section>
+
+  <section class="card" id="gaps">
+    <h2>还没有结果的实验</h2>
+    <ul class="key">
+      <li>3.5 MoE 分辨率比例（11 组）；IterativeJointDataLoader 对比 RandomJointDataLoader；动作 100% 那一组（i0 / v0 / a100）。</li>
+      <li>30B-A3B 的 AdaLN（router 吃未调制的 hidden）；30B-A3B 的 DION2 在 lr_scale 0.2 / 0.8 下的 PAI。</li>
+      <li>Cosmos3.5 Super 的 UGB / PAI 和 3.5 Ultra 的全部指标。</li>
+      <li>Just Image Transformer 的投影层实验；Rectified flow debugging 整页；Edge tokenizer 对比的分数。</li>
+    </ul>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const SHIFT = [
+  { k: "1 / 2 / 3", v: 0.6407, t2v: 74.3, i2v: 79.3, hue: 0.625 },
+  { k: "1 / 2.5 / 4", v: 0.6602, t2v: 74.5, i2v: 79.6, hue: 0.635 },
+  { k: "1 / 3 / 5 基线", v: 0.650, t2v: 73.5, i2v: 79.1, hue: 0.607 },
+  { k: "1.5 / 3.5 / 6", v: 0.6838, t2v: 74.6, i2v: 79.8, hue: 0.675 },
+];
+const BUDGET = [
+  { k: "64 节点 cp2 · 60k 步", v: 0.608, i2v: 78.20, hue: 0.60 },
+  { k: "64 节点 cp1 · 30k 步", v: 0.596, i2v: 78.09, hue: 0.58 },
+  { k: "128 节点 · 15k 步", v: 0.556, i2v: 77.28, hue: 0.58 },
+  { k: "256 节点 · 7.5k 步", v: 0.468, i2v: 76.64, hue: 0.55 },
+];
+const DION = [
+  { k: "AdamW", v: 68.1, i2v: 75.7, adam: true },
+  { k: "0.2", v: 71.6, i2v: 77.4 },
+  { k: "0.8", v: 72.9, i2v: 78.4 },
+  { k: "1", v: 73.3, i2v: 78.5 },
+  { k: "2", v: 74.4, i2v: 78.9 },
+];
+const HEAT = {
+  cols: ["400K", "800K", "1600K", "3200K"],
+  rows: ["3e-4", "1e-4", "3e-5", "1e-5"],
+  v: [
+    [0.392, 0.471, 0.526, 0.597],
+    [0.538, 0.626, 0.699, 0.744],
+    [0.484, 0.562, 0.670, 0.710],
+    [0.254, 0.344, 0.484, 0.549],
+  ],
+  t2v: [
+    [66.03, 68.55, 70.78, 73.27],
+    [70.84, 73.76, 76.14, 77.62],
+    [68.34, 71.06, 74.21, 76.05],
+    [58.79, 61.27, 66.37, 69.22],
+  ],
+};
+const MIX = [
+  { i: 5, ugb: 0.3686, t2v: 67.82, i2v: 77.00 },
+  { i: 10, ugb: 0.4738, t2v: 70.26, i2v: 77.69 },
+  { i: 18, ugb: 0.5904, t2v: 72.57, i2v: 78.46 },
+  { i: 20, ugb: 0.6045, t2v: 72.65, i2v: 78.49 },
+  { i: 30, ugb: 0.6758, t2v: 73.84, i2v: 79.33 },
+  { i: 40, ugb: 0.7073, t2v: 74.17, i2v: 79.19 },
+];
+
+const NS = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+const tip = document.getElementById("tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect(); let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+
+function hbars(id, data, { lo, hi, fmt, best, tipOf, labelW = 150 }) {
+  const box = document.getElementById(id);
+  const W = Math.max(300, box.clientWidth), rowH = 34, m = { t: 6, r: 52, b: 22, l: labelW };
+  const H = m.t + m.b + rowH * data.length, iw = W - m.l - m.r;
+  const sx = v => m.l + (v - lo) / (hi - lo) * iw;
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * k / 4;
+    mk("line", { class: "grid", x1: sx(v), x2: sx(v), y1: m.t, y2: H - m.b }, svg);
+    mk("text", { x: sx(v), y: H - 6, "text-anchor": "middle", class: "axis-t" }, svg).textContent = fmt(v);
+  }
+  data.forEach((d, i) => {
+    const y = m.t + i * rowH, bh = 18, by = y + (rowH - bh) / 2;
+    const hl = mk("rect", { class: "hl", x: 0, y, width: W, height: rowH, visibility: "hidden" }, svg);
+    mk("text", { x: m.l - 8, y: by + 13, "text-anchor": "end" }, svg).textContent = d.k;
+    const w = Math.max(2, sx(d.v) - m.l);
+    mk("path", { class: d === best ? "bar" : "bar dim", d: `M${m.l},${by}h${w - 4}a4,4 0 0 1 4,4v${bh - 8}a4,4 0 0 1 -4,4h${-(w - 4)}Z` }, svg);
+    mk("text", { x: m.l + w + 6, y: by + 13 }, svg).textContent = fmt(d.v);
+    const hit = mk("rect", { class: "hit", x: 0, y, width: W, height: rowH }, svg);
+    hit.addEventListener("pointermove", ev => { hl.setAttribute("visibility", "visible"); showTip(ev, tipOf(d)); });
+    hit.addEventListener("pointerleave", () => { hl.setAttribute("visibility", "hidden"); hideTip(); });
+  });
+  box.innerHTML = ""; box.appendChild(svg);
+}
+
+function heat() {
+  const box = document.getElementById("cHeat");
+  const W = Math.max(320, box.clientWidth), m = { t: 22, r: 8, b: 8, l: 64 };
+  const cw = (W - m.l - m.r) / HEAT.cols.length, ch = 40, H = m.t + m.b + ch * HEAT.rows.length;
+  const flat = HEAT.v.flat(), lo = Math.min(...flat), hi = Math.max(...flat);
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "LR 与 global batch 的 UGB 热力图" });
+  HEAT.cols.forEach((c, j) => mk("text", { x: m.l + cw * (j + .5), y: 14, "text-anchor": "middle", class: "axis-t" }, svg).textContent = `global ${c}`);
+  HEAT.rows.forEach((r, i) => {
+    mk("text", { x: m.l - 10, y: m.t + ch * i + ch / 2 + 4, "text-anchor": "end" }, svg).textContent = `LR ${r}`;
+    HEAT.cols.forEach((c, j) => {
+      const v = HEAT.v[i][j], p = Math.round(12 + 88 * (v - lo) / (hi - lo));
+      const colBest = Math.max(...HEAT.v.map(row => row[j])) === v;
+      const x = m.l + cw * j, y = m.t + ch * i;
+      const cell = mk("rect", { x: x + 1, y: y + 1, width: cw - 2, height: ch - 2, rx: 4, fill: `color-mix(in oklab, var(--main) ${p}%, var(--surface))` }, svg);
+      const t = mk("text", { x: x + cw / 2, y: y + ch / 2 + 4, "text-anchor": "middle", style: `fill:${p > 58 ? "var(--on-main)" : "var(--ink)"};font-weight:${colBest ? 600 : 400}` }, svg);
+      t.textContent = v.toFixed(3);
+      cell.addEventListener("pointermove", ev => { cell.setAttribute("stroke", "var(--ink)"); showTip(ev, `LR ${r} · global ${c}<br>UGB ${v.toFixed(3)}<br>PAI T2V ${HEAT.t2v[i][j].toFixed(2)}${colBest ? "<br>本列最好" : ""}`); });
+      cell.addEventListener("pointerleave", () => { cell.removeAttribute("stroke"); hideTip(); });
+    });
+  });
+  box.innerHTML = ""; box.appendChild(svg);
+}
+
+function mini(el, key, title, fmt) {
+  const wrap = document.createElement("div");
+  const t = document.createElement("div"); t.className = "t"; t.textContent = title; wrap.appendChild(t);
+  const c = document.createElement("div"); c.className = "chart"; wrap.appendChild(c); el.appendChild(wrap);
+  const W = Math.max(220, c.clientWidth || 300), H = 170, m = { t: 10, r: 12, b: 26, l: 46 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const vs = MIX.map(d => d[key]), pad = (Math.max(...vs) - Math.min(...vs)) * .12;
+  const lo = Math.min(...vs) - pad, hi = Math.max(...vs) + pad;
+  const sx = i => m.l + i / 40 * iw * 0.94 + iw * 0.03, sy = v => m.t + ih * (1 - (v - lo) / (hi - lo));
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": title });
+  for (let k = 0; k <= 3; k++) {
+    const v = lo + (hi - lo) * k / 3;
+    mk("line", { class: "grid", x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v) }, svg);
+    mk("text", { x: m.l - 6, y: sy(v) + 4, "text-anchor": "end", class: "axis-t" }, svg).textContent = fmt(v);
+  }
+  [5, 10, 20, 30, 40].forEach(i => mk("text", { x: sx(i), y: H - 8, "text-anchor": "middle", class: "axis-t" }, svg).textContent = `${i}%`);
+  mk("path", { class: "line", d: MIX.map((d, n) => (n ? "L" : "M") + sx(d.i).toFixed(1) + "," + sy(d[key]).toFixed(1)).join("") }, svg);
+  const cursor = mk("line", { class: "grid", y1: m.t, y2: m.t + ih, visibility: "hidden", style: "stroke:var(--ink-2)" }, svg);
+  const dots = MIX.map(d => mk("circle", { class: "dot", cx: sx(d.i), cy: sy(d[key]), r: 4 }, svg));
+  const hit = mk("rect", { class: "hit", x: m.l, y: m.t, width: iw, height: ih }, svg);
+  hit.addEventListener("pointermove", ev => {
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width;
+    let n = 0; MIX.forEach((d, k) => { if (Math.abs(sx(d.i) - x) < Math.abs(sx(MIX[n].i) - x)) n = k; });
+    const d = MIX[n];
+    cursor.setAttribute("x1", sx(d.i)); cursor.setAttribute("x2", sx(d.i)); cursor.setAttribute("visibility", "visible");
+    dots.forEach((e, k) => e.setAttribute("r", k === n ? 6 : 4));
+    showTip(ev, `图像 ${d.i}% · 视频 ${90 - d.i}% · 动作 10%<br>UGB ${d.ugb.toFixed(3)}<br>PAI T2V ${d.t2v.toFixed(2)}<br>PAI I2V ${d.i2v.toFixed(2)}`);
+  });
+  hit.addEventListener("pointerleave", () => { cursor.setAttribute("visibility", "hidden"); dots.forEach(e => e.setAttribute("r", 4)); hideTip(); });
+  c.appendChild(svg);
+}
+
+function renderAll() {
+  hbars("cShift", SHIFT, { lo: 0.6, hi: 0.7, fmt: v => v.toFixed(3), best: SHIFT[3], labelW: 110,
+    tipOf: d => `shift ${d.k}<br>UGB ${d.v.toFixed(3)}<br>PAI T2V ${d.t2v} · I2V ${d.i2v}<br>AutoHUE ${d.hue}` });
+  hbars("cBudget", BUDGET, { lo: 0.4, hi: 0.65, fmt: v => v.toFixed(3), best: BUDGET[0], labelW: 150,
+    tipOf: d => `${d.k}<br>UGB ${d.v.toFixed(3)}<br>PAI I2V ${d.i2v.toFixed(2)}<br>AutoHUE ${d.hue}` });
+  hbars("cDion", DION, { lo: 60, hi: 76, fmt: v => v.toFixed(1), best: DION[4], labelW: 80,
+    tipOf: d => `${d.adam ? "AdamW" : "DION2 lr_scale " + d.k}<br>PAI T2V ${d.v}<br>PAI I2V ${d.i2v}` });
+  heat();
+  const mix = document.getElementById("cMix"); mix.innerHTML = "";
+  mini(mix, "ugb", "UGB", v => v.toFixed(2));
+  mini(mix, "t2v", "PAI T2V", v => v.toFixed(1));
+  mini(mix, "i2v", "PAI I2V", v => v.toFixed(1));
+}
+let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(renderAll, 80); }).observe(document.querySelector(".wrap"));
+renderAll();
+</script>
+</body>
+</html>

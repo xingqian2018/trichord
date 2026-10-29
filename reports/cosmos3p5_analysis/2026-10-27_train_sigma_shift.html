@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cosmos3.5 训练 σ 分布</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<style>
+:root {
+  --bg: #f4f6f8;
+  --surface: #fcfcfb;
+  --ink: #111418;
+  --ink-2: #4b535d;
+  --muted: #78808a;
+  --rule: #e2e6eb;
+  --main: #1f9e89;
+  --ref: #78808a;
+  --focus: #2a78d6;
+  --f-display: "Noto Serif SC", "Songti SC", serif;
+  --f-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121315; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8e8d87; --rule: #2d2e30; --main: #2bb39b; --ref: #8e8d87; --focus: #6da7ec; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121315; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8e8d87; --rule: #2d2e30; --main: #2bb39b; --ref: #8e8d87; --focus: #6da7ec; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-block: 36px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(26px, 4vw, 36px); line-height: 1.2; margin: 0; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 19px; margin: 0; }
+.lede { color: var(--ink-2); max-width: 78ch; margin: 0; }
+code { font-family: var(--f-mono); font-size: .88em; background: var(--rule); padding: 1px 5px; border-radius: 4px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 18px 20px; display: grid; gap: 12px; min-width: 0; }
+.ctrl { position: sticky; top: 0; z-index: 5; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+label { font-size: 14px; color: var(--ink-2); }
+select { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 5px 10px; }
+.shift-val { font-family: var(--f-display); font-weight: 700; font-size: 24px; color: var(--main); font-variant-numeric: tabular-nums; min-width: 6ch; }
+input[type=range] { width: 100%; accent-color: var(--main); margin: 0; }
+input[type=number] { font: inherit; font-family: var(--f-mono); font-size: 13px; width: 6.5em; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 4px 8px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.presets .grp { font-size: 12.5px; color: var(--muted); margin-left: 6px; }
+.presets button { font: inherit; font-size: 12.5px; color: var(--ink-2); background: var(--bg); border: 1px solid var(--rule); border-radius: 999px; padding: 2px 10px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.presets button:hover { color: var(--ink); }
+.presets button[aria-pressed="true"] { color: var(--ink); border-color: var(--main); background: color-mix(in oklab, var(--main) 12%, var(--surface)); }
+select:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.note { color: var(--ink-2); font-size: 13.5px; margin: 0; max-width: 90ch; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
+.kpi .l { font-size: 12.5px; color: var(--ink-2); }
+.kpi .v { font-family: var(--f-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.kpi .r { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ln { width: 20px; border-top: 2.5px solid var(--main); display: inline-block; }
+.ln.ref { border-top: 1.5px dashed var(--ref); }
+.grid2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 22px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--f-mono); font-size: 11px; fill: var(--ink-2); }
+.chart .axis-t { fill: var(--muted); }
+.chart .grid { stroke: var(--rule); }
+.chart .area { fill: color-mix(in oklab, var(--main) 16%, transparent); }
+.chart .main { fill: none; stroke: var(--main); stroke-width: 2.5; stroke-linejoin: round; }
+.chart .ref { fill: none; stroke: var(--ref); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.chart .cursor { stroke: var(--ink-2); stroke-width: 1; }
+.chart .dot { fill: var(--main); stroke: var(--surface); stroke-width: 1.5; }
+.chart .med { stroke: var(--main); stroke-width: 1; stroke-dasharray: 2 3; }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--surface); font-size: 12.5px; line-height: 1.5; padding: 6px 9px; border-radius: 6px; font-family: var(--f-mono); }
+ul.src { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); display: grid; gap: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">imaginaire4_alt · projects/cosmos3/cosmos3/diffusion/rectified_flow.py · TrainTimeSampler</div>
+    <h1>Cosmos3.5 训练 σ 分布随 shift 的变化</h1>
+    <p class="lede">按 Cosmos3.5 训练代码采样 σ，看 shift 怎么改变噪声水平的分布。3.5 的配置（如 <code>cosmos3p5_ga_60bm30b_v2_pretrain</code>）用 <code>mot_fsdp</code> → <code>OmniMoTModel</code>，和 Cosmos3 共用同一套 σ 采样代码，只是 shift 值不同。σ 是噪声占比：<code>x_t = σ·noise + (1−σ)·data</code>，σ = 1 是纯噪声，σ = 0 是干净图。除 <code>ltx2</code> 外，先从分布里采 t，再做 shift 变换 <code>σ = s·t / (1 + (s−1)·t)</code>。</p>
+  </header>
+
+  <div class="card ctrl">
+    <div class="row">
+      <label for="dist">分布</label>
+      <select id="dist">
+        <option value="logitnormal">logitnormal（图像训练默认）</option>
+        <option value="waver">waver（视频训练）</option>
+        <option value="uniform">uniform</option>
+        <option value="ltx2">ltx2</option>
+      </select>
+      <label for="shiftIn">shift</label>
+      <span class="shift-val" id="shiftVal"></span>
+      <input type="number" id="shiftIn" min="0.1" max="50" step="0.1" aria-label="shift 数值">
+    </div>
+    <input type="range" id="shift" min="0" max="1000" step="1" aria-label="shift 滑块（对数刻度 0.1–50）">
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>σ 的概率密度</h2>
+      <div class="legend"><span><i class="ln"></i><b id="legMain"></b></span><span><i class="ln ref"></i>同一分布，shift = 1</span><span style="color:var(--muted)">点线是中位数</span></div>
+      <div class="chart" id="pdf"></div>
+    </section>
+    <section class="card">
+      <h2>shift 映射 t → σ</h2>
+      <p class="note" id="mapNote"></p>
+      <div class="chart" id="map"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>和代码的对应</h2>
+    <ul class="src">
+      <li><code>logitnormal</code>：<code>t = sigmoid(randn)</code>，再做 shift 变换。<code>model_config.py</code> 里 <code>train_time_image_distribution</code> 默认就是它，3.5 的配置没改，所以图像训练用这个。</li>
+      <li><code>waver</code>：<code>u ~ U(0,1)</code>，<code>t = 1 − u − 1.29·(cos²(πu/2) − 1 + u)</code>，再做 shift 变换。3.5 的配置里 <code>train_time_video_distribution = "waver"</code>。</li>
+      <li><code>uniform</code>：<code>t ~ U(0,1)</code>，再做 shift 变换。</li>
+      <li><code>ltx2</code>：shift 不做后变换，而是当 logit-normal 的均值 <code>μ = ln(shift)</code>；按 0.5% 和 99.9% 分位拉伸到 [0, 1]，低于 1e-3 的反射回去，再混入 10% 的 <code>U(1e-3, 1)</code>。</li>
+      <li>shift 按分辨率取（<code>omni_mot_model._get_train_noise_level_vision</code>）。3.5 v2 pretrain：256 → 1.5，480 → 3.5，720 → 6。t2ionly base：256 → 1，480 → 3，720 → 5；768 实验用 5。</li>
+      <li>密度用 20 万个确定性分位点代替随机采样计算，曲线平滑、无采样噪声，分 200 档。</li>
+    </ul>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const PRESETS = [
+  ["v2 pretrain", [["256", 1.5], ["480", 3.5], ["720", 6]]],
+  ["t2ionly base", [["256", 1], ["480", 3], ["720 / 768", 5]]],
+];
+const DIST_NAME = { logitnormal: "logitnormal", waver: "waver", uniform: "uniform", ltx2: "ltx2" };
+const N = 200000, BINS = 200, WAVER_S = 1.29, P999 = 3.0902, P005 = -2.5758, EPS = 1e-3;
+const S_MIN = 0.1, S_MAX = 50;
+
+function normInv(p) {
+  const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];
+  const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+  const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+  const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+  const pl = 0.02425;
+  if (p < pl) { const q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+  if (p > 1 - pl) { const q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+  const q = p - 0.5, r = q * q;
+  return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
+const sigmoid = x => 1 / (1 + Math.exp(-x));
+const U = new Float64Array(N), Z = new Float64Array(N);
+for (let i = 0; i < N; i++) { U[i] = (i + 0.5) / N; Z[i] = normInv(U[i]); }
+
+const shiftMap = (t, s) => s * t / (1 + (s - 1) * t);
+function baseT(dist, i) {
+  if (dist === "uniform") return U[i];
+  if (dist === "logitnormal") return sigmoid(Z[i]);
+  const u = U[i], c = Math.cos(Math.PI / 2 * u);
+  return 1 - u - WAVER_S * (c * c - 1 + u);
+}
+function samples(dist, s) {
+  const out = [], w = [];
+  if (dist === "ltx2") {
+    const mu = Math.log(s), hi = sigmoid(mu + P999), lo = sigmoid(mu + P005);
+    for (let i = 0; i < N; i++) {
+      const z = (sigmoid(Z[i] + mu) - lo) / (hi - lo);
+      out.push(Math.min(1, Math.max(0, z >= EPS ? z : 2 * EPS - z))); w.push(0.9);
+      out.push((1 - EPS) * U[i] + EPS); w.push(0.1);
+    }
+  } else {
+    for (let i = 0; i < N; i++) { out.push(shiftMap(baseT(dist, i), s)); w.push(1); }
+  }
+  return { out, w };
+}
+function stats(dist, s) {
+  const { out, w } = samples(dist, s);
+  const tw = w.reduce((a, b) => a + b, 0);
+  const hist = new Float64Array(BINS);
+  let mean = 0, lo = 0, hi = 0;
+  for (let i = 0; i < out.length; i++) {
+    const v = out[i];
+    hist[Math.min(BINS - 1, Math.floor(v * BINS))] += w[i];
+    mean += v * w[i];
+    if (v < 0.1) lo += w[i];
+    if (v > 0.9) hi += w[i];
+  }
+  const dens = Array.from(hist, h => h / tw * BINS);
+  const cdf = []; let acc = 0; for (const h of hist) { acc += h / tw; cdf.push(acc); }
+  const q = p => { const k = cdf.findIndex(c => c >= p); const prev = k ? cdf[k - 1] : 0; return (k + (p - prev) / ((cdf[k] - prev) || 1)) / BINS; };
+  return { dens, cdf, mean: mean / tw, med: q(0.5), q10: q(0.1), q90: q(0.9), lo: lo / tw, hi: hi / tw };
+}
+
+const distSel = document.getElementById("dist"), slider = document.getElementById("shift"), shiftIn = document.getElementById("shiftIn");
+const toSlider = s => Math.round(1000 * Math.log(s / S_MIN) / Math.log(S_MAX / S_MIN));
+const fromSlider = v => S_MIN * Math.pow(S_MAX / S_MIN, v / 1000);
+let dist = "logitnormal", shift = 3.5;
+try {
+  const d = localStorage.getItem("sigma-dist"); if (DIST_NAME[d]) dist = d;
+  const s = parseFloat(localStorage.getItem("sigma-shift")); if (s >= S_MIN && s <= S_MAX) shift = s;
+} catch (e) {}
+
+const pre = document.getElementById("presets");
+PRESETS.forEach(([g, list]) => {
+  const span = document.createElement("span"); span.className = "grp"; span.textContent = g; pre.appendChild(span);
+  list.forEach(([res, v]) => { const b = document.createElement("button"); b.type = "button"; b.dataset.s = v; b.textContent = `${res}: ${v}`; b.setAttribute("aria-pressed", "false"); pre.appendChild(b); });
+});
+
+const tip = document.getElementById("tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect(); let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const NS = "http://www.w3.org/2000/svg";
+const mk = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+const pathOf = pts => pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join("");
+
+function niceMax(v) { const e = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * e >= v) return m * e; return 10 * e; }
+
+function drawPdf(cur, ref) {
+  const box = document.getElementById("pdf");
+  const W = Math.max(320, box.clientWidth), H = 340, m = { t: 12, r: 10, b: 34, l: 44 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const ymax = niceMax(Math.max(...cur.dens, ...ref.dens) * 1.05);
+  const sx = v => m.l + v * iw, sy = v => m.t + ih * (1 - Math.min(v, ymax) / ymax);
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "σ 概率密度曲线" });
+  for (let k = 0; k <= 4; k++) {
+    const v = ymax * k / 4;
+    mk("line", { class: "grid", x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v) }, svg);
+    mk("text", { x: m.l - 6, y: sy(v) + 4, "text-anchor": "end", class: "axis-t" }, svg).textContent = v.toFixed(v < 1 ? 2 : 1);
+  }
+  for (let k = 0; k <= 10; k++) mk("text", { x: sx(k / 10), y: H - 14, "text-anchor": "middle", class: "axis-t" }, svg).textContent = (k / 10).toFixed(1);
+  mk("text", { x: W - m.r, y: H - 1, "text-anchor": "end", class: "axis-t" }, svg).textContent = "σ →  噪声越多";
+  const xs = i => sx((i + 0.5) / BINS);
+  const cp = cur.dens.map((d, i) => [xs(i), sy(d)]), rp = ref.dens.map((d, i) => [xs(i), sy(d)]);
+  const line = pathOf(cp);
+  mk("path", { class: "area", d: `${line}L${cp[BINS - 1][0].toFixed(1)},${sy(0)}L${cp[0][0].toFixed(1)},${sy(0)}Z` }, svg);
+  mk("path", { class: "ref", d: pathOf(rp) }, svg);
+  mk("path", { class: "main", d: line }, svg);
+  mk("line", { class: "med", x1: sx(cur.med), x2: sx(cur.med), y1: m.t, y2: sy(0) }, svg);
+  const cursor = mk("line", { class: "cursor", y1: m.t, y2: sy(0), visibility: "hidden" }, svg);
+  const dot = mk("circle", { class: "dot", r: 4, visibility: "hidden" }, svg);
+  const hit = mk("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent" }, svg);
+  hit.addEventListener("pointermove", ev => {
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(BINS - 1, Math.floor((x - m.l) / iw * BINS)));
+    cursor.setAttribute("x1", xs(i)); cursor.setAttribute("x2", xs(i)); cursor.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", cp[i][0]); dot.setAttribute("cy", cp[i][1]); dot.setAttribute("visibility", "visible");
+    showTip(ev, `σ ∈ [${(i / BINS).toFixed(3)}, ${((i + 1) / BINS).toFixed(3)})<br>密度 ${cur.dens[i].toFixed(3)}（shift=1：${ref.dens[i].toFixed(3)}）<br>P(σ ≤ ${((i + 1) / BINS).toFixed(3)}) = ${(100 * cur.cdf[i]).toFixed(1)}%`);
+  });
+  hit.addEventListener("pointerleave", () => { tip.hidden = true; cursor.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); });
+  box.innerHTML = ""; box.appendChild(svg);
+}
+
+function drawMap() {
+  const box = document.getElementById("map");
+  const W = Math.max(240, box.clientWidth), H = W, m = { t: 10, r: 10, b: 30, l: 34 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const sx = v => m.l + v * iw, sy = v => m.t + ih * (1 - v);
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "t 到 σ 的映射曲线" });
+  for (let k = 0; k <= 4; k++) {
+    const v = k / 4;
+    mk("line", { class: "grid", x1: sx(0), x2: sx(1), y1: sy(v), y2: sy(v) }, svg);
+    mk("line", { class: "grid", x1: sx(v), x2: sx(v), y1: sy(0), y2: sy(1) }, svg);
+    mk("text", { x: sx(v), y: H - 12, "text-anchor": "middle", class: "axis-t" }, svg).textContent = v.toFixed(2);
+    mk("text", { x: m.l - 5, y: sy(v) + 4, "text-anchor": "end", class: "axis-t" }, svg).textContent = v.toFixed(2);
+  }
+  mk("text", { x: sx(1), y: H, "text-anchor": "end", class: "axis-t" }, svg).textContent = "t";
+  mk("text", { x: m.l + 4, y: m.t + 10, class: "axis-t" }, svg).textContent = "σ";
+  const pts = n => Array.from({ length: 101 }, (_, i) => [sx(i / 100), sy(n(i / 100))]);
+  mk("path", { class: "ref", d: pathOf(pts(t => t)) }, svg);
+  if (dist === "ltx2") {
+    const mu = Math.log(shift), hi = sigmoid(mu + P999), lo = sigmoid(mu + P005);
+    mk("path", { class: "main", d: pathOf(Array.from({ length: 201 }, (_, i) => { const zz = -2.5758 + (3.0902 + 2.5758) * i / 200; const t = sigmoid(zz); return [sx((t - sigmoid(P005)) / (sigmoid(P999) - sigmoid(P005))), sy((sigmoid(zz + mu) - lo) / (hi - lo))]; })) }, svg);
+  } else {
+    mk("path", { class: "main", d: pathOf(pts(t => shiftMap(t, shift))) }, svg);
+  }
+  box.innerHTML = ""; box.appendChild(svg);
+  document.getElementById("mapNote").textContent = dist === "ltx2"
+    ? "ltx2 不做后变换：横轴是 shift=1 时拉伸后的值，纵轴是同一分位点在当前 shift 下拉伸后的值。虚线是对角线。"
+    : `σ = ${shift.toFixed(2)}·t / (1 + ${(shift - 1).toFixed(2)}·t)。shift > 1 时曲线上凸，把样本推向高噪声；shift < 1 推向低噪声。虚线是 shift = 1。`;
+}
+
+let cur, ref, refKey = "";
+function render() {
+  cur = stats(dist, shift);
+  if (refKey !== dist) { ref = stats(dist, 1); refKey = dist; }
+  const f = v => v.toFixed(3), p = v => (100 * v).toFixed(1) + "%";
+  const k = [
+    ["中位数 σ", f(cur.med), `shift=1：${f(ref.med)}`],
+    ["均值 σ", f(cur.mean), `shift=1：${f(ref.mean)}`],
+    ["10%–90% 区间", `${f(cur.q10)}–${f(cur.q90)}`, `shift=1：${f(ref.q10)}–${f(ref.q90)}`],
+    ["P(σ < 0.1) 低噪声", p(cur.lo), `shift=1：${p(ref.lo)}`],
+    ["P(σ > 0.9) 高噪声", p(cur.hi), `shift=1：${p(ref.hi)}`],
+  ];
+  document.getElementById("kpis").innerHTML = k.map(([l, v, r]) => `<div class="kpi"><span class="l">${l}</span><span class="v">${v}</span><span class="r">${r}</span></div>`).join("");
+  document.getElementById("shiftVal").textContent = shift.toFixed(2);
+  document.getElementById("legMain").textContent = `${DIST_NAME[dist]}，shift = ${shift.toFixed(2)}`;
+  slider.value = toSlider(shift);
+  if (document.activeElement !== shiftIn) shiftIn.value = +shift.toFixed(2);
+  distSel.value = dist;
+  pre.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(Math.abs(+b.dataset.s - shift) < 1e-6)));
+  drawPdf(cur, ref); drawMap();
+  try { localStorage.setItem("sigma-dist", dist); localStorage.setItem("sigma-shift", String(shift)); } catch (e) {}
+}
+let raf = 0;
+const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(render); };
+slider.addEventListener("input", () => { shift = +fromSlider(+slider.value).toFixed(2); schedule(); });
+shiftIn.addEventListener("change", () => { const v = parseFloat(shiftIn.value); if (v >= S_MIN && v <= S_MAX) { shift = v; schedule(); } });
+distSel.addEventListener("change", () => { dist = distSel.value; schedule(); });
+pre.addEventListener("click", ev => { const b = ev.target.closest("button[data-s]"); if (b) { shift = +b.dataset.s; schedule(); } });
+let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { drawPdf(cur, ref); drawMap(); }, 80); }).observe(document.querySelector(".wrap"));
+render();
+</script>
+</body>
+</html>

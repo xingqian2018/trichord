@@ -77,6 +77,7 @@ In this directory, the Cosmos models and the API models use **the same Opus-rewr
 | GPT-image-2 (low) | `gpt_image_2` | 94.25 | 96.08 | 92.56 | 1165/1170 | gemini-3.1-pro@nvidia |
 | Gemini 3.1 flash image | `gemini_3_1_flash_image` | 91.91 | 93.79 | 90.19 | 1169/1170 | gemini-3.1-pro@nvidia |
 | Cosmos3 64bm32b dense, exp009 sft0, iter31000 | `c3_dense_exp009_sft0_iter31000` | 91.63 | 93.85 | 89.59 | 1170/1170 | gemini-3.1-pro@nvidia |
+| Cosmos3 64bm32b dense, exp009 union5 (before UHQ SFT), iter25000 | `cosmos3_super_text2image_before_uhg` | 91.09 | 93.06 | 89.28 | 1170/1170 | gemini-3.1-pro@nvidia |
 | Cosmos3 runlong RL, iter100 | `c3_runlong_rl_iter100` | 90.75 | 93.65 | 88.09 | 1170/1170 | gemini-3.1-pro@nvidia |
 | Cosmos3 runlong RL, iter80 | `c3_runlong_rl_iter80` | 90.70 | 93.37 | 88.25 | 1170/1170 | gemini-3.1-pro@nvidia |
 | Cosmos3.5 Super v2p5 iter741260 (960², cfg4, neg) | `c3p5_super_v2p5_iter741260_ts1000` | 87.79 | 89.52 | 86.22 | 1170/1170 | gemini-3.1-pro@nvidia |
@@ -168,7 +169,56 @@ Comparison under the same settings (cfg 4, shift 3, full CFG, row-index seed, no
 
 - Both pretrain and at the same resolution, **Ultra is +1.73 above Super**, well beyond the ~0.35 judge noise.
 - Ultra pretrain is already about 0.5 above Super's best post-SFT result. However, the resolution and training stage both differ, so this is for reference only.
+- At the time it was scored, this was the highest Cosmos3.5 score on the hamid prompts; it was later surpassed by ruofan's iter30k in Section 4c (90.15).
+
+---
+
+## 4c. Cosmos3.5 Ultra image-mix training (ruofan, hamid prompt)
+
+Checkpoint: `s3://nv-00-10206-checkpoint-experiments/cosmos3_vfm/image_mix_ultra/real70hq30_c3sdg15_text15_res10_30_60_seed42/checkpoints/iter_000030000/` (the best one ruofan gave on 2026-10-27). The repo has no config for this experiment, so it is loaded with `cosmos3p5_ga_470bm235b_base_cp1_for_eval`. 1024×1024, cfg 4, shift 3, full CFG, row-index seed, noneg, EMA. Generation job 2710684, 16 nodes, 1 h. At scoring time `v2_1170L` had been switched to read `v2_1170L.json`, whose scoring inputs match the original CSV row by row.
+
+| run | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` | **90.15** | 92.17 | 88.30 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+Comparison under the same settings (cfg 4, shift 3, full CFG, row-index seed, noneg):
+
+| Model | Stage | Resolution | overall | orig | phi |
+|---|---|---|---|---|---|
+| **Ultra ruofan iter30k** | Ultra + image-mix training | 1024 | **90.15** | 92.17 | 88.30 |
+| Ultra v3p4 iter360000 | Pretrain | 960 | 88.45 | 90.26 | 86.80 |
+| exp003_002 getty | Super + SFT | 1024 | 87.92 | 90.18 | 85.84 |
+| Super v2p5 iter741260 | Pretrain | 960 | 86.72 | 88.24 | 85.33 |
+
+- **+1.70** above Ultra v3p4 pretrain, about 5× the judge noise (0.35). But the resolution differs (1024 vs. 960), so how much of this comes from resolution cannot yet be separated.
 - This is currently the highest Cosmos3.5 score on the hamid prompts.
+- The weakest category is Text Generation (92/208, 44.23%), followed by Logical Reasoning (125/155, 80.65%); Style (98.71%) and World Knowledge (95.41%) are the strongest.
+
+### 4c-a4. Same checkpoint with the a4 prompts
+
+Generated with the new benchmark `v2_1170L_gpt5p5_img_a4` (prompts rewritten by gpt5p5); all other settings as above, 8 nodes. Scoring still uses the original `v2_1170L` prompts and testpoints.
+
+| run | Generation prompt | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|---|
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` | a4 | **91.25** | 92.50 | 90.10 | 1170/1170 | gemini-3.1-pro@nvidia |
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` | hamid | 90.15 | 92.17 | 88.30 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+- a4 is **+1.10** above hamid, mostly from phi (+1.80); orig is only 0.33 higher.
+- Text Generation rises from 44.23% to 51.44% (107/208) but is still the weakest category; Logical Reasoning is 80.00% (124/155), essentially unchanged from hamid.
+- The weakest action categories: Action - Hand 61.08%, Action - Full-body 69.50%.
+
+## 4d. Cosmos3 Super before UHQ SFT (exp009 union5 iter25000)
+
+Checkpoint: `s3://nv-00-10206-checkpoint/cosmos3_vfm/cosmos3_ga_t2ionly/cosmos3_ga_64bm32b_t2ionly_exp009_union5_from_frozen_midtrain_lr5em5/checkpoints/iter_000025000/model`, the starting point of exp009 sft0 (UHQ SFT). Experiment: `cosmos3_ga_64bm32b_t2ionly_base_mini`. 1024×1024, cfg 4, 50 steps, EMA, Cosmos3 default negative prompt. 4 nodes, about 45 minutes. All scoring uses `v2_1170L`.
+
+| run | Generation prompt | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|---|
+| `cosmos3_super_text2image_before_uhg` | opus | **91.09** | 93.06 | 89.28 | 1170/1170 | gemini-3.1-pro@nvidia |
+| `cosmos3_super_text2image_before_uhg` | a4 | 88.09 | 90.38 | 85.98 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+- With opus prompts it is 0.54 below exp009 sft0 iter31000 after UHQ SFT (91.63), so UHQ SFT adds little.
+- The a4 prompts hurt Cosmos3: **3.00** below opus. Text Generation drops from 66.83% to 47.60%, Logical Reasoning from 76.13% to 70.97%, Action - Hand from 72.97% to 64.86%. Cosmos3.5 Ultra (4c-a4) goes the other way, with a4 1.10 above hamid.
+- So Cosmos3 should be evaluated with opus prompts as usual, and its a4 score should not be compared directly with Cosmos3.5 a4 scores.
 
 ---
 
@@ -196,6 +246,60 @@ Comparison under the same settings (cfg 4, shift 3, full CFG, row-index seed, no
 
 ---
 
+## 7. HPSv3 (human preference score, backfilled from 2026-10-28)
+
+HPSv3 measures how good the image looks overall and how well it fits the prompt (human preference). It is a different metric from UGB's per-testpoint accuracy, and the two must not be compared directly.
+
+- Scorer: the HPSv3 reward service (Lepton gateway `scorer-hpsv3`), which runs the official `HPSv3RewardInferencer` and returns its `mu` output.
+- Scoring prompt: always the **plain prompt** from the original `v2_1170L` (not the opus / hamid / a4 rewritten prompt used at generation time), consistent with UGB scoring.
+- Each run's score is first averaged per prompt, then averaged over the 1170 prompts; `std` is the standard deviation across prompts. Missing images are excluded.
+- Result file: `result_hpsv3_v2_1170L.json` in each run directory.
+
+All 21 runs in the viewer (`ugb_s3_viewer.py`) are scored. The 6 runs with missing images lose only those already-missing images; all others are 1170/1170. UGB overall is read from `unigenbench_result.json` in the same directory.
+
+### 7.1 Public models and Cosmos3 super (sorted by HPSv3)
+
+| run | Generation prompt | HPSv3 | std | success | UGB overall |
+|---|---|---|---|---|---|
+| `v2_1170L/gpt_image_2p5_sunburst` | Original | **12.253** | 1.574 | 1167/1170 | 94.22 |
+| `v2_1170L/gpt_image_2p5_sunburst_quality_high` | Original | 12.245 | 1.571 | 1165/1170 | 94.45 |
+| `v2_1170L/qwen_image_2p1_pe` | Original | 11.788 | 1.613 | 1170/1170 | 85.80 |
+| `v2_1170L_opus/c3_dense_exp009_sft0_iter31000` (cosmos3-super-text2image) | opus | 11.598 | 1.613 | 1170/1170 | 91.63 |
+| `v2_1170L/flux3_klein` | Original | 11.575 | 1.589 | 1167/1170 | 89.72 |
+| `v2_1170L/krea2_turbo` | Original | 11.463 | 1.690 | 1170/1170 | 85.60 |
+| `v2_1170L/fibo2_dev` | Original | 11.391 | 1.650 | 1167/1170 | 87.43 |
+| `v2_1170L/flux3_klein_base` | Original | 11.123 | 1.593 | 1167/1170 | 90.63 |
+| `v2_1170L/ideogram4_nf4` | Original | 10.767 | 2.114 | 1166/1170 | 86.19 |
+| `v2_1170L/qwen_image_2p1_nope` | Original | 10.694 | 1.700 | 1170/1170 | 86.99 |
+
+### 7.2 Cosmos3.5 (sorted by HPSv3)
+
+| run | Generation prompt | HPSv3 | std | success | UGB overall |
+|---|---|---|---|---|---|
+| `c3p5_ultra_v3p4_iter360000_shift3_fullcfg_seedrow_noneg` | hamid | **10.978** | 1.600 | 1170/1170 | 88.45 |
+| `c3p5_exp003_003_pretrain_midtrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.800 | 1.644 | 1170/1170 | 87.88 |
+| `c3p5_super_v2p5_iter741260_shift3_fullcfg_seedrow_noneg` | hamid | 10.747 | 1.628 | 1170/1170 | 86.72 |
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` | hamid | 10.727 | 1.621 | 1170/1170 | 90.15 |
+| `c3p5_exp004_003_pretrain_mha_dense_constlr_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.702 | 1.662 | 1170/1170 | 84.36 |
+| `c3p5_exp004_002_pretrain_mha_dense_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.700 | 1.618 | 1170/1170 | 84.30 |
+| `c3p5_exp004_000_pretrain_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.667 | 1.633 | 1170/1170 | 88.12 |
+| `c3p5_exp004_001_pretrain_mha_lr2em5_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.639 | 1.629 | 1170/1170 | 87.73 |
+| `c3p5_super_v2p5_iter741260_noneg` | hamid | 10.609 | 1.648 | 1170/1170 | 86.10 |
+| `c3p5_exp003_002_pretrain_getty_iter25000_1024_shift3_fullcfg_seedrow_noneg` | hamid | 10.594 | 1.632 | 1170/1170 | 87.92 |
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` (`v2_1170L_gpt5p5_img_a4`) | a4 | 10.565 | 1.594 | 1170/1170 | 91.25 |
+
+All rows except the last are under `v2_1170L_gpt5p5_cosmos3p5_dense_hamid`; the last is under `v2_1170L_gpt5p5_img_a4`.
+
+Observations:
+- **HPSv3 and UGB are essentially uncorrelated.** Spearman ρ = 0.29 over all 21 runs, 0.42 within the 9 public models, and −0.06 within the 11 Cosmos3.5 runs. The two metrics have to be read separately; neither stands in for the other.
+- **Every Cosmos3.5 run falls in the lowest HPSv3 band (10.57–10.98)**, below every public model except Ideogram 4 and Qwen nope, and 0.6–1.0 below Cosmos3 super (11.60). However, Cosmos3.5 is generated from hamid dense prompts and scored on the original short prompts, while the public models are generated from the original prompts, so model differences cannot be separated from generation-prompt differences here.
+- **HPSv3 barely separates the Cosmos3.5 runs**: the 11 runs span only 0.41, versus 6.95 on UGB (84.30–91.25). exp004_002 / 003 (mha_dense) are about 3.8 below exp004_000 on UGB but essentially equal on HPSv3.
+- **UGB gains do not carry over to HPSv3**: switching ruofan iter30k to the a4 prompts gives UGB +1.10 but HPSv3 −0.16; ruofan has the best Cosmos3.5 UGB (90.15 on hamid) yet a lower HPSv3 than Ultra v3p4 pretrain (10.73 vs. 10.98).
+- **Two public-model pairs trade off in opposite directions**: FLUX.3 klein (distilled) is 0.45 above klein-base on HPSv3 but 0.91 below it on UGB; Qwen-Image 2.1's prompt enhancer lifts HPSv3 from 10.69 to 11.79 while UGB drops 1.19.
+- GPT-image-2.5's `quality=high` gives no HPSv3 gain either (12.245 vs. 12.253).
+
+---
+
 ## Appendix: scoring protocol
 
 ```bash
@@ -208,3 +312,15 @@ PYTHONPATH=. python projects/cosmos3/cosmos3/evaluation/text_to_image/compute_un
 ```
 
 The 18 newly scored runs in this round were all run locally: scoring is CPU-only and calls the gateway, about 6 minutes per run, 3 runs in parallel.
+
+HPSv3 (Section 7):
+
+```bash
+PYTHONPATH=. python projects/cosmos3/cosmos3/evaluation/text_to_image/compute_hpsv3_metric.py \
+  --io_folder s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/<benchmark>/<run> \
+  --io_cred credentials/gcs.secret \
+  --benchmark_name v2_1170L \
+  --image_extension png
+```
+
+Also run locally, calling only the HPSv3 gateway; about 3–9 minutes per run when run one at a time.

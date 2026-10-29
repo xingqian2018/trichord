@@ -97,6 +97,19 @@ def main():
         w(f"| {q} | {sz[0]} | {sz[1]} | {sz[2]} | {sz[4]} |")
     w("")
     w("MoE，每层 128 个 expert、每个 token 激活 8 个。")
+    refs = [(n, R[(c, "ref")]) for c, n in (("MIMO_V25_PRO_BASE", "MiMo-V2.5-Pro-Base"), ("MIMO_V26_PRO_RL", "MiMo-V2.6-Pro-RL")) if (c, "ref") in R]
+    if refs:
+        w("")
+        w("## 5. 外部参考：MiMo（同一 doc-isolated 协议）")
+        w("")
+        w("同样的 115 个 split、同样的切分（vLLM prompt_logprobs，`reports_xx/mimo_doc_eval.py`）；MiMo 的 token id 与 ladder 的 Qwen3 tokenizer 相同，loss 可直接比较。"
+          "V2.6-Pro-RL 是官方 mxfp4 权重（也是 KD 的 teacher），V2.5-Pro-Base 是 fp8。")
+        w("")
+        w("| 模型 | " + " | ".join(c[1] for c in COLS) + " | overall_tsqw |")
+        w("|---|" + "---:|" * (len(COLS) + 1))
+        for n, d in refs:
+            m = d["metrics"]
+            w(f"| {n} | " + " | ".join(f"{m[k]['loss']:.4f}" if k in m else "·" for k, _ in COLS + [("00_overall_tsqw", "")]) + " |")
     open(OUT, "w").write("\n".join(L) + "\n")
     print(f"wrote {OUT} ({len(R)} checkpoints)")
     import subprocess

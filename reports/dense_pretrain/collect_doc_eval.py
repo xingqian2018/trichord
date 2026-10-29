@@ -27,12 +27,12 @@ WORK_DIR = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/x
 OUT_DIR = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/Project/trichord/dense_pretrain_result"   # source of truth (in trichord's git)
 SHARE_DIR = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/dense_pretrain_result"   # group-readable copy
 REPO_DIR = os.path.join(HERE, "..", "results_xx")   # copy in the ladder repo (git), next to Boxiang's results/
-DIR_RE = re.compile(r"^(?P<change>.+)-(?P<rung>q\d)-(?P<job>\d+)$")
+DIR_RE = re.compile(r"^(?P<change>.+)-(?P<rung>q\d|ref)-(?P<job>\d+)$")   # ref = an external HF model (mimo_doc_eval.py)
 
 
 def latest_evals():
     found = {}
-    for d in glob.glob(os.path.join(WORK_DIR, "*-q[0-9]-*")):
+    for d in glob.glob(os.path.join(WORK_DIR, "*-q[0-9]-*")) + glob.glob(os.path.join(WORK_DIR, "*-ref-*")):
         m = DIR_RE.match(os.path.basename(d))
         files = sorted(glob.glob(os.path.join(d, "eval", "val_splits_iter*_doc_isolated.json")))
         if not m or not files:
@@ -44,10 +44,28 @@ def latest_evals():
 
 
 def ckpt_of(eval_dir):
-    """The --load of the eval argv (promoted dir or our symlink stage) and its realpath."""
+    """The --load of the eval argv (promoted dir or our symlink stage) and its realpath; an HF model dir for the ref evals."""
+    if os.path.exists(os.path.join(eval_dir, "model.txt")):
+        m = open(os.path.join(eval_dir, "model.txt")).read().strip()
+        return m, m
     argv = open(os.path.join(eval_dir, "argv_doc.txt")).read().split()
     load = argv[argv.index("--load") + 1]
-    return load, os.path.realpath(os.path.join(load, "iter_%07d" % int(open(os.path.join(load, "latest_checkpointed_iteration.txt")).read())))
+    try:
+        return load, os.path.realpath(os.path.join(load, "iter_%07d" % int(open(os.path.join(load, "latest_checkpointed_iteration.txt")).read())))
+    except OSError:                                        # checkpoint deleted after the eval (e.g. the owner's quota clean-up): keep the result
+        return load, load + " (checkpoint no longer on disk)"
+
+
+def train_args(eval_dir):
+    """The run's training hyper-parameters as the eval saw them (argv_doc.txt): peak LR etc. The report derives every LR multiple
+    from these (actual peak LR / the reference law), never from the Change ID's name (the name may refer to another law)."""
+    p = os.path.join(eval_dir, "argv_doc.txt")
+    if not os.path.exists(p):
+        return None
+    a = open(p).read().split()
+    get = lambda k, f: f(a[a.index(k) + 1]) if k in a else None
+    return {"lr": get("--lr", float), "min_lr": get("--min-lr", float), "train_iters": get("--train-iters", int), "num_layers": get("--num-layers", int),
+            "hidden_size": get("--hidden-size", int), "global_batch_size": get("--global-batch-size", int), "seq_length": get("--seq-length", int)}
 
 
 def main():
@@ -62,33 +80,50 @@ def main():
         rec = json.load(open(path))
         names = list(rec["suites"])
         suites = {s.name: s for s in val_metrics.load_suites(names, val_metrics.DEFAULT_SUITES_DIR)}
-        derived = val_metrics.derived_metrics({n: rec["suites"][n]["loss"] for n in names}, suites, doc_isolated=True)
+        tsqw_cols = {"01_val_v2_overall_tw": ("cosmos_val_v2_cc", "cosmos_val_v2_python", "cosmos_val_v2_arxiv"), "02_uncheatable_tw": ("uncheatable",),
+                     "03_codefresh_tw": ("codefresh",), "04_v3small_tw": ("v3small",), "04_private_internal_tw": ("private_internal",),
+                     "05_pile_test_tw": ("pile_test",), "05_pile_10k_tw": ("pile_10k",)}   # 7 collections incl. pile_10k (user)
+        foreign = all("bytes" in rec["suites"][n] for n in names)   # another tokenizer (mimo_doc_eval.py --text-dir): loss per OWN token
         metrics = {}
+        if foreign:                                        # another tokenizer: the SAME definitions (tw / macro / bpb) with the split
+            import dataclasses                             # token counts replaced by the model's own scored tokens (+ 2 n_docs)
+            suites = {nm: dataclasses.replace(su, splits=[dataclasses.replace(sp, n_tokens=t + 2 * sp.n_docs) for sp, t in
+                                                         zip(su.splits, rec["suites"][nm]["tokens"])]) for nm, su in suites.items()}
+        derived = val_metrics.derived_metrics({n: rec["suites"][n]["loss"] for n in names}, suites, doc_isolated=True)
         for k, v in derived.items():                       # "val_loss/02_uncheatable_tw" -> metrics["02_uncheatable_tw"]["loss"]
             section, key = k.split("/", 1)
             metrics.setdefault(key, {})[section.replace("val_", "")] = v
+        if foreign:
+            suites = {s.name: s for s in val_metrics.load_suites(names, val_metrics.DEFAULT_SUITES_DIR)}   # Qwen3 counts: tsqw weights
         out_suites = {}
         for n in names:
             s = rec["suites"][n]
             tok = sum(s["tokens"])
             out_suites[n] = {"loss_tw": sum(l * t for l, t in zip(s["loss"], s["tokens"])) / tok, "tokens": tok,
                              "splits": {lab: {"loss": l, "tokens": t} for lab, l, t in zip(s["labels"], s["loss"], s["tokens"])}}
+            if foreign:
+                out_suites[n].update(bytes=sum(s["bytes"]), bpb=sum(s["nll"]) / (sum(s["bytes"]) * math.log(2)))
+                for lab, nl, b in zip(s["labels"], s["nll"], s["bytes"]):
+                    out_suites[n]["splits"][lab].update(bytes=b, bpb=nl / (b * math.log(2)))
         # tsqw (Xingqian, 2026-10-23): all 7 collections (val_v2, uncheatable, codefresh, v3small, private_internal, pile_test, pile_10k;
-        # unlike 00_overall_*, pile_10k is IN), each its token-weighted loss, weighted by sqrt(scored tokens) - between tw and macro
-        tsqw_cols = {"01_val_v2_overall_tw": ("cosmos_val_v2_cc", "cosmos_val_v2_python", "cosmos_val_v2_arxiv"), "02_uncheatable_tw": ("uncheatable",),
-                     "03_codefresh_tw": ("codefresh",), "04_v3small_tw": ("v3small",), "04_private_internal_tw": ("private_internal",),
-                     "05_pile_test_tw": ("pile_test",), "05_pile_10k_tw": ("pile_10k",)}   # 7 collections incl. pile_10k (user)
-        num = den = 0.0
-        for key, prefixes in tsqw_cols.items():
-            n_tok = sum(v["tokens"] for k, v in out_suites.items() if k.startswith(prefixes))
-            if key in metrics and n_tok:
-                num += math.sqrt(n_tok) * metrics[key]["loss"]; den += math.sqrt(n_tok)
-        if den:
-            metrics["00_overall_tsqw"] = {"loss": num / den, "ppl": math.exp(num / den)}
+        # unlike 00_overall_*, pile_10k is IN), each its token-weighted loss, weighted by sqrt(scored tokens) - between tw and macro.
+        # Weights = the ladder's (Qwen3) scored-token counts from the suite yamls, identical for every model; also a BPB version
+        # (the only one comparable across tokenizers).
+        for sec in ("loss", "bpb"):
+            num = den = 0.0
+            for key, prefixes in tsqw_cols.items():
+                n_tok = sum(sp.n_tokens - 2 * sp.n_docs for nm, su in suites.items() if nm.startswith(prefixes) for sp in su.splits)
+                if key in metrics and sec in metrics[key] and n_tok:
+                    num += math.sqrt(n_tok) * metrics[key][sec]; den += math.sqrt(n_tok)
+            if den:
+                m = metrics.setdefault("00_overall_tsqw", {})
+                m[sec] = num / den
+                if sec == "loss":
+                    m["ppl"] = math.exp(num / den)
         load, ckpt = ckpt_of(eval_dir)
         out = {"change": change, "rung": rung, "iteration": rec["iteration"], "protocol": rec["protocol"],
                "checkpoint": ckpt, "eval_job": int(job), "eval_dir": eval_dir, "evaluated_at": rec["time"],
-               "metrics": dict(sorted(metrics.items())), "suites": out_suites}
+               "train": train_args(eval_dir), "metrics": dict(sorted(metrics.items())), "suites": out_suites}
         for d in outs:
             dst = os.path.join(d, f"{change}_{rung}.json")
             with open(dst, "w") as f:

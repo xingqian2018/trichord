@@ -42,6 +42,7 @@ COSMOS_DIRS = FEATURED_COSMOS_DIRS + [
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_cosmos3p5_dense_hamid/cosmos3p5_ultra_ruofan_20261027_iter30k_best",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_img_a4/cosmos3p5_ultra_ruofan_20261027_iter30k_best",
     "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_img_a4/cosmos3_super_text2image_before_uhg",
+    "s3://nv-00-10206-vfm/debug/xingqianx/evaluation_results/unigenbench_for_cosmos3p5/v2_1170L_gpt5p5_img_a4/cosmos3p5_ultra_exp005_001_sanity_4kfull_iter5000",
 ]
 VIEWS = {
     "Baselines": BASELINE_DIRS + FEATURED_COSMOS_DIRS,

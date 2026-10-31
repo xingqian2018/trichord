@@ -220,6 +220,19 @@ Checkpoint: `s3://nv-00-10206-checkpoint/cosmos3_vfm/cosmos3_ga_t2ionly/cosmos3_
 - The a4 prompts hurt Cosmos3: **3.00** below opus. Text Generation drops from 66.83% to 47.60%, Logical Reasoning from 76.13% to 70.97%, Action - Hand from 72.97% to 64.86%. Cosmos3.5 Ultra (4c-a4) goes the other way, with a4 1.10 above hamid.
 - So Cosmos3 should be evaluated with opus prompts as usual, and its a4 score should not be compared directly with Cosmos3.5 a4 scores.
 
+## 4e. Cosmos3.5 Ultra exp005_001: v3p4 SFT on the full multiaspect-4k set (a4 prompts)
+
+Checkpoint: `s3://nv-00-10206-checkpoint-experiments/cosmos3_generator/cosmos3plus_t2ionly/cosmos3p5_ga_470bm235b_t2ionly_moe_exp005_001_ultra_sanity_4kfull_n16/checkpoints/iter_000005000/`. Starts from Ultra v3p4 iter360000, full multiaspect-4k data, lr 2e-5, 5000 steps. Experiment: `cosmos3p5_ga_470bm235b_base_cp1_for_eval`. Generated with `v2_1170L_gpt5p5_img_a4`, 1024×1024, cfg 4, shift 3, full CFG, row seed, noneg, EMA. Generation job 2757283, 8 nodes (preempted once, resumed from where it stopped).
+
+| run | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|
+| `cosmos3p5_ultra_exp005_001_sanity_4kfull_iter5000` | **89.27** | 90.51 | 88.13 | 1170/1170 | gemini-3.1-pro@nvidia |
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best` (reference, 4c-a4) | 91.25 | 92.50 | 90.10 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+- **1.98** below the ruofan image-mix training.
+- Text and hand actions are clearly worse: Text Generation 28.37% (59/208, ruofan 51.44%), Action - Hand 43.78% (81/185, ruofan 61.08%). Logical Reasoning is 80.00%, on par with ruofan; Style 99.35% and World Knowledge 94.80% remain strong.
+- exp005_000 (16-image overfit, iter2000) generation was cancelled at 768/1170 images and has no score yet.
+
 ---
 
 ## 5. Additional results (files with a signature suffix)

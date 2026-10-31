@@ -220,6 +220,19 @@ checkpoint：`s3://nv-00-10206-checkpoint/cosmos3_vfm/cosmos3_ga_t2ionly/cosmos3
 - a4 prompt 对 Cosmos3 不利：比 opus 低 **3.00**。Text Generation 从 66.83% 掉到 47.60%，Logical Reasoning 从 76.13% 掉到 70.97%，Action - Hand 从 72.97% 掉到 64.86%。Cosmos3.5 Ultra（4c-a4）正相反，a4 比 hamid 高 1.10。
 - 所以 Cosmos3 按惯例用 opus prompt 评测，a4 分数不宜和 Cosmos3.5 的 a4 分数直接横比。
 
+## 4e. Cosmos3.5 Ultra exp005_001：v3p4 在 multiaspect-4k 全量上 SFT（a4 prompt）
+
+checkpoint：`s3://nv-00-10206-checkpoint-experiments/cosmos3_generator/cosmos3plus_t2ionly/cosmos3p5_ga_470bm235b_t2ionly_moe_exp005_001_ultra_sanity_4kfull_n16/checkpoints/iter_000005000/`。从 Ultra v3p4 iter360000 出发，multiaspect-4k 全量数据，lr 2e-5，训练 5000 步。experiment：`cosmos3p5_ga_470bm235b_base_cp1_for_eval`。生成用 `v2_1170L_gpt5p5_img_a4`，1024×1024，cfg 4，shift 3，全程 CFG，行号 seed，noneg，EMA。生成 job 2757283，8 节点（中途被抢占一次，断点续跑）。
+
+| run | overall | orig | phi | success | judge |
+|---|---|---|---|---|---|
+| `cosmos3p5_ultra_exp005_001_sanity_4kfull_iter5000` | **89.27** | 90.51 | 88.13 | 1170/1170 | gemini-3.1-pro@nvidia |
+| `cosmos3p5_ultra_ruofan_20261027_iter30k_best`（对照，4c-a4） | 91.25 | 92.50 | 90.10 | 1170/1170 | gemini-3.1-pro@nvidia |
+
+- 比 ruofan 图像混合训练低 **1.98**。
+- 文字和手部动作明显变差：Text Generation 28.37%（59/208，ruofan 51.44%），Action - Hand 43.78%（81/185，ruofan 61.08%）。Logical Reasoning 80.00%，与 ruofan 持平；Style 99.35%、World Knowledge 94.80% 仍然很强。
+- exp005_000（16 张图过拟合，iter2000）生成在 768/1170 张时被取消，尚无分数。
+
 ---
 
 ## 5. 附加结果（带 signature 的文件）

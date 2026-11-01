@@ -23,6 +23,8 @@ IMAGE_REQUIRED_WARNING = (
     "the <img> src, then render_poster and poster_visual_critic again, and deliver only the last rendered and reviewed version."
 )
 SAVED_RE = re.compile(r"generate_image saved to (\S+)")
+CHART_MAX_TOKENS = 32768
+CHART_TIMEOUT = 1200
 
 
 class poster_visual_critic_chart_v1(poster_visual_critic_v1p3):
@@ -46,6 +48,11 @@ class poster_chart_generation_v1(poster_generation_v2):
     critic; a reply that delivers HTML without any render_poster call gets one more turn asking it to render and review."""
 
     tool_registry_classes = [upsample_prompt_cosmos3_v2, generate_image_cosmos3_v2, render_poster_v1p3, poster_visual_critic_chart_v1]
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        kwargs.setdefault("max_tokens", CHART_MAX_TOKENS)
+        kwargs.setdefault("timeout", CHART_TIMEOUT)
+        super().__init__(*args, **kwargs)
 
     def generated_paths(self) -> list[str]:
         return [path for m in self.messages if m.get("role") == "tool" for path in SAVED_RE.findall(m.get("content") or "")]

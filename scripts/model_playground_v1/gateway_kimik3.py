@@ -145,7 +145,7 @@ class UnifiedGatewayKimiK3(UnifiedGatewayVLM):
         if set(urls) != set(self._clients):
             urls = list(urls)
             random.shuffle(urls)  # spread processes over endpoints
-            self._clients = {u: self._clients.get(u) or self._AsyncOpenAI(base_url=u, api_key=self.api_key, max_retries=0) for u in urls}
+            self._clients = {u: self._clients.get(u) or self._AsyncOpenAI(base_url=u, api_key=self.api_key, max_retries=0, timeout=self.timeout) for u in urls}
             self._cycle = itertools.cycle(list(self._clients))
 
     def _pick(self, tried: set[str]) -> Optional[str]:
@@ -179,6 +179,8 @@ class UnifiedGatewayKimiK3(UnifiedGatewayVLM):
         content, reasoning, reasoning_key, finish_reason = None, None, None, None
         try:
             completion = await client.chat.completions.create(**req)
+        except openai.APITimeoutError as e:
+            raise RuntimeError(f"{self.label} request to {url} timed out after {self.timeout}s") from e
         except (openai.APIConnectionError, openai.APITimeoutError, openai.InternalServerError) as e:
             raise EndpointError(f"{type(e).__name__}: {e}") from e
         if not completion.choices:

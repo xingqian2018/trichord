@@ -1,0 +1,617 @@
+{
+ "change": "KD_MUONH_FIT_A0P8_S64_TCS_MIMO26_S2",
+ "rung": "q0",
+ "iteration": 4577,
+ "protocol": "doc_isolated",
+ "checkpoint": "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/runs/scaling_ladder/qwen3_tpp200/qwen3_tpp200_muonh_kd_a0p8_s64_fit_tcs_mimo26-q0-tpp200-s2/checkpoints/iter_0004577",
+ "eval_job": 1443710,
+ "eval_dir": "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/runs/ladder_doc_eval/KD_MUONH_FIT_A0P8_S64_TCS_MIMO26_S2-q0-1443710",
+ "evaluated_at": "2026-10-30T22:36:56",
+ "train": {
+  "lr": 0.0164,
+  "min_lr": 0.000164,
+  "train_iters": 4577,
+  "num_layers": 12,
+  "hidden_size": 512,
+  "global_batch_size": 256,
+  "seq_length": 8192
+ },
+ "metrics": {
+  "00_overall_macro": {
+   "loss": 2.1859859279582685,
+   "ppl": 8.899418414862698,
+   "bpb": 0.8210846952947763
+  },
+  "00_overall_tsqw": {
+   "loss": 2.1297115686793844,
+   "ppl": 8.412440050286687,
+   "bpb": 0.8290186656436466
+  },
+  "00_overall_tw": {
+   "loss": 2.118503183862664,
+   "ppl": 8.318676634783113,
+   "bpb": 0.832404455894794
+  },
+  "01_val_v2_arxiv": {
+   "loss": 1.1037713236276212,
+   "ppl": 3.015517097085258,
+   "bpb": 0.6373578514576057
+  },
+  "01_val_v2_cc": {
+   "loss": 2.3257219982464012,
+   "ppl": 10.234066397010459,
+   "bpb": 0.8353966952145819
+  },
+  "01_val_v2_overall_tw": {
+   "loss": 1.7197214103928724,
+   "ppl": 5.582972889378759,
+   "bpb": 0.6990886310384731
+  },
+  "01_val_v2_python": {
+   "loss": 1.2035950751035216,
+   "ppl": 3.3320744736942896,
+   "bpb": 0.4384873054616188
+  },
+  "02_uncheatable_macro": {
+   "loss": 2.2592824451797453,
+   "ppl": 9.576215241443899,
+   "bpb": 0.8359731950172753
+  },
+  "02_uncheatable_tw": {
+   "loss": 2.1383964498530434,
+   "ppl": 8.485819276201156,
+   "bpb": 0.8303417721958922
+  },
+  "03_codefresh_tw": {
+   "loss": 1.6560415419558776,
+   "ppl": 5.238533233908977,
+   "bpb": 0.6053404048102983
+  },
+  "04_private_internal_tw": {
+   "loss": 2.3087111297351006,
+   "ppl": 10.061448392795365,
+   "bpb": 0.7749609774756684
+  },
+  "04_v3small_macro": {
+   "loss": 2.7805275257924906,
+   "ppl": 16.127526390550237,
+   "bpb": 0.9677390363792076
+  },
+  "04_v3small_tw": {
+   "loss": 2.9387845438017606,
+   "ppl": 18.892868896459866,
+   "bpb": 1.0479017263902266
+  },
+  "05_pile_10k_tw": {
+   "loss": 2.378608671809303,
+   "ppl": 10.789880151164223,
+   "bpb": 0.9311167935502195
+  },
+  "05_pile_test_macro": {
+   "loss": 2.6283069097125464,
+   "ppl": 13.850300230800956,
+   "bpb": 1.0832329349057133
+  },
+  "05_pile_test_tw": {
+   "loss": 2.354260492010955,
+   "ppl": 10.530338712006651,
+   "bpb": 0.9688746598580997
+  }
+ },
+ "suites": {
+  "cosmos_val_v2_cc_decon_qwen3": {
+   "loss_tw": 2.3257219982464012,
+   "tokens": 12938323,
+   "splits": {
+    "cc": {
+     "loss": 2.3257219982464012,
+     "tokens": 12938323
+    }
+   }
+  },
+  "cosmos_val_v2_python_decon_qwen3": {
+   "loss_tw": 1.2035950751035216,
+   "tokens": 5671655,
+   "splits": {
+    "python": {
+     "loss": 1.2035950751035216,
+     "tokens": 5671655
+    }
+   }
+  },
+  "cosmos_val_v2_arxiv_decon_qwen3": {
+   "loss_tw": 1.1037713236276212,
+   "tokens": 7976849,
+   "splits": {
+    "arxiv_math": {
+     "loss": 1.1037713236276212,
+     "tokens": 7976849
+    }
+   }
+  },
+  "uncheatable_decon_qwen3": {
+   "loss_tw": 2.1383964498530434,
+   "tokens": 114928353,
+   "splits": {
+    "2025_12_ao3_english": {
+     "loss": 3.3088738453313034,
+     "tokens": 1563460
+    },
+    "2025_12_arxiv_cs": {
+     "loss": 2.2300648849318447,
+     "tokens": 3743201
+    },
+    "2025_12_arxiv_math": {
+     "loss": 1.4552610732921962,
+     "tokens": 5356032
+    },
+    "2025_12_arxiv_physics": {
+     "loss": 2.0304599323873904,
+     "tokens": 4061749
+    },
+    "2025_12_bbc_news": {
+     "loss": 3.0518196116222667,
+     "tokens": 361194
+    },
+    "2025_12_github_cpp": {
+     "loss": 1.0748307752753592,
+     "tokens": 1022455
+    },
+    "2025_12_github_javascript": {
+     "loss": 1.290807731026759,
+     "tokens": 1078827
+    },
+    "2025_12_github_markdown": {
+     "loss": 2.084536245315989,
+     "tokens": 848715
+    },
+    "2025_12_github_python": {
+     "loss": 1.2662697566837195,
+     "tokens": 1106247
+    },
+    "2025_12_wikipedia_english": {
+     "loss": 2.6470339609697717,
+     "tokens": 396352
+    },
+    "2026_01_ao3_english": {
+     "loss": 3.3172865174382777,
+     "tokens": 1550787
+    },
+    "2026_01_ao3_nonenglish": {
+     "loss": 4.553972911342714,
+     "tokens": 1986424
+    },
+    "2026_01_arxiv_cs": {
+     "loss": 2.219448252243507,
+     "tokens": 3675088
+    },
+    "2026_01_arxiv_math": {
+     "loss": 1.4517422110258247,
+     "tokens": 5302123
+    },
+    "2026_01_arxiv_other": {
+     "loss": 2.0305761185303117,
+     "tokens": 4009222
+    },
+    "2026_01_arxiv_physics": {
+     "loss": 2.042329135130477,
+     "tokens": 4020640
+    },
+    "2026_01_bbc_news": {
+     "loss": 3.0340727869576822,
+     "tokens": 333051
+    },
+    "2026_01_biorxiv_all": {
+     "loss": 2.33107385302476,
+     "tokens": 3625309
+    },
+    "2026_01_github_cpp": {
+     "loss": 1.0731119118649377,
+     "tokens": 909866
+    },
+    "2026_01_github_javascript": {
+     "loss": 1.3524412042120055,
+     "tokens": 1175310
+    },
+    "2026_01_github_markdown": {
+     "loss": 2.1324981787392354,
+     "tokens": 812022
+    },
+    "2026_01_github_other": {
+     "loss": 1.1570195076892473,
+     "tokens": 1190619
+    },
+    "2026_01_github_python": {
+     "loss": 1.2158000273640965,
+     "tokens": 1190747
+    },
+    "2026_01_wikipedia_english": {
+     "loss": 2.6738869684925692,
+     "tokens": 396678
+    },
+    "2026_01_wikipedia_nonenglish": {
+     "loss": 2.933662493938254,
+     "tokens": 755756
+    },
+    "2026_04_ao3_english": {
+     "loss": 3.3288520060817834,
+     "tokens": 1654605
+    },
+    "2026_04_ao3_nonenglish": {
+     "loss": 4.5545754025112695,
+     "tokens": 1945136
+    },
+    "2026_04_arxiv_cs": {
+     "loss": 2.242013089687434,
+     "tokens": 3884705
+    },
+    "2026_04_arxiv_math": {
+     "loss": 1.5302279501623195,
+     "tokens": 5192408
+    },
+    "2026_04_arxiv_other": {
+     "loss": 1.9460013121212827,
+     "tokens": 4214922
+    },
+    "2026_04_arxiv_physics": {
+     "loss": 2.0388814834050404,
+     "tokens": 3945542
+    },
+    "2026_04_bbc_news": {
+     "loss": 3.000893121259138,
+     "tokens": 294431
+    },
+    "2026_04_biorxiv_all": {
+     "loss": 2.326230146825773,
+     "tokens": 3592808
+    },
+    "2026_04_github_cpp": {
+     "loss": 1.175592881128431,
+     "tokens": 994398
+    },
+    "2026_04_github_javascript": {
+     "loss": 1.4382752140412673,
+     "tokens": 1340694
+    },
+    "2026_04_github_markdown": {
+     "loss": 2.392052223103998,
+     "tokens": 975681
+    },
+    "2026_04_github_other": {
+     "loss": 1.2213597121991335,
+     "tokens": 1558839
+    },
+    "2026_04_github_python": {
+     "loss": 1.3500986985432217,
+     "tokens": 1225619
+    },
+    "2026_04_wikipedia_english": {
+     "loss": 2.6803345485059373,
+     "tokens": 398078
+    },
+    "2026_04_wikipedia_nonenglish": {
+     "loss": 2.9934567460736026,
+     "tokens": 741600
+    },
+    "2026_07_ao3_english": {
+     "loss": 3.3237831763285928,
+     "tokens": 1645856
+    },
+    "2026_07_ao3_nonenglish": {
+     "loss": 4.610481417228665,
+     "tokens": 1980905
+    },
+    "2026_07_arxiv_cs": {
+     "loss": 2.3890899476222525,
+     "tokens": 3858789
+    },
+    "2026_07_arxiv_math": {
+     "loss": 1.560616327073039,
+     "tokens": 5034919
+    },
+    "2026_07_arxiv_other": {
+     "loss": 2.0765791820936816,
+     "tokens": 4105500
+    },
+    "2026_07_arxiv_physics": {
+     "loss": 2.091982250581931,
+     "tokens": 4086184
+    },
+    "2026_07_bbc_news": {
+     "loss": 3.025607672890984,
+     "tokens": 330487
+    },
+    "2026_07_biorxiv_all": {
+     "loss": 2.384505978533878,
+     "tokens": 3609881
+    },
+    "2026_07_github_cpp": {
+     "loss": 1.3223815147690272,
+     "tokens": 1135517
+    },
+    "2026_07_github_javascript": {
+     "loss": 1.5641122905299663,
+     "tokens": 1587613
+    },
+    "2026_07_github_markdown": {
+     "loss": 2.9301896000761225,
+     "tokens": 1059827
+    },
+    "2026_07_github_other": {
+     "loss": 1.500250421316204,
+     "tokens": 1637790
+    },
+    "2026_07_github_python": {
+     "loss": 1.6128583469267745,
+     "tokens": 1237444
+    },
+    "2026_07_wikipedia_english": {
+     "loss": 2.6793899569719795,
+     "tokens": 408876
+    },
+    "2026_07_wikipedia_nonenglish": {
+     "loss": 3.0109819714627504,
+     "tokens": 777425
+    }
+   }
+  },
+  "codefresh_decon_qwen3": {
+   "loss_tw": 1.6560415419558776,
+   "tokens": 19029400,
+   "splits": {
+    "code_fresh_blade": {
+     "loss": 1.5793467421896246,
+     "tokens": 536888
+    },
+    "code_fresh_c": {
+     "loss": 1.5262424242776342,
+     "tokens": 378944
+    },
+    "code_fresh_clojure": {
+     "loss": 2.2011647865816024,
+     "tokens": 960782
+    },
+    "code_fresh_cpp": {
+     "loss": 1.4176129598797584,
+     "tokens": 279908
+    },
+    "code_fresh_csharp": {
+     "loss": 1.432318995275197,
+     "tokens": 712783
+    },
+    "code_fresh_dart": {
+     "loss": 1.2692480354559716,
+     "tokens": 929342
+    },
+    "code_fresh_fortran": {
+     "loss": 1.6634636900971072,
+     "tokens": 747552
+    },
+    "code_fresh_go": {
+     "loss": 1.2151055174298926,
+     "tokens": 832565
+    },
+    "code_fresh_haskell": {
+     "loss": 1.9713192198714915,
+     "tokens": 236545
+    },
+    "code_fresh_html": {
+     "loss": 1.3022002638130847,
+     "tokens": 501318
+    },
+    "code_fresh_java": {
+     "loss": 1.3258406410119898,
+     "tokens": 593435
+    },
+    "code_fresh_javascript": {
+     "loss": 1.6928629872050092,
+     "tokens": 630098
+    },
+    "code_fresh_kotlin": {
+     "loss": 1.7830917437860136,
+     "tokens": 997004
+    },
+    "code_fresh_lua": {
+     "loss": 1.4779084553158603,
+     "tokens": 470192
+    },
+    "code_fresh_markdown": {
+     "loss": 2.176924903169134,
+     "tokens": 615954
+    },
+    "code_fresh_objective_c": {
+     "loss": 2.7889239991023915,
+     "tokens": 989344
+    },
+    "code_fresh_perl": {
+     "loss": 1.685013551499532,
+     "tokens": 338155
+    },
+    "code_fresh_php": {
+     "loss": 1.3094237365846517,
+     "tokens": 781039
+    },
+    "code_fresh_python": {
+     "loss": 1.3413155971560609,
+     "tokens": 521380
+    },
+    "code_fresh_restructuredtext": {
+     "loss": 2.421856489412958,
+     "tokens": 119910
+    },
+    "code_fresh_ruby": {
+     "loss": 1.8002351739151699,
+     "tokens": 727360
+    },
+    "code_fresh_rust": {
+     "loss": 1.2402391276209026,
+     "tokens": 707505
+    },
+    "code_fresh_scala": {
+     "loss": 1.600858222788286,
+     "tokens": 271440
+    },
+    "code_fresh_swift": {
+     "loss": 1.436046310842986,
+     "tokens": 861967
+    },
+    "code_fresh_systemverilog": {
+     "loss": 1.384867780145007,
+     "tokens": 350088
+    },
+    "code_fresh_tcl": {
+     "loss": 2.771025670435998,
+     "tokens": 297767
+    },
+    "code_fresh_typescript": {
+     "loss": 1.2897352785623988,
+     "tokens": 808856
+    },
+    "code_fresh_verilog": {
+     "loss": 1.4172392714751767,
+     "tokens": 427216
+    },
+    "code_fresh_vue": {
+     "loss": 1.4469944222750906,
+     "tokens": 931015
+    },
+    "codefresh_small": {
+     "loss": 1.9193082278639926,
+     "tokens": 1473048
+    }
+   }
+  },
+  "v3small_decon_qwen3": {
+   "loss_tw": 2.9387845438017606,
+   "tokens": 2765345,
+   "splits": {
+    "c4_en": {
+     "loss": 3.149299058184793,
+     "tokens": 463467
+    },
+    "dolma_common_crawl": {
+     "loss": 3.5820091169979995,
+     "tokens": 195508
+    },
+    "dolma_pes2o": {
+     "loss": 2.492781633684215,
+     "tokens": 150935
+    },
+    "dolma_reddit": {
+     "loss": 3.5630031268599467,
+     "tokens": 422103
+    },
+    "dolma_stack": {
+     "loss": 1.0113962680414104,
+     "tokens": 281336
+    },
+    "dolma_wiki": {
+     "loss": 2.7549167900881684,
+     "tokens": 67456
+    },
+    "ice": {
+     "loss": 3.2544662653954846,
+     "tokens": 892675
+    },
+    "pile": {
+     "loss": 2.4363479470879095,
+     "tokens": 291865
+    }
+   }
+  },
+  "private_internal_decon_qwen3": {
+   "loss_tw": 2.3087111297351006,
+   "tokens": 3204144,
+   "splits": {
+    "private_notes": {
+     "loss": 3.5549374366861666,
+     "tokens": 1325205
+    },
+    "private_xlf": {
+     "loss": 1.429754796877521,
+     "tokens": 1878939
+    }
+   }
+  },
+  "pile_test_decon_qwen3": {
+   "loss_tw": 2.354260492010955,
+   "tokens": 60395136,
+   "splits": {
+    "pile_test_arxiv": {
+     "loss": 1.4390393378413207,
+     "tokens": 1100320
+    },
+    "pile_test_dm_mathematics": {
+     "loss": 1.6851777636379757,
+     "tokens": 8479278
+    },
+    "pile_test_enron_emails": {
+     "loss": 2.7735432571625003,
+     "tokens": 415808
+    },
+    "pile_test_europarl": {
+     "loss": 3.5258583692438474,
+     "tokens": 2583168
+    },
+    "pile_test_freelaw": {
+     "loss": 2.485065650128677,
+     "tokens": 1207516
+    },
+    "pile_test_github": {
+     "loss": 1.3041406474373165,
+     "tokens": 13726266
+    },
+    "pile_test_hackernews": {
+     "loss": 3.3855516540947455,
+     "tokens": 1841169
+    },
+    "pile_test_nih_exporter": {
+     "loss": 2.919976094206264,
+     "tokens": 342699
+    },
+    "pile_test_philpapers": {
+     "loss": 3.3713004732050575,
+     "tokens": 241404
+    },
+    "pile_test_pile_cc": {
+     "loss": 2.993813097467351,
+     "tokens": 20043359
+    },
+    "pile_test_pubmed_abstracts": {
+     "loss": 2.5743391145129113,
+     "tokens": 1426378
+    },
+    "pile_test_pubmed_central": {
+     "loss": 1.6714034235342294,
+     "tokens": 1628066
+    },
+    "pile_test_stackexchange": {
+     "loss": 3.303897412402278,
+     "tokens": 139698
+    },
+    "pile_test_ubuntu_irc": {
+     "loss": 3.247947813232618,
+     "tokens": 1935722
+    },
+    "pile_test_uspto_backgrounds": {
+     "loss": 2.733249944168066,
+     "tokens": 122417
+    },
+    "pile_test_wikipedia_en": {
+     "loss": 2.6386065031255868,
+     "tokens": 5161868
+    }
+   }
+  },
+  "pile_10k_decon_qwen3": {
+   "loss_tw": 2.378608671809303,
+   "tokens": 7382390,
+   "splits": {
+    "pile_10k": {
+     "loss": 2.378608671809303,
+     "tokens": 7382390
+    }
+   }
+  }
+ }
+}

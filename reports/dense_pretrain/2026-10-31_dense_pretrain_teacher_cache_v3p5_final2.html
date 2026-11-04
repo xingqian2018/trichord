@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>3p5 数据最终计划 2</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; --warn:#9a6700; --note:#ddf4ff; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; --warn:#d29922; --note:#0c2d4a; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); background:#fff; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+@media (prefers-color-scheme: dark) { body { background:#0d1117; } }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+h3 { font-size:16px; margin-top:28px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; vertical-align:top; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+td.w { white-space:normal; min-width:260px; max-width:460px; }
+td.r { text-align:right; }
+.ex { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--muted); }
+.box { border:1px solid var(--border); border-left:4px solid var(--accent); background:var(--note); padding:8px 16px; border-radius:6px; margin:12px 0; }
+.box ul { margin:6px 0; padding-left:20px; }
+.todo { color:var(--warn); font-weight:600; }
+.ok { color:var(--good); font-weight:600; }
+.bad { color:var(--bad); font-weight:600; }
+em { color:var(--muted); }
+@media (max-width:700px) { main { padding:16px 16px 48px; } nav { padding:8px 16px; } }
+.hl { border-left-color:#d4a72c; background:color-mix(in srgb, #f2cc0c 30%, transparent); font-size:15px; }
+.hl p { margin:6px 0; }
+.hl strong { color:inherit; }
+</style></head>
+<body><nav><a href="#s1">1. 数据清单与特殊情况</a><a href="#s2">2. special token 处理</a><a href="#s3">3. 标准版 tokenize</a><a href="#s4">4. teacher cache</a><a href="#s5">5. 训练端</a></nav><main>
+<h1>3p5 数据最终计划 2：按窗口块打分的 teacher cache，训练时 min padding</h1>
+<p>2026-10-31 · 状态：第 1–5 章（数据清单、special token 处理、tokenize、teacher cache、训练端）；后续章节待写</p>
+
+<h2 id="s1">1. 数据清单与特殊情况</h2>
+
+<h3 id="s1-1">1.1 数据类型</h3>
+<table>
+<tr><th>类型</th><th>内容</th><th>prefix</th><th>源 token（N4）</th><th>占源数据</th><th>phase-1 权重</th><th>处理</th></tr>
+<tr><td>A 英文网页原文</td><td class="w">Common Crawl 2013–2025 的页面原文（CC99、CC8、OpenWebText2 等），以及翻译成英文的网页</td><td class="r">881</td><td class="r">3.79T</td><td class="r">26.8%</td><td class="r">18.47%</td><td>普通文本</td></tr>
+<tr><td>B 英文网页改写</td><td class="w">同一批网页被 LLM 改写成 5 种形式：diverse_qa（原文加问答）、wrap_medium（换文风）、extract_knowledge、knowledge_list、distill</td><td class="r">688</td><td class="r">4.35T</td><td class="r">30.7%</td><td class="r">32.15%</td><td>普通文本</td></tr>
+<tr><td>C 代码</td><td class="w">nemotron-codedata 的源码文件（单文件，按语言分）、合成的转译代码，以及被 LLM 重写成 Markdown 的代码网页（nemotron-cc-code-2.0）</td><td class="r">158</td><td class="r">2.05T</td><td class="r">14.4%</td><td class="r">16.18%</td><td>普通文本（见 1.3）</td></tr>
+<tr><td>D PDF / 书 / 论文</td><td class="w">finepdfs（网上的 PDF）、eclair PDF、书和论文（其中有不少是法院判决书）</td><td class="r">52</td><td class="r">1.47T</td><td class="r">10.4%</td><td class="r">6.48%</td><td>普通文本</td></tr>
+<tr><td>E 数学网页 / 维基</td><td class="w">数学网页、英文维基、维基改写，少量题库</td><td class="r">12</td><td class="r">0.25T</td><td class="r">1.8%</td><td class="r">6.53%</td><td>普通文本</td></tr>
+<tr><td>F 非英语</td><td class="w">FineWeb2、2025 年的非英语网页、翻译数据（英文翻成多语的问答）、非英语维基</td><td class="r">57</td><td class="r">1.57T</td><td class="r">11.1%</td><td class="r">5.12%</td><td>普通文本</td></tr>
+<tr><td>G 合成教材 / STEM</td><td class="w">nv_domain 合成教材和事实问答、ndd_stem 研究级 STEM 问答</td><td class="r">10</td><td class="r">0.20T</td><td class="r">1.4%</td><td class="r">2.21%</td><td>普通文本</td></tr>
+<tr><td><strong>H SFT / 推理 / 题库</strong></td><td class="w"><code>sft-filtered-2025-*</code>（74 个）、<code>code-sft</code>、<code>math-sft</code>、<code>general-sft</code>、<code>tasks-data/*/mmlu-sft|math-sft</code>：题目加解答，部分带 R1 思考过程</td><td class="r">117</td><td class="r">0.49T</td><td class="r">3.5%</td><td class="r">12.86%</td><td><strong>见 1.2</strong></td></tr>
+<tr><th>合计</th><th></th><th class="r">1,975</th><th class="r">14.17T</th><th class="r">100%</th><th class="r">100%</th><th></th></tr>
+</table>
+<p><em>“普通文本”的处理：用 Qwen3 <code>tokenizer.json</code>（sha256 <code>aeb13307…</code>）切词，自带 NFC，不加 BOS；26 个 added token 的字符串出现在正文里时一律按普通文字切；每篇末尾由代码追加 EOD 151643。这是语料里 151643 唯一的来源。H 类权重远高于它的数据量占比（12.86% 对 3.5%），所以训练时这部分会被重复多次。</em></p>
+
+<h3 id="s1-2">1.2 SFT / 推理 / 题库：结构情况</h3>
+<table>
+<tr><th>#</th><th>情况</th><th>原文例子</th><th>prefix</th><th>phase-1 权重</th><th>处理</th></tr>
+<tr><td>1</td><td>JSON 外壳</td><td class="w"><span class="ex">N4 binidx 里存的是整条 JSON：
+{"expected_answer":"4160","majority_res":"5/8","text":"Consider the set $\\{1, 2, 3, \\ldots, 8\\}$. …</span></td><td class="w">74 个，即全部 <code>sft-filtered-2025-10-17/*</code> 和 <code>sft-filtered-2025-11-05/*</code></td><td class="r">9.96%</td><td class="w"><span class="bad">从 binidx 里存的整条 JSON 解析出 <code>text</code> 字段来切，不读原始 JSONL（N4 切词前的预处理删过部分记录，两边行号对不上）</span></td></tr>
+<tr><td>2</td><td>完整思考块</td><td class="w"><span class="ex">…for a given positive integer k.
+
+&lt;think&gt;
+I need to find all positive integers n such that … So final answer.
+&lt;/think&gt;
+The problem requires finding all positive integers n …</span></td><td class="w">23 个：R1 类（<code>*_r1_*</code>、<code>math-sft_r1-0528</code>、<code>igor-r1</code>、<code>som-r1</code>、<code>hackerrank_r1_0528</code> 等）、staging 的 <code>code-sft</code> 3 个、<code>math-sft</code> 1 个</td><td class="r">5.17%</td><td class="w"><span class="ok"><code>&lt;think&gt;</code> 和 <code>&lt;/think&gt;</code> 保留单个 id</span>（151667 / 151668）</td></tr>
+<tr><td>3</td><td>空思考块</td><td class="w"><span class="ex">Give me an altered plot of the Tangled movie where Gothel …
+
+&lt;think&gt;&lt;/think&gt;
+
+**Title: Tangled …</span><br><span class="ex">&lt;think&gt;
+
+&lt;/think&gt;
+
+Which one of the following most closely parallels …</span></td><td class="w">7 个，主要是 <code>lsat_qwen3_*_aug01</code> ×3（48–94% 的篇）、<code>its-hs3-*-sys1</code>（100%）、<code>widentity_…system1_system2</code>（50%）。这是 Qwen3 关闭思考模式时的输出残留</td><td class="r">0.41%</td><td class="w">保留：<code>&lt;think&gt;</code> <code>&lt;/think&gt;</code> 仍是单个 id（和情况 2 一致）</td></tr>
+<tr><td>4</td><td><code>&lt;think&gt;</code> 没闭合</td><td class="w"><span class="ex">思考一直写到全文结尾，没有 &lt;/think&gt;，后面也没有正式的答案部分：
+…it's \boxed{5} when t is small and \boxed{3} otherwise. However, the problem might have a different intended solution.⏎</span>（这篇有 49,595 字符）</td><td class="w">9 个推理类 prefix（<code>igor-r1</code>、<code>math_r1_sdg_*</code>、<code>math-sft_r1-0528</code>、<code>gradient_entropy_3.3M</code> 等），每个只占 ≤2% 的篇</td><td class="r">—</td><td class="w">原样保留</td></tr>
+<tr><td>5</td><td>思考标签被去掉</td><td class="w"><span class="ex">…J: The expansion of European exploration and colonization
+
+
+I need to determine which factor was most significant …</span></td><td class="w">9 个 R1-0528 solutions 类（<code>openstem</code> 2.09%、<code>HLE_mcq</code> 0.32%、<code>hle_openq</code>、<code>syn_gpqa</code>、<code>limo</code> 等）：R1 的思考过程还在，但标签被上游去掉了</td><td class="r">2.73%</td><td class="w">切词不受影响；只需知道同类 R1 数据有的带标签、有的不带</td></tr>
+<tr><td>6</td><td>纯文字版式</td><td class="w"><span class="ex">input: In a convex quadrilateral (ABCD), the diagonals intersect at …</span><br><span class="ex">Question: … Answer: …</span>　<span class="ex">\boxed{…}</span></td><td class="w">其余大多数（<code>genetic_instruct_*</code>、<code>aops</code>、<code>longmath</code>、FLAN、<code>tasks-data</code> 等）</td><td class="r">—</td><td>普通文本，无需处理</td></tr>
+<tr><td>7</td><td>对话模板 / 工具 / FIM</td><td class="w"><span class="ex">&lt;|im_start|&gt; &lt;|im_end|&gt; &lt;tool_call&gt; &lt;|fim_prefix|&gt; [INST] &lt;extra_id_1&gt; …</span></td><td class="w"><strong>0</strong>：所有抽样里都没出现</td><td class="r">—</td><td class="w">以防万一，H 类里对话和工具 token 保持单个 id，FIM 拆开（第 2 章）</td></tr>
+</table>
+<p><em>一个 prefix 可以同时属于多种情况：例如 74 个 JSON 外壳 prefix 里，也有情况 2 到 6 的各种版式。</em></p>
+
+<h3 id="s1-3">1.3 普通文本里的“假控制 token”</h3>
+<p>正文里偶尔会出现特殊 token 的字符串，它们只是普通文字。如果按 HF/vLLM 的默认方式切，就会变成真的控制 id，所以必须拆开。</p>
+<table>
+<tr><th>字符串</th><th>原文例子</th><th>频率（抽样）</th><th>按 HF 默认切会变成</th></tr>
+<tr><td><code>&lt;|endoftext|&gt;</code></td><td class="w"><span class="ex">一段韩文 Python 微调脚本：
+prompt = f"질문: {…}\n답변: {…}\n&lt;|endoftext|&gt;"</span></td><td class="w">3 / 580,442 篇（都在代码里）；650B 未覆盖的 SFT 里 1 / 35,100 篇</td><td class="w">EOD 151643：文档被假切断，docmask 也会在这里断开</td></tr>
+<tr><td><code>&lt;|repo_name|&gt;</code> <code>&lt;|file_sep|&gt;</code></td><td class="w"><span class="ex">…we will do our best to help.&lt;|repo_name|&gt;mklarner/tao&lt;|file_sep|&gt;/tao.egg-info/PKG-INFO …</span></td><td class="w"><code>nemotron-cc-code-2.0</code> 的 300 篇样本里有 1 篇</td><td class="w">FIM / repo 控制 id 151663 / 151664</td></tr>
+</table>
+
+<h3 id="s1-4">1.4 切词规则汇总</h3>
+<div class="box"><ul>
+<li><strong>全部 1,975 个 prefix</strong>：Qwen3 <code>tokenizer.json</code>（sha256 <code>aeb13307…</code>），每篇末尾追加 EOD 151643，不加 BOS。</li>
+<li><strong>special token 按数据类型处理</strong>（第 2 章）：A–G 类的 26 个 added token 全部按普通文字切；H 类（117 个 SFT prefix）保留 8 个结构 token 的单个 id（<code>&lt;|im_start|&gt;</code> <code>&lt;|im_end|&gt;</code> <code>&lt;think&gt;</code> <code>&lt;/think&gt;</code> <code>&lt;tool_call&gt;</code> <code>&lt;/tool_call&gt;</code> <code>&lt;tool_response&gt;</code> <code>&lt;/tool_response&gt;</code>），其余 18 个也拆开。</li>
+<li><strong>74 个 <code>sft-filtered-*</code></strong>：解码 N4 binidx 得到整条 JSON，取其中的 <code>text</code> 字段，不读原始 JSONL。</li>
+<li>情况 3（空思考块）和情况 4（<code>&lt;think&gt;</code> 未闭合）都原样保留。</li>
+</ul></div>
+
+<h3 id="s1-5">1.5 抽样方法与局限</h3>
+<table>
+<tr><th>样本</th><th>范围</th><th>篇数</th></tr>
+<tr><td>650B 已覆盖的部分</td><td class="w">1,975 个 prefix，每个取前 ≤300 篇（≤100 万 token）</td><td class="r">580,442</td></tr>
+<tr><td>650B 未覆盖的 SFT</td><td class="w">117 个 SFT prefix，每个从 650B 截断点之后随机抽 300 篇</td><td class="r">35,100</td></tr>
+<tr><td>SFT 版式归类</td><td class="w">117 个 SFT prefix，每个在整个 prefix 里随机抽 200 篇</td><td class="r">23,400</td></tr>
+</table>
+<p>规则按数据类型执行（第 2 章），不依赖抽样名单，也不需要逐篇扫完 15T。抽样只能保证“经常出现”的情况都已找到：每个 SFT prefix 约看了 800 篇，出现率 ≥1% 的情况漏掉的概率约 0.03%，出现率 0.1% 的情况漏掉的概率约 45%。普通文本只抽了每个 prefix 的开头。正式切词时，在构建过程中顺便统计每个 prefix 各个 special token 的计数（2.4），复核这一章的结论。</p>
+
+<h2 id="s2">2. special token 处理</h2>
+<p>Qwen3 词表里有 26 个 added token（id 151643–151668）。同一个字符串，<strong>出现在正文里时是数据</strong>，按普通文字切；<strong>被数据格式用来表示结构时</strong>（对话模板、思考块、工具调用）才合并成单个 id。所以处理方式取决于数据类型：A–G 类是普通文本，正文里出现的都是字面量；H 类（SFT / 推理 / 题库）的版式可能用到结构 token。</p>
+
+<h3 id="s2-1">2.1 处理规则</h3>
+<table>
+<tr><th>id</th><th>token</th><th>原 tokenizer 标记</th><th>A–G 普通文本</th><th>H SFT / 推理 / 题库</th><th>原因</th></tr>
+<tr><td>151643</td><td>篇尾 EOD</td><td>—</td><td><span class="ok">单个 id</span>（代码追加）</td><td><span class="ok">单个 id</span>（代码追加）</td><td class="w">文档边界只由代码决定</td></tr>
+<tr><td>151643</td><td>正文里的 <code>&lt;|endoftext|&gt;</code></td><td>special</td><td>拆开</td><td>拆开</td><td class="w">如果篇中出现真的 EOD，一篇会被切成两篇，docmask 也会在这里断开</td></tr>
+<tr><td>151644–151645</td><td><code>&lt;|im_start|&gt;</code> <code>&lt;|im_end|&gt;</code></td><td>special</td><td>拆开</td><td><span class="ok"><strong>单个 id</strong></span></td><td class="w">在 SFT 里只可能是对话模板（抽样中 0 次，以防万一）</td></tr>
+<tr><td>151646–151656</td><td class="w">11 个多模态 token：<code>&lt;|object_ref_start|&gt;</code> <code>&lt;|object_ref_end|&gt;</code> <code>&lt;|box_start|&gt;</code> <code>&lt;|box_end|&gt;</code> <code>&lt;|quad_start|&gt;</code> <code>&lt;|quad_end|&gt;</code> <code>&lt;|vision_start|&gt;</code> <code>&lt;|vision_end|&gt;</code> <code>&lt;|vision_pad|&gt;</code> <code>&lt;|image_pad|&gt;</code> <code>&lt;|video_pad|&gt;</code></td><td>special</td><td>拆开</td><td>拆开</td><td class="w">纯文本数据里没有图像，它们不可能是结构</td></tr>
+<tr><td>151657–151658</td><td><code>&lt;tool_call&gt;</code> <code>&lt;/tool_call&gt;</code></td><td>非 special</td><td>拆开</td><td><span class="ok"><strong>单个 id</strong></span></td><td class="w">工具调用格式（抽样中 0 次，以防万一）</td></tr>
+<tr><td>151659–151664</td><td class="w"><code>&lt;|fim_prefix|&gt;</code> <code>&lt;|fim_middle|&gt;</code> <code>&lt;|fim_suffix|&gt;</code> <code>&lt;|fim_pad|&gt;</code> <code>&lt;|repo_name|&gt;</code> <code>&lt;|file_sep|&gt;</code></td><td>非 special</td><td>拆开</td><td>拆开</td><td class="w">数据里没有 FIM / 多文件格式的代码；唯一见到的一次是代码网页里的字面量（1.3）</td></tr>
+<tr><td>151665–151666</td><td><code>&lt;tool_response&gt;</code> <code>&lt;/tool_response&gt;</code></td><td>非 special</td><td>拆开</td><td><span class="ok"><strong>单个 id</strong></span></td><td class="w">工具返回格式（抽样中 0 次，以防万一）</td></tr>
+<tr><td>151667–151668</td><td><code>&lt;think&gt;</code> <code>&lt;/think&gt;</code></td><td>非 special</td><td>拆开</td><td><span class="ok"><strong>单个 id</strong></span></td><td class="w">思考块（1.2 情况 2、3）</td></tr>
+</table>
+<ul>
+<li><strong>“拆开”</strong>指按普通文字切，例如 <code>&lt;|im_start|&gt;</code> 切成 <code>&lt;</code> <code>|</code> <code>im</code> <code>_start</code> <code>|</code> <code>&gt;</code>，<code>&lt;think&gt;</code> 切成 <code>&lt;th</code> <code>ink</code> <code>&gt;</code>。</li>
+<li><strong>H 类</strong>就是第 1 章里路径含 <code>sft</code> 的 117 个 prefix，规则对整类生效，不依赖抽样名单。H 类里本来不含这些 token 的 prefix，这条规则不改变任何结果。</li>
+<li>按目前的抽样，H 类里实际会合并的只有 <code>&lt;think&gt;</code> 和 <code>&lt;/think&gt;</code>；对话和工具 token 的规则是以防万一。</li>
+<li>1.2 的情况 3、4 按原样切：空思考块是 151667、换行、151668；未闭合的思考块只有 151667。两种都原样保留。</li>
+</ul>
+
+<h3 id="s2-2">2.2 和其他切法的对比</h3>
+<table>
+<tr><th></th><th>HF / vLLM 默认</th><th>650B / 45B 现有语料（<code>plain</code>）</th><th>计划 2：A–G</th><th>计划 2：H</th></tr>
+<tr><td>14 个 special（<code>&lt;|endoftext|&gt;</code>、<code>&lt;|im_*|&gt;</code>、11 个多模态）</td><td>单个 id</td><td>拆开</td><td>拆开</td><td class="w"><code>&lt;|im_start|&gt;</code> <code>&lt;|im_end|&gt;</code> 单个 id，其余 12 个拆开</td></tr>
+<tr><td>12 个非 special（tool ×4、fim/repo ×6、think ×2）</td><td>单个 id</td><td>单个 id</td><td>拆开</td><td class="w">tool、think 单个 id，fim/repo 拆开</td></tr>
+</table>
+<p>在第 1 章的抽样数据上，计划 2 和 650B 语料只差 1 篇：<code>nemotron-cc-code-2.0</code> 里带 <code>&lt;|repo_name|&gt;</code> / <code>&lt;|file_sep|&gt;</code> 字面量的那篇代码网页，在计划 2 里被拆开。其余差别只会出现在抽样没见到的文档上。</p>
+
+<h3 id="s2-3">2.3 实现</h3>
+<ul>
+<li><strong>两份切词器配置，来自同一份</strong> Qwen3 <code>tokenizer.json</code>（sha256 <code>aeb13307…</code>）：重写每个 added token 的 <code>special</code> 标记，再打开 <code>encode_special_tokens=True</code>（tokenizers 0.23）。标记为 special 的 token 按普通文字切，没标记的匹配成单个 id。
+  <ul>
+  <li><code>general</code>（A–G）：26 个全部标记为 special，全部拆开。</li>
+  <li><code>sft</code>（H）：上表 8 个不标记，其余 18 个标记。</li>
+  </ul></li>
+<li><strong>已实测</strong>：一段含全部 26 个 token 的文本，用 <code>general</code> 切后没有 ≥151643 的 id，用 <code>sft</code> 切后只有这 8 个 id；一段含对话模板、思考块、工具调用的样例，用 <code>sft</code> 切后能原样解码还原；不含这些字符串的普通文本，两份配置和原 tokenizer 切出的 id 完全相同。</li>
+<li><strong>每篇</strong>：<code>ids = encode(text) + [151643]</code>。不加 BOS，不用 post-processor 模板。</li>
+<li><strong>按 prefix 类型选配置</strong>：源路径含 <code>sft</code> 用 <code>sft</code>，否则用 <code>general</code>。manifest 记录 tokenizer 的 sha256、配置名和保留的 token 列表。</li>
+<li><strong>teacher 侧</strong>：producer 直接把 id 交给 vLLM，不经过 vLLM 的文本切词，所以 teacher 看到的就是这些 id。MiMo-2.5 的 tokenizer 和 Qwen3 相同；MiMo-2.6 多出的 6 个 id（151669–151674）不会出现在我们的 id 里。词表上限参数 151669 仍然保留，作为保险。</li>
+</ul>
+
+<h3 id="s2-4">2.4 验收（构建时逐篇检查）</h3>
+<ul>
+<li>每篇恰好一个 151643，并且在最后一位。</li>
+<li>所有 id &lt; 151669。</li>
+<li>A–G：除了篇尾 EOD，没有 ≥151643 的 id。</li>
+<li>H：≥151643 的 id 只能是 8 个保留 token 加篇尾 EOD。每个 prefix 记录这 8 个 id 各自出现的篇数和次数，以及 <code>&lt;think&gt;</code> 比 <code>&lt;/think&gt;</code> 多的篇数（即 1.2 情况 4）。</li>
+<li>抽样解码：去掉篇尾 EOD 后 <code>decode(ids)</code> 必须等于 NFC(原文)。</li>
+<li>每个 prefix 顺便统计 26 个字符串在原文里出现的篇数，用来复核第 1 章，例如 A–G 里 <code>&lt;think&gt;</code> 的实际出现次数。</li>
+</ul>
+
+<h2 id="s3">3. 标准版 tokenize</h2>
+<h3 id="s3-1">3.1 切词步骤</h3>
+<p>每篇文档直接切词，不打乱、不装箱、不在这一步切块。</p>
+<ol>
+<li><strong>范围</strong>：Ultra-v3 phase-1 的全部 1,975 个 prefix，每个 prefix 的每一篇文档，约 14.7T Qwen3 token。</li>
+<li><strong>按存储顺序逐篇切词</strong>：用第 2 章的规则（A–G 用 <code>general</code> 配置，H 用 <code>sft</code> 配置），篇尾追加 EOD 151643，不加 BOS。</li>
+<li><strong>取文本</strong>：全部从 N4 binidx 解码；74 个 <code>sft-filtered-*</code> 解码出来是整条 JSON，再取其中的 <code>text</code> 字段。</li>
+<li><strong>编号不变</strong>：输出的第 i 篇就是源 prefix 的第 i 篇；空文档写成只有一个 EOD，保持一一对应。（3.4、3.5 删掉的篇除外：删掉之后，这些 prefix 里排在后面的文档编号前移）</li>
+</ol>
+<h3 id="s3-2">3.2 目录结构</h3>
+<pre class="ex">pretrain/qwen3_tokenized/ultra_v3_phase1_full/    全部 1,975 个 prefix，每篇文档都切词
+  summary.json  blend.json                        合计；Megatron 的 blend
+  &lt;prefix_key&gt;/
+    data.bin  data.idx                            Megatron indexed dataset，int32，一篇一条
+    manifest.json                                 来源、类型、切词配置、计数、校验
+    [removed_docs_*.json]                         3.4 / 3.5 删掉的文档（删除前的编号）
+</pre>
+<h3 id="s3-3">3.3 文件定义</h3>
+<p>和现有的 650B 语料（<code>ultra_v3_phase1_650e9</code>）格式相同，由 <code>dpl data build-kd-corpus</code> 生成。</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data.bin</code> / <code>data.idx</code></td>
+<td class="w">Megatron indexed dataset：int32，一篇文档一条序列，<code>doc_idx</code> 为 <code>[0..N]</code></td>
+</tr>
+<tr>
+<td><code>manifest.json</code></td>
+<td class="w">源 prefix 和 <code>.idx</code> 的 sha256、类型（general / sft）、取文本的方式（N4 解码 / N4 解码后取 JSON 的 <code>text</code>）、切词配置、tokenizer sha256、文档数、token 数、UTF-8 失败数、26 个 added token 各自出现的篇数（用于第 2 章 2.4 的验收）</td>
+</tr>
+<tr>
+<td><code>summary.json</code></td>
+<td>全部 prefix 的合计</td>
+</tr>
+<tr>
+<td><code>blend.json</code></td>
+<td class="w">Megatron 的 per-split blend：1,975 个 (权重, prefix)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s3-4">3.4 gradient_entropy_3.3M：<code>&lt;think&gt;</code> <code>&lt;/think&gt;</code> 失控推理的处置</h3>
+<p><code>math-sft/2025-12-05/gradient_entropy_3.3M</code>（H 类，配比 0.36%）里有一部分推理生成失控：一直写到长度上限，后半段是乱码，有的夹着成百上千个 <code>&lt;think&gt;</code> <code>&lt;/think&gt;</code>。按第 2 章的 <code>sft</code> 规则，这些标签都会切成真正的控制 id。80B 验证语料逐 prefix 统计，其余 H 类 prefix 没有 think 标签超量的情况。</p>
+<p>逐篇数 <code>&lt;think&gt;</code> 和 <code>&lt;/think&gt;</code> 的个数，按下表分档。统计来自 80B 验证语料里这个 prefix 的前 67,894 篇（全 prefix 3,299,477 篇的 2%）；各档互斥，合计 67,894 篇。</p>
+<table>
+<thead>
+<tr>
+<th>档</th>
+<th>判据</th>
+<th style="text-align:right">篇数</th>
+<th style="text-align:right">占篇数</th>
+<th style="text-align:right">占 token</th>
+<th>样子</th>
+<th>处置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正常</td>
+<td class="w">1 个 <code>&lt;think&gt;</code> + 1 个 <code>&lt;/think&gt;</code>（温和 B 除外）</td>
+<td style="text-align:right">66,535</td>
+<td style="text-align:right">98.0%</td>
+<td style="text-align:right">93.7%</td>
+<td>题目 → 推理 → <code>\boxed{}</code> 答案</td>
+<td>保留</td>
+</tr>
+<tr>
+<td>温和 A</td>
+<td class="w">2 个 <code>&lt;think&gt;</code> + 1 个 <code>&lt;/think&gt;</code></td>
+<td style="text-align:right">352</td>
+<td style="text-align:right">0.52%</td>
+<td style="text-align:right">0.49%</td>
+<td class="w">开头的 <code>&lt;think&gt;</code> 重复一次（<code>&lt;think&gt;⏎&lt;think&gt;Alright…</code>），正文完整</td>
+<td>保留</td>
+</tr>
+<tr>
+<td>温和 B</td>
+<td class="w">1 个 <code>&lt;think&gt;</code> + 1 个 <code>&lt;/think&gt;</code>，结尾 2,048 个 token 里不同的 4-gram 占比 &lt; 10%（复读）</td>
+<td style="text-align:right">7</td>
+<td style="text-align:right">0.01%</td>
+<td style="text-align:right">0.04%</td>
+<td>推理正常，结尾反复同一句话直到长度上限</td>
+<td>保留</td>
+</tr>
+<tr>
+<td>温和 C</td>
+<td class="w">1 个 <code>&lt;think&gt;</code> + 2 个 <code>&lt;/think&gt;</code></td>
+<td style="text-align:right">9</td>
+<td style="text-align:right">0.01%</td>
+<td style="text-align:right">0.04%</td>
+<td class="w">思考闭合后又&quot;重新检查&quot;一轮，再闭合一次，正文可读</td>
+<td>保留</td>
+</tr>
+<tr>
+<td><strong>严重 A</strong></td>
+<td class="w"><code>&lt;think&gt;</code> 和 <code>&lt;/think&gt;</code> 合计 ≥ 4</td>
+<td style="text-align:right">824</td>
+<td style="text-align:right">1.21%</td>
+<td style="text-align:right">4.75%</td>
+<td class="w">后半段是乱码，夹着成百上千个 think 标签（最多 11,162 个）</td>
+<td><strong>丢弃</strong></td>
+</tr>
+<tr>
+<td><strong>严重 B</strong></td>
+<td class="w">有 <code>&lt;think&gt;</code>、没有 <code>&lt;/think&gt;</code>（合计 ≤ 3）</td>
+<td style="text-align:right">167</td>
+<td style="text-align:right">0.25%</td>
+<td style="text-align:right">0.97%</td>
+<td class="w">全部写到长度上限（≥ 8,113 token），结尾是 &quot;Wait, but wait, which is…&quot; 一类的乱码</td>
+<td><strong>丢弃</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="box hl">
+<p>丢弃条件（满足任一）：① <code>&lt;think&gt;</code> 和 <code>&lt;/think&gt;</code> 合计 ≥ 4；② 有 <code>&lt;think&gt;</code>、没有 <code>&lt;/think&gt;</code>。其余全部保留。</p>
+</div>
+<ul>
+<li>严重 B 是 1.2 情况 4（未闭合的思考块原样保留）在这个 prefix 的例外：这里的未闭合不是格式问题，而是内容已经失控。</li>
+<li>丢弃约占这个 prefix 1.5% 的篇数、5.7% 的 token，约为总语料的 0.02%。</li>
+<li>实现：tokenize 代码不改。tokenize 之后把这些篇从这个 prefix 的 <code>data.bin</code> / <code>data.idx</code> 里直接删掉，就当它们不存在，和 N4 删掉的记录一样。teacher cache 和训练直接读删完的数据。</li>
+<li>80B 验证语料先做（删 991 篇）；全量语料等这个 prefix 切完后再做。</li>
+</ul>
+<h3 id="s3-5">3.5 rare token 过滤：只删 rare token 标出的低质量文档</h3>
+<p>2026-11-01 加的一步，分两段。先由 Boxiang 用 rare-token 规则找出候选文档（3.5.1）；Runlong 决定不全删，只删候选里的低质量文档（3.5.2）。删除直接作用在 <code>ultra_v3_phase1_full</code> 上，只改 <code>data.idx</code>，<code>data.bin</code> 一个字节都没动（3.5.3）。teacher cache 的 plan 是删完之后才写的，所以被删的文档根本不会进入 teacher 打分（3.5.4）。</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>谁</th>
+<th>结果</th>
+<th>teacher cache / 训练是否使用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rare-token 规则，阈值 500</td>
+<td>Boxiang</td>
+<td class="w">标出 110,046 篇 / 1.89B token；另建了一份把它们全删掉的语料 <code>ultra_v3_phase1_full_rtf500</code></td>
+<td>只当候选；<code>rtf500</code> 不用</td>
+</tr>
+<tr>
+<td>候选里只删低质量</td>
+<td>Runlong</td>
+<td class="w">24,349 篇 / 131.6M token，涉及 529 个 prefix</td>
+<td><strong>使用</strong>：已直接删在 <code>ultra_v3_phase1_full</code> 里</td>
+</tr>
+</tbody>
+</table>
+<h4 id="s3-5-1">3.5.1 Boxiang：Qwen3 rare-token 规则（找候选）</h4>
+<p>规则沿用 N3-Ultra / N4 的做法（Brandon Norick），换成 Qwen3 词表重新统计：</p>
+<ol>
+<li>对 Qwen3 词表（151,936）里的每个 token，统计全语料 18,252,000,700 篇里有多少篇含它（文档频率 df）。</li>
+<li>df ≤ 阈值的 token 记为 banned。两类永远不算：256 个单字节 token，以及 id ≥ 151643 的特殊 token。</li>
+<li>含任意一个 banned token 的文档，整篇标出。</li>
+</ol>
+<p>各阈值的结果（<code>sweep_final.tsv</code>）：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">阈值</th>
+<th style="text-align:right">banned id</th>
+<th style="text-align:right">其中语料里出现的</th>
+<th style="text-align:right">标出篇数</th>
+<th style="text-align:right">标出 token</th>
+<th style="text-align:right">占 token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">300</td>
+<td style="text-align:right">2,411</td>
+<td style="text-align:right">490</td>
+<td style="text-align:right">46,775</td>
+<td style="text-align:right">1.11B</td>
+<td style="text-align:right">0.0076%</td>
+</tr>
+<tr>
+<td style="text-align:right"><strong>500</strong></td>
+<td style="text-align:right"><strong>2,668</strong></td>
+<td style="text-align:right"><strong>747</strong></td>
+<td style="text-align:right"><strong>110,046</strong></td>
+<td style="text-align:right"><strong>1.89B</strong></td>
+<td style="text-align:right"><strong>0.0129%</strong></td>
+</tr>
+<tr>
+<td style="text-align:right">750</td>
+<td style="text-align:right">2,939</td>
+<td style="text-align:right">1,018</td>
+<td style="text-align:right">218,283</td>
+<td style="text-align:right">3.05B</td>
+<td style="text-align:right">0.0208%</td>
+</tr>
+<tr>
+<td style="text-align:right">1000</td>
+<td style="text-align:right">3,135</td>
+<td style="text-align:right">1,214</td>
+<td style="text-align:right">340,259</td>
+<td style="text-align:right">4.19B</td>
+<td style="text-align:right">0.0286%</td>
+</tr>
+<tr>
+<td style="text-align:right">2000</td>
+<td style="text-align:right">3,893</td>
+<td style="text-align:right">1,972</td>
+<td style="text-align:right">1,103,924</td>
+<td style="text-align:right">10.89B</td>
+<td style="text-align:right">0.0743%</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>阈值 500 的 2,668 个 banned id 里，有 1,921 个 df = 0：Qwen3 自己的 tokenizer 根本切不出它们（pre-tokenizer 会切开泰文的元音和声调，NFC 会改写 CJK 兼容字），不影响任何文档。</li>
+<li>出现过的 banned token 大多是 Qwen3 词表本身的特点，不是垃圾：常见词在 BPE 中途合并出的片段（越南语、波兰语、俄语、土耳其语）、罕见的中文词组、罕见的韩文音节。只有一部分是真正的垃圾信号，例如自动生成代码里的怪标识符、emoji 串。被标出的文档约 89% 只含 1 个 banned token。全删会伤到好数据：中文维基会损失 3.2% 的 token（阈值 1000 时 8.8%）。</li>
+<li>Boxiang 按阈值 500 生成了 <code>qwen3_tokenized/ultra_v3_phase1_full_rtf500</code>：只重写 idx 的语料视图，<code>data.bin</code> 链接回原语料，110,046 篇全删。<strong>teacher cache 和训练都不用它。</strong></li>
+<li>代码：<code>cosmos_llm_scaling_ladder/code/scaling_ladder/tools/rare_token_filter/rare_filter.py</code>。统计和报告：<code>qwen3_tokenized/rare_token_filter/ultra_v3_phase1/</code>（<code>report_final_t500</code>、<code>report_final_t1000</code>、<code>sweep_final.tsv</code>）。</li>
+</ul>
+<h4 id="s3-5-2">3.5.2 Runlong：只删候选里的低质量文档（实际执行）</h4>
+<p>决定（Runlong，2026-11-01）：&quot;coding 这种好的 data 放过，高质量的留下，低质量的删去&quot;。同时满足下面 3 条的文档才删：</p>
+<ol>
+<li>被阈值 500 标出（阈值 1000 新增的不算）。</li>
+<li>不属于 code / wiki / SFT，来源也不是 stackexchange。</li>
+<li>命中至少一条质量条件（<code>scripts/rtf_common.py</code> 的 <code>v2b_clause</code> / <code>v3_extra</code>）。</li>
+</ol>
+<p>另外，盲审判为 KEEP 的 34 篇不删。各质量条件删掉的量：</p>
+<table>
+<thead>
+<tr>
+<th>条件</th>
+<th style="text-align:right">篇数</th>
+<th style="text-align:right">token</th>
+<th>盲审精度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>韩文招妓 spam 关键词 ≥ 3</td>
+<td style="text-align:right">11,316</td>
+<td style="text-align:right">21.2M</td>
+<td>150/150 该删</td>
+</tr>
+<tr>
+<td>来源 FineWeb2 AR</td>
+<td style="text-align:right">2,349</td>
+<td style="text-align:right">13.4M</td>
+<td>65/70 该删</td>
+</tr>
+<tr>
+<td class="w">英文网页 / 合成改写里 U+FFFD ≥ 3（PDF-SEO 拼接页，及在其上生成的 QA）</td>
+<td style="text-align:right">2,220</td>
+<td style="text-align:right">10.0M</td>
+<td>约 91%</td>
+</tr>
+<tr>
+<td>来源 persona math（答案尾部退化成乱码）</td>
+<td style="text-align:right">1,769</td>
+<td style="text-align:right">2.5M</td>
+<td>6 删 / 3 存疑 / 0 留</td>
+</tr>
+<tr>
+<td>字母占比 &lt; 0.3（Unicode 码表、数字表格）</td>
+<td style="text-align:right">295</td>
+<td style="text-align:right">45.4M</td>
+<td>约 78%</td>
+</tr>
+<tr>
+<td class="w">阿拉伯 presentation forms、中文赌博、英文下载 spam</td>
+<td style="text-align:right">770</td>
+<td style="text-align:right">3.2M</td>
+<td>77–93%</td>
+</tr>
+<tr>
+<td class="w">v3 扩展：韩文 spam 词、CC8 退化的 LLM 文本、英文 spam 词、U+ 码表页、在码表上生成的 QA、赌博词、乱码等</td>
+<td style="text-align:right">5,630</td>
+<td style="text-align:right">36.0M</td>
+<td>小样本</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>结果：<strong>24,349 篇 / 131,594,332 token（约占语料的 0.0009%），涉及 529 个 prefix</strong>。在 1,134 篇盲审样本上估计：精度约 89%，误删约 5%（v3 条件的阈值是在同一份样本上调的，数字偏乐观）。</li>
+<li>没有删的：阈值 1000 新增的候选（过 v3 规则后 45,532 篇 / 178M token）；候选以外的垃圾（规则估计约 4,200 万篇 / 约 700 亿 token，但规则在候选以外的精度只有 50–68%，不做 classifier）。</li>
+<li>名单和复核过程：<code>qwen3_tokenized/rare_token_quality_filter/ultra_v3_phase1/</code>（<code>drop_list.json</code>、<code>removed/&lt;dataset_key&gt;.npy</code>、<code>docs.tsv</code>、<code>datasets.tsv</code>、<code>REVIEW.md</code>、<code>scripts/</code>）。</li>
+<li>语料合计：18,252,000,700 篇 / 14,661,224,033,933 token → <strong>18,251,976,351 篇 / 14,661,092,439,601 token</strong>。</li>
+</ul>
+<h4 id="s3-5-3">3.5.3 怎么删：<code>data.bin</code> 不动，只改 <code>data.idx</code></h4>
+<p>2026-11-01 21:51–22:12 原地执行（Runlong 决定&quot;直接删（移动）&quot;）。</p>
+<p>Megatron 的 <code>data.idx</code> 是 <code>data.bin</code> 的目录：每篇文档一条记录，记着它的长度和它在 <code>data.bin</code> 里的起始字节，第 i 条记录就是第 i 篇文档。训练和 teacher cache 都只通过 <code>data.idx</code> 找文档。</p>
+<p>删除只做一件事：把被删文档的记录从 <code>data.idx</code> 里去掉。其余文档的长度和起始字节都不变；被删文档的 token 还在 <code>data.bin</code> 原来的位置，只是没有任何记录再指向它们（合计约 0.5 GB）。</p>
+<pre class="ex">data.bin   | doc 0 | doc 1 | doc 2（删）| doc 3 | doc 4 | ...    一个字节都不改
+旧 idx       0       1       2            3       4
+新 idx       0       1       ·            2       3               去掉 doc 2 的记录，后面的编号前移 1
+</pre>
+<p>实例（<code>CC-MAIN-2019-22.jsonl-6392e2e3</code>，删 3 篇）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align:right">删除前</th>
+<th style="text-align:right">删除后</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>文档数</td>
+<td style="text-align:right">2,938,830</td>
+<td style="text-align:right">2,938,827</td>
+</tr>
+<tr>
+<td><code>data.bin</code> 字节数</td>
+<td style="text-align:right">9,275,424,456</td>
+<td style="text-align:right">9,275,424,456（不变）</td>
+</tr>
+<tr>
+<td>idx 引用的字节</td>
+<td style="text-align:right">9,275,424,456</td>
+<td style="text-align:right">9,275,273,992</td>
+</tr>
+<tr>
+<td>不再被引用的字节</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">150,464（= 37,616 token × 4）</td>
+</tr>
+<tr>
+<td>被删文档（旧编号）</td>
+<td style="text-align:right">—</td>
+<td style="text-align:right">389135、463188、2023714</td>
+</tr>
+<tr>
+<td>旧第 389136 篇</td>
+<td style="text-align:right">起始字节 1,219,653,656</td>
+<td style="text-align:right">变成新第 389135 篇，起始字节仍是 1,219,653,656</td>
+</tr>
+</tbody>
+</table>
+<p>去掉这 3 条以后，其余每篇的长度和起始字节都和删除前逐条相同。</p>
+<ul>
+<li>每个改动的 prefix：<code>data.idx</code> 重写；<code>manifest.json</code> 更新计数，删除前的值记在 <code>quality_filter</code> 字段；新增 <code>removed_docs_quality_t500.json</code>，记被删文档的旧编号。根目录 <code>summary.json</code> 同步更新。<code>blend.json</code> 没改，所以 teacher cache 的 blend_hash 不变。</li>
+<li>备份：删除前的 <code>data.idx</code> 和 <code>manifest.json</code> 在 <code>rare_token_quality_filter/ultra_v3_phase1/original_idx/</code>；被删文档的 token 另存了一份在 <code>dropped/&lt;prefix&gt;/</code>（Megatron 格式，附旧编号）。恢复就是把 <code>original_idx/</code> 里的文件拷回去。</li>
+<li>校验（<code>scripts/rtq_verify.py</code>）：529 个 prefix 全部通过。新 idx 等于原 idx 去掉名单内的文档；被删文档逐 token 和原 <code>data.bin</code> 一致；Megatron <code>IndexedDataset</code> 能读全部 529 个 prefix。</li>
+<li>和 3.4 的区别：3.4 把留下的文档重新写成新的 <code>data.bin</code> 和 <code>data.idx</code>，被删的 token 物理上已经不在了；3.5 只改 <code>data.idx</code>。对读数据的一方效果相同：被删文档不存在，后面的编号前移。</li>
+<li><strong>编号前移</strong>：这 529 个 prefix 里，排在被删文档之后的文档编号都变了。按旧编号建的东西（teacher cache 的 plan 和 unit、旧的下标名单）都不能再用。</li>
+</ul>
+<h4 id="s3-5-4">3.5.4 teacher cache 怎么跳过这些文档</h4>
+<p>producer 里没有任何&quot;跳过&quot;的逻辑，也不需要：被删的文档已经不在 <code>data.idx</code> 里，teacher cache 根本看不到它们。</p>
+<ol>
+<li><strong>plan 按删完的 idx 写</strong>：<code>pretrain/tc_full/plan_full_block32768.json</code> 在 11-01 23:04 写成，晚于删除（21:51–22:12）。它按每个 prefix 当前 <code>data.idx</code> 的文档数，把文档按约 1e8 token 一段切成 unit，每个 unit 是一段新编号的区间 [doc_lo, doc_hi)。</li>
+<li><strong>按 idx 读文档</strong>：producer 处理一个 unit 时，按 <code>data.idx</code> 逐篇读第 doc_lo 到第 doc_hi − 1 篇。被删文档没有记录，不会被读到，不会发请求，也不会有行；<code>data.bin</code> 里不再被引用的那些字节永远不会被读。</li>
+<li><strong>编号和训练一致</strong>：cache 的 <code>docs.idx</code> 记的是新编号，训练读的也是同一份 <code>data.idx</code>，所以训练里的第 d 篇就是 cache 里的第 d 篇，5.3 的取行规则不变。每篇的采样随机数也按新编号算（<code>sha256(blend_hash | prefix_key | doc_idx | seed)</code>）。</li>
+<li><strong>删除前的那次试跑作废</strong>：11-01 17:14–21:50 按删除前的编号跑过一次（86.4B 行），已改名为 <code>pretrain/tc_full_20261101_stopped</code>，不续跑，也不和现在的 cache 混用。</li>
+<li><strong>核对</strong>：
+<ul>
+<li>plan 覆盖全部 1,975 个 prefix，区间连续，每个 prefix 的 doc_hi 等于当前 <code>data.idx</code> 的文档数；合计 147,131 个 unit、14,661,092,439,601 token，等于删除后的 <code>summary.json</code>。</li>
+<li>11-02 复核：已完成的 487 个 unit（25.0B 行）和当前语料逐篇对齐，0 个问题。</li>
+</ul>
+</li>
+<li><strong>之后语料不能再改</strong>：生产用的 producer（9b2dd41）不记录语料指纹。<code>data.idx</code> 再改一次，编号又会前移，已经写好的 cache 却发现不了。所以语料目录保持只读（文件 444、目录 555），plan 也是只读的（sha256 <code>0bb609b9…</code>）。如果还要删文档，必须重写 plan、重做 cache。</li>
+<li>80B 验证语料（<code>ultra_v3_phase1_80e9</code>）和 tc_80b 没有做 3.5，只做了 3.4。</li>
+</ol>
+<h2 id="s4">4. teacher cache：按文档存，按窗口块打分</h2>
+<p>格式就是 3p5 最终计划（<a href="2026-10-29_dense_pretrain_teacher_cache_v3p5_final.html">2026-10-29_dense_pretrain_teacher_cache_v3p5_final</a>）的 v2.2：按文档存，每篇文档只算一次。唯一的变化是窗口：按 4.1 的规则切块，每块单独打分，没有 overlap，teacher 不多看任何上下文。</p>
+<h3 id="s4-1">4.1 窗口切块规则</h3>
+<p>窗口 W = 32768。切块只在 teacher 打分（4.4）和训练装箱（第 5 章）时按这条规则做，语料本身不切。</p>
+<pre class="ex">doc tokens          | 0 ... 32767           | 32768 ... 65535       | 65536 ... L-1 (EOD)
+chunk               | k = 0                 | k = 1                 | k = 2 (last)
+teacher request     | tokens 0 .. 32768     | tokens 32768 .. 65536 | tokens 65536 .. L-1
+rows kept           | 0 .. 32767            | 32768 .. 65535        | 65536 .. L-2
+context of row t    | 0 .. t                | 32768 .. t            | 65536 .. t
+</pre>
+<ul>
+<li>长度 L ≤ W 的文档就是一块。</li>
+<li>L &gt; W 的文档从第 0 个 token 开始，每 W 个 token 切一块：[0, W)、[W, 2W)、…，最后一块是余数。只有最后一块带 EOD。</li>
+<li><strong>块与块完全隔离</strong>：每一块都从 position 0 开始，看不到前面的块。teacher 和学生都这样看，切点也完全相同。</li>
+<li>训练时每块整块放进一个样本，不会再被切开（第 5 章）。</li>
+</ul>
+<h3 id="s4-2">4.2 目录结构</h3>
+<pre class="ex">pretrain/tc/&lt;teacher&gt;/&lt;blend_hash&gt;/&lt;prefix_key&gt;/  生产（15T）；45B 试跑用 pretrain/tc_small/
+  [parts/&lt;lo&gt;-&lt;hi&gt;/]                              大 prefix 按文档区间分单元
+    meta.json  docs.idx  writer.lock              单元元数据、每篇的行位置、写锁
+    top64_id.bin                                  uint8   [n, 64, 3]
+    top64_logp.bin                                f16     [n, 64]
+    next_token_id_and_rank.bin                    uint32  [n]
+    next_token_logp.bin                           f16     [n]
+    off64_tail_logp.bin                           f16     [n]
+    off64_tail_stats.bin                          f16     [n, 3]
+    off64_sample_id.bin                           uint8   [n, 4, 3]
+    off64_sample_logp.bin                         f16     [n, 4]
+</pre>
+<h3 id="s4-3">4.3 文件定义</h3>
+<p>n 是单元内所有文档的行数之和。一篇 L 个 token（含 EOD）的文档有 L−1 行，第 t 行是对第 t+1 个 token 的预测。</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>形状</th>
+<th>dtype</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>top64_id.bin</code></td>
+<td>[n, 64, 3]</td>
+<td>uint8</td>
+<td class="w">teacher 概率最高的 64 个 id（uint24），降序</td>
+</tr>
+<tr>
+<td><code>top64_logp.bin</code></td>
+<td>[n, 64]</td>
+<td>float16</td>
+<td>对应的 log 概率（T=1）</td>
+</tr>
+<tr>
+<td class="w"><code>next_token_id_and_rank.bin</code></td>
+<td>[n]</td>
+<td>uint32</td>
+<td class="w"><code>id&lt;&lt;8 | rank</code>：id 是实际的下一个 token，rank 是它在 top-64 中的名次 0–63，不在 top-64 时为 255</td>
+</tr>
+<tr>
+<td><code>next_token_logp.bin</code></td>
+<td>[n]</td>
+<td>float16</td>
+<td>实际下一个 token 的 log 概率</td>
+</tr>
+<tr>
+<td><code>off64_tail_logp.bin</code></td>
+<td>[n]</td>
+<td>float16</td>
+<td>top-64 以外的总概率取 log</td>
+</tr>
+<tr>
+<td><code>off64_tail_stats.bin</code></td>
+<td>[n, 3]</td>
+<td>float16</td>
+<td class="w">top-64 以外：log(−Σ p log p)、log Σ p²、log Σ √p</td>
+</tr>
+<tr>
+<td><code>off64_sample_id.bin</code></td>
+<td>[n, 4, 3]</td>
+<td>uint8</td>
+<td class="w">从 top-64 以外的分布有放回采样的 4 个 id（uint24）</td>
+</tr>
+<tr>
+<td><code>off64_sample_logp.bin</code></td>
+<td>[n, 4]</td>
+<td>float16</td>
+<td>这 4 个 id 的 log 概率</td>
+</tr>
+<tr>
+<td><code>docs.idx</code></td>
+<td>[文档数, 3]</td>
+<td>int64</td>
+<td class="w">每篇 <code>(doc_idx, row_start, n_rows)</code>，第 t 行在 <code>row_start + t</code></td>
+</tr>
+<tr>
+<td><code>meta.json</code></td>
+<td>—</td>
+<td>JSON</td>
+<td class="w">格式版本、teacher、k、m、随机数规则、vocab_limit = 151669、<strong>window = W、window_context = 0</strong>、行数、每个文件的字节数和校验和</td>
+</tr>
+</tbody>
+</table>
+<p>各字段的计算方法、uint24 和 <code>id&lt;&lt;8 | rank</code> 的拼法、采样规则，都和 3p5 最终计划相同。</p>
+<h3 id="s4-4">4.4 每块怎么打分</h3>
+<ul>
+<li>第 k 块的请求是这一块的全部 token，再加下一块的第 0 个 token（只当 label 用）。这样块的最后一个 token 也有一行预测，每篇文档正好 L−1 行，行的排布和 v2.2 完全一样。</li>
+<li>第 t 行的上下文是从本块开头到第 t 个 token，不含前面的块。这正是学生在第 5 章的样本里看到的上下文。</li>
+<li>最后一块的请求就是这一块，以 EOD 结尾；EOD 没有对应的行。</li>
+<li>每个请求最长 W + 1 = 8,193 个 token，<code>--max-model-len</code> 设为 8,193 以上。</li>
+</ul>
+<h3 id="s4-5">4.5 各字段的计算精度</h3>
+<table>
+<thead>
+<tr>
+<th>存储文件</th>
+<th>用什么精度算</th>
+<th>用什么精度存</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>top64_id</code> / <code>top64_logp</code></td>
+<td class="w">float32（vLLM 的 log_softmax）</td>
+<td>uint24 / float16</td>
+</tr>
+<tr>
+<td><code>off64_tail_logp</code>：tail 总质量</td>
+<td><strong>float32</strong></td>
+<td>float16</td>
+</tr>
+<tr>
+<td><code>off64_tail_stats</code>：三个统计量</td>
+<td><strong>float32</strong></td>
+<td>float16</td>
+</tr>
+<tr>
+<td class="w"><code>off64_sample_id</code>：抽哪 4 个 token</td>
+<td class="w">每组的质量用 float32 算；只有“沿着累加值找落点”那两小步用 float64</td>
+<td>uint24</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>float32 足够</strong>：相对误差约 1e-7，而存成 float16 本身就有约 1e-3 的误差。原来对整个词表（约 15 万个数）做的 float64 运算已经全部换成 float32：GB300 的 float64 很弱，每 512 行从 9.0 ms 降到 3.9 ms，抽样结果和改之前一致（提交 6006c71、95000fd）。</li>
+<li><strong>“沿着累加值找落点”是什么（逆 CDF 采样）</strong>：把 top-64 以外的 token 排成一把尺子，每个 token 占的长度等于它的概率；生成一个随机数，在尺子上扎一个点，从起点一段一段把长度加上去，加到超过这个点时，点所在的那一段就是被抽中的 token。为了快，分两级：每 1,024 个 token 一组、共 149 组，先在 149 个组里累加找到点落在哪一组，再在这一组的 1,024 个 token 里累加找到具体的 token。</li>
+<li><strong>这两步为什么用 float64</strong>：累加的总和越来越大，float32 只有约 7 位有效数字，概率比总和小一千万倍以上的 token 会被舍入成 0、永远抽不到；float64 能保住它们。每次只加 149 个和 1,024 个数，用 float64 也不慢。采样用的随机数同样是 float64（53 位）。</li>
+</ul>
+<h2 id="s5">5. 训练端：min padding 装箱</h2>
+<div class="box hl">
+<p><strong>学生训练必须开 docmask：样本里每篇文档只看得到自己、position 从 0 开始；teacher 就是这样逐块打分的，不开 docmask，学生和 teacher 看到的上下文就对不上。</strong></p>
+</div>
+<p>训练端在另一个仓库实现，这里只写要求。</p>
+<h3 id="s5-1">5.1 怎么组样本</h3>
+<ol>
+<li><strong>单位是块</strong>：4.1 切出的每一块是一个单位，长度不超过 W。</li>
+<li><strong>每个 epoch 重新抽</strong>：按 blend 权重从各 prefix 抽块；需要重复的 prefix，每一遍都重新抽、重新装箱，组合每遍都不同。cache 按文档存，每遍都复用。</li>
+<li><strong>min padding 装箱</strong>：
+<ol>
+<li>维持一个 buffer，里面至少有 2 × W 个 token 的待装块，越大越好。</li>
+<li>取 buffer 里最早放进来的块，放在样本的第 0 位。</li>
+<li>在 buffer 里找放得进剩余空间的最长的一块，接在后面；一样长时取先放进来的。重复，直到放不下为止。</li>
+<li>剩下的空位补 pad。块绝不切开：buffer 里只剩放不下的长块时，宁可补 pad。</li>
+</ol>
+</li>
+<li><strong>开 docmask</strong>：每块只看自己，position 从 0 开始；pad 不算 loss。</li>
+</ol>
+<h3 id="s5-2">5.2 每个位置的 label 和 loss</h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>label</th>
+<th>loss</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>块内（不是块的最后一个 token）</td>
+<td>块内的下一个 token</td>
+<td>CE + KD（cache 第 t 行）</td>
+</tr>
+<tr>
+<td>文档最后一块的 EOD</td>
+<td>样本里下一块的第 0 个 token</td>
+<td>只算 CE（没有 teacher 预测）</td>
+</tr>
+<tr>
+<td>中间块的最后一个 token</td>
+<td class="w">真正的下一个 token 在下一块里，不在这个样本</td>
+<td>不算 loss</td>
+</tr>
+<tr>
+<td>pad</td>
+<td>—</td>
+<td>不算 loss</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s5-3">5.3 从 cache 取 KD 的行</h3>
+<p>文档 d 的第 k 块覆盖第 kW 到 min((k+1)W, L) − 1 个 token。块内第 j 位就是文档的第 t = kW + j 个 token，它的 teacher 行在 <code>row_start(d) + t</code>（<code>docs.idx</code>）。</p>
+<h3 id="s5-4">5.4 待确认</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>问题</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>buffer 大小</td>
+<td class="w">至少 2 × W 个 token，越大 padding 越少</td>
+</tr>
+<tr>
+<td>2</td>
+<td>文档最后一块的 EOD 要不要算 CE</td>
+<td>算（和 Megatron 一样）</td>
+</tr>
+</tbody>
+</table>
+</main></body></html>

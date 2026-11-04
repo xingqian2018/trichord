@@ -7,6 +7,7 @@
 #   find <his cache> -maxdepth 1 -type f -print0 | xargs -0 -n 5000 ln -s -t $WORK_DIR/data_cache/corpus_v2
 #
 #   bash reports_xx/run_doc_eval.sh [--dry] [--after JOBID] [CHANGE/rung[=run:<run name>] ...]   (default: every checkpoint in CKPTS below)
+#   QOS: hero-res in the sla_res_cosmos reservation by default; EVAL_QOS=<qos> (e.g. normal) submits without the reservation.
 #
 # Jobs run as a QUEUE, one node at a time: each job depends on the previous one (afterany); --after chains the first one too.
 #
@@ -38,7 +39,11 @@ stage() {   # unpromoted final: <WORK_DIR>/stage/<CHANGE>/ckpts/<rung>/ with arg
     if [[ "${run}" == /* ]]; then src="${run}"; fi           # run:/abs/path = a run outside Boxiang's group dir (e.g. our own q3 KD runs)
     local it; it="$(cat "${src}/checkpoints/latest_checkpointed_iteration.txt")"
     mkdir -p "${dst}"
-    ln -sfn "${src}/argv.txt" "${dst}/argv.txt"; ln -sfn "${src}/run.json" "${dst}/run.json"
+    if grep -qx -- "--pack-plan" "${src}/argv.txt"; then      # pack-plan runs (code/scaling_ladder/packplan): training-only flags the eval entry rejects
+        rm -f "${dst}/argv.txt"; awk 'skip { skip = 0; next } $0 == "--pack-plan" { skip = 1; next } $0 == "--packplan-eod-mask-loss" { next } { print }' \
+            "${src}/argv.txt" > "${dst}/argv.txt"
+    else ln -sfn "${src}/argv.txt" "${dst}/argv.txt"; fi
+    ln -sfn "${src}/run.json" "${dst}/run.json"
     ln -sfn "${src}/checkpoints/latest_checkpointed_iteration.txt" "${dst}/latest_checkpointed_iteration.txt"
     ln -sfn "${src}/checkpoints/iter_$(printf %07d "${it}")" "${dst}/iter_$(printf %07d "${it}")"
     echo "${dst}"
@@ -53,9 +58,11 @@ for key in "${keys[@]}"; do
     [[ -f "${ckpt}/latest_checkpointed_iteration.txt" && -f "${ckpt}/argv.txt" ]] || { echo "ERROR: ${ckpt} is not a checkpoint dir" >&2; exit 1; }
     limit="${LIMIT[${rung}]}"                                # off-ladder depth cells (_L<n>H<h>): ~4 min per layer (L 48 took 3:10)
     if [[ "${change}" =~ _L([0-9]+)H[0-9]+ ]]; then nl="${BASH_REMATCH[1]}"; h=$(( nl * 6 / 60 + 1 )); (( h > ${limit%%:*} )) && limit="$(printf %02d "${h}"):00:00"; fi
+    if [[ "${change}" == *_W32K* ]]; then h=$(( 10#${limit%%:*} + 1 )); limit="$(printf %02d "${h}"):${limit#*:}"; fi   # 32K window: ~1.4x the 8K time (+1 h)
     name="xxdoc-${change}-${rung}"
     dep=(); if [[ -n "${PREV}" ]]; then dep=(--dependency="afterany:${PREV}"); fi
-    cmd=(sbatch --parsable "${dep[@]}" -A cosmos_base_training -p batch_long --qos=hero-res --reservation=sla_res_cosmos --segment=1 --nodes=1 --ntasks-per-node=4
+    qos=(--qos=hero-res --reservation=sla_res_cosmos); [[ "${EVAL_QOS:-hero-res}" != hero-res ]] && qos=(--qos="${EVAL_QOS}")   # EVAL_QOS=normal: sla_res_cosmos drained 10-29 (user 10-30)
+    cmd=(sbatch --parsable "${dep[@]}" -A cosmos_base_training -p batch_long "${qos[@]}" --segment=1 --nodes=1 --ntasks-per-node=4
          --gres=gpu:4 --exclusive --mem=0 --time="${limit}" --job-name="${name}" --output="${WORK_DIR}/sbatch/${name}_%j.log"
          --export=ALL,VAL_PER_SPLIT=1,LADDER_DIR="${LADDER_CODE}",EVAL_DATA_CACHE="${WORK_DIR}/data_cache/corpus_v2"
          --wrap="export EVAL_DIR=${WORK_DIR}/${change}-${rung}-\${SLURM_JOB_ID}; exec bash ${LADDER_CODE}/sh/eval_ckpt.sh ${ckpt} doc")

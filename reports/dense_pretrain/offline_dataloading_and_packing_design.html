@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>离线 dataloading 与装箱设计</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; --warn:#9a6700; --note:#ddf4ff; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; --warn:#d29922; --note:#0c2d4a; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); background:#fff; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+@media (prefers-color-scheme: dark) { body { background:#0d1117; } }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+h3 { font-size:16px; margin-top:28px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; vertical-align:top; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+td.w { white-space:normal; min-width:260px; max-width:460px; }
+td.r { text-align:right; }
+.ex { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--muted); }
+.box { border:1px solid var(--border); border-left:4px solid var(--accent); background:var(--note); padding:8px 16px; border-radius:6px; margin:12px 0; }
+.box ul { margin:6px 0; padding-left:20px; }
+.todo { color:var(--warn); font-weight:600; }
+.ok { color:var(--good); font-weight:600; }
+.bad { color:var(--bad); font-weight:600; }
+em { color:var(--muted); }
+@media (max-width:700px) { main { padding:16px 16px 48px; } nav { padding:8px 16px; } }
+.hl { border-left-color:#d4a72c; background:color-mix(in srgb, #f2cc0c 30%, transparent); font-size:15px; }
+.hl p { margin:6px 0; }
+.hl strong { color:inherit; }
+
+pre.ex { background:var(--head); border:1px solid var(--border); border-radius:6px; padding:10px 14px; color:var(--fg); overflow-x:auto; }
+</style></head>
+<body><nav><a href="#s1">1. 目标与范围</a><a href="#s2">2. 输入</a><a href="#s3">3. 切块</a><a href="#s4">4. 块流</a><a href="#s5">5. 装箱</a><a href="#s6">6. plan 文件</a><a href="#s7">7. 训练端怎么读一行</a><a href="#s8">8. 验证</a><a href="#s9">9. 实现和第一个实例</a><a href="#s10">10. 决定和待确认</a></nav><main>
+<h1>离线 dataloading 与装箱设计：32K 窗口块的 plan</h1>
+<p>2026-11-03 · 状态：已实现（<code>dpl/data/pack_plan_32k.py</code>），80e9 r500 view 的 q4 tpp200 plan 已生成并验证 · 前置文档：<a href="2026-10-31_dense_pretrain_teacher_cache_v3p5_final2.html">3p5 数据最终计划 2</a>（4.1 切块规则、第 5 章训练端要求）</p>
+<div class="box hl">
+<p><strong>一句话</strong>：训练要用的每一个样本，由哪几块组成、每块放在第几位、哪里补 pad，全部离线算好，写成一份 plan 文件。每块记录里直接写着 token 和 teacher 行的地址，训练端拿到行号就能读，不做任何抽样、装箱或索引查找。</p>
+</div>
+<h2 id="s1">1. 目标与范围</h2>
+<p><strong>为什么要离线算</strong></p>
+<ul>
+<li>teacher cache 按 <code>| 0 : 32768 | 32768 : 65536 | ...</code> 切块打分，块和块之间互相看不到。学生必须看到完全相同的块：整块放进样本，绝不切开，开 docmask（3p5 计划 4.1、第 5 章）。</li>
+<li>Megatron 的 <code>GPTDataset</code> 是把文档首尾相接、每 seq_len 切一刀，会把块切开，所以不能直接用。</li>
+<li>装箱结果事先算好有三个好处：
+<ul>
+<li>训练前就能检查 padding 比例、blend 比例和每块的完整性；</li>
+<li>训练端代码简单，读第几个样本就是查 plan 的第几行；</li>
+<li>断点续训、换 GBS、换 DP 规模，结果都不变。</li>
+</ul>
+</li>
+</ul>
+<p><strong>范围</strong></p>
+<ul>
+<li>只管训练集（<code>blend.json</code> 的 <code>train</code>）。valid / test 沿用现有的 doc-isolated 评测，不在本设计内。</li>
+<li>本文定义 plan 怎么算、存成什么样、训练端怎么读。训练端读 plan 的代码另做。</li>
+</ul>
+<h2 id="s2">2. 输入</h2>
+<table>
+<thead>
+<tr>
+<th>输入</th>
+<th>值 / 来源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>语料</td>
+<td class="w">一个 Megatron blend（<code>blend.json</code> 的 <code>train</code>：权重，prefix），每个 prefix 一份 <code>data.bin</code> / <code>data.idx</code>，一篇一条</td>
+</tr>
+<tr>
+<td>每篇的长度</td>
+<td class="w"><code>data.idx</code> 里的 <code>sequence_lengths</code>（int32，含篇尾 EOD）。生成 plan 只读 idx，不读 <code>data.bin</code></td>
+</tr>
+<tr>
+<td>teacher cache</td>
+<td class="w">可选。cache 所对应语料的根目录（<code>--cache-corpus</code>）和 cache 根目录（<code>--teacher-root</code>，可给多个，必须同一布局）</td>
+</tr>
+<tr>
+<td>窗口 W</td>
+<td class="w">32768 = 训练 seq_len = teacher cache 的块大小</td>
+</tr>
+<tr>
+<td>行数</td>
+<td>train_iters × GBS</td>
+</tr>
+<tr>
+<td>种子</td>
+<td>一个全局 seed</td>
+</tr>
+<tr>
+<td>buffer 大小 B</td>
+<td>单位 token，见 5.3</td>
+</tr>
+<tr>
+<td>装箱算法</td>
+<td>first_fit 或 best_fit，见 5.4</td>
+</tr>
+</tbody>
+</table>
+<p><strong>举例：full 语料按 <code>blend.json</code> 的权重训 14.66T token，每个 prefix 要过几遍</strong></p>
+<table>
+<thead>
+<tr>
+<th>统计</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每个 prefix 要过的遍数</td>
+<td class="w">最少 0.012，p10 0.29，中位数 1.48，p90 1.57，最多 4.99（<code>Python.ndjson-223bfc70</code>）</td>
+</tr>
+<tr>
+<td>超过 1 遍的 prefix</td>
+<td>1,063 / 1,975</td>
+</tr>
+<tr>
+<td>来自重复遍的 token</td>
+<td>32.6%</td>
+</tr>
+<tr>
+<td>用到的 unique token</td>
+<td>67.4%</td>
+</tr>
+</tbody>
+</table>
+<p>所以必须支持&quot;一个 prefix 过好几遍&quot;和&quot;只过一部分&quot;，这正是第 4 节块流要处理的。</p>
+<h2 id="s3">3. 切块：和 teacher cache 完全一致</h2>
+<p>和 3p5 计划 4.1 相同：长度 L（含 EOD）的文档，从第 0 个 token 起每 W 个切一块。</p>
+<pre class="ex">doc tokens   | 0 ... 32767     | 32768 ... 65535   | 65536 ... L-1 (EOD)
+block        | k = 0           | k = 1             | k = 2（最后一块）
+len          | 32768           | 32768             | L - 65536
+</pre>
+<ul>
+<li>块数 K = ceil(L / W)；第 k 块覆盖文档的第 kW 到 min((k+1)W, L) − 1 个 token。</li>
+<li><strong>满块（len = W）一块就占满一个样本</strong>，不需要装箱。真正参与装箱的只有短文档（L &lt; W）和长文档的最后一块。</li>
+<li>边界情况：L = nW + 1 的文档，最后一块只有一个 EOD；空文档本身就是一个只有 EOD 的块（L = 1）。照常处理。</li>
+</ul>
+<div class="box hl">
+<p><strong>抽样和装箱的单位都是切好的块，不是文档。</strong> 每次抽一块：抽到长文档时，只拿它的某一节（某个 32K 块），而不是把整篇文档的所有块一起拿进来。长文档的各块在这一遍里随机分散出现；块与块本来就互相看不到，和 teacher 打分时一致。</p>
+</div>
+<h2 id="s4">4. 块流：每个 prefix 的顺序和 blend 交错</h2>
+<p>块流是一条无限长的序列，一块一块交给第 5 节的装箱。</p>
+<h3 id="s4-1">4.1 每个 prefix 内部：每遍把全部块重新打乱</h3>
+<ul>
+<li>prefix i 的第 p 遍，用种子 <code>pass_seed(seed, prefix_key, p) = sha256(&quot;dpl.pack_plan_32k|seed|prefix_key|p&quot;)</code> 的前 8 字节，生成这个 prefix <strong>全部块</strong>的一个随机排列（Fisher–Yates，xoshiro256** 随机数）。</li>
+<li>prefix i 的流就是第 0 遍排列、第 1 遍排列……首尾相接。每一遍里每块恰好出现一次；要重复的 prefix 每遍顺序都不同；只过一部分的 prefix，就只走到最后一遍排列的前一段。</li>
+<li><strong>不放回抽样</strong>：一块被抽到以后，要等这个 prefix 的这一遍全部取完、下一遍重新打乱，才可能再被抽到。verify 逐块核对：每个 prefix 内所有块被抽到的次数最多差 1（第 8 节第 4 条）。
+<ul>
+<li>&quot;遍&quot;（epoch）是每个 prefix 各自的：各 prefix 的遍数不同（e9r500 q4 实例里是 0.25 到 3.65 遍），各自在不同时刻进入下一遍，没有全局统一的 epoch 边界。</li>
+<li>换遍的那一刻：一块如果排在第 p 遍的末尾，又恰好排在第 p+1 遍的开头，两次出现会隔得很近。这是每遍重新打乱的固有现象（Megatron 也一样），只发生在一个 prefix 换遍时；需要的话可以加&quot;两次出现之间的最小间隔&quot;约束。</li>
+</ul>
+</li>
+<li><strong>为什么按块而不按篇</strong>：按篇抽的话，一篇 686 万 token 的文档（<code>part00011-of-00020</code>）会一次带来 210 个满块，连续占 210 行，在 q4（每步 64 行）上等于连续 3 个多 global batch 几乎全来自这一篇。按块抽以后，这 210 块分散在整遍里。</li>
+<li>种子用 <code>prefix_key</code> 而不是 prefix 在 blend 里的序号，增删别的 prefix 不会改变它的顺序。</li>
+<li>文档编号就是当前 <code>data.idx</code> 的编号。</li>
+</ul>
+<h3 id="s4-2">4.2 blend 交错：按 token 配平</h3>
+<p><strong>注意</strong>：blend 的权重是 token 比例，不能按 w_i 的概率每次抽一个 prefix（平均块越长的 prefix 拿到的 token 越多）。</p>
+<p>用确定性的配平（和 Megatron <code>BlendedDataset</code> 同一个思路，只是从&quot;按样本&quot;改成&quot;按 token&quot;）：</p>
+<ul>
+<li>每个 prefix 记一个&quot;已出 token 数&quot; u_i。</li>
+<li>每次取 (u_i + 它下一块的长度) / w_i 最小的 prefix（相同时取序号小的），出下一块，u_i 加上这块的长度。用一个最小堆实现。</li>
+<li>保证：设 v 为最近一次出块时的 key（只增不减），对每个 prefix 都有 u_i / w_i ≤ v ≤ (u_i + 下一块长度) / w_i。所以任何时刻每个 prefix 实际出的 token 和 w_i × 总数之间，最多差一块（≤ W 个 token）。verify 直接检查这条不变式。</li>
+</ul>
+<h3 id="s4-3">4.3 训练量用行数来定</h3>
+<p>块流不设终点，一直供到装出规定的行数为止。各 prefix 过几遍由配平自动决定。plan 是逐行顺序生成的，多生成一些行不会改变前面的行。</p>
+<h2 id="s5">5. 装箱</h2>
+<h3 id="s5-1">5.1 算法（first_fit，按先进先出顺序）</h3>
+<pre class="ex">buffer：等待装箱的块，先进先出；只放 len &lt; W 的块
+满块：从块流出来就直接成为一行，不进 buffer
+
+循环：
+  1. 有等待输出的满块：输出一行
+  2. 否则 buffer 不足 B 个 token：从块流取一块
+  3. 否则装一行：剩余空间 = W，按先进先出顺序扫一遍 buffer，放得下就放、从 buffer 移走，放不下就跳过；剩余补 pad
+</pre>
+<ul>
+<li>剩余空间只会越来越小，前面跳过的块后面也不会放得下，所以扫一遍就够了。</li>
+<li>buffer 的第一块（最早进来的）一定被放进当前行，所以每块最多等&quot;排在它前面的块数&quot;那么多个装箱行。</li>
+</ul>
+<p><strong>例子</strong>（为了好看，W = 10，B = 2W = 20；G 是一篇 23 个 token 的长文档，切成 G.k0 = 10、G.k1 = 10、G.k2 = 3，三块在块流里分别出现）：</p>
+<pre class="ex">块流：A4 B3 C5 D2 E7 F1 G.k1(10) H6 G.k2(3) I3 ... G.k0(10) ...（G.k0 在这一遍后面某处）
+
+第 0 行  buffer：A4 B3 C5 D2 E7（共 21）
+         放 A4（剩 6）→ 放 B3（剩 3）→ C5 放不下 → 放 D2（剩 1）→ E7 放不下 → 补 1 个 pad
+         | A A A A | B B B | D D | pad |
+         buffer 剩 C5 E7（12 &lt; 20）→ 取 F1 → 取 G.k1，是满块，直接成为第 1 行
+第 1 行  | G.k1 × 10 |
+         buffer 13 &lt; 20 → 取 H6 → 取 G.k2（3），和短文档一样进 buffer（共 22）
+第 2 行  放 C5（剩 5）→ E7 放不下 → 放 F1（剩 4）→ H6 放不下 → 放 G.k2（剩 1）→ 补 1 个 pad
+         | C C C C C | F | G.k2 G.k2 G.k2 | pad |
+</pre>
+<h3 id="s5-2">5.2 满块为什么不进 buffer</h3>
+<p>满块在 buffer 里只能等到排第一才放得下，期间白占 buffer 的容量。满块直接成行，结果一样（满块本来就独占一行），buffer 里留的都是能装箱的块。</p>
+<h3 id="s5-3">5.3 buffer 大小</h3>
+<ul>
+<li>buffer 越大，填缝的选择越多，padding 越少；代价是块被提前或推后的幅度越大（上限是 buffer 里的块数）。这只改变块出现的先后，不改变 blend 比例。</li>
+<li>选定 <strong>B = 8W = 262,144 个 token</strong>（第 5.4 节的试算）。</li>
+</ul>
+<h3 id="s5-4">5.4 first_fit 还是 best_fit：试算结果</h3>
+<p>在 80e9 r500 view 上按 q4 的 7,712,000 行试算（按篇抽的版本；按块抽之后正式 plan 的 padding 见第 9 节）：</p>
+<table>
+<thead>
+<tr>
+<th>算法</th>
+<th>B</th>
+<th style="text-align:right">padding</th>
+<th style="text-align:right">平均等待（行）</th>
+<th style="text-align:right">最长等待（行）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>first_fit</td>
+<td>2W</td>
+<td style="text-align:right">0.166%</td>
+<td style="text-align:right">1.0</td>
+<td style="text-align:right">442</td>
+</tr>
+<tr>
+<td><strong>first_fit</strong></td>
+<td><strong>8W</strong></td>
+<td style="text-align:right"><strong>0.045%</strong></td>
+<td style="text-align:right"><strong>7.2</strong></td>
+<td style="text-align:right"><strong>453</strong></td>
+</tr>
+<tr>
+<td>first_fit</td>
+<td>32W</td>
+<td style="text-align:right">0.035%</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">477</td>
+</tr>
+<tr>
+<td>best_fit</td>
+<td>2W</td>
+<td style="text-align:right">0.017%</td>
+<td style="text-align:right">12.7</td>
+<td style="text-align:right">880</td>
+</tr>
+<tr>
+<td>best_fit</td>
+<td>8W</td>
+<td style="text-align:right">0.017%</td>
+<td style="text-align:right">87</td>
+<td style="text-align:right">3,428</td>
+</tr>
+<tr>
+<td>best_fit</td>
+<td>32W</td>
+<td style="text-align:right">0.017%</td>
+<td style="text-align:right">386</td>
+<td style="text-align:right">13,940</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>best_fit = 先放最早的一块，再反复放&quot;放得下的最长一块&quot;。</li>
+<li>选 <strong>first_fit + 8W</strong>：padding 已经只有 0.045%，块被打乱的幅度小。best_fit 的 padding 更低，但块被提前或推后得多得多。</li>
+</ul>
+<h3 id="s5-5">5.5 收尾和不打乱</h3>
+<ul>
+<li>plan 停在规定行数时，buffer 和满块队列里可能还有已抽出、没装出去的块。它们原样记在 manifest 的 <code>end_state</code> 里，verify 用它们还原完整的抽样计数。</li>
+<li>装完后不再打乱行的顺序：块流本来就是随机的，连续的行已经相互独立。</li>
+</ul>
+<h2 id="s6">6. plan 文件</h2>
+<h3 id="s6-1">6.1 目录和文件</h3>
+<pre class="ex">pretrain/pack_plan/&lt;plan 名&gt;/
+  manifest.json                      输入、参数、统计、每份的范围和 sha256、收尾状态
+  prefixes.json                      prefix_id → key、path（token 文件 = path + &quot;.bin&quot;）、cache 语料路径、权重、文档数、块数、过的遍数
+  teacher_units.json                 tc_unit → teacher unit 目录（相对 teacher 根目录），以及核对过的 teacher 根目录
+  rows_0000000-0999999.blocks.npy    每块一条，32 字节（见下表）
+  rows_0000000-0999999.nblocks.npy   uint16，每行几块
+  rows_1000000-1999999.*             每 1,000,000 行一份
+  ...
+</pre>
+<p><strong>每块的记录（32 字节）</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>doc</code></td>
+<td>u4</td>
+<td class="w">这篇文档在 blend 语料（<code>data.idx</code>）里的编号</td>
+</tr>
+<tr>
+<td><code>cache_doc</code></td>
+<td>u4</td>
+<td class="w">这篇文档在 teacher cache 所用语料里的编号。只有那份语料的 <code>data.idx</code> 不同时才和 <code>doc</code> 不同（按 <code>data.bin</code> 起始字节对应）</td>
+</tr>
+<tr>
+<td><code>prefix</code></td>
+<td>u2</td>
+<td>第几个 prefix，查 <code>prefixes.json</code></td>
+</tr>
+<tr>
+<td><code>k</code></td>
+<td>u2</td>
+<td>文档的第几块</td>
+</tr>
+<tr>
+<td><code>len</code></td>
+<td>u2</td>
+<td>这块有几个 token</td>
+</tr>
+<tr>
+<td><code>flags</code></td>
+<td>u2</td>
+<td class="w">位 0：文档最后一块（以 EOD 结尾）；位 1：len = W</td>
+</tr>
+<tr>
+<td><code>tok</code></td>
+<td>i8</td>
+<td class="w"><strong>token 地址</strong>：这块在 <code>prefixes[prefix].path + &quot;.bin&quot;</code> 里从第几个 int32 token 开始</td>
+</tr>
+<tr>
+<td><code>tc_unit</code></td>
+<td>u4</td>
+<td class="w"><strong>teacher 地址</strong>：unit 编号，查 <code>teacher_units.json</code></td>
+</tr>
+<tr>
+<td><code>tc_row</code></td>
+<td>u4</td>
+<td class="w"><strong>teacher 地址</strong>：这块第 0 位在那个 unit 的行文件里是第几行</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>没有 teacher cache 时，<code>tc_unit</code> 和 <code>tc_row</code> 都是 0xFFFFFFFF。</li>
+<li>每行几块存成 <code>nblocks</code>：第 0 行是最前面 <code>nblocks[0]</code> 块，第 1 行是接下来的 <code>nblocks[1]</code> 块……打开时累加一次就能定位任意一行。</li>
+</ul>
+<h3 id="s6-2">6.2 第几步用哪些行</h3>
+<ul>
+<li>plan 按行排，和 GBS、DP 规模无关；第 i 行是训练消费的第 i 个样本（Megatron 的 <code>consumed_samples</code> 顺序）。</li>
+<li>prod q4（16 节点 × 4 GPU，DP 64，micro-batch 1）：第 n 步第 r 个 rank 读第 n × 64 + r 行（从 0 数）。</li>
+<li>第 i 行在第 i // 1,000,000 份里，份内第 i % 1,000,000 行。断点续训只需要 <code>consumed_samples</code>。</li>
+</ul>
+<h3 id="s6-3">6.3 可读版本</h3>
+<p><code>python -m dpl.data.pack_plan_32k dump &lt;plan&gt; --rows 0:10</code> 每行打印一条，例如：</p>
+<pre class="ex">row 0 | [0:1200) p0012 KO.jsonl-797c267b doc 3381 k0 EOD tok@1234567 tc data-1a2b3c4d@45678 | ... | [32700:32768) pad |
+</pre>
+<h2 id="s7">7. 训练端怎么读一行</h2>
+<p>对第 i 行，按顺序处理它的每块 <code>b</code>，<strong>不需要查任何索引</strong>：</p>
+<ol>
+<li><strong>token</strong>：<code>np.memmap(prefixes[b.prefix].path + &quot;.bin&quot;, int32)[b.tok : b.tok + b.len]</code>。</li>
+<li><strong>position</strong>：每块从 0 开始。</li>
+<li><strong>docmask</strong>：<code>cu_seqlens</code> 就是各块的边界；pad 单独成一段（或用 <code>cu_seqlens_padded</code>），不进任何真实块的 attention。</li>
+<li><strong>teacher 行</strong>：<code>&lt;teacher 根目录&gt;/teacher_units[b.tc_unit]/</code> 下每个行文件的第 <code>b.tc_row</code> 到 <code>b.tc_row + b.len − (b.flags &amp; 1)</code> 行。第 tc_row + j 行是 teacher 对第 tok + j + 1 个 token 的预测，上下文就是这一块。文档的 EOD 没有行。</li>
+<li><strong>核对</strong>：开训时核对 <code>prefixes.json</code> 里每个 prefix 的文档数和当前 <code>data.idx</code> 一致，对不上就拒绝启动。</li>
+</ol>
+<p><code>PackPlan(root)</code> 提供 <code>row(i)</code>、<code>segments(i)</code>（每块在行里的起止和 pad）、<code>tokens(b, label=True)</code>、<code>teacher_rows(b)</code>、<code>describe(i)</code>。</p>
+<div class="box hl">
+<p><strong>学生训练必须开 docmask：每块只看得到自己，position 从 0 开始。</strong></p>
+</div>
+<p><strong>每个位置的 label 和 loss</strong></p>
+<table>
+<thead>
+<tr>
+<th>位置（块内第 j 位）</th>
+<th>label</th>
+<th>loss</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不是块的最后一个 token</td>
+<td><code>bin[tok + j + 1]</code></td>
+<td>CE + KD（teacher 第 tc_row + j 行）</td>
+</tr>
+<tr>
+<td>中间块（flags 位 0 = 0）的最后一个 token</td>
+<td class="w"><code>bin[tok + len]</code>，即下一块的第 0 个 token（不在本行里）</td>
+<td>CE + KD（teacher 有这一行，见下）</td>
+</tr>
+<tr>
+<td>文档最后一块的 EOD</td>
+<td class="w">行里下一块的第 0 个 token；后面是 pad 或行尾时没有 label</td>
+<td>只算 CE（teacher 没有这一行）</td>
+</tr>
+<tr>
+<td>pad</td>
+<td>—</td>
+<td>不算</td>
+</tr>
+</tbody>
+</table>
+<p><strong>和 3p5 计划的一处出入</strong>：3p5 计划 5.2 写中间块的最后一个 token&quot;不算 loss&quot;。但按 4.4，teacher 打分时请求里带了下一块的第 0 个 token，这个位置在 cache 里有行（每篇正好 L − 1 行），上下文也和学生一致。所以它可以正常算 CE + KD，label 从 <code>data.bin</code> 取。见第 10 节第 3 条。</p>
+<h2 id="s8">8. 验证（<code>verify</code>）</h2>
+<p>plan 生成后、交给训练前必须全部通过：</p>
+<ol>
+<li>每个文件的 sha256 和 manifest 一致；各份的行范围首尾相接。</li>
+<li>每行 Σlen ≤ W；每块的 len、flags 和 <code>data.idx</code> 里的文档长度一致。</li>
+<li><strong>地址</strong>：每块的 <code>tok</code> = <code>data.idx</code> 起始字节 / 4 + kW；<code>tc_unit</code> / <code>tc_row</code> 等于从 teacher cache 的 <code>docs.idx</code> 独立重建出来的值；<code>cache_doc</code> 等于按 <code>data.bin</code> 起始字节重算的编号。对全部块逐块核对。</li>
+<li><strong>每遍完整</strong>：把收尾时没装出去的块也算上，每个 prefix 内所有块被抽到的次数最多差 1。</li>
+<li><strong>blend</strong>：4.2 的配平不变式成立。</li>
+<li><strong>teacher 覆盖</strong>：plan 里用到的每篇文档都在 teacher cache 里，行数 = L − 1；多个 teacher 根目录的布局（所有 <code>docs.idx</code>）逐字节相同。</li>
+<li><strong>端到端</strong>：抽 64 行，<strong>只用 plan 里的地址</strong>读 token 和 teacher 行，teacher 记录的下一个 token（<code>next_token_id_and_rank &gt;&gt; 8</code>）必须等于 <code>data.bin</code> 里的下一个 token。</li>
+<li><strong>可复现</strong>：用同样的输入重跑前 1,000,000 行，必须逐块相同。</li>
+</ol>
+<h2 id="s9">9. 实现和第一个实例</h2>
+<p><strong>代码</strong>（都是新文件）</p>
+<ul>
+<li><code>dpl/data/pack_plan_32k.py</code>：<code>plan</code> / <code>verify</code> / <code>dump</code> 三个子命令和读取类 <code>PackPlan</code>。</li>
+<li><code>dpl/data/pack_plan_32k_core.cpp</code>：串行的内层循环（块流、配平、装箱），用 g++ 编译成 .so，通过 ctypes 调用。同一个算法在 Python 里另有一份参考实现，测试要求两者逐块相同。</li>
+<li><code>tests/test_pack_plan_32k.py</code>：15 个测试，包括 5.1 的例子、C++ 和参考实现逐块对比、长文档的块被打散、小语料上 plan → verify 全流程（含过滤后的 view 和两份假 teacher cache），以及故意改坏 teacher 行或 plan 后 verify 必须报错。</li>
+</ul>
+<p><strong>第一个实例：80e9 r500 view，q4 tpp200</strong></p>
+<p><code>pretrain/pack_plan/e9r500_q4tpp200_W32768_first_fit_B8W_s1/</code>（只读）</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>语料</td>
+<td class="w"><code>qwen3_tokenized/ultra_v3_phase1_80e9_r500_filtered_view</code>（1,975 个 prefix，104,490,127 篇，79,997,809,740 token）</td>
+</tr>
+<tr>
+<td>teacher cache</td>
+<td class="w">tc_80b 的 <code>mimo-v2.5-pro-base</code> 和 <code>mimo-v2.6-pro-rl</code>（布局相同，2,281 个 unit）；cache 语料 = <code>ultra_v3_phase1_80e9</code>，25 个 prefix 的编号和 view 不同</td>
+</tr>
+<tr>
+<td>参数</td>
+<td class="w">7,712,000 行（120,500 × 64），first_fit，B = 8W，seed 1</td>
+</tr>
+<tr>
+<td>结果</td>
+<td class="w">330,222,004 块，252,592,282,736 个 token；<strong>padding 0.0453%</strong>；每行平均 42.8 块（中位数 46，p99 69，最多 127）；306,842 行是单个满块；块平均等 7.2 行、最长 14 行；各 prefix 过 0.25–3.65 遍，每块最多被抽 4 次</td>
+</tr>
+<tr>
+<td>blend</td>
+<td class="w">各 prefix 实际 token 和 w × 总数最多差 70,002 个 token（权重 ≥ 1e-4 的 prefix 相对偏差 ≤ 0.10%）；按篇抽时是 6,375,784</td>
+</tr>
+<tr>
+<td>验证</td>
+<td class="w">第 8 节全部通过，0 个问题：两份 teacher 各端到端核对 2,093,106 个位置，0 个不一致；重跑前 1,000,000 行逐块相同</td>
+</tr>
+<tr>
+<td>大小</td>
+<td class="w">9.9 GB：8 份，每份 <code>blocks.npy</code> 1.37 GB + <code>nblocks.npy</code> 2 MB</td>
+</tr>
+<tr>
+<td>耗时</td>
+<td class="w">CPU 节点上生成 15 分钟（按块抽每次要二分查找块表，比按篇抽慢约 4 倍），验证 5 分钟</td>
+</tr>
+</tbody>
+</table>
+<p><strong>语料不能再改</strong>：plan 依赖当前 <code>data.idx</code> 的编号和 teacher cache 的布局。任何一个变了，plan 必须重算；verify 会查出来。</p>
+<h2 id="s10">10. 决定和待确认</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>问题</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>抽样单位</td>
+<td><strong>块</strong>（不是文档），长文档的各块分散在整遍里</td>
+</tr>
+<tr>
+<td>2</td>
+<td>算法和 B</td>
+<td>first_fit，B = 8W（5.4）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>中间块的最后一个 token 算不算 loss</td>
+<td class="w">建议算 CE + KD，label 从 <code>data.bin</code> 取（第 7 节）；训练端定</td>
+</tr>
+<tr>
+<td>4</td>
+<td>文档最后一块的 EOD 算不算 CE</td>
+<td class="w">建议算（3p5 计划 5.4，和 Megatron 一样）；训练端定</td>
+</tr>
+<tr>
+<td>5</td>
+<td>blend 交错</td>
+<td>按 token 配平，确定性（4.2）</td>
+</tr>
+<tr>
+<td>6</td>
+<td>装完后是否打乱行</td>
+<td>不打乱（5.5）</td>
+</tr>
+<tr>
+<td>7</td>
+<td>训练量</td>
+<td class="w">按 ladder 的定义固定 iteration 数，pad 也算在 TPP 里；padding 约 0.05%，影响可以忽略</td>
+</tr>
+<tr>
+<td>8</td>
+<td>full 语料</td>
+<td class="w">同一套代码；块表（每篇 8 字节）在 18.25B 篇时约 146 GB，届时要换更省内存的块表</td>
+</tr>
+</tbody>
+</table>
+</main></body></html>

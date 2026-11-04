@@ -43,18 +43,21 @@ export XDG_CACHE_HOME=/tmp/k3_cache_$SLURM_JOB_ID HF_HOME=/tmp/k3_cache_$SLURM_J
 launch_replica() {
     local r=$1
     export K3_HEAD_HOST=$(pool_head "$r") K3_PORT=$((PORT_BASE + 1 + r)) K3_MASTER_PORT=$((40000 + SLURM_JOB_ID % 15000 + r))
-    # one task per node: rank 0 serves the API on the replica's first node, rank 1 joins headless
+    # one task per node: rank 0 serves the API on the replica's first node, rank 1 joins headless; the rank comes from the
+    # hostname, not SLURM_PROCID, because srun numbers tasks in sorted order while HOSTS keeps the allocation's (topology)
+    # order, so on gb300b the head node can get SLURM_PROCID 1 and nobody serves the TCPStore on the master address
     srun --nodes=2 --ntasks=2 --ntasks-per-node=1 --nodelist="$(pool_hosts "$r")" --cpus-per-task=128 --gpus-per-node=4 \
          --mem=0 --kill-on-bad-exit=1 --label --container-image="$IMAGE" \
          --container-mounts=/lustre:/lustre,/scratch:/scratch,/dev/shm:/dev/shm \
          --no-container-mount-home --container-workdir=/tmp --export=ALL \
          bash -c 'unset PYTHONPATH; mkdir -p "$XDG_CACHE_HOME"; \
-             headless=""; [[ "$SLURM_PROCID" == 1 ]] && headless="--headless"; \
+             rank=1; [[ "$(hostname -s)" == "${K3_HEAD_HOST%%.*}" ]] && rank=0; \
+             headless=""; [[ "$rank" == 1 ]] && headless="--headless"; \
              exec vllm serve "$K3_MODEL" --served-model-name moonshotai/Kimi-K3 \
                  --host 0.0.0.0 --port "$K3_PORT" --api-key "$VLLM_API_KEY" --trust-remote-code \
                  --tensor-parallel-size 8 --enable-expert-parallel \
                  --decode-context-parallel-size 8 --dcp-comm-backend a2a \
-                 --nnodes 2 --node-rank "$SLURM_PROCID" \
+                 --nnodes 2 --node-rank "$rank" \
                  --master-addr "$K3_HEAD_HOST" --master-port "$K3_MASTER_PORT" \
                  --distributed-executor-backend mp --gpu-memory-utilization 0.92 \
                  --max-model-len "$K3_MAX_MODEL_LEN" --max-num-seqs 512 --max-num-batched-tokens 16384 \

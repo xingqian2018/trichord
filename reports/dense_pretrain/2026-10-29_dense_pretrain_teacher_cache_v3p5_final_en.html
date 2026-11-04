@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>3p5 final data plan: dense pretrain teacher cache format (top-64)</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+.neg { color:var(--good); }
+.pos { color:var(--bad); }
+hr { border:0; border-top:1px solid var(--border); margin:28px 0; }
+em { color:var(--muted); }
+</style></head>
+<body><nav><a href="#s1">1. Overview</a><a href="#s2">2. Units and directory layout</a><a href="#s3">3. File definitions</a><a href="#s4">4. Next-token logp and consistency checks</a><a href="#s5">5. Sampling rules</a><a href="#s6">6. Size estimate</a></nav><main>
+<h1>3p5 final data plan: dense pretrain teacher cache format (top-64)</h1>
+<p>top-64 + next-token rank + off-top-64 samples · 2026-10-29 · Status: format final, code written (CPU tests pass, not yet run on GPU)</p>
+<p>This format applies to any teacher used for dense pretraining. The target corpus is about 15T tokens of pretraining data.</p>
+<p><strong>Changes from v2.1</strong> (<a href="2026-10-17_dense_pretrain_teacher_cache_v2_en.html">2026-10-17_dense_pretrain_teacher_cache_v2</a>): (1) only the top-64 is stored (v2.1 stored the top-128); (2) only one tail sample set, off64, is kept; off128 is dropped; (3) the off64 total tail mass and the three tail statistics are stored directly (v2.1 derived them from the off128 values by adding back ranks 65–128). Units, uint24, next-token rank and logp, the vocabulary restriction and per-row random numbers are unchanged. Row size 694 → 354 bytes.</p>
+<h2 id="s1">1. Overview</h2>
+<ul>
+<li><strong>top-K main data</strong>: ids (uint24) and log probabilities (float16) of the sorted top-64; the id of the actual next token together with its rank (<code>next_token_id_and_rank</code>), and its log probability (<code>next_token_logp</code>, stored for every row).</li>
+<li><strong>off-top-K data</strong>: the total tail mass outside the top-64 and three tail statistics; plus one tail sample set, off64: 4 samples drawn with replacement from the renormalised distribution outside the top-64, storing ids and log probabilities.</li>
+<li>Why tail samples: training uses <code>exact_k</code> = 64; the top-64 is computed exactly and the tail is estimated without bias from these 4 samples.</li>
+<li>Why tail statistics: they give the teacher's exact entropy, ‖p‖², and the tail mass at temperatures T = 0.5 and T = 2. These are sums over the full vocabulary, so they can only be computed while the teacher scores; afterwards they could only be roughly estimated from the 4 samples.</li>
+<li>354 bytes per row; about 5.3 PB in total for 15T tokens of pretraining data.</li>
+</ul>
+<h2 id="s2">2. Units and directory layout</h2>
+<p>Units follow the existing mechanism: one directory per prefix; large prefixes are cut at document boundaries into <code>parts/&lt;lo&gt;-&lt;hi&gt;/</code> by the producer's <code>plan_units</code> (current implementation in <code>dpl/distill/producers/vllm_topk.py</code>).</p>
+<p><strong>Shared storage directory</strong>: <code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/cosmos3_llm_datasets/pretrain/tc/&lt;model&gt;/</code>, where <code>&lt;model&gt;</code> is the teacher name (e.g. <code>mimo-v2.6-pro-rl</code>).</p>
+<pre><code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/cosmos3_llm_datasets/pretrain/tc/&lt;model&gt;/&lt;blend_hash&gt;/&lt;prefix_key&gt;/      # main directory or parts/&lt;lo&gt;-&lt;hi&gt;/
+    meta.json
+    docs.idx
+    top64_id.bin              top64_logp.bin
+    next_token_id_and_rank.bin    next_token_logp.bin
+    off64_tail_logp.bin           off64_tail_stats.bin
+    off64_sample_id.bin       off64_sample_logp.bin
+</code></pre>
+<ul>
+<li><strong>Unit</strong>: the main directory or one <code>parts/&lt;lo&gt;-&lt;hi&gt;/</code> directory. Each unit is a complete, self-contained cache with its own <code>meta.json</code> and <code>docs.idx</code>; <code>row_start</code> is a row number local to the unit.</li>
+<li><strong>Cut points</strong>: strictly at document boundaries. A document never spans two units, so recomputing one unit never affects its neighbours.</li>
+<li><strong>Unit size</strong>: set by <code>--part-tokens</code>.</li>
+<li><strong>Reading</strong>: readers can open the units directly; parts never need to be merged.</li>
+<li><strong>Concurrency</strong>: one writer per directory (<code>writer.lock</code>); jobs are split by unit across a Slurm array.</li>
+</ul>
+<h2 id="s3">3. File definitions</h2>
+<p>Let n be the total number of rows over all cached documents in the unit. Every <code>.bin</code> is a headerless, little-endian, row-major fixed-size array and can be read with <code>np.memmap</code>.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Shape</th>
+<th>dtype</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>top64_id.bin</code></td>
+<td>[n,64,3]</td>
+<td>uint8</td>
+<td>ids of the 64 tokens the teacher considers most likely as the next token (uint24, little-endian), in descending order of probability</td>
+</tr>
+<tr>
+<td><code>top64_logp.bin</code></td>
+<td>[n,64]</td>
+<td>float16</td>
+<td>their log probabilities (natural log, T=1), descending</td>
+</tr>
+<tr>
+<td><code>next_token_id_and_rank.bin</code></td>
+<td>[n]</td>
+<td>uint32</td>
+<td><code>id&lt;&lt;8 | rank</code>: id is the actual next token (uint24); rank is its position 0..63 in the top-64, or 255 if it is not in the top-64</td>
+</tr>
+<tr>
+<td><code>next_token_logp.bin</code></td>
+<td>[n]</td>
+<td>float16</td>
+<td>teacher log probability of the actual next token (T=1), stored for every row; equals <code>top64_logp[rank]</code> when rank &lt; 64</td>
+</tr>
+<tr>
+<td><code>off64_tail_logp.bin</code></td>
+<td>[n]</td>
+<td>float16</td>
+<td>log Σ_{i∉top-64} p_i: logsumexp over the log probabilities outside the top-64, computed in float32, then cast to float16. Do not use log(1 − Σ top-64 probabilities): the subtraction loses precision when the tail is small</td>
+</tr>
+<tr>
+<td><code>off64_tail_stats.bin</code></td>
+<td>[n,3]</td>
+<td>float16</td>
+<td>logs of three sums over the tokens outside the top-64: [:,0] = log(−Σ p log p), [:,1] = log Σ p², [:,2] = log Σ √p (definition and use below)</td>
+</tr>
+<tr>
+<td><code>off64_sample_id.bin</code></td>
+<td>[n,4,3]</td>
+<td>uint8</td>
+<td>4 token ids (uint24) sampled with replacement from the (renormalised) tail distribution outside the top-64</td>
+</tr>
+<tr>
+<td><code>off64_sample_logp.bin</code></td>
+<td>[n,4]</td>
+<td>float16</td>
+<td>teacher log probabilities of these 4 tokens (T=1, not conditional probabilities)</td>
+</tr>
+<tr>
+<td><code>docs.idx</code></td>
+<td>[documents,3]</td>
+<td>int64</td>
+<td>one <code>(doc_idx, row_start, n_rows)</code> per row, sorted by <code>doc_idx</code></td>
+</tr>
+<tr>
+<td><code>meta.json</code></td>
+<td>—</td>
+<td>JSON</td>
+<td>format version (<code>dpl.teacher_cache/2.2</code>), teacher, k=64, m=4 for the sample set, temperature, random-number rule, definitions of the three tail statistics, vocab_limit, blend_hash, row count, and the byte size and checksum of every file</td>
+</tr>
+</tbody>
+</table>
+<p>Row semantics: a document of L tokens (including its final EOD) has L−1 rows. Row t is the teacher's prediction of token t+1 after seeing the first t+1 tokens; its row number in every file is <code>row_start + t</code>.</p>
+<p><strong>Vocabulary restriction: the teacher distribution is computed over Qwen3's 151,669 tokens only (ids 0–151668). Logits with id ≥ 151669 (MiMo-V2's 6 extra special tokens 151669–151674, and the output-layer padding rows up to 152575) are set to −∞ before normalisation: lp_i = z_i − log Σ_{j&lt;151669} exp(z_j). Every id in every file is therefore &lt; 151669 and compatible with the Qwen3 vocabulary; <code>meta.json</code> records <code>vocab_limit = 151669</code>.</strong></p>
+<p><strong>Teacher vocabularies checked</strong> (2026-10-29, read directly from tokenizer.json and config.json): the 3p5 teacher is MiMo-2.5-Pro-Base or MiMo-2.6-Pro-RL; both are restricted to the 151,669 ids by the rule above.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Real ids</th>
+<th>First 151,669 ids identical to Qwen3</th>
+<th>Tokens with id ≥ 151669</th>
+<th>Output dim (incl. padding)</th>
+<th>EOD</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen3-32B</td>
+<td>0–151668</td>
+<td>—</td>
+<td>none</td>
+<td>151,936</td>
+<td>151643</td>
+</tr>
+<tr>
+<td>MiMo-2.6-Pro-RL</td>
+<td>0–151674</td>
+<td>yes</td>
+<td>6 audio/video special tokens (151669–151674)</td>
+<td>152,576</td>
+<td>151643</td>
+</tr>
+<tr>
+<td>MiMo-2.5-Pro-Base</td>
+<td>0–151668</td>
+<td>yes</td>
+<td>none</td>
+<td>152,576</td>
+<td>151643</td>
+</tr>
+</tbody>
+</table>
+<p>With the limit at 151669, MiMo-2.6 loses its 6 special tokens and the padding rows (151675–152575), MiMo-2.5 only the padding rows (151669–152575). EOD (<code>&lt;|endoftext|&gt;</code>) is 151643 in all three.</p>
+<p><strong>Reading and writing uint24</strong>: ids are below 2^24 (the teacher vocabulary must be ≤ 16,777,216; all current teachers qualify). Each id takes the 3 uint8 bytes <code>a[..., 0..2]</code> of the last dimension, little-endian (low byte first):</p>
+<pre><code>byte:   a[...,0]          a[...,1]              a[...,2]
+        bit 7..0          bit 15..8             bit 23..16
+write:  id &amp; 0xFF         (id &gt;&gt; 8) &amp; 0xFF      (id &gt;&gt; 16) &amp; 0xFF
+read:   id = a[...,0] | (a[...,1] &lt;&lt; 8) | (a[...,2] &lt;&lt; 16)      # cast to int32 before shifting
+</code></pre>
+<ul>
+<li>That is, <code>a[...,k] = (id &gt;&gt; 8k) &amp; 0xFF</code> (k = 0, 1, 2), i.e. <strong><code>id = a[0] + a[1]·2^8 + a[2]·2^16</code></strong> (<code>a[0]</code> is the lowest byte).</li>
+<li>Example: id = 1000 = 0x0003E8 → <code>[0xE8, 0x03, 0x00]</code> = <code>[232, 3, 0]</code>; decoding gives 232 + 3×256 + 0×65536 = 1000.</li>
+</ul>
+<p><strong>Reading and writing <code>next_token_id_and_rank</code></strong>: one uint32 whose high 24 bits are the id and low 8 bits the rank.</p>
+<pre><code>bit:   31 ............... 8 | 7 ...... 0
+       id (24 bits)         | rank (8 bits)
+</code></pre>
+<ul>
+<li>Pack: <code>v = (id &lt;&lt; 8) | rank</code></li>
+<li>Unpack: <code>id = v &gt;&gt; 8</code>, <code>rank = v &amp; 0xFF</code> (the low 8 bits)</li>
+<li>Example: id = 1000, rank = 3 → v = 1000×256 + 3 = 256003. Stored little-endian, byte 0 is the rank and bytes 1–3 are the id.</li>
+</ul>
+<p><strong>Computing <code>off64_tail_logp</code></strong>: p_i is the teacher probability of token i (T = 1), lp_i = log p_i.</p>
+<pre><code>off64_tail_logp = log Σ_{i∉top-64} p_i = logsumexp_{i∉top-64} lp_i
+</code></pre>
+<p>That is, the log of the summed probability of every token outside the top-64. Sum the tail directly with logsumexp rather than computing log(1 − Σ_{top-64} p_i): the subtraction loses precision when the tail is small.</p>
+<p><strong>Definition of <code>off64_tail_stats</code></strong>: every sum runs over the tokens outside the top-64; p is the full T=1 distribution.</p>
+<pre><code>[:,0] = log( −Σ p_i log p_i )    the tail's contribution to the teacher entropy
+[:,1] = log( Σ p_i² )            the tail's contribution to ‖p‖², also Σ p_i^(1/T) at T = 0.5
+[:,2] = log( Σ √p_i )            Σ p_i^(1/T) at T = 2
+</code></pre>
+<ul>
+<li><strong>Use</strong>: teacher entropy H = −Σ_{top-64} p log p + exp([:,0]), for entropy weighting or skipping low-entropy positions. ‖p‖² = Σ_{top-64} p² + exp([:,1]); the ‖·‖² of the tail shape p/P_tail64 is exp([:,1]) / P_tail64², which sets the variance of tail sampling, i.e. how many samples are enough. At temperature T the teacher distribution is ∝ p^(1/T), with normaliser Σ_{top-64} p^(1/T) + Σ_{tail} p^(1/T): the second term is exp([:,1]) at T = 0.5 and exp([:,2]) at T = 2. For T between 0.8 and 1.33 the second term can be estimated from the 4 samples (P_tail64 · the sample mean of p^(1/T−1)).</li>
+<li><strong>Computation</strong>: as for the total tail mass, logsumexp in float32 over the log probabilities lp outside the top-64: [:,0] = logsumexp(lp + log(−lp)), [:,1] = logsumexp(2·lp), [:,2] = logsumexp(lp / 2). Drop tokens with p = 0 (lp = −inf) first, otherwise [:,0] becomes NaN. Rows with zero tail mass have −inf in all three columns.</li>
+</ul>
+<p><strong>No <code>token_ids.bin</code></strong>: the id in <code>next_token_id_and_rank</code> is token t+1 of the corpus, so each row can be checked against the corpus directly; no separate input-token file is needed.</p>
+<h2 id="s4">4. Next-token logp and consistency checks</h2>
+<p>The next token's log probability is stored for every row (<code>next_token_logp.bin</code>, dense float16), whether or not the token is in the top-64. Like every other <code>.bin</code>, the dense array is row-aligned, so there is no risk of misalignment from implicitly matching entries to the order in which <code>rank==255</code> rows occur, and it can be <code>np.memmap</code>-ed instead of loaded whole.</p>
+<ul>
+<li><strong>Size</strong>: 2 bytes per row, about 30 TB for 15T rows, about 0.6% of the total.</li>
+<li><strong>Checks on read</strong>: for rows with rank &lt; 64, <code>next_token_logp</code> must equal <code>top64_logp[rank]</code> (both come from the same float32 value, so they must be bit-identical after the float16 cast); for rows with rank == 255, <code>next_token_logp</code> must be ≤ <code>top64_logp[63]</code> and ≤ <code>off64_tail_logp</code>. Any mismatch is an error.</li>
+<li><strong>Commit order</strong>: as before, &quot;write the data files first, then write <code>docs.idx</code> and <code>meta.json</code> atomically&quot;; every <code>.bin</code> is written before <code>docs.idx</code> is committed (tmp + <code>os.replace</code>).</li>
+<li><strong>Blast radius of corruption</strong>: <code>meta.json</code> records a checksum for every file, so corruption only requires recomputing one unit.</li>
+<li><strong>Windows and context</strong> (added 2026-10-30): a document body longer than <code>--window</code> (default 8191) tokens is scored in windows: the first window is body[0:window]; every later window re-sends <code>--window-context</code> (default 2048) tokens before its first new row and keeps only the non-overlapping rows; the last window carries the EOD. Rows at positions ≥ window are therefore conditioned on context..window−1 preceding tokens, not on the full document prefix. Both parameters are recorded in <code>meta.json</code> (<code>window</code>, <code>window_context</code>, <code>layouts.window</code>) and in the plan file; the producer refuses settings that differ from the plan. Both values must be chosen explicitly before the 15T run (candidate: 32767 / 8192 with <code>--max-model-len 32768</code>, giving every row at least 8K of context; MiMo's native pre-training length is 32K).</li>
+<li><strong>Empty documents</strong> (added 2026-10-30): a document that is only an EOD, or empty, has 0 rows (no token predicts its first token) and is still written to <code>docs.idx</code> with <code>n_rows = 0</code>, so the unit can complete; readers must accept <code>n_rows = 0</code> entries.</li>
+<li><strong>Tolerance of the statistic bounds</strong> (added 2026-10-30): when <code>--validate</code> checks <code>log Σp² ≤ 2·log P</code>, <code>log Σ√p ≥ ½·log P</code> and <code>log(−Σp log p) ≥ log P + log(−log P)</code>, the tolerance is scaled per row by the ulp of each stored float16 value (for |x| ≥ 16 the fp16 spacing already exceeds a fixed 0.01); otherwise real data is flagged.</li>
+<li><strong>Packed mode</strong> (added 2026-10-31): the production corpus will be pre-packed into 8K / 32K training sequences; with <code>--packed</code> every corpus "document" is one pack and is scored whole, exactly as stored (no EOD appended, nothing trimmed, no windows; plain causal attention across the documents inside a pack, i.e. what a student trained without document masking sees). A pack of L tokens gives L−1 rows, row j = the prediction of token j+1; every pack must fit <code>--max-model-len</code> (an over-long pack is an error, never truncated). <code>meta.json</code> and the plan record <code>packed</code>, units of the two modes never mix, and <code>--validate</code> checks next-token ids by the pack rule. If the student trains with document masking, keep the document mode instead (scoring each document alone is the teacher-side equivalent of the mask).</li>
+</ul>
+<h2 id="s5">5. Sampling rules</h2>
+<p>Let p be the teacher's full distribution at row t.</p>
+<ul>
+<li><strong>off64</strong>: q64(i) = p_i / P_tail64 (i not in the top-64); 4 samples with replacement.</li>
+<li>Sampling must be done on the GPU from the teacher's full distribution, not from an approximation of the distribution outside the top-64.</li>
+<li>Sampled tokens may coincide with the next token and with each other; this is expected with sampling with replacement.</li>
+<li><strong>Reproducibility</strong>: random numbers are deterministic per row. Each document has one key, 63 bits taken from sha256(blend_hash | prefix_key | doc_idx | seed); the uniform for sample j of row t is generated from hash(key, t, j) (53 bits), followed by inverse-transform sampling on the tail's cumulative distribution. Batching, window splitting, resuming after an interruption or recomputing a single document all draw the same samples. The rule is written to <code>meta.json</code>.</li>
+<li><strong>Precision</strong>: log probabilities, total tail mass and the three tail statistics are computed with logsumexp in float32 and cast to float16 only at the end; the tail cumulative distribution used for inverse-transform sampling is computed in float64, so tokens with very small probability can still be drawn.</li>
+<li><strong>Fused tail pass and chunk dependence</strong> (added 2026-10-31): the plugin computes the tail statistics and the samples in one pass: one fp32 exp (per-row max subtracted), plain sum reductions, and a two-level float64 inverse CDF (block masses, then inside the selected block). Against a per-row numpy float64 reference the trailer differs by ≤ 2e−6 absolute and all 3072 test samples agree; 9.0 ms → 3.9 ms per 512 rows on GB300. Known non-determinism: fp32 CUDA reductions (the logsumexp of <code>restrict_vocab_</code>, and vLLM's own log_softmax) sum in an order that depends on the number of rows in the chunk, so the last bit can differ: with a different chunking about 0.005% of the top-64 log-probabilities differ by one float16 ulp and 0.01–0.05% of the samples move to a neighbouring id; identical shapes reproduce bit for bit. This is far below the MoE teacher's own run-to-run jitter (mean KL 0.006 nat) and is left as is.</li>
+<li><strong>Feasibility</strong>: the producer (<code>tools/distill/dense_teacher_cache_producer_3p5.py</code> in the Dense-Pretraining-LMs repo) and plugin (<code>tools/distill/vllm_offtopk_plugin_3p5/</code>) of this format are single-sample-set copies of the v2.1 code, which is left unchanged; v2.1 is already in production with the same vLLM hooks on MiMo-2.6's 45B and 650B corpora. Other teachers need to be re-validated on their own models.</li>
+</ul>
+<h2 id="s6">6. Size estimate</h2>
+<p>Estimated for 15T tokens of pretraining data: N ≈ 15T rows (one fewer per document, negligible).</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Bytes per row</th>
+<th>Total size</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>top64_id.bin</code></td>
+<td>192</td>
+<td>2,880 TB</td>
+</tr>
+<tr>
+<td><code>top64_logp.bin</code></td>
+<td>128</td>
+<td>1,920 TB</td>
+</tr>
+<tr>
+<td><code>next_token_id_and_rank.bin</code></td>
+<td>4</td>
+<td>60 TB</td>
+</tr>
+<tr>
+<td><code>next_token_logp.bin</code></td>
+<td>2</td>
+<td>30 TB</td>
+</tr>
+<tr>
+<td><code>off64_tail_logp.bin</code></td>
+<td>2</td>
+<td>30 TB</td>
+</tr>
+<tr>
+<td><code>off64_tail_stats.bin</code></td>
+<td>6</td>
+<td>90 TB</td>
+</tr>
+<tr>
+<td><code>off64_sample_id.bin</code> + <code>off64_sample_logp.bin</code></td>
+<td>12 + 8</td>
+<td>300 TB</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>354</strong></td>
+<td><strong>about 5,310 TB (5.3 PB, about 4.7 PiB)</strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>docs.idx</code>: about 20B documents and about 480 GB at the current corpus's average document length (about 750 tokens), about 0.01% of the total; negligible.</p>
+</main></body></html>

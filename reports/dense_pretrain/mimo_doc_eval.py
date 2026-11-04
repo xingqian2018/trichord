@@ -99,6 +99,22 @@ def score(llm, sp, prompts):
     return res
 
 
+def score_sgl(engine, prompts):
+    """SGLang backend (models without vLLM support, e.g. Flint): per prompt, log p of tokens 1..T (float64), same contract as score()."""
+    outs = engine.generate(input_ids=[p.tolist() for p in prompts], sampling_params={"max_new_tokens": 1, "temperature": 1.0},
+                           return_logprob=True, logprob_start_len=0)
+    res = []
+    for p, o in zip(prompts, outs):
+        lp = o["meta_info"]["input_token_logprobs"]       # [(logprob, token id, text)] per input position; position 0 has no logprob
+        if len(lp) == p.size:
+            lp = lp[1:]
+        tok = np.asarray([x[1] for x in lp], dtype=np.int64)
+        if not np.array_equal(tok, p[1:]):
+            raise RuntimeError("SGLang input logprobs are not aligned with the prompt tokens")
+        res.append(np.asarray([x[0] for x in lp], dtype=np.float64))
+    return res
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", required=True)
@@ -117,12 +133,19 @@ def main():
     ap.add_argument("--text-dir", default="", help="re-tokenise the original text (other tokenizers); see the module docstring")
     ap.add_argument("--bos", action="store_true", help="with --text-dir: the model's BOS in front of every chunk (context only)")
     ap.add_argument("--hf-overrides", default='{"head_dtype": "float32"}', help="JSON; MiMo: fp32 LM head as in the teacher cache")
+    ap.add_argument("--llm-kwargs", default="{}", help='JSON, extra vllm.LLM arguments, e.g. a VL model text-only:\n'
+                    '\'{"limit_mm_per_prompt": {"image": 0, "video": 0}}\' (Qwen3.8-Flash-Next)')
+    ap.add_argument("--seq-len", type=int, default=0, help="chunk length in predictions (default: the reference eval's, 8192); e.g. 32760 =\n"
+                    "a ~32K window (max_model_len 32768). Predicted tokens per document do not depend on it (L - 1), only the context does")
+    ap.add_argument("--backend", default="vllm", choices=["vllm", "sglang"], help="sglang: offline sgl.Engine (models without vLLM support,\n"
+                    "e.g. RecursiveSI/flint with its flint_sglang package); engine flags via --sgl-args (launch_server CLI syntax)")
+    ap.add_argument("--sgl-args", default="", help="--backend sglang: extra sglang.launch_server flags, one string, e.g. a model kit's serve script flags")
     ap.add_argument("--only", default="", help="comma-separated split basenames (smoke test)")
     ap.add_argument("--max-chunks", type=int, default=0, help="smoke test: first N chunks of each split, no count check")
     a = ap.parse_args()
 
     stats = json.load(open(os.path.join(a.ref, "doc_eval_stats.json")))
-    seq, splits = int(stats["seq_len"]), stats["splits"]
+    seq, splits = int(a.seq_len or stats["seq_len"]), stats["splits"]
     ref = json.load(open(sorted(glob.glob(os.path.join(a.ref, "eval", "val_splits_iter*_doc_isolated.json")))[-1]))
     if a.only:
         keep = set(a.only.split(","))
@@ -130,11 +153,34 @@ def main():
     os.makedirs(os.path.join(a.out, "splits"), exist_ok=True); os.makedirs(os.path.join(a.out, "eval"), exist_ok=True)
     open(os.path.join(a.out, "model.txt"), "w").write(os.path.realpath(a.model) + "\n")
 
-    from vllm import LLM, SamplingParams
-    llm = LLM(model=a.model, tensor_parallel_size=a.tp, pipeline_parallel_size=a.pp, trust_remote_code=True, dtype="bfloat16",
+    if a.backend == "sglang":
+        import argparse as _argparse, shlex
+        import sglang as sgl
+        from sglang.srt.server_args import ServerArgs
+        import sglang.srt.plugins as _plug                # launch_server loads sglang.srt.plugins entry points BEFORE parsing its flags
+        _load = getattr(_plug, "load_plugins", None) or getattr(_plug, "load_general_plugins", None)   # (Flint: --grammar-backend flint etc.)
+        if _load:
+            _load()
+        else:
+            from importlib.metadata import entry_points
+            for ep in entry_points(group="sglang.srt.plugins"):
+                ep.load()()
+        sp_ = _argparse.ArgumentParser(); ServerArgs.add_cli_args(sp_)     # launch_server flags as-is (CLI names != ServerArgs fields)
+        cli = ["--model-path", a.model, "--tp-size", str(a.tp), "--context-length", str(seq + 64),   # SGLang keeps a few positions back (+8 too tight)
+               "--mem-fraction-static", str(a.gpu_mem),
+               "--disable-radix-cache", "--random-seed", "0"] + shlex.split(a.sgl_args)   # later flags win
+        engine = sgl.Engine(server_args=ServerArgs.from_cli_args(sp_.parse_args(cli)))
+        sp = None
+        score_fn = lambda prompts: score_sgl(engine, prompts)
+    else:
+        from vllm import LLM, SamplingParams              # only on the vLLM path (the SGLang image has no vLLM)
+        score_fn = None
+    llm = None if a.backend == "sglang" else LLM(model=a.model, tensor_parallel_size=a.tp, pipeline_parallel_size=a.pp, trust_remote_code=True, dtype="bfloat16",
               max_model_len=seq + 8, gpu_memory_utilization=a.gpu_mem, max_logprobs=1, enable_prefix_caching=False, seed=0,
-              hf_overrides=json.loads(a.hf_overrides), **({"nnodes": a.nnodes, "node_rank": 0, "master_addr": a.master_addr, "master_port": a.master_port} if a.nnodes > 1 else {}))
-    sp = SamplingParams(max_tokens=1, temperature=1.0, prompt_logprobs=0, detokenize=False)
+              hf_overrides=json.loads(a.hf_overrides), **json.loads(a.llm_kwargs), **({"nnodes": a.nnodes, "node_rank": 0, "master_addr": a.master_addr, "master_port": a.master_port} if a.nnodes > 1 else {}))
+    if a.backend == "vllm":
+        sp = SamplingParams(max_tokens=1, temperature=1.0, prompt_logprobs=0, detokenize=False)
+        score_fn = lambda prompts: score(llm, sp, prompts)
     tok = tman = bos_id = None
     if a.tok_dir:                                         # other tokenisation, same layout / documents / chunking as the ladder
         tman = json.load(open(os.path.join(a.tok_dir, "manifest.json")))
@@ -173,7 +219,7 @@ def main():
         for b in range(0, len(order), a.batch):
             batch = [chunks[i] for i in order[b:b + a.batch]]
             prompts = [np.concatenate([[bos_id], c]) if bos_id is not None else c for c, _ in batch]   # BOS = context only
-            for (p, nk), lp in zip(batch, score(llm, sp, prompts)):
+            for (p, nk), lp in zip(batch, score_fn(prompts)):
                 if bos_id is not None:
                     lp = lp[1:]                               # drop the prediction of the chunk's first token from BOS
                 if nk is None:
@@ -207,7 +253,7 @@ def main():
         suites[sname] = {"labels": labels, "loss": [done[p]["loss"] for p in pre], "tokens": [done[p]["tokens"] for p in pre]}
         if tok is not None or tman is not None:           # other tokenizer: loss / tokens are per OWN token; bytes for BPB
             suites[sname].update(nll=[done[p]["nll"] for p in pre], bytes=[done[p]["bytes"] for p in pre], bpb=[done[p]["bpb"] for p in pre])
-    out = {"iteration": 0, "time": time.strftime("%Y-%m-%dT%H:%M:%S"), "protocol": "doc_isolated", "suites": suites,
+    out = {"iteration": 0, "time": time.strftime("%Y-%m-%dT%H:%M:%S"), "protocol": "doc_isolated", "seq_len": seq, "suites": suites,
            "model": os.path.realpath(a.model), "scorer": "vLLM prompt_logprobs (reports_xx/mimo_doc_eval.py)",
            "tokenizer": (f"{tman['tokenizer'].get('name')} token files {a.tok_dir}, bos {a.bos}" if tman is not None else
                          "qwen3 (the ladder's token files)" if tok is None else f"own ({type(tok).__name__}), text {a.text_dir}, bos {a.bos}")}

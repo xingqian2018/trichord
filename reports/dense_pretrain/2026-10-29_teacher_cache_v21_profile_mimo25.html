@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Teacher cache v2.1 吞吐 profiling：MiMo-V2.5-Pro-Base</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+h3 { font-size:16px; margin-top:24px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+pre { background:var(--head); padding:10px 14px; border-radius:6px; overflow-x:auto; font-size:12.5px; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+td.num { text-align:right; }
+tr.total td { font-weight:600; }
+.pos { color:var(--bad); }
+.neg { color:var(--good); }
+.note { border-left:3px solid var(--accent); padding:4px 12px; margin:12px 0; color:var(--muted); }
+hr { border:0; border-top:1px solid var(--border); margin:28px 0; }
+em { color:var(--muted); }
+</style></head>
+<body><main>
+<h1>Teacher cache v2.1 吞吐 profiling：MiMo-V2.5-Pro-Base</h1>
+<p>2026-10-29 · xingqianx · profiling 作业 1410604（1 个 GB300 节点）</p>
+
+<h2>设置</h2>
+<table>
+<tr><th>项目</th><th>值</th></tr>
+<tr><td>硬件</td><td>1 个节点，4 × GB300（284 GB），oci-jhb-slurm-1</td></tr>
+<tr><td>Teacher</td><td>MiMo-V2.5-Pro-Base（fp8，963 GB），snapshot <code>1e94ccfd</code></td></tr>
+<tr><td>引擎</td><td>vLLM 0.31.0，V1 runner；TP4；<code>gpu_memory_utilization=0.92</code>；<code>max_num_batched_tokens=4096</code>；<code>max_model_len=8192</code>；lm_head fp32；不开 prefix caching</td></tr>
+<tr><td>插件 / 格式</td><td><code>dpl_vllm_offtopk_v2</code>，格式 <code>dpl.teacher_cache/2.1</code>：K=128，Ks=64，M=4，词表限定 151669，每行确定的随机数，fp64 逆 CDF 采样</td></tr>
+<tr><td>Producer</td><td><code>dense_teacher_cache_producer_v2.py</code>：窗口 8191 / 上下文 2048；每次 generate 约 262,144 个 token</td></tr>
+<tr><td>数据</td><td>45B MiMo/Qwen3 语料（<code>ultra_v3_phase1_nosft_45e9</code>），3,533 篇文档，<strong>2,002,371 个输入 token</strong></td></tr>
+<tr><td>单位</td><td>每个输入 token，整个节点（4 卡）；写出的行数 = 0.957 × 输入 token</td></tr>
+</table>
+
+<h2>测试模式</h2>
+<table>
+<tr><th>模式</th><th>设置</th><th>包含</th></tr>
+<tr><td>A</td><td><code>max_tokens=1</code>，不要 prompt logprobs</td><td>模型 prefill</td></tr>
+<tr><td>B</td><td><code>prompt_logprobs=1</code></td><td>A + 全位置 logits、log_softmax、回传（不触发插件）</td></tr>
+<tr><td>C</td><td><code>prompt_logprobs=140</code> + <code>extra_args</code>（生产模式）</td><td>B + 插件 + 141 列回传</td></tr>
+<tr><td>CPU</td><td>在 C 的输出上</td><td>解析（与 GPU 串行）、拼数据和写盘（Lustre，fsync；与下一批 GPU 计算并行）</td></tr>
+</table>
+
+<h2>端到端时间分解</h2>
+<table>
+<tr><th>环节</th><th>来源</th><th>总耗时 (s)</th><th>每 token</th><th>占比</th></tr>
+<tr><td><strong>模型 prefill</strong></td><td>A</td><td class="num">74.5</td><td class="num"><strong>37.2 µs</strong></td><td class="num">48.6%</td></tr>
+<tr><td>全位置 logits + log_softmax + 回传</td><td>B − A</td><td class="num">9.7</td><td class="num">4.8 µs</td><td class="num">6.3%</td></tr>
+<tr><td><strong>插件 + 141 列回传</strong></td><td>C − B</td><td class="num">60.0</td><td class="num"><strong>30.0 µs</strong></td><td class="num">39.1%</td></tr>
+<tr><td>&nbsp;&nbsp;├ 插件 GPU 计算*</td><td>微基准 × 0.957</td><td class="num">—</td><td class="num">≈ 24.6 µs</td><td class="num">≈ 32%</td></tr>
+<tr><td>&nbsp;&nbsp;└ 140 列额外回传*</td><td>差值</td><td class="num">—</td><td class="num">≈ 5.4 µs</td><td class="num">≈ 7%</td></tr>
+<tr><td>CPU 解析（串行）</td><td>parse</td><td class="num">9.2</td><td class="num">4.6 µs</td><td class="num">6.0%</td></tr>
+<tr><td>拼数据（并行）</td><td>assemble</td><td class="num">4.0</td><td class="num">2.0 µs</td><td class="num">—</td></tr>
+<tr><td>写盘（并行）</td><td>write</td><td class="num">12.0</td><td class="num">6.0 µs</td><td class="num">—</td></tr>
+<tr class="total"><td>端到端</td><td>C + parse</td><td class="num">153.4</td><td class="num">76.6 µs</td><td class="num">100%</td></tr>
+</table>
+<p><em>* 推算值，没有在 vLLM 进程里直接计时。</em></p>
+
+<h2>吞吐（每节点）</h2>
+<table>
+<tr><th>模式</th><th>token/s</th></tr>
+<tr><td>A：只做 prefill</td><td class="num">26,884</td></tr>
+<tr><td>B：+ 全位置 logits</td><td class="num">23,769</td></tr>
+<tr><td>C：生产模式（只算 generate）</td><td class="num">13,885</td></tr>
+<tr class="total"><td>C + CPU（按生产的并行方式）</td><td class="num">13,055</td></tr>
+<tr><td>参考：生产作业 1400191 日志中位数</td><td class="num">13,078</td></tr>
+<tr><td>引擎加载时间</td><td class="num">1,266.8 s</td></tr>
+</table>
+
+<h2>插件微基准（单张 GB300，随机 log 概率 [n, 152576] fp32；CUDA event，5 次取中位数）</h2>
+<table>
+<tr><th rowspan="2">步骤</th><th colspan="2">n = 512</th><th colspan="2">n = 4,096</th><th rowspan="2">占插件</th></tr>
+<tr><th>ms</th><th>µs / 行</th><th>ms</th><th>µs / 行</th></tr>
+<tr><td>逆 CDF off128（fp64）</td><td class="num">4.478</td><td class="num">8.745</td><td class="num">31.842</td><td class="num">7.774</td><td class="num">30%</td></tr>
+<tr><td>逆 CDF off64（fp64）</td><td class="num">4.465</td><td class="num">8.721</td><td class="num">31.790</td><td class="num">7.761</td><td class="num">30%</td></tr>
+<tr><td>3 个 tail 统计量</td><td class="num">2.455</td><td class="num">4.795</td><td class="num">17.962</td><td class="num">4.385</td><td class="num">17%</td></tr>
+<tr><td>topk128</td><td class="num">0.970</td><td class="num">1.895</td><td class="num">6.332</td><td class="num">1.546</td><td class="num">6%</td></tr>
+<tr><td>词表限定（含 clone）</td><td class="num">0.741</td><td class="num">1.447</td><td class="num">5.782</td><td class="num">1.412</td><td class="num">5%</td></tr>
+<tr><td>名次</td><td class="num">0.517</td><td class="num">1.011</td><td class="num">3.694</td><td class="num">0.902</td><td class="num">4%</td></tr>
+<tr><td>随机数</td><td class="num">0.963</td><td class="num">1.882</td><td class="num">0.967</td><td class="num">0.236</td><td class="num">1%</td></tr>
+<tr class="total"><td>插件合计</td><td class="num">13.391</td><td class="num">26.155</td><td class="num">105.221</td><td class="num">25.689</td><td class="num">100%</td></tr>
+</table>
+<p><em>TP4 下 4 张卡各自对全部行重复执行插件，所以单卡的每行时间就是整个节点的开销。</em></p>
+
+<h2>复现</h2>
+<p>脚本 <code>Dense-Pretraining-LMs/.claude/scripts/profile_tc2.py</code> / <code>profile_tc2.sbatch</code>；原始数据 <code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/logs/profile_tc2/profile_1410604.jsonl</code></p>
+</main></body></html>

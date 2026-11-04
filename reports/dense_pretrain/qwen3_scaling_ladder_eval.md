@@ -1,6 +1,6 @@
 # Qwen3-MoE scaling ladder — 评测结果（doc-isolated，含 private_internal）
 
-_生成时间 2026-10-29 15:11，由 `reports_xx/gen_eval_md.py` 从 `trichord/dense_pretrain_result/*.json` 生成，不要手改。_
+_生成时间 2026-11-03 21:35，由 `reports_xx/gen_eval_md.py` 从 `trichord/dense_pretrain_result/*.json` 生成，不要手改。_
 
 ## 1. 说明
 

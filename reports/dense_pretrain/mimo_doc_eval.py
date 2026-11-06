@@ -59,6 +59,23 @@ def encode_texts(tok, texts):
     return tok(texts, add_special_tokens=False, split_special_tokens=True)["input_ids"]
 
 
+class RawTok:
+    """--raw-tok: encode / decode with the checkpoint's tokenizer.json as shipped (tokenizers library), not the transformers class.
+    transformers 5.x rebuilds e.g. GPT2Tokenizer with GPT-2's ByteLevel split regex and DROPS tokenizer.json's own pre-tokenizer
+    (Ripple-65B: cl100k-style regex): lossless but non-canonical ids (+17 % tokens on code) the model never trained on (11-04)."""
+    def __init__(self, path, hf):
+        from tokenizers import Tokenizer
+        self.raw = Tokenizer.from_file(os.path.join(path, "tokenizer.json"))
+        self.raw.encode_special_tokens = True           # special-token strings in the text = plain text (as split_special_tokens=True)
+        self.bos_token_id = hf.bos_token_id
+
+    def __call__(self, texts, **kw):
+        return {"input_ids": [e.ids for e in self.raw.encode_batch(texts, add_special_tokens=False)]}
+
+    def decode(self, ids):
+        return self.raw.decode(ids, skip_special_tokens=False)
+
+
 def text_chunks(prefix, seq_len, tok, text_dir, bos):
     """[(prompt ids, number of scored positions at its end)] + split bytes + round-trip mismatches (first 50 docs)."""
     man = json.load(open(os.path.join(text_dir, "manifest.json")))["splits"]      # token prefix -> aligned text file
@@ -115,6 +132,46 @@ def score_sgl(engine, prompts):
     return res
 
 
+def score_hf(models, prompts, budget):
+    """HF transformers backend (models with neither vLLM nor SGLang support, e.g. Ripple-65B: custom modeling code, plain SDPA): one full
+    model per GPU, data parallel over the GPUs (one thread each); per prompt log p of tokens 1..T (float64), same contract as score().
+    Prompts are right-padded into batches of <= budget tokens: causal attention, so the padding never reaches the real positions."""
+    import torch
+    from concurrent.futures import ThreadPoolExecutor
+    batches, cur = [], []
+    for i in sorted(range(len(prompts)), key=lambda i: -prompts[i].size):
+        if cur and (len(cur) + 1) * prompts[cur[0]].size > budget:
+            batches.append(cur); cur = []
+        cur.append(i)
+    if cur:
+        batches.append(cur)
+    res = [None] * len(prompts)
+
+    def run(g):
+        m = models[g]; dev = m.lm_head.weight.device
+        with torch.inference_mode():
+            for b in batches[g::len(models)]:
+                L = prompts[b[0]].size
+                ids = torch.zeros((len(b), L), dtype=torch.long)
+                for r, i in enumerate(b):
+                    ids[r, :prompts[i].size] = torch.from_numpy(prompts[i])
+                ids = ids.to(dev)
+                h = m.model(input_ids=ids, use_cache=False, output_attentions=False, output_hidden_states=False, return_dict=True).last_hidden_state
+                for r, i in enumerate(b):
+                    T = prompts[i].size - 1
+                    out = torch.empty(T, dtype=torch.float64, device=dev)
+                    for s0 in range(0, T, 2048):              # fp32 log-softmax over the full vocabulary, 2048 positions at a time
+                        e = min(T, s0 + 2048)
+                        lg = m.lm_head(h[r, s0:e]).float()
+                        out[s0:e] = (lg.gather(-1, ids[r, s0 + 1:e + 1, None])[:, 0] - torch.logsumexp(lg, -1)).double()
+                    res[i] = out.cpu().numpy()
+                del h
+
+    with ThreadPoolExecutor(len(models)) as ex:
+        list(ex.map(run, range(len(models))))
+    return res
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", required=True)
@@ -131,27 +188,36 @@ def main():
     ap.add_argument("--tok-dir", default="", help="another tokenisation of the same sets laid out like the Qwen3 dir, e.g.\n"
                     "cosmos3_llm_datasets/pretrain/kimik3_tokenized/val_set/eval_ppl_decon (its manifest.json: EOD id, bytes)")
     ap.add_argument("--text-dir", default="", help="re-tokenise the original text (other tokenizers); see the module docstring")
+    ap.add_argument("--raw-tok", action="store_true", help="with --text-dir: tokenise with <model>/tokenizer.json as shipped (see RawTok)")
     ap.add_argument("--bos", action="store_true", help="with --text-dir: the model's BOS in front of every chunk (context only)")
     ap.add_argument("--hf-overrides", default='{"head_dtype": "float32"}', help="JSON; MiMo: fp32 LM head as in the teacher cache")
     ap.add_argument("--llm-kwargs", default="{}", help='JSON, extra vllm.LLM arguments, e.g. a VL model text-only:\n'
                     '\'{"limit_mm_per_prompt": {"image": 0, "video": 0}}\' (Qwen3.8-Flash-Next)')
     ap.add_argument("--seq-len", type=int, default=0, help="chunk length in predictions (default: the reference eval's, 8192); e.g. 32760 =\n"
                     "a ~32K window (max_model_len 32768). Predicted tokens per document do not depend on it (L - 1), only the context does")
-    ap.add_argument("--backend", default="vllm", choices=["vllm", "sglang"], help="sglang: offline sgl.Engine (models without vLLM support,\n"
+    ap.add_argument("--hf-tokens", type=int, default=16384, help="--backend hf: padded tokens per forward per GPU (>= the longest prompt)")
+    ap.add_argument("--backend", default="vllm", choices=["vllm", "sglang", "hf"], help="sglang: offline sgl.Engine (models without vLLM support,\n"
                     "e.g. RecursiveSI/flint with its flint_sglang package); engine flags via --sgl-args (launch_server CLI syntax)")
     ap.add_argument("--sgl-args", default="", help="--backend sglang: extra sglang.launch_server flags, one string, e.g. a model kit's serve script flags")
+    ap.add_argument("--seq-len2", type=int, default=0, help="a SECOND window from the same loaded model (user 11-04 'load 模型一次，出两个结果'),\n"
+                    "e.g. 32760 next to the default 8192; its results go to --out2 (same layout as --out)")
+    ap.add_argument("--out2", default="", help="output dir of --seq-len2")
     ap.add_argument("--only", default="", help="comma-separated split basenames (smoke test)")
     ap.add_argument("--max-chunks", type=int, default=0, help="smoke test: first N chunks of each split, no count check")
     a = ap.parse_args()
 
     stats = json.load(open(os.path.join(a.ref, "doc_eval_stats.json")))
     seq, splits = int(a.seq_len or stats["seq_len"]), stats["splits"]
+    windows = [(seq, a.out)] + ([(int(a.seq_len2), a.out2)] if a.seq_len2 else [])
+    assert not a.seq_len2 or a.out2, "--seq-len2 needs --out2"
+    seq_max = max(w for w, _ in windows)                   # the engine is built once for the longest window
     ref = json.load(open(sorted(glob.glob(os.path.join(a.ref, "eval", "val_splits_iter*_doc_isolated.json")))[-1]))
     if a.only:
         keep = set(a.only.split(","))
         splits = [s for s in splits if os.path.basename(s["prefix"]) in keep]
-    os.makedirs(os.path.join(a.out, "splits"), exist_ok=True); os.makedirs(os.path.join(a.out, "eval"), exist_ok=True)
-    open(os.path.join(a.out, "model.txt"), "w").write(os.path.realpath(a.model) + "\n")
+    for _, o in windows:
+        os.makedirs(os.path.join(o, "splits"), exist_ok=True); os.makedirs(os.path.join(o, "eval"), exist_ok=True)
+        open(os.path.join(o, "model.txt"), "w").write(os.path.realpath(a.model) + "\n")
 
     if a.backend == "sglang":
         import argparse as _argparse, shlex
@@ -166,17 +232,26 @@ def main():
             for ep in entry_points(group="sglang.srt.plugins"):
                 ep.load()()
         sp_ = _argparse.ArgumentParser(); ServerArgs.add_cli_args(sp_)     # launch_server flags as-is (CLI names != ServerArgs fields)
-        cli = ["--model-path", a.model, "--tp-size", str(a.tp), "--context-length", str(seq + 64),   # SGLang keeps a few positions back (+8 too tight)
+        cli = ["--model-path", a.model, "--tp-size", str(a.tp), "--context-length", str(seq_max + 64),   # SGLang keeps a few positions back (+8 too tight)
                "--mem-fraction-static", str(a.gpu_mem),
                "--disable-radix-cache", "--random-seed", "0"] + shlex.split(a.sgl_args)   # later flags win
         engine = sgl.Engine(server_args=ServerArgs.from_cli_args(sp_.parse_args(cli)))
         sp = None
         score_fn = lambda prompts: score_sgl(engine, prompts)
+    elif a.backend == "hf":                               # one model replica per visible GPU (e.g. Ripple-65B BF16 130 GB on a 288 GB GB300)
+        import torch
+        from transformers import AutoModelForCausalLM
+        models = [AutoModelForCausalLM.from_pretrained(a.model, trust_remote_code=True, dtype=torch.bfloat16, device_map={"": f"cuda:{g}"},
+                                                       **json.loads(a.llm_kwargs)).eval() for g in range(torch.cuda.device_count())]
+        print(f"[mimo_doc_eval] hf backend: {len(models)} replicas, {type(models[0]).__name__}", flush=True)
+        budget = max(a.hf_tokens, seq_max + 8)
+        sp = None
+        score_fn = lambda prompts: score_hf(models, prompts, budget)
     else:
         from vllm import LLM, SamplingParams              # only on the vLLM path (the SGLang image has no vLLM)
         score_fn = None
-    llm = None if a.backend == "sglang" else LLM(model=a.model, tensor_parallel_size=a.tp, pipeline_parallel_size=a.pp, trust_remote_code=True, dtype="bfloat16",
-              max_model_len=seq + 8, gpu_memory_utilization=a.gpu_mem, max_logprobs=1, enable_prefix_caching=False, seed=0,
+    llm = None if a.backend in ("sglang", "hf") else LLM(model=a.model, tensor_parallel_size=a.tp, pipeline_parallel_size=a.pp, trust_remote_code=True, dtype="bfloat16",
+              max_model_len=seq_max + 8, gpu_memory_utilization=a.gpu_mem, max_logprobs=1, enable_prefix_caching=False, seed=0,
               hf_overrides=json.loads(a.hf_overrides), **json.loads(a.llm_kwargs), **({"nnodes": a.nnodes, "node_rank": 0, "master_addr": a.master_addr, "master_port": a.master_port} if a.nnodes > 1 else {}))
     if a.backend == "vllm":
         sp = SamplingParams(max_tokens=1, temperature=1.0, prompt_logprobs=0, detokenize=False)
@@ -191,75 +266,80 @@ def main():
     if a.text_dir:
         from transformers import AutoTokenizer
         tok = AutoTokenizer.from_pretrained(a.model, trust_remote_code=True)
+        if a.raw_tok:
+            tok = RawTok(a.model, tok)
         assert not a.bos or tok.bos_token_id is not None, "--bos: the tokenizer has no BOS"
 
-    t_all = time.time()
-    for k, s in enumerate(splits):
-        name = os.path.basename(s["prefix"])
-        dst = os.path.join(a.out, "splits", f"{s['prefix'].replace('/', '__')}.json")
-        if os.path.exists(dst) and not a.max_chunks:
+    for seq, out_w in windows:                          # one loaded model, every window (user 11-04)
+        print(f"[mimo_doc_eval] window {seq} -> {out_w}", flush=True)
+        t_all = time.time()
+        for k, s in enumerate(splits):
+            name = os.path.basename(s["prefix"])
+            dst = os.path.join(out_w, "splits", f"{s['prefix'].replace('/', '__')}.json")
+            if os.path.exists(dst) and not a.max_chunks:
+                continue
+            t0 = time.time()
+            n_bytes = rt_bad = expected = None
+            if tman is not None:                              # the same documents in another tokenisation; its EOD is never a target
+                rel = os.path.relpath(s["prefix"], TOK_DIR)
+                ent, pad = tman["splits"][rel], int(tman["tokenizer"]["eod_id"])
+                chunks = [(c, None) for c in split_chunks(os.path.join(a.tok_dir, rel), seq)]
+                n_bytes, expected = ent["n_bytes"], ent["n_tokens"] - 2 * ent["n_docs"]
+            elif tok is None:                                 # the ladder's own token files (MiMo == Qwen3 ids)
+                pad = int(s["pad_id"])
+                chunks = [(c, None) for c in split_chunks(s["prefix"], seq)]
+                expected = int(s["predicted_tokens"])
+            else:
+                chunks, n_bytes, rt_bad = text_chunks(s["prefix"], seq, tok, a.text_dir, a.bos)
+            if a.max_chunks:
+                chunks = chunks[:a.max_chunks]
+            nll, n = 0.0, 0
+            order = np.argsort([-c.size for c, _ in chunks], kind="stable")   # long chunks together: fewer ragged batches
+            for b in range(0, len(order), a.batch):
+                batch = [chunks[i] for i in order[b:b + a.batch]]
+                prompts = [np.concatenate([[bos_id], c]) if bos_id is not None else c for c, _ in batch]   # BOS = context only
+                for (p, nk), lp in zip(batch, score_fn(prompts)):
+                    if bos_id is not None:
+                        lp = lp[1:]                               # drop the prediction of the chunk's first token from BOS
+                    if nk is None:
+                        m = p[1:] != pad
+                        nll -= float(lp[m].sum()); n += int(m.sum())
+                    else:                                     # the last k positions = the document's tokens after its first
+                        nll -= float(lp[len(lp) - nk:].sum()); n += nk
+            if expected is not None and not a.max_chunks and n != expected:
+                raise SystemExit(f"{name}: {n} predicted tokens, expected {expected} (n_tokens - 2 n_docs)")
+            rec = {"prefix": s["prefix"], "loss": nll / n, "tokens": n, "nll": nll, "seconds": round(time.time() - t0, 1)}
+            if n_bytes is not None:
+                rec.update(bytes=n_bytes, bpb=nll / (n_bytes * math.log(2)))
+                if rt_bad is not None:
+                    rec["roundtrip_mismatch_first50"] = rt_bad
+            print(f"[mimo_doc_eval] {k + 1}/{len(splits)} {name:40s} loss {rec['loss']:.4f}{'  bpb %.4f' % rec['bpb'] if 'bpb' in rec else ''}  tokens {n:>10d}  {n / (time.time() - t0):,.0f} tok/s", flush=True)
+            if a.max_chunks:
+                continue
+            with open(dst + ".tmp", "w") as f:
+                json.dump(rec, f)
+            os.replace(dst + ".tmp", dst)
+        if a.only or a.max_chunks:
             continue
-        t0 = time.time()
-        n_bytes = rt_bad = expected = None
-        if tman is not None:                              # the same documents in another tokenisation; its EOD is never a target
-            rel = os.path.relpath(s["prefix"], TOK_DIR)
-            ent, pad = tman["splits"][rel], int(tman["tokenizer"]["eod_id"])
-            chunks = [(c, None) for c in split_chunks(os.path.join(a.tok_dir, rel), seq)]
-            n_bytes, expected = ent["n_bytes"], ent["n_tokens"] - 2 * ent["n_docs"]
-        elif tok is None:                                 # the ladder's own token files (MiMo == Qwen3 ids)
-            pad = int(s["pad_id"])
-            chunks = [(c, None) for c in split_chunks(s["prefix"], seq)]
-            expected = int(s["predicted_tokens"])
-        else:
-            chunks, n_bytes, rt_bad = text_chunks(s["prefix"], seq, tok, a.text_dir, a.bos)
-        if a.max_chunks:
-            chunks = chunks[:a.max_chunks]
-        nll, n = 0.0, 0
-        order = np.argsort([-c.size for c, _ in chunks], kind="stable")   # long chunks together: fewer ragged batches
-        for b in range(0, len(order), a.batch):
-            batch = [chunks[i] for i in order[b:b + a.batch]]
-            prompts = [np.concatenate([[bos_id], c]) if bos_id is not None else c for c, _ in batch]   # BOS = context only
-            for (p, nk), lp in zip(batch, score_fn(prompts)):
-                if bos_id is not None:
-                    lp = lp[1:]                               # drop the prediction of the chunk's first token from BOS
-                if nk is None:
-                    m = p[1:] != pad
-                    nll -= float(lp[m].sum()); n += int(m.sum())
-                else:                                     # the last k positions = the document's tokens after its first
-                    nll -= float(lp[len(lp) - nk:].sum()); n += nk
-        if expected is not None and not a.max_chunks and n != expected:
-            raise SystemExit(f"{name}: {n} predicted tokens, expected {expected} (n_tokens - 2 n_docs)")
-        rec = {"prefix": s["prefix"], "loss": nll / n, "tokens": n, "nll": nll, "seconds": round(time.time() - t0, 1)}
-        if n_bytes is not None:
-            rec.update(bytes=n_bytes, bpb=nll / (n_bytes * math.log(2)))
-            if rt_bad is not None:
-                rec["roundtrip_mismatch_first50"] = rt_bad
-        print(f"[mimo_doc_eval] {k + 1}/{len(splits)} {name:40s} loss {rec['loss']:.4f}{'  bpb %.4f' % rec['bpb'] if 'bpb' in rec else ''}  tokens {n:>10d}  {n / (time.time() - t0):,.0f} tok/s", flush=True)
-        if a.max_chunks:
-            continue
-        with open(dst + ".tmp", "w") as f:
-            json.dump(rec, f)
-        os.replace(dst + ".tmp", dst)
-    if a.only or a.max_chunks:
-        return 0
 
-    done = {json.load(open(p))["prefix"]: json.load(open(p)) for p in glob.glob(os.path.join(a.out, "splits", "*.json"))}
-    by_prefix = {s["prefix"]: s for s in stats["splits"]}
-    suites, i = {}, 0
-    for sname, srec in ref["suites"].items():            # the ladder's suite / split order; splits are listed in the same order
-        labels = srec["labels"]
-        pre = [stats["splits"][i + j]["prefix"] for j in range(len(labels))]; i += len(labels)
-        assert all(by_prefix[p]["predicted_tokens"] == t for p, t in zip(pre, srec["tokens"])), f"{sname}: split order mismatch"
-        suites[sname] = {"labels": labels, "loss": [done[p]["loss"] for p in pre], "tokens": [done[p]["tokens"] for p in pre]}
-        if tok is not None or tman is not None:           # other tokenizer: loss / tokens are per OWN token; bytes for BPB
-            suites[sname].update(nll=[done[p]["nll"] for p in pre], bytes=[done[p]["bytes"] for p in pre], bpb=[done[p]["bpb"] for p in pre])
-    out = {"iteration": 0, "time": time.strftime("%Y-%m-%dT%H:%M:%S"), "protocol": "doc_isolated", "seq_len": seq, "suites": suites,
-           "model": os.path.realpath(a.model), "scorer": "vLLM prompt_logprobs (reports_xx/mimo_doc_eval.py)",
-           "tokenizer": (f"{tman['tokenizer'].get('name')} token files {a.tok_dir}, bos {a.bos}" if tman is not None else
-                         "qwen3 (the ladder's token files)" if tok is None else f"own ({type(tok).__name__}), text {a.text_dir}, bos {a.bos}")}
-    with open(os.path.join(a.out, "eval", "val_splits_iter000000000_doc_isolated.json"), "w") as f:
-        json.dump(out, f, indent=1)
-    print(f"[mimo_doc_eval] done: {len(done)} splits in {(time.time() - t_all) / 60:.1f} min", flush=True)
+        done = {json.load(open(p))["prefix"]: json.load(open(p)) for p in glob.glob(os.path.join(out_w, "splits", "*.json"))}
+        by_prefix = {s["prefix"]: s for s in stats["splits"]}
+        suites, i = {}, 0
+        for sname, srec in ref["suites"].items():            # the ladder's suite / split order; splits are listed in the same order
+            labels = srec["labels"]
+            pre = [stats["splits"][i + j]["prefix"] for j in range(len(labels))]; i += len(labels)
+            assert all(by_prefix[p]["predicted_tokens"] == t for p, t in zip(pre, srec["tokens"])), f"{sname}: split order mismatch"
+            suites[sname] = {"labels": labels, "loss": [done[p]["loss"] for p in pre], "tokens": [done[p]["tokens"] for p in pre]}
+            if tok is not None or tman is not None:           # other tokenizer: loss / tokens are per OWN token; bytes for BPB
+                suites[sname].update(nll=[done[p]["nll"] for p in pre], bytes=[done[p]["bytes"] for p in pre], bpb=[done[p]["bpb"] for p in pre])
+        out = {"iteration": 0, "time": time.strftime("%Y-%m-%dT%H:%M:%S"), "protocol": "doc_isolated", "seq_len": seq, "suites": suites,
+               "model": os.path.realpath(a.model), "scorer": {"vllm": "vLLM prompt_logprobs", "sglang": "SGLang input_token_logprobs",
+                                                              "hf": "HF transformers forward, fp32 log-softmax"}[a.backend] + " (reports_xx/mimo_doc_eval.py)",
+               "tokenizer": (f"{tman['tokenizer'].get('name')} token files {a.tok_dir}, bos {a.bos}" if tman is not None else
+                             "qwen3 (the ladder's token files)" if tok is None else f"own ({type(tok).__name__}), text {a.text_dir}, bos {a.bos}")}
+        with open(os.path.join(out_w, "eval", "val_splits_iter000000000_doc_isolated.json"), "w") as f:
+            json.dump(out, f, indent=1)
+        print(f"[mimo_doc_eval] done: {len(done)} splits in {(time.time() - t_all) / 60:.1f} min", flush=True)
     return 0
 
 

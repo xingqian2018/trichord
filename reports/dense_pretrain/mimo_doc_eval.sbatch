@@ -43,11 +43,13 @@ PP=${PP:-1}
 HFO=${HFO:-'{"head_dtype": "float32"}'}                        # MiMo: fp32 LM head (teacher cache); other models: '{}'
 LLMKW=${LLMKW:-'{}'}                                           # extra vllm.LLM arguments (JSON, one argument: not via EXTRA)
 SEQ=${SEQ:-}                                                   # chunk length in predictions (empty = the ladder's 8192); 32760 = ~32K window
-MML=$(( ${SEQ:-8192} + 8 ))                                    # = mimo_doc_eval.py's max_model_len (driver and headless workers must agree)
+SEQ2=${SEQ2:-}                                                 # a second window from the SAME loaded model (user 11-04 "load 模型一次，出两个结果"),
+OUT2=${OUT2:-$WORK_DIR/${NAME}_W32K-ref-$SLURM_JOB_ID}          # e.g. SEQ2=32760 -> <NAME>_W32K next to <NAME> (8K)
+MML=$(( $( (( ${SEQ2:-0} > ${SEQ:-8192} )) && echo $SEQ2 || echo ${SEQ:-8192} ) + 8 ))   # = mimo_doc_eval.py's max_model_len (longest window; driver and workers agree)
 WORKER_EXTRA=${WORKER_EXTRA:-}                                 # multi-node: the same extra arguments for the headless workers, as vllm serve flags
                                                                # (must match LLMKW, e.g. Mistral-Large-4: --tokenizer-mode mistral --config-format mistral ...)
 export HFO
-mkdir -p "$OUT"
+mkdir -p "$OUT"; [[ -n "$SEQ2" ]] && mkdir -p "$OUT2"
 echo "model $MODEL  nodes $SLURM_NNODES  PP $PP  ref $REF  out $OUT  $(date)"
 
 export HF_HUB_OFFLINE=1 OMP_NUM_THREADS=8 VLLM_ENGINE_READY_TIMEOUT_S=3600
@@ -56,7 +58,7 @@ export TRITON_CACHE_DIR=/tmp/mimo_cache_$SLURM_JOB_ID/triton   # SGLang (Flint):
 export VLLM_CACHE_ROOT=/tmp/mimo_cache_$SLURM_JOB_ID/vllm DG_JIT_CACHE_DIR=/tmp/mimo_cache_$SLURM_JOB_ID/deep_gemm DG_JIT_NVCC_COMPILER=/usr/local/cuda/bin/nvcc
 export PYTHONPATH=$REPO/code/scaling_ladder
 CT=(--container-image="$IMAGE" --container-mounts=/lustre:/lustre,/scratch:/scratch,/home/xingqianx/data:/home/xingqianx/data --no-container-mount-home --container-workdir=/tmp --export=ALL)
-RUN=(python3 -u "$REPO/reports_xx/mimo_doc_eval.py" --model "$MODEL" --ref "$REF" --out "$OUT" --tp 4 --pp "$PP" --hf-overrides "$HFO" --llm-kwargs "$LLMKW" ${SEQ:+--seq-len $SEQ} ${SGLARGS:+--sgl-args "$SGLARGS"} ${EXTRA:-})
+RUN=(python3 -u "$REPO/reports_xx/mimo_doc_eval.py" --model "$MODEL" --ref "$REF" --out "$OUT" --tp 4 --pp "$PP" --hf-overrides "$HFO" --llm-kwargs "$LLMKW" ${SEQ:+--seq-len $SEQ} ${SEQ2:+--seq-len2 $SEQ2 --out2 $OUT2} ${SGLARGS:+--sgl-args "$SGLARGS"} ${EXTRA:-})
 
 if (( SLURM_NNODES == 1 )); then
     srun --nodes=1 --ntasks=1 "${CT[@]}" bash -c 'mkdir -p $XDG_CACHE_HOME; exec "$@"' _ "${RUN[@]}"

@@ -19,6 +19,10 @@ GCS_CONFIG_PATH = os.path.expanduser("~/.config/dir/config.yaml")
 GCS_CONFIG_PROFILE = "team-gcs-cosmos"
 IMAGE_CRED_PATH = os.path.expanduser("~/Project/imaginaire4_sila/credentials/gcs.secret")
 FRAGMENT_MAP_PATH = Path(__file__).resolve().parent / "midtrain_fragment_map.json"
+MIDTRAIN_TABLE = "Midtrain main table"
+EXTRA_TABLES = {
+    "SDG super7m (alezhang)": "gs://nv-00-10206-lancedb/dev/users/alezhang/domain_sdg_super7m_v1.lance",
+}
 
 LANCE_STORAGE_OPTIONS = {
     "client_max_retries": "15",
@@ -81,9 +85,22 @@ def load_fragment_map() -> dict:
     return json.loads(FRAGMENT_MAP_PATH.read_text())
 
 
-@st.cache_resource(show_spinner="Opening main table...")
+@st.cache_resource(show_spinner="Opening table...")
 def open_dataset(table_uri: str) -> "lance.LanceDataset":
     return lance.dataset(table_uri, storage_options=LANCE_STORAGE_OPTIONS)
+
+
+@st.cache_data(show_spinner="Building fragment map...")
+def build_fragment_map(table_uri: str) -> dict:
+    dataset = open_dataset(table_uri)
+    table = dataset.to_table(columns=["source_dataset"], with_row_address=True)
+    datasets = {}
+    for source, address in zip(table.column("source_dataset").to_pylist(), table.column("_rowaddr").to_pylist()):
+        entry = datasets.setdefault(source, {"rows": 0, "fragments": {}})
+        fragment = str(address >> 32)
+        entry["rows"] += 1
+        entry["fragments"][fragment] = entry["fragments"].get(fragment, 0) + 1
+    return {"main_table": table_uri, "table_version": dataset.version, "datasets": datasets}
 
 
 def light_columns(schema: pa.Schema) -> list[str]:
@@ -154,11 +171,12 @@ def load_rows(table_uri: str, fragment_id: int, source_dataset: str, row_limit: 
 
 
 def caption_items(row: dict) -> list[tuple[str, str]]:
-    return [(k, v) for k, v in row.items() if "caption" in k and isinstance(v, str) and v.strip() and not k.endswith(("_model", "_error", "_modified_by", "_category"))]
+    items = [(k, v) for k, v in row.items() if "caption" in k and isinstance(v, str) and v.strip() and not k.endswith(("_model", "_error", "_modified_by", "_category"))]
+    return sorted(items, key=lambda item: not item[0].startswith("captioning"))
 
 
 def status_line(row: dict) -> str:
-    return " · ".join(f"{'✅' if row.get(col) is not None else '⬜'} {label}" for label, col in STATUS_COLUMNS)
+    return " · ".join(f"{'✅' if row.get(col) is not None else '⬜'} {label}" for label, col in STATUS_COLUMNS if col in row)
 
 
 def show_image(row: dict, max_side: int) -> None:
@@ -172,10 +190,10 @@ def show_image(row: dict, max_side: int) -> None:
         st.error(f"Failed to load image: {e}")
 
 
-def show_original_image(row: dict) -> None:
-    uri = row.get("image_s3_range")
+def show_original_image(row: dict, column: str = "image_s3_range") -> None:
+    uri = row.get(column)
     if not uri:
-        st.info("No image_s3_range")
+        st.info(f"No {column}")
         return
     try:
         data = download_image_bytes(uri)
@@ -214,6 +232,9 @@ def render_detail(rows: list[dict], key: str) -> None:
     row = rows[st.session_state[key]]
     show_original_image(row)
     st.caption(f"original {row.get('width')}×{row.get('height')} · {status_line(row)}")
+    if row.get("qwen_image_s3_range"):
+        with st.expander("qwen_image_s3_range"):
+            show_original_image(row, "qwen_image_s3_range")
     caption_col, meta_col = st.columns([3, 2])
     with caption_col:
         for name, text in caption_items(row):
@@ -228,15 +249,16 @@ def render_detail(rows: list[dict], key: str) -> None:
 def main() -> None:
     st.title("🖼️ Midtrain Image Viewer")
     setup_google_auth()
-    fmap = load_fragment_map()
-    table_uri = fmap["main_table"]
-    datasets = fmap["datasets"]
 
     with st.sidebar:
         st.header("Dataset")
+        table_name = st.selectbox("Table", [MIDTRAIN_TABLE, *EXTRA_TABLES])
+        fmap = load_fragment_map() if table_name == MIDTRAIN_TABLE else build_fragment_map(EXTRA_TABLES[table_name])
+        table_uri = fmap["main_table"]
+        datasets = fmap["datasets"]
         names = sorted(datasets, key=lambda n: -datasets[n]["rows"])
         source_dataset = st.selectbox(
-            "Midtrain source_dataset",
+            "source_dataset",
             names,
             format_func=lambda n: f"{n} ({datasets[n]['rows']:,} rows, {len(datasets[n]['fragments'])} frags)",
         )

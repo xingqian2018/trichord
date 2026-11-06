@@ -27,6 +27,9 @@ WORK_DIR = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/x
 OUT_DIR = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/Project/trichord/dense_pretrain_result"   # source of truth (in trichord's git)
 SHARE_DIR = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/dense_pretrain_result"   # group-readable copy
 REPO_DIR = os.path.join(HERE, "..", "results_xx")   # copy in the ladder repo (git), next to Boxiang's results/
+PART_RE = re.compile(r"^(?P<base>.+)__P(?P<i>\d)of(?P<n>\d)$")
+SUITE_ORDER = ["cosmos_val_v2_cc_decon_qwen3", "cosmos_val_v2_python_decon_qwen3", "cosmos_val_v2_arxiv_decon_qwen3", "uncheatable_decon_qwen3",
+               "codefresh_decon_qwen3", "v3small_decon_qwen3", "private_internal_decon_qwen3", "pile_test_decon_qwen3", "pile_10k_decon_qwen3"]
 DIR_RE = re.compile(r"^(?P<change>.+)-(?P<rung>q\d|ref)-(?P<job>\d+)$")   # ref = an external HF model (mimo_doc_eval.py)
 
 
@@ -40,6 +43,28 @@ def latest_evals():
         key = (m["change"], m["rung"])
         if key not in found or int(m["job"]) > int(found[key][1]):
             found[key] = (d, m["job"], files[-1])
+    # run_doc_eval.sh EVAL_SPLIT3=1: <CHANGE>__P<i>of<n> = the same checkpoint on disjoint suite groups -> one record once all n parts exist
+    parts = {}
+    for (change, rung), v in list(found.items()):
+        pm = PART_RE.match(change)
+        if pm:
+            del found[(change, rung)]
+            parts.setdefault((pm["base"], rung, int(pm["n"])), {})[int(pm["i"])] = v
+    for (base, rung, n), got in parts.items():
+        if sorted(got) != list(range(1, n + 1)):
+            continue                                       # not all parts finished yet
+        recs = [json.load(open(got[i][2])) for i in sorted(got)]
+        if len({r["iteration"] for r in recs}) != 1:
+            continue
+        suites = {}
+        for r in recs:
+            suites.update(r["suites"])
+        order = [s for s in SUITE_ORDER if s in suites] + [s for s in suites if s not in SUITE_ORDER]
+        merged = {"iteration": recs[0]["iteration"], "time": max(r["time"] for r in recs), "protocol": recs[0]["protocol"],
+                  "suites": {s: suites[s] for s in order}}
+        job = max((got[i][1] for i in got), key=int)
+        if (base, rung) not in found or int(job) > int(found[(base, rung)][1]):
+            found[(base, rung)] = (got[1][0], job, merged)
     return found
 
 
@@ -77,7 +102,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     index = []
     for (change, rung), (eval_dir, job, path) in sorted(latest_evals().items()):
-        rec = json.load(open(path))
+        rec = path if isinstance(path, dict) else json.load(open(path))   # dict = merged EVAL_SPLIT3 parts
         names = list(rec["suites"])
         suites = {s.name: s for s in val_metrics.load_suites(names, val_metrics.DEFAULT_SUITES_DIR)}
         tsqw_cols = {"01_val_v2_overall_tw": ("cosmos_val_v2_cc", "cosmos_val_v2_python", "cosmos_val_v2_arxiv"), "02_uncheatable_tw": ("uncheatable",),

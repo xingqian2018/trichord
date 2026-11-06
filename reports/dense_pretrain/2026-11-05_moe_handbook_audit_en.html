@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MoE Handbook Audit</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; --warn:#9a6700; --note:#ddf4ff; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; --warn:#d29922; --note:#0c2d4a; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); background:#fff; font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+@media (prefers-color-scheme: dark) { body { background:#0d1117; } }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+a { color:var(--accent); }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:40px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+h3 { font-size:16px; margin-top:28px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; vertical-align:top; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+table.wrap th, table.wrap td { white-space:normal; }
+td.w { white-space:normal; min-width:240px; max-width:460px; }
+td.r { text-align:right; }
+.box { border:1px solid var(--border); border-left:4px solid var(--accent); background:var(--note); padding:8px 16px; border-radius:6px; margin:12px 0; }
+.box ul { margin:6px 0; padding-left:20px; }
+.hl { border-left-color:#d4a72c; background:color-mix(in srgb, #f2cc0c 30%, transparent); font-size:15px; }
+.hl p { margin:6px 0; }
+.st { display:inline-block; padding:0 7px; border-radius:10px; font-size:12px; font-weight:600; white-space:nowrap; border:1px solid currentColor; }
+.st.bad { color:var(--bad); } .st.warn { color:var(--warn); } .st.ok { color:var(--good); } .st.na { color:var(--muted); }
+.lbl { font-weight:600; margin:14px 0 4px; }
+em { color:var(--muted); }
+@media (max-width:700px) { main { padding:16px 16px 48px; } nav { padding:8px 16px; } }
+</style></head>
+<body><nav><a href="#s1">1. Overview</a><a href="#s2">2. Confirmed issues</a><a href="#s3">3. Secondary issues</a><a href="#s4">4. What is clean</a><a href="#s5">5. Tool and doc errors</a><a href="#s6">6. Recommendations</a><a href="#s7">7. Method</a></nav><main>
+<h1>MoE handbook audit: does our MoE have the problems the handbook describes?</h1>
+<p>2026-11-05 · Reference: Hugging Face, "The Ultimate MoE Training Handbook" (published 2026-11-05, Megatron-LM based) <a href="https://huggingface.co/spaces/huggingface/moe-blogpost">huggingface.co/spaces/huggingface/moe-blogpost</a> · Method: 10 read-only agents, one per handbook topic, checked against both Megatron trees, every qwen3 golden argv and the logs of about 780 runs (section 7) · No code was changed and no job was submitted · 中文：<a href="2026-11-05_moe_handbook_audit.html">2026-11-05_moe_handbook_audit.html</a></p>
+<div class="box hl">
+<p><strong>In one sentence</strong>: the MoE machinery itself has no bug. Router precision, dropless dispatch, aux scaling, the expert bias, and our own KD / MuonH / eval wrappers are all correct. But 5 of the traps the handbook names do apply, and two of them affect conclusions directly: <strong>the aux-loss scope changes with the rung</strong> (a confound for the ladder extrapolation) and <strong>the MuonH router LR does not scale with width</strong> (matters for the 235B target at h=4096).</p>
+<p>Cheapest next step: an eval-only MaxVio pass on the existing KD q2/q3 checkpoints tells us whether the main line is balanced.</p>
+</div>
+
+<h2 id="s1">1. Overview</h2>
+<p>Status: <span class="st bad">affected</span> there is evidence the problem is present; <span class="st warn">partial</span> the risk condition is present but has had no consequence so far; <span class="st warn">unknown</span> no data to decide; <span class="st ok">not affected</span>; <span class="st na">n/a</span> we don't use the feature.</p>
+<table class="wrap">
+<thead><tr><th>#</th><th>Issue</th><th>Handbook section</th><th>Status</th><th>Scope</th><th>Next step</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><a href="#s2-1">Main-line balance is invisible, and LBL≈1 is read as "balanced"</a></td><td>3.0, A.1, 3.3</td><td><span class="st bad">affected</span></td><td>All main-line runs (MuonH+KD, BASE)</td><td>Turn on router health and per-layer logging; eval MaxVio on existing KD checkpoints</td></tr>
+<tr><td>2</td><td><a href="#s2-2">Aux-loss scope shrinks with the rung, from 32K to 8K tokens</a></td><td>3.3 Scope</td><td><span class="st bad">affected</span></td><td>Ladder fit points q4–q6</td><td>mbs 1 vs mbs 4 at q0/q1</td></tr>
+<tr><td>3</td><td><a href="#s2-3">MuonH router LR does not scale with width</a></td><td>3.6 Optimizer</td><td><span class="st bad">affected</span> (h ≥ 3072)</td><td>235B (h=4096) extrapolation</td><td>Full-length h=4096 run with router ×0.25</td></tr>
+<tr><td>4</td><td><a href="#s2-4">Fixed-step expert bias cannot balance the first MoE layer</a></td><td>3.3 Loss-free bias</td><td><span class="st bad">affected</span> (all-MoE DSV3 arms)</td><td>DSV3 / router_ne research arms; PROD mostly unaffected</td><td>Quantile-balancing arm</td></tr>
+<tr><td>5</td><td><a href="#s2-5">No node-health or throughput gate, and no profile ever taken</a></td><td>2.1, 3.7</td><td><span class="st bad">affected</span></td><td>About 3k GPU-h already lost</td><td>Preflight, step-time watchdog, one trace each at q3/q4</td></tr>
+<tr><td>6</td><td><a href="#s3-1">Rerun is disabled in every run</a></td><td>3.6 Stability</td><td><span class="st warn">partial</span></td><td>A NaN can't be attributed to a bad GPU vs a reproducible NaN</td><td><code>validate_results</code> for non-KD arms</td></tr>
+<tr><td>7</td><td><a href="#s3-2">Large BASE q5/q6 warmup spikes; no expert output-norm monitor anywhere</a></td><td>3.4, 3.6</td><td><span class="st warn">partial</span></td><td>BASE AdamW at large rungs</td><td>Precursor alarm; expert output-norm hook</td></tr>
+<tr><td>8</td><td><a href="#s3-3">Softmax router logits drift upward, no z-loss</a></td><td>3.1 Precision</td><td><span class="st warn">partial</span></td><td>Main line</td><td>Log logsumexp; z-loss arm at q0/q1</td></tr>
+<tr><td>9</td><td><a href="#s3-4">Gate sharpness has never been measured</a></td><td>3.1 Sharpness</td><td><span class="st warn">unknown</span></td><td>Main line</td><td>Offline top-1 weight and Max1/Max2 from checkpoints</td></tr>
+<tr><td>10</td><td><a href="#s3-5">Rarely used experts take oversized steps under MuonH</a></td><td>3.6 Optimizer</td><td><span class="st warn">unknown</span></td><td>Main line</td><td>Per-expert token-count and update-norm logging</td></tr>
+</tbody></table>
+
+<h2 id="s2">2. Confirmed issues</h2>
+
+<h3 id="s2-1">2.1 Main-line balance is invisible, and LBL≈1 is read as "balanced"</h3>
+<p class="lbl">What the handbook says</p>
+<ul>
+<li>Megatron's aux loss is E·Σ f<sub>i</sub>·P<sub>i</sub>. It equals 1 whenever the router probabilities are flat, whatever the actual load, so read MaxVio (how far the busiest expert is above the mean), not the aux loss (3.3; A.2 "aux loss near 1 but one GPU slow").</li>
+<li>Read MaxVio at the scope you balance: both per micro-batch and per global batch (A.1).</li>
+</ul>
+<p class="lbl">What we have</p>
+<ul>
+<li>The main line (KD s64y, s64y_fit, docmask, packplan), BASE v1, Muon and MuonH run without <code>LADDER_ROUTER_HEALTH</code>, and no golden carries <code>--moe-per-layer-logging</code>. The logs contain only a layer-averaged <code>load_balancing_loss</code>. Router health is set only in the dsv3 / swa / router_ne exp files and one prod packplan exp.</li>
+<li>Main-line LBL is close to 1 everywhere (mean over the last 20% of training):</li>
+</ul>
+<table>
+<thead><tr><th>Arm</th><th>q0</th><th>q1</th><th>q2</th><th>q3</th><th>q4</th><th>q5</th></tr></thead>
+<tbody>
+<tr><td>BASE v1</td><td class="r">1.054</td><td class="r">1.031</td><td class="r">1.022</td><td class="r">1.018</td><td class="r">1.019</td><td class="r">1.019</td></tr>
+<tr><td>KD s64y_fit</td><td class="r">1.097</td><td class="r">1.042</td><td class="r">1.024</td><td class="r">1.016</td><td></td><td></td></tr>
+</tbody></table>
+<ul>
+<li>But runs with the same softmax router (aux 1e-3) and router health on show clear imbalance while LBL≈1:</li>
+</ul>
+<table>
+<thead><tr><th>Run</th><th>Window</th><th>LBL</th><th>MaxVio, layer mean</th><th>MaxVio, worst layer</th><th>Dead experts</th></tr></thead>
+<tbody>
+<tr><td>MUONH_FIT q0 s1</td><td>step 4500</td><td class="r">1.110</td><td class="r">1.61</td><td class="r">3.94 (L00)</td><td class="r">1</td></tr>
+<tr><td>MUONH_FIT q0 (3 seeds)</td><td>end of training</td><td class="r">—</td><td class="r">1.3–1.5 (layer median)</td><td class="r">4.03 / 5.36 / 5.21 (L00)</td><td class="r">—</td></tr>
+<tr><td>MUONH_FIT q1</td><td>end of training</td><td class="r">1.05</td><td class="r">—</td><td class="r">3.30 (L00)</td><td class="r">1–3 in every report after step 1000</td></tr>
+<tr><td>MUONH_FIT_SWA q3</td><td>last 20%</td><td class="r">1.024</td><td class="r">0.66</td><td class="r">2.0</td><td class="r">—</td></tr>
+<tr><td>MUONH_FIT q0, eval (val_v2_decon)</td><td>final checkpoint</td><td class="r">—</td><td class="r">2.3–3.8</td><td class="r">4–5.7</td><td class="r">about 140/1536 on codefresh</td></tr>
+</tbody></table>
+<ul>
+<li>At q0 the layer-0 imbalance grows during training: 1.9–3.2 in the first 10% of reports, 3.5–5.4 at the end.</li>
+<li>We balance per micro-batch, but <code>router_health.py</code> measures only global-batch MaxVio. Per-micro-batch and per-EP-rank load have never been measured, and the per-EP-rank load is what sets EP step time.</li>
+<li>Places where LBL is read as a balance measure: <code>DECISIONS.md:1696</code> says "load_balancing_loss (1.0 = balanced, 128 = one expert)", but for top-8 the upper bound is E/k = 16, so the W3 readings of 14.5–15.7 are close to total collapse onto 8 experts. Also <code>reports/muon_vs_adamw_2026-10-17.md:334</code>, <code>dsv3_router_assessment_2026-10-26.md:18</code> and the header of <code>gptoss_tpp200_aux10x.sh</code>. The eval report's router section uses MaxVio and is unaffected.</li>
+</ul>
+<p class="lbl">Recommendation</p>
+<ul>
+<li>Default new main-line runs to <code>LADDER_ROUTER_HEALTH=100</code> and <code>--moe-per-layer-logging</code>. Router health costs about 1.07 s per report at q3, once every 100 steps, so under 1%.</li>
+<li>Run an eval-only <code>LADDER_ROUTER_MAXVIO_VAL=1</code> pass on the existing KD q2/q3 checkpoints; this answers the question for the main line without retraining.</li>
+<li>Add per-micro-batch and per-EP-rank MaxVio to <code>router_health.py</code>. Use MaxVio (layer mean and worst layer) as the balance criterion and stop citing LBL.</li>
+</ul>
+
+<h3 id="s2-2">2.2 Aux-loss scope shrinks with the rung, from 32K to 8K tokens</h3>
+<p class="lbl">What the handbook says</p>
+<ul>
+<li>3.3 Scope: when a micro-batch is all one domain, forcing balance inside it keeps experts from specializing by domain (Qiu et al., "Demons in the Detail"). Global-batch scope is better for quality at about +5.8% step time. A.2 "experts that do not specialize by domain".</li>
+</ul>
+<p class="lbl">What we have</p>
+<ul>
+<li><code>aux_loss</code> counts within one rank (TP=CP=1), so each balancing group is mbs × 8192 tokens. mbs is set per rung (<code>arch_rung_defaults</code> in <code>sh/arch/qwen3moe.sh</code>):</li>
+</ul>
+<table>
+<thead><tr><th></th><th>q0</th><th>q1</th><th>q2</th><th>q3</th><th>q4</th><th>q5</th><th>q6</th></tr></thead>
+<tbody>
+<tr><td>DP</td><td class="r">16</td><td class="r">32</td><td class="r">64</td><td class="r">64</td><td class="r">128</td><td class="r">256</td><td class="r">256</td></tr>
+<tr><td>mbs</td><td class="r">4</td><td class="r">4</td><td class="r">4</td><td class="r">4</td><td class="r">2</td><td class="r">1</td><td class="r">1</td></tr>
+<tr><td>Micro-batches per step</td><td class="r">4</td><td class="r">2</td><td class="r">1</td><td class="r">1</td><td class="r">1</td><td class="r">1</td><td class="r">1</td></tr>
+<tr><td>Tokens per balancing group</td><td class="r">32,768</td><td class="r">32,768</td><td class="r">32,768</td><td class="r">32,768</td><td class="r">16,384</td><td class="r">8,192</td><td class="r">8,192</td></tr>
+<tr><td>Expected tokens per expert</td><td class="r">2048</td><td class="r">2048</td><td class="r">2048</td><td class="r">2048</td><td class="r">1024</td><td class="r">512</td><td class="r">512</td></tr>
+</tbody></table>
+<ul>
+<li>Each 8K sample comes from exactly one of 1975 prefixes (BlendedDataset; the <code>kd/data.py</code> docstring says the same for the KD line). So at q5/q6 the aux loss is effectively a sequence-wise Switch loss on a single-domain sequence, at 10× DeepSeek-V3's sequence-wise coefficient (1e-4).</li>
+<li>Side evidence: DSV3_SWS_AUX1EM3, which raises the sequence-wise coefficient from 1e-4 to 1e-3, costs +0.0078 / +0.0098 / +0.0066 nats at q0/q1/q2. A narrower scope with a larger coefficient does cost LM loss.</li>
+<li>The README rejected <code>global_aux_loss</code> because its effective strength is 1e-3/DP, which differs across rungs. That claim checks out (identical code in both trees), but the current per-micro-batch scheme also differs across rungs. With GBS fixed at 2<sup>21</sup>, a DP-patched global aux (<code>code/scaling_ladder/tools/patches/global_aux_loss_dp_scale.patch</code>) would be the rung-invariant option.</li>
+<li>A smaller difference: KD's soft targets send a smaller LM gradient into the router, so the same 1e-3 is relatively stronger under KD. LBL at q1, iter 14680: CE (OPT_MUONH) 1.055, KD α0.8 1.041. The aux gradient scaling itself is identical under CE and KD; this is not a bug.</li>
+</ul>
+<p class="lbl">Recommendation</p>
+<ul>
+<li>Measure first: mbs 1 vs mbs 4 at q0/q1 with the same GBS.</li>
+<li>If it matters: all-reduce <code>tokens_per_expert</code> over a fixed-size DP subgroup (e.g. 32K tokens), or switch to the DP-patched global aux. The latter also needs int64 / fp32 counters (see the bf16-counter row in section 4).</li>
+</ul>
+
+<h3 id="s2-3">2.3 MuonH router LR does not scale with width</h3>
+<p class="lbl">What the handbook says</p>
+<ul>
+<li>3.6 Optimizer: Muon can destabilize the router; Qwen3.8-Next moved its router back to AdamW, and Megatron offers <code>--moe-router-skip-muon</code>. A.2 "experts collapse layer by layer under Muon".</li>
+</ul>
+<p class="lbl">What we have</p>
+<ul>
+<li>Muon arm: <code>--moe-router-skip-muon</code>, router on AdamW with wd 0.1. <span class="st ok">matches</span></li>
+<li>MuonH main line: the router uses AdamH (<code>--hyperp-router adam_hyperball</code>) with its norm pinned at 0.02·√(E·h), wd 0, at 1× the hidden LR. The main line sets no <code>HYPERP_GROUP_LR_MULT</code>, so no rung has a router LR multiplier.</li>
+<li>At h=4096 (the W3 cells) routing collapsed within 50 steps: LBL 14.5–15.9, grad norm up to 511,442, loss up to 10.4. h ≤ 2048 is clean: ≤ 3.8 at step 50, about 1.1 by step 300 (<code>DECISIONS.md</code> lines ~1689–1733).</li>
+<li>100-step probe results:
+<ul>
+<li>router ×0.25: LBL 2.15 at step 100, fixed.</li>
+<li>router on AdamW: not fixed, LBL 13–16.</li>
+<li>aux 1e-2: only partly fixed.</li>
+<li>The RTADAMW arm (AdamW router at the HyperP LR) also collapsed: LBL 3.8–8.2, with 24 and 44 loss spikes.</li>
+</ul></li>
+<li>No full-length validation exists: RT0P25 was cancelled before it started, and the DSV3 h=4096 cell is still Planned.</li>
+<li>Related: the router input is the shared pre-MLP RMSNorm output, with no separate router norm and no 1/√d. The initial logit std is 0.02·√h, which doubles from q0 to q6.</li>
+</ul>
+<p class="lbl">Recommendation</p>
+<ul>
+<li>Fix a router width rule before 235B: ×0.25, an LR ∝ 1/h, or the DSV3 router. Validate with a full-length h=4096 run with router health on, not a 100-step probe.</li>
+</ul>
+
+<h3 id="s2-4">2.4 Fixed-step expert bias cannot balance the first MoE layer</h3>
+<p class="lbl">What the handbook says</p>
+<ul>
+<li>3.3 Loss-free bias: a fixed-step sign update lags a moving router, "loss-free bias run still unbalanced after many steps". Li et al.: at 128 experts and γ 1e-3 the busiest expert sits at about 20× the mean. The handbook's fix is quantile balancing.</li>
+</ul>
+<p class="lbl">What we have</p>
+<ul>
+<li>All-MoE MUONH_FIT_DSV3, global-batch MaxVio of the first MoE layer (L0) over the middle of the run (10–70% of steps):</li>
+</ul>
+<table>
+<thead><tr><th></th><th>q0</th><th>q1</th><th>q2</th><th>q3</th></tr></thead>
+<tbody>
+<tr><td>L0</td><td class="r">5.45</td><td class="r">5.16</td><td class="r">3.60</td><td class="r">3.30</td></tr>
+<tr><td>Other layers</td><td class="r" colspan="4">0.46–0.52</td></tr>
+</tbody></table>
+<ul>
+<li>L0 is the most unbalanced layer in 381 of 390 q3 reports, and above 2 in 92% of q3 reports between steps 500 and 40k. It only comes down as the LR decays (0.24–0.69 at the end). The reported "MaxVio 0.15–0.18" is the end-of-run value only.</li>
+<li>Changing the step does not fix it (SWS, q0, L0 mid-run MaxVio): γ 1e-4 → 6.93; 1e-3 → 3.85; 1e-2 → 4.45 mid-run and 9.21 at the end (it oscillates).</li>
+<li>The same router on AdamW (BASE_DSV3_ONETREE) keeps L0 at 0.46–0.88, which points to the fast-moving gate under MuonH.</li>
+<li>What does fix L0:
+<ul>
+<li>seq-aux 1e-3: L0 drops to 0.80, at a cost of +0.008 to +0.010 nats.</li>
+<li>A dense layer 0: PROD (dense L0 + shared expert) has its first MoE layer at 0.70–0.84 mid-run and the worst layer at 1.05–1.14 (q4/q5).</li>
+</ul></li>
+<li>BIASONLY (no seq-aux) at q3: L0 at 11.97, about 13× the mean, close to the handbook's 20×.</li>
+<li>The bias does not transfer to eval sets: the DSV3 q1 control is at MaxVio 0.17 in training, 1.98 on val_v2 and 5.05 on codefresh with 93 dead experts.</li>
+<li>Quantile balancing is supported in both Megatron trees (<code>--moe-router-load-balancing-type quantile_balancing</code>) but blocked by the <code>MOE_ROUTER_LOAD_BALANCING</code> whitelist in <code>sh/arch/qwen3moe.sh</code> (around line 59); <code>router_ne_xx/NOTES.md:123</code> also records skipping it. Megatron makes it exclusive with every aux loss, so seq-aux 1e-4 would also have to go.</li>
+<li>The batch-size study is confounded: GBS spans 128× (4 to 512 sequences of 32K) while γ stays at 1e-3 per step, so the per-token bias adaptation rate differs by 128×.</li>
+</ul>
+<p class="lbl">Recommendation</p>
+<ul>
+<li>QB arm: q0 × 3 seeds plus q1, on both the all-MoE SWS base and the PROD dense-L0 base, with aux coefficient 0, no expert bias, EMA 0 and 0.9. Read L0 and worst-layer MaxVio curves, step time at EP ≥ 4, and R1 val. It needs a one-word whitelist change.</li>
+<li>Make "mid-run worst-layer MaxVio" the health criterion instead of end-of-run means.</li>
+</ul>
+
+<h3 id="s2-5">2.5 No node-health or throughput gate, and no profile ever taken</h3>
+<p class="lbl">What the handbook says</p>
+<ul>
+<li>2.1: run DCGM <code>diag -r 1</code> and an nccl-tests all-to-all baseline on every allocation, or use Megatron's <code>--gpu-sniff-test-interval</code>. 3.7: trace one step of every new configuration at the node count you will run.</li>
+</ul>
+<p class="lbl">What we have</p>
+<ul>
+<li><code>base.sh</code> and <code>submit.sh</code> run no DCGM, no nccl-tests and no sniff test (<code>gpu_sniff_test.py</code> exists in both trees but is unused). The only check is a one-off 2-node all_reduce probe (job 34988: IB, NCCL 2.30.7, 290 GB/s). Bad nodes are excluded only after a failure.</li>
+<li>Allocations that ran slow for a whole segment, found in the logs:</li>
+</ul>
+<table>
+<thead><tr><th>Run</th><th>Job</th><th>Median step</th><th>Reference</th><th>Slower by</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>BASE v1 q5</td><td>1158001</td><td class="r">1762 ms</td><td class="r">1040 ms</td><td class="r">+69%</td><td>27.2k iters, about 1.4k GPU-h; the only one caught, by hand (DECISIONS:1590)</td></tr>
+<tr><td>DSV3_SWS_NE_1EM5 q4</td><td>1460541</td><td class="r">4085 ms</td><td class="r">1289 ms</td><td class="r">+217%</td><td>about 0.6k GPU-h</td></tr>
+<tr><td>OPT_MUON q4</td><td>1173380</td><td class="r">1357 ms</td><td class="r">953 ms</td><td class="r">+42%</td><td>may be partly code</td></tr>
+<tr><td>DSV3_SWS_DENSE1 q4</td><td>1495712</td><td class="r">—</td><td class="r">—</td><td class="r">+30%</td><td></td></tr>
+</tbody></table>
+<ul>
+<li>Rack straddling does not explain them: on slurm-2 the q4 segments with 32 hosts in 32 racks were the fastest (jobs 35003 / 36135 / 36137: 1045–1108 ms). Sick nodes or links are more likely.</li>
+<li>No nsys or torch-profiler trace exists for any production layout; the only profile is the single-node q0 perf run from 10-20. The share of all-to-all and imbalance in step time at EP 8 (q4–q6) is unknown.</li>
+<li>EP communication overlap is structurally unavailable: q2–q6 run one micro-batch per step, and the KD path refuses <code>--overlap-moe-expert-parallel-comm</code> (<code>kd/forward_step.py:31,52</code>).</li>
+<li>Step time drifts up 6–8% over training while LBL falls from 1.08 to 1.01: v1 q2 689 → 734 ms, v1 q3 901 → 959 ms, KD q3 1300 → 1407 ms.</li>
+</ul>
+<p class="lbl">Recommendation</p>
+<ul>
+<li>Add a preflight to <code>base.sh</code>: per-node <code>dcgmi diag -r 1</code> plus a short all-to-all bandwidth test, or turn on <code>--gpu-sniff-test-interval</code>.</li>
+<li>Step-time watchdog: after about 200 iterations, if the segment median is more than 15% slower than the rung reference, alert and requeue with <code>--exclude</code>.</li>
+<li>One 3-step trace at q3 (16 nodes, EP 4) and one at q4 (32 nodes, EP 8), each repeated with <code>--moe-router-force-load-balancing</code> to measure the imbalance cost.</li>
+</ul>
+
+<h2 id="s3">3. Secondary issues</h2>
+
+<h3 id="s3-1">3.1 Rerun is disabled in every run</h3>
+<ul>
+<li>All of the roughly 787 argv files carry <code>--rerun-mode disabled</code> (from the shared argv in <code>sh/base.sh</code>), while both trees default to <code>validate_results</code>. KD needs it off (a replay loses the KD side channel, <code>kd/forward_step.py:17-26</code>); the other arms simply inherit it, and no reason is recorded.</li>
+<li>The NaN check is still on. In disabled mode a NaN raises a fatal <code>RuntimeError</code> and the process exits with 1, not 16, with no replay on another GPU and no attribution.</li>
+<li>No consequence so far: 0 NaN/Inf, 0 skipped iterations and 0 rerun messages across 779 runs. The exit codes seen (1, 2, 134, 135, 139, 143) are all infrastructure. At 235B this becomes a risk: a resumed segment can land on the same bad GPU and crash-loop.</li>
+</ul>
+
+<h3 id="s3-2">3.2 Large BASE q5/q6 warmup spikes; no expert output-norm monitor anywhere</h3>
+<table>
+<thead><tr><th>Run</th><th>Iter</th><th>Precursor</th><th>Spike</th><th>Recovery</th></tr></thead>
+<tbody>
+<tr><td>BASE q5</td><td class="r">1922–1923</td><td>grad norm 9.9 at 1920 (about 20× normal), LBL 1.21 at 1921</td><td>grad norm 185 / 283, lm loss 19.5 (above ln V = 11.9, i.e. worse than uniform), LBL peak 3.9</td><td>about 50 steps</td></tr>
+<tr><td>BASE q6</td><td class="r">3179–3180</td><td>grad norm 9.0 at 3176, LBL 1.14 → 1.24 at 3175–3177</td><td>grad norm 254 / 482, lm loss 13.4</td><td>about 15 steps</td></tr>
+<tr><td>BASE q4</td><td class="r">5090</td><td></td><td>grad norm 45 (577× median), loss +0.31</td><td></td></tr>
+<tr><td>lr0p5x q1</td><td class="r">740</td><td>end of warmup</td><td>loss 3.0 → 7.2, LBL 2.86</td><td></td></tr>
+</tbody></table>
+<ul>
+<li>The handbook's precursor pattern is real here: grad norm and LBL rise 1–3 steps before the spikes, and in the router-collapse cases (wide cells, rtadamw) LBL rises hundreds of steps earlier. All were found after the fact; nothing raises an alarm.</li>
+<li>MuonH+KD main line (q0–q5) and its packplan variants: 0 loss spikes (a spike = more than 0.1 above the median of the previous 20 logged points).</li>
+<li>No run uses <code>--save-activations-interval</code> and there is no expert-output hook. <code>router_health.py</code> tracks load, MaxVio and logits only, and the MuonH sphere monitor tracks weight norms. Under MuonH weight norms are pinned, so a rogue expert could only show in activations.</li>
+<li>Main-line grad-norm jumps (worst: KD s64y q3 17.9 at step 55070, 40× median; packplan q2 56.3 at 28740, 111×) are absorbed by clip 1.0 with no loss effect. 57% of them fall on the same iteration across independent runs (55070, 10690, 35940, 56820, each in 13–19 runs), so they come from the data order, not hardware or numerics.</li>
+</ul>
+
+<h3 id="s3-3">3.3 Softmax router logits drift upward, no z-loss</h3>
+<ul>
+<li>z-loss is off on purpose to match Qwen3 (<code>qwen3moe.sh:47,146</code>); the gpt-oss ladder used 1e-3.</li>
+<li>max|z| keeps rising: MUONH_FIT q1 2.3 (step 1) → 17.8 (1k) → 30.5 (10k) → 35–39 (end); MUONH_FIT_SWA q3 4.2 → 44.3, with the share of logits above +4 going from 0 to 81%. The signed monitor (job 1377911) shows it is entirely a common upward offset, which is the case where the handbook says to add z-loss. Sigmoid routers go higher: DSV3 q3 about 175, PROD1/RS1 63–159.</li>
+<li>The router runs in fp32, so there is no precision risk, and main-line q3–q5 show no spikes. But main-line q3+ runs have router health off and logsumexp is never logged (Megatron logs it only when the coefficient is non-zero).</li>
+</ul>
+
+<h3 id="s3-4">3.4 Gate sharpness has never been measured</h3>
+<ul>
+<li>No top-1 weight, Max1/Max2 or entropy is logged for the softmax router (<code>router_health.py</code>'s "top-8 pinned" metric is sigmoid-specific). The only proxy is the full-softmax entropy on the phi-loss q0 arm: 3.4–4.2 nats (ln 128 = 4.85), which looks flat. The handbook's test: Max1/Max2 → 1 means the layer averages its top-k (3.1 Sharpness).</li>
+<li>Router init is N(0, 0.02) at every rung (<code>hyperp/init.py:11</code>, Qwen3's value), with no jitter and no logit normalisation.</li>
+</ul>
+
+<h3 id="s3-5">3.5 Rarely used experts take oversized steps under MuonH</h3>
+<ul>
+<li>MuonH updates X −= lr·‖X‖<sub>F</sub>/‖U‖<sub>F</sub>·U, which fixes each step's Frobenius size whatever the gradient rank. So the handbook's point that a per-expert step shrinks when an expert sees few tokens does not hold for us.</li>
+<li>CPU check (q3 fc1 960×1280, lr 7.01e-3, quintic NS): step spectral norm over weight spectral norm is 0.116 for a rank-1 gradient vs 0.0044 at full rank, 26× larger.</li>
+<li>An expert with zero tokens keeps stepping at full lr on stale momentum for about 300 steps, a total displacement of roughly 2× its radius; under AdamW the step dies out in about 50 steps.</li>
+<li>Whether this bites is unknown: the main line has no per-expert telemetry.</li>
+</ul>
+
+<h3 id="s3-6">3.6 Other</h3>
+<ul>
+<li><strong>bf16 Newton-Schulz</strong>: both paths run NS in bf16 (MuonH <code>ns_dtype=torch.bfloat16</code>, <code>hyperball_batched.py:276</code>; Muon <code>--muon-fp32-matmul-prec</code> defaults to medium). No spike attributable to it was seen.</li>
+<li><strong>PROD v1 design controls</strong>:
+<ul>
+<li>The shared expert is added on top of top-8, +12.5% expert compute, with no ablation. The handbook recommends replacing one routed slot for a fair test.</li>
+<li>latent2 is compared at equal tokens: at q3 N_active is +7.3% and FLOPs/token +3.8%, so about 0.003 of the −0.011 q3 gain is extra compute. Routed scale 2.5 has no effect under latent (RMSNorm sits before <code>fc2_latent_proj</code>).</li>
+<li>e2x and latent2 run 13–39% slower; compare them at equal wall time too.</li>
+<li>Dense L0 is booked as an MoE layer, so N_total is overstated by 3–8%.</li>
+</ul></li>
+<li><strong>Memory logged for DP rank 0 only</strong> (<code>report_memory</code>): the W3/W4 memory gates were decided on rank-0 peaks. Headroom is fine today (KD q3 about 150 GB of about 284 GB); watch it for wider cells and 235B.</li>
+<li><strong>q0 runs at 47 TFLOP/s/GPU</strong>: TE 2.19's CUTLASS grouped GEMM is SM90-only, so GB300 falls back to a per-expert cuBLAS loop. This is a throughput issue, not a quality issue; the granularity itself is at the handbook's plateau.</li>
+<li><strong>No dense reference and no deterministic mode</strong>: low impact. Multi-seed statistical acceptance, CPU parity tests and the DP weight-hash check cover most of it.</li>
+</ul>
+
+<h2 id="s4">4. What is clean</h2>
+<table class="wrap">
+<thead><tr><th>Item</th><th>Handbook requirement or warning</th><th>What we have</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>Router precision</td><td>Always <code>--moe-router-dtype fp32</code>; bf16 flips close logits</td><td><span class="st ok">not affected</span> every qwen3 golden has fp32; bf16 operands, fp32 logits, top-k and softmax in fp32</td><td><code>qwen3moe.sh:183</code>; <code>router.py:142-147</code>; <code>moe_utils.py:925-966, 1441-1446</code></td></tr>
+<tr><td>Top-k normalisation</td><td>Renormalise at k &gt; 1</td><td><span class="st ok">not affected</span> softmax-after-top-k equals Qwen3's <code>norm_topk_prob</code></td><td>No <code>--moe-router-pre-softmax</code>, no scaling factor</td></tr>
+<tr><td>Token dropping</td><td>A capacity factor drops tokens silently and doesn't log them</td><td><span class="st ok">not affected</span> dropless</td><td><code>moe_expert_capacity_factor=None</code> in both trees; no capacity flag in any argv</td></tr>
+<tr><td>Aux gradient scaling</td><td>—</td><td><span class="st ok">not affected</span> CE and KD share one path: 1/num_microbatches, then DDP average</td><td><code>schedules.py:337-341, 363-367</code>; <code>kd/loss.py:386,413</code></td></tr>
+<tr><td>Our own wrappers</td><td>—</td><td><span class="st ok">not affected</span> KD / MuonH / docmask / packplan / eval skip none of aux loss, bias update, MoE logging or eval gating</td><td><code>pretrain_hyperp.py</code> calls stock <code>pg.pretrain</code> and every patch wraps and calls through; at eval the aux loss is gated on <code>training</code> and <code>is_grad_enabled</code></td></tr>
+<tr><td>Tokens without loss</td><td>—</td><td><span class="st ok">not affected</span> under 0.2% in total</td><td>loss mask about 0.12%, packplan padding 0.045%</td></tr>
+<tr><td>Expert-bias mechanics</td><td>An old commit counted in bf16 and could flip the update direction (fixed in d6316eb45)</td><td><span class="st ok">not affected</span> int64 counts, fp32 bias, updated per step on global counts, checkpointed, outside the optimizer, identical across ranks (36,141 of 36,141 reports)</td><td><code>router.py:226-245</code>; <code>finalize_model_grads.py:167-177</code></td></tr>
+<tr><td>DSV3 seq-aux</td><td>α = 1e-4</td><td><span class="st ok">not affected</span> 1e-4 in every DSV3 / prod argv</td><td>argv</td></tr>
+<tr><td>Orthogonalisation granularity</td><td>Orthogonalise each expert separately</td><td><span class="st ok">not affected</span> per expert in both Muon and MuonH</td><td><code>moe_single_grouped_weight=False</code>; MuonH q3 log lists 1980 matrices = 30 × (qkv + proj + 32 × 2)</td></tr>
+<tr><td>Muon update scale</td><td>Start from <code>--muon-extra-scale-factor 0.2</code></td><td><span class="st ok">not affected</span> spectral mode, 0.2·√max(m,n), router via skip-muon</td><td>q3 argv</td></tr>
+<tr><td><code>global_aux_loss</code></td><td>bf16 counter breaks above 256 micro-batches</td><td><span class="st ok">not affected</span> the bug exists in both trees, but we have at most 4 micro-batches and don't use it. The README's 1/DP claim is correct</td><td><code>router.py:251-265</code>; <code>reports/global_aux_loss_scaling_2026-10-20.md</code></td></tr>
+<tr><td>Routing type</td><td>Expert choice leaks future tokens</td><td><span class="st ok">not affected</span> token choice, no hash layers, eval routes exactly as training</td><td>dual-window 8K bit-identical to standalone 8K eval (11-04)</td></tr>
+<tr><td>Dense first layers</td><td>"Do not count on them to fix early-layer imbalance"</td><td><span class="st ok">consistent</span> already ablated: DENSE1 q1–q4 Δ −0.0045 / −0.0040 / +0.0001 / −0.0009, DENSE2 q1–q3 −0.0029 / −0.0016 / −0.0007; the imbalance moves to L1 (SWS_DENSE1 q4 L1 bias +11.3 vs +3.4 to +5.8 elsewhere)</td><td>live README lines 288-290</td></tr>
+<tr><td>Expert granularity</td><td>Loss improves until 128 experts of width d/4 with top-8; finer splits gain nothing</td><td><span class="st ok">not affected</span> 128, top-8, width 3h/8, the same ratio at every rung</td><td><code>qwen3moe.sh:100</code></td></tr>
+<tr><td>Activation clamp</td><td>7 / 10, quality roughly unchanged</td><td><span class="st ok">not affected</span> main line unclamped; PROD clamp7 / clamp20 arms within noise</td><td><code>prod_v1/RESULTS.md</code></td></tr>
+<tr><td>NCCL transport</td><td>Falling back to Socket is about 25× slower</td><td><span class="st ok">not affected (inferred)</span> the 2-node probe used IB; 32–64-node steps of 1.0–1.4 s rule out Socket. Training logs don't record it</td><td>job 34988</td></tr>
+<tr><td>Upcycling / MTP</td><td>—</td><td><span class="st na">n/a</span> neither is used</td><td>argv</td></tr>
+</tbody></table>
+
+<h2 id="s5">5. Tool and doc errors</h2>
+<ul>
+<li><code>dsv3/tools/bias_spread_trend.py</code>: router-health per-layer lines wrap at about 1 KB (continuation lines start with " 0: "), so the tool reads only the first 14 of 18 / 24 / 30 layers at q1 / q2 / q3. <code>DECISIONS.md</code> line ~1997, "every arm PASSES the hard criterion (largest spread 0.59)", relied on it. Re-parsing DSV3 A q1–q3 puts the worst spread (0.34 / 0.31 / 0.32) inside the first 14 layers, so A's verdict holds; other arms are unchecked.</li>
+<li><code>DECISIONS.md:1696</code>: the LBL upper bound is 16 for top-8, not 128.</li>
+<li>README "init 0.02" is incomplete: under AdamW fc2 uses 0.02/√(2L) (0.0041 at q0, 0.0020 at q6); Qwen3 HF uses 0.02 throughout.</li>
+<li>README throughput numbers (q2 264, q3 338 TFLOP/s) are early-run; full-run medians are 3–7% lower (v1 q2 254, q3 314).</li>
+<li>README says "no compensation outside <code>--calculate-per-token-loss</code>"; the per-token branch is also 1/DP.</li>
+<li><code>router_maxvio_doc_isolated.json</code> counts pad tokens (documented in <code>router_health.py</code>).</li>
+<li>A second, conda-forge <code>libnccl.so.2.32.3</code> sits in <code>boxiangw/envs/dpl/lib</code>, a latent shadowing risk (torch currently loads pip's 2.30.7 via RPATH).</li>
+</ul>
+
+<h2 id="s6">6. Recommendations</h2>
+<h3 id="s6-1">6.1 No GPU needed</h3>
+<ol>
+<li>Default new main-line launches to <code>LADDER_ROUTER_HEALTH=100</code> and <code>--moe-per-layer-logging</code>. <code>base.sh</code> is sourced live when a job starts, so edit it between submissions.</li>
+<li>Extend <code>router_health.py</code> with per-micro-batch and per-EP-rank MaxVio, RMS logsumexp, top-1 weight and Max1/Max2, and the max/median of per-expert fc2 output norms.</li>
+<li>Add the node preflight and step-time watchdog to <code>base.sh</code>; set <code>NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,NET</code> on rank 0; log memory as an all-reduce MAX.</li>
+<li>Fix the doc and tool errors in section 5.</li>
+<li>Switch non-KD arms back to <code>--rerun-mode validate_results</code>; keep it off for KD and document why.</li>
+<li>Dump the samples at steps 55070 / 56820 / 28740 and check them for bad documents.</li>
+</ol>
+<h3 id="s6-2">6.2 Needs GPUs (nothing submitted)</h3>
+<table class="wrap">
+<thead><tr><th>Priority</th><th>Experiment</th><th>Question it answers</th><th>Size</th></tr></thead>
+<tbody>
+<tr><td>P0</td><td>Eval-only <code>LADDER_ROUTER_MAXVIO_VAL=1</code> on the existing KD q2/q3 checkpoints</td><td>Is the main line balanced (2.1)</td><td>small, eval only</td></tr>
+<tr><td>P0</td><td>q0 (3 seeds) and q1, mbs 1 vs mbs 4 at the same GBS</td><td>Effect of the aux scope on loss (2.2)</td><td>small</td></tr>
+<tr><td>P1</td><td>Full-length h=4096 run with router ×0.25 and router health on</td><td>Router rule for 235B (2.3)</td><td>large</td></tr>
+<tr><td>P1</td><td>One 3-step trace each at q3 (16 nodes, EP 4) and q4 (32 nodes, EP 8), repeated with forced balance</td><td>Share of all-to-all and imbalance in step time (2.5)</td><td>tiny</td></tr>
+<tr><td>P2</td><td>Quantile-balancing arm, q0 × 3 seeds plus q1</td><td>First-layer bias lag (2.4)</td><td>medium</td></tr>
+<tr><td>P2</td><td>At q0/q1: z-loss 1e-3; fp32 NS; aux coefficient sweep 5e-4 / 1e-3 / 3e-3 / 1e-2</td><td>Logit drift, bf16 NS, whether the coefficient is right (3.3, 3.6)</td><td>medium</td></tr>
+<tr><td>P3</td><td>PROD: no shared expert, and top-7 plus shared, at q0–q2; latent / e2x compared at equal wall time</td><td>Controls for the PROD design (3.6)</td><td>medium</td></tr>
+<tr><td>P3</td><td>Dense reference at matched active parameters, q0/q1</td><td>Separates stack problems from MoE-specific ones</td><td>small</td></tr>
+</tbody></table>
+
+<h2 id="s7">7. Method</h2>
+<ul>
+<li>The full handbook (6 chapters, about 330k characters after stripping HTML) was downloaded, converted to plain text, and split by section across 10 agents:</li>
+</ul>
+<table>
+<thead><tr><th>#</th><th>Topic</th><th>Handbook sections</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Monitoring</td><td>3.0, A.1</td></tr>
+<tr><td>2</td><td>Router scoring: precision, z-loss, normalisation, sharpness</td><td>3.1</td></tr>
+<tr><td>3</td><td>Routing strategy and block layout</td><td>3.2, 3.5</td></tr>
+<tr><td>4</td><td>Aux coefficient and scope</td><td>3.3, first half</td></tr>
+<tr><td>5</td><td>Loss-free bias and quantile balancing</td><td>3.3, second half</td></tr>
+<tr><td>6</td><td>Expert count, width, shared experts, activation</td><td>3.4</td></tr>
+<tr><td>7</td><td>Muon / MuonH optimizer</td><td>3.6 Optimizer</td></tr>
+<tr><td>8</td><td>Stability, log spike scan, 2.5 checks</td><td>3.6, 2.5</td></tr>
+<tr><td>9</td><td>Systems and throughput</td><td>3.7, 2.1</td></tr>
+<tr><td>10</td><td>Our own wrapper code</td><td>mechanisms across the handbook, A.2</td></tr>
+</tbody></table>
+<ul>
+<li>Every agent was read-only. Scope:
+<ul>
+<li>both Megatron trees: fork @60547a3f4 (AdamW BASE, Muon) and ADLR @80781ab0ab (MuonH, KD);</li>
+<li>the launch layer (our clone and the shared copy jobs actually source, which differ only in QOS lines);</li>
+<li>print-mode argv renders and goldens;</li>
+<li>argv, logs and tensorboard of about 780 runs under boxiangw and xingqianx;</li>
+<li><code>DECISIONS.md</code> and the reports.</li>
+</ul></li>
+<li>Cross-checks: the rung-dependent aux scope was found independently by agents 4 and 10; the L0 imbalance by agents 1/3/4/5/8 from different runs; the router LR problem by agents 2/7/8. I also spot-checked the mbs table in <code>qwen3moe.sh</code>, the load-balancing whitelist, <code>--moe-router-dtype fp32</code> (line 183), <code>DECISIONS.md:1696</code> and <code>--rerun-mode disabled</code> in <code>base.sh</code>; all match the agents' reports.</li>
+<li>Limits:
+<ul>
+<li>Most numbers come from the agents' log parsing and were not all re-checked independently.</li>
+<li>The shared copy's <code>DECISIONS.md</code> is not readable to us; the clone's version was read.</li>
+<li>The main line has no per-layer data at q2 or above, so section 2.1's conclusion for the main line is inferred from MUONH_FIT / SWA runs with the same router. The P0 eval-only MaxVio pass would verify it directly.</li>
+</ul></li>
+</ul>
+</main></body></html>

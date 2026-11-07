@@ -66,7 +66,7 @@ def main() -> None:
     parser.add_argument("--split", choices=["tune", "heldout", "all"], default="tune")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--num_concurrency", type=int, default=16)
-    parser.add_argument("--cache", type=str, default=str(SCRIPT_DIR / "dims_calib_cache.jsonl"))
+    parser.add_argument("--cache", type=str, default=str(SCRIPT_DIR / "blend" / "dims_calib_cache.jsonl"))
     parser.add_argument("--out", type=str, default=None)
     args = parser.parse_args()
 

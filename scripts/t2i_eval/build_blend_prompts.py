@@ -14,7 +14,7 @@
 """Build taxonomy-stratified T2I eval prompt blends (arena1000, cosmos500).
 
 Output: <out_dir>/<name>.json = {"blend", "benchmark": [
-    {id, taxonomy, prompt, prompt_upsampled, dims, writer_model, target_words, dims_votes}]}
+    {id, taxonomy, prompt, prompt_upsampled, dims, writer_model, target_words, dims_votes, dims_facets}]}
 
 arena: model_playground_v1/taxonomy/t2i_arena_v0.yaml, no category filter. Every L1 domain gets
     --min_per_l1 prompts, the rest is split by L1 weight (largest remainder); inside a domain each
@@ -26,12 +26,12 @@ Prompt lengths follow Qwen-Image-Bench: target word counts are evenly spaced qua
 official prompt_en word counts (taxonomy/qwen_image_bench_prompt_en_words.json), shuffled.
 
 Stages (resumable through <out_dir>/<name>_state.json): plan -> write prompts (writer models in
-rotation) -> near-duplicate rewrite -> L1 dims by 3-model majority vote -> final json.
+rotation) -> near-duplicate rewrite -> L1 dims by dims_labeler (facet selection, 3-model vote) -> final json.
 Gateway key: credentials/gateway.json "NVIDIA_GATEWAY".
 
 cd ~/Project/trichord/scripts/t2i_eval
-python build_blend_prompts.py --blend arena --num 1000 --out_dir ~/data/t2i_eval_blend
-python build_blend_prompts.py --blend cosmos --num 500 --out_dir ~/data/t2i_eval_blend
+python build_blend_prompts.py --blend arena --num 1000 --out_dir blend
+python build_blend_prompts.py --blend cosmos --num 500 --out_dir blend
 """
 
 import argparse
@@ -48,6 +48,7 @@ from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from dims_labeler import DimsLabeler  # noqa: E402
 from utils import GATEWAY_CONFIG, UnifiedGatewayLLM  # noqa: E402
 
 WRITER_MODELS = ("opus-5.5", "kimi-k3", "gpt-6-astra")
@@ -109,25 +110,6 @@ Prompt form: {form}
 Write 1 prompt of {lo}-{hi} words.{chinese}
 {avoid}
 Output: {{"prompt_cn": "...", "prompt": "<the faithful English translation>"}}"""
-
-DIMS_SYSTEM_PROMPT = """You label text-to-image benchmark prompts for a judge that scores images on five dimensions. Quality, Aesthetics and Alignment are always scored. Decide whether the two optional dimensions apply to the prompt.
-
-Real-world Fidelity applies when the prompt's image must be faithful to real-world knowledge or norms:
-- Fairness: depicting people in roles, professions or settings where social bias or cultural stereotyping could appear.
-- Safety & Compliance: content near safety boundaries.
-- World Knowledge: real animal species, real-world objects with a typical appearance, structure, brand or iconic characteristics, scientific or abstract concepts to visualize, a specific historical period, or cultural elements (symbols, traditional clothing, rituals, customs).
-
-Creative Generation applies when the prompt asks for creative or professional-design output:
-- Imagination (novel or surreal combinations), Feature Matching (fusing multiple elements), Logical Resolution (depicting cause and effect).
-- Text Rendering: text in the image, its layout, a font, or cross-lingual text.
-- Design Applications: graphic design (ads, posters), product design, spatial/interior/architectural design, fashion styling, game design, a specific art design style.
-- Visual Storytelling: a director's cinematic style, a camera or lens look, storyboard panels, a shot size, a composition rule, a camera angle, comic style.
-
-Respond with a JSON object only: {"real_world_fidelity": true|false, "creative_generation": true|false}"""
-
-DIMS_USER_TEMPLATE = "Prompt: {prompt}"
-
-BASE_DIMS = ("Quality", "Aesthetics", "Alignment")
 
 _NON_LATIN_SCRIPTS = ("CJK", "HIRAGANA", "KATAKANA", "HANGUL", "CYRILLIC", "ARABIC", "HEBREW", "DEVANAGARI", "THAI")
 
@@ -378,42 +360,13 @@ class BlendBuilder:
         return flagged
 
     def label_dims(self, items: list[dict]) -> None:
-        for round_idx in range(MAX_ROUNDS):
-            pending = [i for i, it in enumerate(items) if "dims" not in it]
-            if not pending:
-                return
-            requests, keys = [], []
-            for i in pending:
-                votes = items[i].setdefault("dims_votes", {})
-                for model in WRITER_MODELS:
-                    if model not in votes:
-                        requests.append(self.request(model, DIMS_SYSTEM_PROMPT, DIMS_USER_TEMPLATE.format(prompt=items[i]["prompt"])))
-                        keys.append((i, model))
-            responses = self.vlm.query(requests, pbar_desc=f"{self.blend} dims round {round_idx}")
-            for (i, model), response in zip(keys, responses):
-                parsed = extract_json(response)
-                if (
-                    isinstance(parsed, dict)
-                    and isinstance(parsed.get("real_world_fidelity"), bool)
-                    and isinstance(parsed.get("creative_generation"), bool)
-                ):
-                    items[i]["dims_votes"][model] = {
-                        "real_world_fidelity": parsed["real_world_fidelity"],
-                        "creative_generation": parsed["creative_generation"],
-                    }
-            for i in pending:
-                votes = items[i]["dims_votes"]
-                if len(votes) == len(WRITER_MODELS):
-                    dims = list(BASE_DIMS)
-                    if sum(v["real_world_fidelity"] for v in votes.values()) * 2 > len(votes):
-                        dims.append("Real-world Fidelity")
-                    if sum(v["creative_generation"] for v in votes.values()) * 2 > len(votes):
-                        dims.append("Creative Generation")
-                    items[i]["dims"] = "; ".join(dims)
-            self.save(items)
-        missing = sum(1 for it in items if "dims" not in it)
-        if missing:
-            raise RuntimeError(f"{missing} item(s) still lack dims after {MAX_ROUNDS} rounds")
+        pending = [it for it in items if "dims" not in it]
+        if not pending:
+            return
+        labeler = DimsLabeler(llm=self.vlm)
+        for it, labeled in zip(pending, labeler.label([it["prompt"] for it in pending])):
+            it.update(labeled)
+        self.save(items)
 
     def close(self) -> None:
         self.vlm.close()
@@ -479,6 +432,7 @@ def main() -> None:
                 if not it["prompt"]:
                     it.pop("dims", None)
                     it.pop("dims_votes", None)
+                    it.pop("dims_facets", None)
             builder.save(items)
             builder.write_until_complete(items)
         builder.label_dims(items)
@@ -496,6 +450,7 @@ def main() -> None:
             "target_words": it["target_words"],
             "prompt_form": it["prompt_form"],
             "dims_votes": it["dims_votes"],
+            "dims_facets": it["dims_facets"],
         }
         for it in items
     ]

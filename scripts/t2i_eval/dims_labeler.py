@@ -274,6 +274,7 @@ class DimsLabeler:
         timeout: int = 300,
         models: tuple[str, ...] = MODELS,
         max_rounds: int = 6,
+        llm: Optional[UnifiedGatewayLLM] = None,
     ):
         self.scheme = scheme
         self.rules = rules or FINAL_RULES
@@ -287,7 +288,8 @@ class DimsLabeler:
                 if line.strip():
                     row = json.loads(line)
                     self.cache[row["key"]] = row["vote"]
-        self.llm = UnifiedGatewayLLM(
+        self.owns_llm = llm is None
+        self.llm = llm or UnifiedGatewayLLM(
             gateway_configs={"nvidia": GATEWAY_CONFIG["nvidia"]}, num_concurrency=num_concurrency, timeout=timeout
         )
 
@@ -338,4 +340,5 @@ class DimsLabeler:
         return [aggregate(self.votes_for(p), self.rules) for p in prompts]
 
     def close(self) -> None:
-        self.llm.close()
+        if self.owns_llm:
+            self.llm.close()

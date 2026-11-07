@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cosmos3.5 generator MoE 细节</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+main { max-width:1100px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+h3 { font-size:16px; margin-top:24px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+pre { background:var(--head); padding:10px 14px; border-radius:6px; overflow-x:auto; font-size:12.5px; line-height:1.45; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; vertical-align:top; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+.note { border-left:3px solid var(--accent); padding:4px 12px; margin:12px 0; color:var(--muted); }
+.warn { border-left:3px solid var(--bad); padding:4px 12px; margin:12px 0; }
+hr { border:0; border-top:1px solid var(--border); margin:28px 0; }
+em { color:var(--muted); }
+@media (max-width:640px) { main { padding:16px 16px 48px; } nav { padding:8px 16px; } }
+</style></head>
+<body>
+<nav>
+<a href="#tldr">TL;DR</a><a href="#config">配置</a><a href="#backbone">骨干</a><a href="#gen">gen MoE</a><a href="#route">路由流程</a><a href="#lb">负载均衡</a><a href="#compute">计算与并行</a><a href="#optim">优化器</a><a href="#files">代码位置</a>
+</nav>
+<main>
+<h1>Cosmos3.5 generator 实际使用的 MoE 细节</h1>
+<p>2026-11-06 · xingqianx · 基于 imaginaire4 <code>941729fcae8</code>（2026-10-28）的代码与配置阅读整理，未做运行验证</p>
+
+<h2 id="tldr">TL;DR</h2>
+<ul>
+<li><strong>两层"MoE"含义不同。</strong>MoT 的 und / gen 是按模态硬切分的两座塔，<code>_moe_gen</code> 后缀指 generation 塔，不是路由 MoE。每座塔内部的 FFN 才是真正的路由 MoE。</li>
+<li><strong>und 塔完全冻结。</strong>它是 Cosmos3.5 Reasoner（Qwen3-VL-MoE 结构）原样的 softmax top-8 MoE，没有 LBL。</li>
+<li><strong>gen 塔是被训练的 MoE。</strong>从 und 塔整体拷贝初始化，然后改成 sigmoid router，加一个 shared expert，用 bias 控制器加 sample-level LBL 双重负载均衡。</li>
+<li><strong>没有 Expert Parallel。</strong>专家张量只靠 FSDP 沿专家维切分，235B 上每卡正好 1 个专家。</li>
+<li><strong>优化器是 Dion2WithAuxAdamW。</strong>专家权重按单个专家切片做正交化，router 权重走 AdamW。</li>
+</ul>
+
+<h2 id="config">当前配置</h2>
+<table>
+<tr><th>系列</th><th>文件</th><th>实验</th></tr>
+<tr><td>Ultra 470bm235b（最新）</td><td><code>cosmos3p5_ga_470bm235b_v3_pretrain.py</code></td><td>v3 ~ v3p5，2026-10-18 更新</td></tr>
+<tr><td>Ultra 470bm235b</td><td><code>cosmos3p5_ga_470bm235b_v2_pretrain.py</code></td><td>v2 ~ v2p7</td></tr>
+<tr><td>Super 60bm30b</td><td><code>cosmos3p5_ga_60bm30b_v2_pretrain.py</code></td><td>v2 ~ v2p5</td></tr>
+</table>
+<p>目录：<code>projects/cosmos3/cosmos3/configs/base/experiment/cosmos3p5_ga_pretraining/</code>。逐个实验核对过，所有版本的 MoE 字段完全相同。版本之间变化的只有数据配比、CP 大小和续训 checkpoint。</p>
+<pre><code>gen_cosine_router_config=L(CosineRouterConfig)(
+    use_cosine_similarity=False, activation="sigmoid", input_centering="none"),
+gen_aux_loss_free_load_balancing_config=L(AuxLossFreeLoadBalancingConfig)(
+    enabled=True, update_speed=0.0002, max_bias=0.05),
+gen_moe_shared_expert=True,
+gen_moe_top_k=8,
+lbl=dict(method="sample", coeff_gen=0.04),</code></pre>
+
+<h2 id="backbone">骨干网络（und 塔）</h2>
+<table>
+<tr><th></th><th>Ultra（470bm235b）</th><th>Super（60bm30b）</th></tr>
+<tr><td>VLM config</td><td><code>Cosmos3p5UltraReasoner_VLM_GCP_Config</code></td><td><code>Cosmos3p5SuperReasoner_VLM_GCP_Config</code></td></tr>
+<tr><td>结构</td><td>Qwen3-VL-235B-A22B</td><td>Qwen3-VL-30B-A3B</td></tr>
+<tr><td>层数</td><td>94</td><td>48</td></tr>
+<tr><td>hidden</td><td>4096</td><td>2048</td></tr>
+<tr><td>注意力头 / KV 头</td><td>64 / 4</td><td>32 / 4</td></tr>
+<tr><td>专家数 / top-k</td><td>128 / 8</td><td>128 / 8</td></tr>
+<tr><td>专家宽度 <code>moe_intermediate_size</code></td><td>1536</td><td>768</td></tr>
+<tr><td>稀疏层</td><td>每层（<code>decoder_sparse_step=1</code>，<code>mlp_only_layers=[]</code>）</td><td>同左</td></tr>
+<tr><td><code>norm_topk_prob</code></td><td>True</td><td>True</td></tr>
+</table>
+<p>层模块是 <code>Qwen3VLMoeTextMoTDecoderLayer</code>，<code>qk_norm_for_text</code> 和 <code>qk_norm_for_diffusion</code> 都开。权重来自 NVIDIA 自己的 Reasoner checkpoint，路径是 <code>s3://nv-00-10206-checkpoint/cosmos3/pretrained/huggingface/Cosmos-Reason/Cosmos3.5-{Ultra,Super}-Reasoner/</code>，不是原版 Qwen。</p>
+<p>und 塔不训练。<code>keys_to_select</code> 只包含 <code>moe_gen</code>、<code>time_embedder</code>、<code>vae2llm</code>、<code>llm2vae</code>、<code>sound2llm</code>、<code>llm2sound</code>、<code>action2llm</code>、<code>llm2action</code>。<code>lbl.coeff_und</code> 没有设置，所以 und 塔也没有 LBL。</p>
+
+<h2 id="gen">gen 塔 MoE（被训练的部分）</h2>
+<p>每层的 <code>mlp_moe_gen</code> 是一个独立的 <code>Qwen3VLMoeTextSparseMoeBlock</code>。初始化时 <code>init_moe()</code> 把 und 塔的全部权重拷过来，包括 router 的 <code>gate.weight</code>。不拷的只有 und 塔本来就没有的东西：<code>gate_noise</code>、<code>log_temperature</code>、<code>router_bias</code> 和 <code>shared_expert</code>。</p>
+<table>
+<tr><th>项目</th><th>und 塔</th><th>gen 塔</th></tr>
+<tr><td>是否训练</td><td>冻结</td><td>训练</td></tr>
+<tr><td>Router 激活</td><td>softmax</td><td><strong>sigmoid</strong>（点积 logits，无 cosine，无输入去中心化）</td></tr>
+<tr><td>Router 初始化</td><td>Reasoner checkpoint</td><td>从 und 塔拷贝</td></tr>
+<tr><td>top-k</td><td>8</td><td>8（<code>gen_moe_top_k=8</code>，与 checkpoint 一致）</td></tr>
+<tr><td>Shared expert</td><td>无</td><td><strong>有</strong>，常开 SwiGLU，宽度 = 单个路由专家（1536 / 768）</td></tr>
+<tr><td>Noisy gating</td><td>无</td><td>关闭（默认 <code>gen_noisy_gating=False</code>）</td></tr>
+<tr><td>Bias 控制器</td><td>无</td><td>开，<code>update_speed=2e-4</code>，<code>max_bias=0.05</code></td></tr>
+<tr><td>LBL</td><td>无</td><td><code>method="sample"</code>，系数 0.04</td></tr>
+</table>
+<div class="warn"><strong>值得留意：</strong>gen 的 gate 权重是从按 softmax 训练的 Qwen router 拷来的，现在用 sigmoid 解释同一组 logits。softmax 只关心 logits 之间的差，sigmoid 还关心绝对值，所以训练初期 gen 的路由分布和 und 的不完全一致。这是读代码得出的推论，没有做实验验证。</div>
+<p><strong>Shared expert 的零初始化。</strong>shared expert 是 <code>gate_up_proj [H, 2I]</code> 加 <code>down_proj [I, H]</code> 的 SwiGLU。<code>down_proj</code> 初始化为零，所以训练开始时它的输出恒为零，不会扰动从 Reasoner 拷来的初始行为。宽度倍数 <code>shared_expert_intermediate_scale</code> 用默认值 1。</p>
+
+<h2 id="route">一次前向的路由流程</h2>
+<pre><code>x: [T, H]                       # 打包后的 gen token，padding 已标记
+logits = gate(x)                # fp32
+s      = sigmoid(logits)        # [T, 128]，未加 bias 的分数
+idx    = topk(s + expert_bias, k=8)          # bias 只影响"选谁"
+w      = gather(s, idx)                      # 组合权重用未加 bias 的分数
+w      = w / w.sum(-1, keepdim=True)         # 归一化到和为 1
+
+routed = Σ_k  w_k · Expert_{idx_k}(x)        # grouped_mm 计算
+out    = routed + SharedExpert(x)
+
+# padding token：输入置零，组合权重为 0，路由到哨兵组，不计入统计
+# LBL 统计：用"不加 bias 的自然 top-k"计数，概率 = s / s.sum(-1)</code></pre>
+<p>这里有两个关键的分离：</p>
+<ul>
+<li><strong>选择和加权分开。</strong>expert_bias 只改变 top-8 选哪几个专家，组合权重仍然来自原始 sigmoid 分数。这是 DeepSeek-V3 的做法，bias 不会直接改变输出的数值尺度。</li>
+<li><strong>LBL 看的是自然分配。</strong>如果 LBL 用加了 bias 之后的计数，bias 已经把分配拉平，LBL 就看不到 router 本身的偏向，梯度会接近零。</li>
+</ul>
+
+<h2 id="lb">负载均衡：两套机制同时开</h2>
+<h3>① Aux-loss-free bias 控制器（不走梯度）</h3>
+<p>每个专家维护一个 buffer <code>expert_bias</code>。每个 optimizer step 前，<code>on_before_optimizer_step</code> 调用 <code>moe_utils.update_expert_biases</code>，只作用于 gen 塔的 MoE block：</p>
+<pre><code>counts = all_reduce_DP(tokens_per_expert)       # 本步各专家分到的 token 数
+avg    = counts.mean()
+bias  += update_speed * sign(avg - counts)      # 偏少的专家 bias 上调，偏多的下调
+bias  -= bias.mean()                            # 去均值
+bias   = clamp(bias, -max_bias, +max_bias)
+tokens_per_expert.zero_()</code></pre>
+<table>
+<tr><th>参数</th><th>Cosmos3.5 设定</th><th>类默认值</th></tr>
+<tr><td><code>update_speed</code></td><td>0.0002</td><td>0.001</td></tr>
+<tr><td><code>max_bias</code></td><td>0.05</td><td>0.5</td></tr>
+</table>
+<p>两个参数都比默认值温和很多。sigmoid 分数在 0 到 1 之间，±0.05 的上限意味着 bias 只能在分数接近的专家之间调换选择，不能强行把明显不相关的专家拉进来。这个 buffer 也会同步到 <code>net_ema</code>。</p>
+
+<h3>② Switch 风格 LBL（带梯度）</h3>
+<pre><code>L_lbl = E · Σ_i  f_i · P_i
+  f_i : 专家 i 在自然 top-k 下分到的 token 比例
+  P_i : 专家 i 的平均路由概率（sigmoid 分数在 128 个专家上归一化）
+  E   : 专家数 128</code></pre>
+<ul>
+<li><code>method="sample"</code> 表示按 packed sequence 里的每个原始样本分别计算 f 和 P，而不是整个 batch 一起算。</li>
+<li>统计量先在 CP 维度上求和，再在层之间取平均。</li>
+<li>padding token 放进哨兵桶，不参与统计。</li>
+<li>最后以 <code>aux_loss_gen</code> 的形式乘 0.04 加到总 loss 上。</li>
+</ul>
+<div class="note"><strong>分工：</strong>bias 控制器负责每一步的实际分配是均衡的，起效快但不改 router 权重。LBL 负责通过梯度把 router 权重本身往均衡方向推，起效慢但是从根上解决。</div>
+
+<h2 id="compute">专家计算与并行</h2>
+<h3>Grouped GEMM</h3>
+<ul>
+<li>每层专家权重融合成两个 3D 张量：<code>gate_up_proj [128, H, 2I]</code> 和 <code>down_proj [128, I, H]</code>。</li>
+<li>token 按专家排序，每组长度对齐到 16，排列索引由一个 Triton kernel 生成。</li>
+<li>两次 <code>torch._grouped_mm</code> 完成所有专家的 up 和 down 投影，最后 <code>scatter_add_</code> 按组合权重还原到原顺序。</li>
+<li>padding token 被路由到一个哨兵组，不参与计算。</li>
+</ul>
+<h3>没有 Expert Parallel</h3>
+<table>
+<tr><th></th><th>Ultra 235B</th><th>Super 30B</th></tr>
+<tr><td><code>dp_shard</code></td><td>128</td><td>64</td></tr>
+<tr><td>CP</td><td>16（v2p2 / v2p3 为 8）</td><td>4 或 8</td></tr>
+<tr><td>每卡专家数 <code>E_local</code></td><td>1（128 / 128）</td><td>2（128 / 64）</td></tr>
+</table>
+<p>专家张量和普通权重一样，由 FSDP2 沿 dim 0 切分，而 dim 0 正好是专家维。前向时 FSDP all-gather 回完整的 128 个专家，每张卡在本地对自己的全部 token 做 grouped_mm，没有 all-to-all。<code>parallelism.py</code> 和 <code>parallelize_unified_mot.py</code> 里都没有 EP mesh。<code>safetensors_loader.py:825</code> 的注释也写明只在 <code>ep == 1</code> 时正确。</p>
+
+<h2 id="optim">优化器：Dion2WithAuxAdamW</h2>
+<table>
+<tr><th>参数组</th><th>处理方式</th></tr>
+<tr><td>专家 <code>gate_up_proj</code> / <code>down_proj</code></td><td>Dion2 正交化，<strong>按单个专家切片</strong>分别做（<code>expert_param_keywords=["gate_up_proj","down_proj"]</code>）</td></tr>
+<tr><td>Router <code>.gate.weight</code></td><td>AdamW，通过 <code>orthogonalize_skip_patterns</code> 里的 <code>r"\.gate\.weight$"</code> 排除</td></tr>
+<tr><td>各模态投影层</td><td>AdamW，同样在 skip patterns 里</td></tr>
+</table>
+<ul>
+<li><code>split_expert_gate_up=True</code>：融合的 gate_up 拆成 gate 和 up 两块分别正交化。</li>
+<li><code>batch_split_expert_ns=True</code>：多层专家的 Newton-Schulz 迭代合批计算。</li>
+<li><code>max_moe_expert_ns_matrices</code>：235B 为 36，30B 为 72，控制一次合批的矩阵数上限。</li>
+<li><code>max_dion2_megabatch_width=25</code>，<code>muon_lr_scale=0.2</code>。</li>
+<li>本步没有分到 token 的专家，动量冻结，也不更新。</li>
+</ul>
+
+<h2 id="files">代码位置</h2>
+<table>
+<tr><th>内容</th><th>位置（相对 <code>projects/cosmos3/cosmos3/</code>）</th></tr>
+<tr><td>und / gen MoE block 构造</td><td><code>models/mot/unified_mot.py:1421-1446</code></td></tr>
+<tr><td><code>init_moe</code> 权重拷贝</td><td><code>models/mot/unified_mot.py</code>（约 2335 行）</td></tr>
+<tr><td>CosineRouter、select_experts、SharedExpert、update_bias</td><td><code>models/reasoner/qwen3_vl_moe/qwen3_vl_moe.py</code></td></tr>
+<tr><td>grouped_mm 专家计算</td><td><code>models/reasoner/qwen3_vl_moe/moe.py</code>（<code>_run_experts_grouped_mm</code>）</td></tr>
+<tr><td>LBL</td><td><code>algorithm/loss/load_balancing.py:102</code>（<code>compute_load_balancing_loss</code>）</td></tr>
+<tr><td>bias 更新入口</td><td><code>models/omni_mot_model.py</code>（<code>on_before_optimizer_step</code>）</td></tr>
+<tr><td>Reasoner VLM config</td><td><code>configs/base/defaults/reasoner.py:422-470</code></td></tr>
+<tr><td>EP 未支持的注释</td><td><code>models/utils/safetensors_loader.py:825</code></td></tr>
+</table>
+
+<hr>
+<p><em>一句话总结：Cosmos3.5 generator 的 MoE = 冻结的 Reasoner MoE（und）+ 从它拷出来、改用 sigmoid router、加 shared expert、用 bias 控制器和 sample-level LBL 双重均衡的 gen MoE；训练只走 FSDP，不做 EP。相关背景见同目录的 <code>moe_router.md</code> 和 <code>Muon.md</code>。</em></p>
+</main></body></html>

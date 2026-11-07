@@ -1,0 +1,113 @@
+# Cosmos T2I eval taxonomy v0, derived from the SILA image taxonomy
+# (imaginaire4 pipelines/sila/image/taxonomy_classifier/prompts.py), curated for text-to-image evaluation.
+#
+# Format: L1 keys carry the blend ratio as "name|weight" (weights sum to 1). L2 keys are the categories,
+# split evenly inside their L1; each L2 value is the category guideline: the condition an image (and the
+# prompt that asks for it) must meet to belong to the category.
+#
+# Dropped from SILA: General Image of Other Objects, Tables, Plots and Charts, Documents, Mathematical Notations.
+# Merged: Screenshot of Mobile Apps / Desktop Apps / Websites / Other Digital Interfaces -> Screenshot of Digital Interfaces.
+
+Physical AI|0.35:
+  Fixed-Base Robotic Manipulators: >-
+    A stationary robot arm mounted on a fixed base is the main subject: an industrial articulated arm, SCARA robot,
+    delta/parallel robot, collaborative arm, or surgical/medical arm, typically grasping, placing, welding or otherwise
+    manipulating objects. Not background machinery, and not a mobile or legged robot.
+  Mobile Robots and Bases: >-
+    A wheeled or tracked robot is the main subject: an AGV, AMR, sidewalk delivery robot, warehouse rover, cleaning or
+    lawn robot, or a mobile base carrying a payload or arm. Legged robots belong to Legged and Humanoid Robots.
+  Legged and Humanoid Robots: >-
+    A legged robot is the main subject: a humanoid, biped, quadruped, or other multi-legged robot, shown walking,
+    balancing, climbing, carrying, or performing a task.
+  Aerial and Aquatic Robots: >-
+    An aerial or aquatic robot is the main subject: a drone, quadcopter, fixed-wing UAV, underwater robot, ROV, or
+    autonomous surface vessel, shown in operation in its environment.
+  Industrial Robotics and Factory Scenes: >-
+    An industrial or logistics environment where robotics or automation is clearly present is the main subject: an
+    assembly line, robotic workcell, automated warehouse, or production floor. The scene as a whole matters more than
+    any single robot.
+  Human-Robot Collaboration: >-
+    Humans and robots are co-located and jointly engaged in one task, both clearly visible and interacting: a handover,
+    shared assembly, side-by-side work, or collaborative manipulation.
+  Teleoperation and VR Control: >-
+    A robot is being remotely controlled and that context is the subject: an operator console or robot-control
+    interface, an FPV feed from a robot, VR headsets or controllers driving a robot, or a teleoperation workstation.
+    A screen alone, without robot-control context, does not qualify.
+  Expressive and Social Robots: >-
+    A robot designed for social interaction is the main subject: one with a face, eyes or an expressive display,
+    gesturing, posing communicatively, or interacting with people (companion, reception, education, or care robots).
+  Autonomous Vehicle Normal Driving Scenes: >-
+    An ego-view, onboard road-driving scene under ordinary conditions, as seen from a vehicle's front or dash camera:
+    roads, lanes, traffic, intersections, pedestrians, signs. An exterior photo of a car belongs to General Image of
+    Cars and Vehicles instead.
+  Autonomous Vehicle Adverse and Hazardous Conditions: >-
+    An ego-view or onboard driving scene where a hazard or adverse condition dominates: a collision, blocked road,
+    snow, fog, heavy rain, flooding, debris, dangerous terrain, or severe glare.
+  Rigid Body Mechanics: >-
+    A physical interaction dominated by rigid objects, caught mid-event, is the main subject: a collision, impact,
+    toppling stack, projectile in flight, rolling or bouncing object, or articulated mechanical motion.
+  Fluid Dynamics and Thermodynamics: >-
+    A fluid or thermal phenomenon is the main subject: a splash, wave, pour, vortex, smoke, fire, steam, melting,
+    boiling, freezing, or condensation.
+  Soft Body and Deformation: >-
+    A soft material visibly deforming is the main subject: cloth folding or draping, rope or cable bending, foam
+    compressing, rubber stretching, dough being kneaded, or jelly wobbling.
+
+Text, Diagrams and UI|0.10:
+  Structuralized Diagrams: >-
+    A structured diagram that explains a system, workflow, mechanism, circuit, or process is the main subject, with
+    labeled parts, connectors or arrows. Give the exact label text.
+  Handwritings: >-
+    Handwritten content is the main subject: handwritten notes, equations, letters, whiteboard writing, or calligraphy.
+    Give the exact text to be written.
+  Posters and Design: >-
+    A designed graphic whose purpose is promotion, branding, or visual design is the main subject: a poster, flyer,
+    advertisement, brand mark, book or album cover. Give the exact headline and copy text.
+  Infographics: >-
+    An explanatory graphic whose purpose is to convey information, combining text, icons, illustrations, and small
+    charts, is the main subject. Give the exact title and key labels.
+  Maps: >-
+    A map is the main subject: a geographic map, route or transit map, site map, or map-like navigation display.
+    Give the exact place names and labels.
+  Screenshot of Digital Interfaces: >-
+    A pure UI capture, not a photo of a screen: a mobile app, desktop application, website, or other digital interface
+    (kiosk, in-car infotainment, smart TV, game HUD). Give the exact interface text.
+
+General, Science and Art|0.55:
+  General Image of People and Portraits: >-
+    People are the main subject: portraits, faces, selfies, candid or posed human scenes.
+  General Image of Architecture and Interiors: >-
+    Buildings, rooms, interiors, architectural structures, or construction details are the main subject.
+  General Image of Nature and Landscapes: >-
+    An outdoor natural or scenic view is the main subject: mountains, beaches, forests, deserts, rivers, sky, or
+    skylines.
+  General Image of Animals and Wildlife: >-
+    Animals are the main subject: pets, livestock, or wildlife.
+  General Image of Plants and Flora: >-
+    Plants are the main subject: flowers, trees, crops, gardens, or botanical subjects.
+  General Image of Food and Drink: >-
+    Food or drink is the main subject: dishes, beverages, ingredients, or cooking.
+  General Image of Cars and Vehicles: >-
+    A vehicle is the main subject, seen as an object: cars, trucks, buses, motorcycles, bicycles, trains, boats, or
+    aircraft. Ego-view driving scenes belong to the Autonomous Vehicle categories.
+  General Image of Clothing and Accessories: >-
+    Clothing or accessories are the main subject: garments, shoes, bags, jewelry, or other fashion items.
+  Geometric Shapes: >-
+    Geometric figures are the main subject: shape puzzles, polyhedra, tessellations, compass-and-straightedge
+    constructions, or abstract geometric compositions.
+  Life Sciences: >-
+    Biology without a clinical context is the main subject: cells, organisms, anatomy, microscopy, or biological
+    diagrams.
+  Physical Sciences: >-
+    Physics, chemistry, geology, astronomy, or materials science is the main subject: lab scenes, experiments,
+    specimens, or scientific illustrations. A dominant fluid, thermal, rigid-body, or soft-body phenomenon belongs to
+    the Physical AI categories instead.
+  Technology and Engineering: >-
+    Technology or engineering is the main subject: hardware, electronics, machines, CAD models, schematics, or
+    engineering scenes. A robot as the main subject belongs to the Physical AI categories instead.
+  Medical and Health Sciences: >-
+    A clinical, diagnostic, or healthcare context is the main subject: medical scans, clinical scenes, disease or
+    treatment illustrations.
+  Art and Music: >-
+    Art or music is the main subject: paintings, sculpture, sheet music, musical performance, instruments, or other
+    creative artistic work.

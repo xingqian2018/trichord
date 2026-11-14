@@ -14,7 +14,7 @@
 #   bash scripts/serving/serve.sh cosmos3_super_t2i 1 batch   # batch partition, 4 h (quick test, usually starts sooner)
 #   bash scripts/serving/serve.sh status                      # every service: job, URL, queue, live replicas
 # To resize a service, cancel its job and submit again with a new replica count.
-# The serve scripts default to --wckey=p1; WCKEY=p0 bash scripts/serving/serve.sh ... submits with that WCKey instead.
+# The serve scripts default to --wckey=p0 (no --qos; gb200 scripts keep --qos normal --wckey=p1); WCKEY=p1 bash scripts/serving/serve.sh ... submits with that WCKey instead.
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -63,5 +63,5 @@ if squeue -u "$USER" -h -o "%i" -n "${PREFIX[$svc]}" | grep -q .; then
 fi
 mkdir -p "$RUN/${STATE[$svc]}"
 nodes=$((n * NODES_PER_REPLICA[$svc]))
-sbatch -p "$part" -t "$time" -N "$nodes" -J "${PREFIX[$svc]}" ${WCKEY:+--wckey="$WCKEY"} "$HERE/serve_$svc.sbatch" | sed "s/$/  ($svc: $n replicas, $nodes nodes, $part, wckey ${WCKEY:-p1})/"
+sbatch -p "$part" -t "$time" -N "$nodes" -J "${PREFIX[$svc]}" ${WCKEY:+--wckey="$WCKEY"} "$HERE/serve_$svc.sbatch" | sed "s/$/  ($svc: $n replicas, $nodes nodes, $part, wckey ${WCKEY:-p0})/"
 echo "url file: $RUN/${STATE[$svc]}/broker_url   check: bash $HERE/serve.sh status"

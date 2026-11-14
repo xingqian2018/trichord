@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+import sys
 import threading
 import time
 from pathlib import Path
@@ -8,7 +9,8 @@ from typing import Any, Optional
 
 from loguru import logger
 
-from utils import GATEWAY_CONFIG, UnifiedGatewayLLM
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from utils.gateway import GATEWAY_CONFIG, UnifiedGatewayLLM  # noqa: E402
 
 MODELS = ("opus-5.5", "kimi-k3", "gpt-6-astra")
 BASE_DIMS = ("Quality", "Aesthetics", "Alignment")
@@ -319,8 +321,8 @@ class DimsLabeler:
             logger.info(f"{scheme} round {round_idx}: {len(todo)} calls pending")
             responses = self.llm.query([self.request(scheme, m, p) for p, m in todo], pbar_desc=f"dims {scheme} r{round_idx}")
             failed = 0
-            for (p, m), text in zip(todo, responses):
-                vote = parse_vote(kind, text)
+            for (p, m), response in zip(todo, responses):
+                vote = parse_vote(kind, (response or {}).get("content") or "")
                 if vote is None:
                     failed += 1
                 else:

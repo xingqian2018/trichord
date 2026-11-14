@@ -6,8 +6,7 @@
 # Submit (bash): sbatch -N $((2 * <replicas>)) scripts/serving/serve_kimi_k3_extra.sbatch
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
-#SBATCH --qos normal
-#SBATCH --wckey=p1
+#SBATCH --wckey=p0
 #SBATCH --no-kill
 #SBATCH --segment=2
 #SBATCH -N 2

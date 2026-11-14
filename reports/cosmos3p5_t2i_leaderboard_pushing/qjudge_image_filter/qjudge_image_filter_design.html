@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Q-Judger 图片过滤器设计</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<style>
+:root {
+  --bg: #f4f6f8; --surface: #fcfcfb; --ink: #111418; --ink-2: #4b535d; --muted: #78808a; --rule: #e2e6eb;
+  --count: #1f8a4c; --count-bg: #e3f4ea;
+  --pending: #a86b00; --pending-bg: #fbefd2;
+  --record: #5b6470; --record-bg: #e9ecf0;
+  --skip: #b23a3a; --skip-bg: #f8e3e3;
+  --accent: #2a78d6;
+  --f-display: "Noto Serif SC", "Songti SC", serif;
+  --f-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121315; --surface: #1a1b1c; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8e8d87; --rule: #2d2e30;
+    --count: #6fd69a; --count-bg: #173524;
+    --pending: #f0c060; --pending-bg: #3a2e12;
+    --record: #b3bac4; --record-bg: #2a2d31;
+    --skip: #f08a8a; --skip-bg: #3d1e1e;
+    --accent: #6da7ec; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121315; --surface: #1a1b1c; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8e8d87; --rule: #2d2e30;
+  --count: #6fd69a; --count-bg: #173524;
+  --pending: #f0c060; --pending-bg: #3a2e12;
+  --record: #b3bac4; --record-bg: #2a2d31;
+  --skip: #f08a8a; --skip-bg: #3d1e1e;
+  --accent: #6da7ec; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.7; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 40px 16px 72px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .04em; color: var(--muted); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 6px 0 10px; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 21px; margin: 0; }
+h3 { font-size: 15px; font-weight: 700; margin: 0; }
+p { margin: 0; }
+.lede { color: var(--ink-2); }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; }
+.kpi .label { font-size: 13px; color: var(--ink-2); }
+.kpi .value { font-family: var(--f-display); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi .sub { font-size: 12.5px; color: var(--muted); }
+ul, ol { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+code { font-family: var(--f-mono); font-size: 13px; background: var(--record-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.callout { border-left: 3px solid var(--pending); background: var(--pending-bg); padding: 10px 14px; border-radius: 0 8px 8px 0; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 500; color: var(--ink-2); font-size: 13px; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip { display: inline-block; font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.count { color: var(--count); background: var(--count-bg); }
+.chip.pending { color: var(--pending); background: var(--pending-bg); }
+.chip.record { color: var(--record); background: var(--record-bg); }
+.chip.skip { color: var(--skip); background: var(--skip-bg); }
+.chip.req { color: var(--pending); background: var(--pending-bg); border: 1px solid var(--pending); font-weight: 700; }
+.l3.flag { background: var(--pending-bg); padding-left: 10px; margin-left: -10px; border-radius: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--ink-2); }
+.tree { display: grid; gap: 14px; }
+.l1 { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.l1-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 10px 14px; background: var(--bg); }
+.l1-head .name { font-weight: 700; }
+.l1-head .meta { font-size: 13px; color: var(--ink-2); }
+.l1.off .l1-head .name { color: var(--muted); }
+.l2 { display: grid; grid-template-columns: minmax(0, 11rem) minmax(0, 1fr); border-top: 1px solid var(--rule); }
+.l2-name { padding: 8px 14px; font-size: 13px; color: var(--ink-2); }
+.l3s { display: grid; }
+.l3 { display: grid; grid-template-columns: minmax(0, 13rem) auto minmax(0, 1fr); gap: 4px 12px; align-items: baseline; padding: 8px 14px 8px 0; }
+.l3 + .l3 { border-top: 1px dashed var(--rule); }
+.l3 .why { font-size: 13px; color: var(--ink-2); }
+.l1-body { padding: 10px 14px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--ink-2); }
+.steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 10px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 10px; }
+.steps li::before { content: counter(s); font-family: var(--f-mono); font-size: 13px; width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 1px solid var(--rule); display: grid; place-items: center; color: var(--ink-2); }
+footer { font-size: 13px; color: var(--muted); }
+@media (max-width: 640px) {
+  .l2 { grid-template-columns: minmax(0, 1fr); }
+  .l2-name { padding-bottom: 0; }
+  .l3 { grid-template-columns: minmax(0, 1fr) auto; padding-left: 14px; }
+  .l3 .why { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">设计文档 · 2026-11-13 · 状态：方案，尚未实现</div>
+  <h1>把 Q-Judger 用作图片过滤器</h1>
+  <p class="lede">把 QImageBench 的打分模型 Q-Judger 用来过滤真实训练图片：每张图拿到一组逐项档位，下游按规则决定留或丢。目标是代替现有的图片 filter：现有 filter 把拼接图、带大字的图、白底图整类丢掉；新方案不按类别丢，用分数把其中好的挑出来。judge 的输入一个字不改，不想要的题目只在统计时跳过。本文里的取舍都是按题目措辞推出来的，还没有在真实图片上实测。</p>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">每张图调用 judge</div><div class="value">3 次</div><div class="sub">Quality、Aesthetics、Creative Generation</div></div>
+  <div class="kpi"><div class="label">计入过滤的题目</div><div class="value">17 / 56</div><div class="sub">其中 1 项需要准确的 prompt</div></div>
+  <div class="kpi"><div class="label">单端点速度</div><div class="value">至少 1.4 秒/张</div><div class="sub">10 万张至少 38 小时（外推）</div></div>
+  <div class="kpi"><div class="label">服务端改动</div><div class="value">0</div><div class="sub">全部逻辑在客户端</div></div>
+</div>
+
+<section class="card">
+  <h2>1. 已经定下来的事</h2>
+  <ol>
+    <li><b>代替现有 filter，不按类别丢图。</b>拼接图、带大字的图、白底图不再整类丢弃，和其他图一样打分，分数高的留下。</li>
+    <li><b>不改 judge 的输入。</b>系统提示、用户模板、checklist 和采样参数都和 <code>qimagebench_protocol.py</code> 里的一样。不想要的题目在统计分数时跳过，不从 checklist 里删，也不改措辞。</li>
+    <li><b>prompt 位置填图片的 caption。</b>模板必须有 prompt；填占位符的话，judge 会拿空内容去判断"是否符合 prompt"。</li>
+    <li><b>每张图调用三个 L1：Quality、Aesthetics、Creative Generation。</b>3 次调用可以接受，原则是拿到足够的信息，只有完全不适用的才不要。Alignment 和 Real-world Fidelity 不调用。</li>
+    <li><b>服务端不改。</b>现有打分服务已经支持只请求部分维度，返回里也已经带每个 L3 的分数。</li>
+    <li><b>先验证，再建基础设施。</b>先用现有的 Lepton 服务在 10 万张的测试表上打分，确认信号有用之后才写 SILA pipeline。</li>
+  </ol>
+</section>
+
+<section class="card">
+  <h2>2. 和现有 filter 的关系</h2>
+  <p>现有的生产 filter 是 SILA 里的 <code>image_filter_pipeline.py</code>（版本 <code>qwen3vl_fft_8b_v1</code>，微调过的 Qwen3-VL 8B）。它给每张图打一个 0–10 的美学分和五个是/否标记，默认只留"美学分 ≥ 4 且五个标记都为否"的图。也就是说，拼接图、带大字的图、白底图不管好坏都被丢掉。</p>
+  <p>新方案要代替它，思路不同：这几类图不再整类丢弃，而是和其他图一样打分，分数高的留下。</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>现有 filter 的列</th><th>现在怎么用</th><th>新方案怎么处理</th></tr></thead>
+    <tbody>
+      <tr><td><code>aesthetic_score</code></td><td>≥ 4 才留</td><td>由 Quality 和 Aesthetics 的逐项档位代替</td></tr>
+      <tr><td><code>text_banner</code></td><td>为是就丢</td><td>不丢。用 Text Accuracy、Text Layout、Graphic Design 评它做得好不好，这三项在 Creative Generation 里</td></tr>
+      <tr><td><code>white_background</code></td><td>为是就丢</td><td>不丢。用 Product Design（在 Creative Generation 里）加 Quality、Aesthetics 来评</td></tr>
+      <tr><td><code>collage</code></td><td>为是就丢</td><td>不丢。Q-Judger 没有专门评拼接图的题，只能靠 Composition 这类通用题。这是缺口</td></tr>
+      <tr><td><code>watermark</code></td><td>为是就丢</td><td>Q-Judger 没有对应的题。怎么办还没定</td></tr>
+      <tr><td><code>nsfw</code></td><td>为是就丢</td><td>Q-Judger 有 Safety &amp; Compliance，但在不调用的 Real-world Fidelity 里。怎么办还没定</td></tr>
+    </tbody>
+  </table></div>
+  <p>所以 Creative Generation 不能直接排除：海报和商品图做得好不好，正是靠它里面那几项来评。</p>
+</section>
+
+<section class="card">
+  <h2>3. 题目树</h2>
+  <p>Q-Judger 一共 56 个 L3 题目，分属 5 个 L1。每次调用 judge 问的是一个 L1 的整份 checklist，所以能选的是"调用哪几个 L1"，以及"被调用的 L1 里哪些 L3 计入"。</p>
+  <div class="legend">
+    <span><span class="chip count">计入</span> 用于过滤</span>
+    <span><span class="chip record">计算后扔掉</span> 所在的 L1 被调用，所以会一起算出来，结果不保存</span>
+    <span><span class="chip skip">不调用</span> 整个 L1 不请求</span>
+    <span><span class="chip req">需要准确的 prompt</span> 计入，但分数依赖 caption 写得对</span>
+  </div>
+
+  <div class="tree">
+    <div class="l1">
+      <div class="l1-head"><span class="name">Quality</span><span class="meta">调用 · 6 项全部计入</span></div>
+      <div class="l2"><div class="l2-name">Realism</div><div class="l3s">
+        <div class="l3"><span>Physical Logic</span><span class="chip count">计入</span><span class="why">真实照片上可能大多是 Pass，但能抓合成图和 AI 图</span></div>
+        <div class="l3"><span>Material Texture</span><span class="chip count">计入</span><span class="why">材质质感是否真实</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Detail</div><div class="l3s">
+        <div class="l3"><span>Noise</span><span class="chip count">计入</span><span class="why">噪点、过度平滑</span></div>
+        <div class="l3"><span>Edge Clarity</span><span class="chip count">计入</span><span class="why">边缘模糊、锯齿</span></div>
+        <div class="l3"><span>Naturalness</span><span class="chip count">计入</span><span class="why">AI 塑料感、过度磨皮</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Resolution</div><div class="l3s">
+        <div class="l3"><span>Resolution</span><span class="chip count">计入</span><span class="why">像素化、压缩痕迹</span></div>
+      </div></div>
+    </div>
+
+    <div class="l1">
+      <div class="l1-head"><span class="name">Aesthetics</span><span class="meta">调用 · 4 项计入，2 项计算后扔掉</span></div>
+      <div class="l2"><div class="l2-name">Composition</div><div class="l3s">
+        <div class="l3"><span>Composition</span><span class="chip count">计入</span><span class="why">构图</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Color Harmony</div><div class="l3s">
+        <div class="l3"><span>Color Harmony</span><span class="chip count">计入</span><span class="why">配色</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Lighting</div><div class="l3s">
+        <div class="l3 flag"><span>Lighting &amp; Atmosphere</span><span class="chip count">计入</span><span class="why"><span class="chip req">需要准确的 prompt</span> 题目问的是光影是否符合 prompt 的场景，所以填进去的 caption 必须准确描述这张图。caption 写错，这一项的分数就不可信</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Anatomical Portraiture</div><div class="l3s">
+        <div class="l3"><span>Anatomical Fidelity</span><span class="chip count">计入</span><span class="why">没有人像时是 N/A。题目要求有毛孔和细纹，可能压低美颜和棚拍人像</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Emotional Expression</div><div class="l3s">
+        <div class="l3"><span>Emotional Expression</span><span class="chip record">计算后扔掉</span><span class="why">问的是 prompt 描述的情绪</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Style Control</div><div class="l3s">
+        <div class="l3"><span>Style Control</span><span class="chip record">计算后扔掉</span><span class="why">问的是 prompt 要求的风格</span></div>
+      </div></div>
+    </div>
+
+    <div class="l1 off">
+      <div class="l1-head"><span class="name">Alignment</span><span class="chip skip">不调用</span><span class="meta">16 项</span></div>
+      <div class="l1-body">16 项里有 13 项在问图是否符合 prompt。caption 是照着图写的，所以这是循环论证，测的是 caption 写得对不对，不是图片质量。另外 3 项（Composition Relationship、Containment、Virtual Scene）措辞里没有 prompt，但不值得为它们把 16 项全问一遍。</div>
+      <div class="l2"><div class="l2-name">Attributes</div><div class="l3s">
+        <div class="l3"><span>Quantity</span><span class="chip skip">不调用</span><span class="why">数量是否符合 prompt</span></div>
+        <div class="l3"><span>Facial Expression</span><span class="chip skip">不调用</span><span class="why">表情是否符合 prompt</span></div>
+        <div class="l3"><span>Material Properties</span><span class="chip skip">不调用</span><span class="why">材质是否符合 prompt</span></div>
+        <div class="l3"><span>Color</span><span class="chip skip">不调用</span><span class="why">颜色是否符合 prompt</span></div>
+        <div class="l3"><span>Shape</span><span class="chip skip">不调用</span><span class="why">形状是否符合 prompt</span></div>
+        <div class="l3"><span>Size</span><span class="chip skip">不调用</span><span class="why">大小是否符合 prompt</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Actions</div><div class="l3s">
+        <div class="l3"><span>Contact Interaction</span><span class="chip skip">不调用</span><span class="why">prompt 里的接触互动画得是否自然</span></div>
+        <div class="l3"><span>Non-contact Interaction</span><span class="chip skip">不调用</span><span class="why">prompt 里的非接触关系画得是否合理</span></div>
+        <div class="l3"><span>Full-body Action</span><span class="chip skip">不调用</span><span class="why">动作是否符合 prompt</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Layout</div><div class="l3s">
+        <div class="l3"><span>2D Space</span><span class="chip skip">不调用</span><span class="why">平面位置是否符合 prompt</span></div>
+        <div class="l3"><span>3D Space</span><span class="chip skip">不调用</span><span class="why">空间布局是否符合 prompt</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Relations</div><div class="l3s">
+        <div class="l3"><span>Composition Relationship</span><span class="chip skip">不调用</span><span class="why">多个元素是否融成一个整体。措辞不依赖 prompt</span></div>
+        <div class="l3"><span>Difference/Similarity</span><span class="chip skip">不调用</span><span class="why">指定的异同是否画对</span></div>
+        <div class="l3"><span>Containment</span><span class="chip skip">不调用</span><span class="why">包含关系是否画对。措辞不依赖 prompt</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Scene</div><div class="l3s">
+        <div class="l3"><span>Real-world Scene</span><span class="chip skip">不调用</span><span class="why">场景是否符合 prompt</span></div>
+        <div class="l3"><span>Virtual Scene</span><span class="chip skip">不调用</span><span class="why">虚构场景内部是否自洽。措辞不依赖 prompt</span></div>
+      </div></div>
+    </div>
+    <div class="l1 off">
+      <div class="l1-head"><span class="name">Real-world Fidelity</span><span class="chip skip">不调用</span><span class="meta">8 项</span></div>
+      <div class="l1-body">Social Bias 和 Cultural Fairness 评的是生成模型的偏见，用来过滤会删掉正常的真实照片。World Knowledge 几项在真实照片上预计恒定，或者实际是在查 caption。Safety &amp; Compliance 有效，但不值得为它单独多调用一次。</div>
+      <div class="l2"><div class="l2-name">Fairness</div><div class="l3s">
+        <div class="l3"><span>Social Bias</span><span class="chip skip">不调用</span><span class="why">评的是生成模型的偏见，用来过滤有害</span></div>
+        <div class="l3"><span>Cultural Fairness</span><span class="chip skip">不调用</span><span class="why">评的是生成模型的偏见，用来过滤有害</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Safety &amp; Compliance</div><div class="l3s">
+        <div class="l3"><span>Safety &amp; Compliance</span><span class="chip skip">不调用</span><span class="why">有效，但不值得单独多调用一次</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">World Knowledge</div><div class="l3s">
+        <div class="l3"><span>Animals</span><span class="chip skip">不调用</span><span class="why">真实照片上预计恒定</span></div>
+        <div class="l3"><span>Objects</span><span class="chip skip">不调用</span><span class="why">真实照片上预计恒定</span></div>
+        <div class="l3"><span>Information Visualization</span><span class="chip skip">不调用</span><span class="why">prompt 里的概念是否画清楚</span></div>
+        <div class="l3"><span>Temporal Characteristics</span><span class="chip skip">不调用</span><span class="why">预计实际是在查 caption</span></div>
+        <div class="l3"><span>Cultural Elements</span><span class="chip skip">不调用</span><span class="why">预计实际是在查 caption</span></div>
+      </div></div>
+    </div>
+    <div class="l1">
+      <div class="l1-head"><span class="name">Creative Generation</span><span class="meta">调用 · 7 项计入，13 项计算后扔掉</span></div>
+      <div class="l1-body">每张图都调用。计入的 7 项措辞都不依赖 prompt，所以没有一项需要标"需要准确的 prompt"。其中几项正好对应现有 filter 整类丢掉的图：带大字的海报和广告（Text Accuracy、Text Layout、Graphic Design）、白底商品图（Product Design）。要用分数从这些图里挑出好的，就需要这次调用。代价是 20 项要全问一遍，是最长、最慢的一次调用。其余 13 项调用后也会一起算出来，结果直接扔掉。</div>
+      <div class="l2"><div class="l2-name">Imagination</div><div class="l3s">
+        <div class="l3"><span>Imagination</span><span class="chip record">计算后扔掉</span><span class="why">是内容类型，不是质量</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Feature Matching</div><div class="l3s">
+        <div class="l3"><span>Feature Matching</span><span class="chip count">计入</span><span class="why">多元素融合处有没有接缝。措辞不依赖 prompt</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Logical Resolution</div><div class="l3s">
+        <div class="l3"><span>Logical Resolution</span><span class="chip record">计算后扔掉</span><span class="why">真实照片上预计恒定</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Text Rendering</div><div class="l3s">
+        <div class="l3"><span>Text Accuracy</span><span class="chip count">计入</span><span class="why">图里的字是否清楚、有无乱码。用来评带大字的图</span></div>
+        <div class="l3"><span>Text Layout</span><span class="chip count">计入</span><span class="why">文字排版。用来评带大字的图</span></div>
+        <div class="l3"><span>Font</span><span class="chip record">计算后扔掉</span><span class="why">字体是否符合 prompt</span></div>
+        <div class="l3"><span>Cross-lingual Generation</span><span class="chip record">计算后扔掉</span><span class="why">是否按 prompt 的翻译要求出字</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Design Applications</div><div class="l3s">
+        <div class="l3"><span>Graphic Design</span><span class="chip count">计入</span><span class="why">海报、广告的版式。用来评带大字的图</span></div>
+        <div class="l3"><span>Product Design</span><span class="chip count">计入</span><span class="why">产品设计是否合理。用来评白底商品图</span></div>
+        <div class="l3"><span>Spatial Design</span><span class="chip count">计入</span><span class="why">室内、建筑的透视和比例。措辞不依赖 prompt</span></div>
+        <div class="l3"><span>Fashion Styling</span><span class="chip record">计算后扔掉</span><span class="why">服装是否符合 prompt 的风格</span></div>
+        <div class="l3"><span>Game Design</span><span class="chip count">计入</span><span class="why">游戏道具和 UI 是否可用。措辞不依赖 prompt</span></div>
+        <div class="l3"><span>Art Design</span><span class="chip record">计算后扔掉</span><span class="why">是否符合 prompt 要求的艺术风格</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Visual Storytelling</div><div class="l3s">
+        <div class="l3"><span>Cinematic Style</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的导演风格</span></div>
+        <div class="l3"><span>Camera / Lens Style</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的器材或镜头效果</span></div>
+        <div class="l3"><span>Storyboard Creation</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的分镜布局</span></div>
+        <div class="l3"><span>Shot Sizes</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的景别</span></div>
+        <div class="l3"><span>Composition</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的构图法则</span></div>
+        <div class="l3"><span>Angles</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的机位角度</span></div>
+        <div class="l3"><span>Comic Creation</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的漫画风格</span></div>
+      </div></div>
+    </div>
+  </div>
+  <p>合计：计入 17 项，计算后扔掉 15 项，不调用 24 项。计入的 17 项里，只有 Lighting &amp; Atmosphere 需要准确的 prompt。</p>
+</section>
+
+<section class="card">
+  <h2>4. 分数怎么统计</h2>
+  <p>不沿用官方的"L3 → L2 → L1 逐层平均"，因为跳过一部分 L3 之后，各 L2 的权重会变得不均匀。</p>
+  <ul>
+    <li><b>逐项存档位。</b>计入的每个 L3 单独存一列：Fail、Pass、Excel 或 N/A，另外存解析状态。标为"计算后扔掉"的项不存。</li>
+    <li><b>规则写在 L3 上。</b>比如"Noise、Edge Clarity、Resolution 任一项是 Fail 就丢"。具体规则等 10 万张跑完再定。</li>
+    <li><b>附一个参考分。</b>计入项里非 N/A 的简单平均，沿用 0 / 60 / 100 的刻度。</li>
+    <li><b>阈值不写进打分步骤。</b>以后改规则不需要重新打分。</li>
+    <li><b>解析失败算未知。</b>存空值，不当成通过，也不当成不通过。</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>5. 已知的数字</h2>
+  <p>下面都来自 QImageBench 在生成图上的打分，不是真实图片上的结果。</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>项目</th><th>数值</th></tr></thead>
+    <tbody>
+      <tr><td>单个端点、客户端并发 16 时的速度</td><td class="num">约 0.45 秒/次调用</td></tr>
+      <tr><td>每张图的开销（三个维度，外推）</td><td class="num">3 次调用，至少 1.4 秒</td></tr>
+      <tr><td>单端点跑 10 万张（外推）</td><td class="num">至少 38 小时</td></tr>
+      <tr><td>同一张图重打，结果不同的 L3 比例</td><td class="num">4.4%</td></tr>
+      <tr><td>其中在 Fail 和 Excel 之间翻转，或在 N/A 和有分之间变化的</td><td class="num">1.5%</td></tr>
+      <tr><td>同一张图重打，单图总分的标准差（5 个 L1 全打）</td><td class="num">3.6</td></tr>
+      <tr><td>解析失败</td><td class="num">1500 张里 2 张</td></tr>
+    </tbody>
+  </table></div>
+  <p>两张解析失败的图都出在 Quality，都是带乱码文字的图：judge 的推理超过了最大输出长度，没来得及写出 JSON。judge 是确定性解码，同一张图重试会得到同样的截断。</p>
+</section>
+
+<section class="card">
+  <h2>6. 风险</h2>
+  <ul>
+    <li><b>真实图片上没验证过。</b>Q-Judger 是在 AI 生成图上训练的。计入的那几项能不能把真实照片的好坏分开，目前只是按题目措辞做的假设。</li>
+    <li><b>单图噪声。</b>过滤是逐张做决定，上面的重打噪声会直接起作用。规则应该卡在明确的 Fail 上，不要卡一个分数阈值。</li>
+    <li><b>Anatomical Fidelity 的偏向。</b>题目偏好看得见毛孔和细纹的皮肤，可能误伤修过的人像和棚拍。</li>
+    <li><b>速度。</b>judge 是 27B 的模型，开着思考。要更快只能加副本。</li>
+    <li><b>Lighting &amp; Atmosphere 依赖 caption 的准确度。</b>它是计入项里唯一一项措辞里带 prompt 的。caption 缺失、太短或写错时，这一项不能用。</li>
+    <li><b>拼接图没有对应的题。</b>Q-Judger 是在单张生成图上训练的，拼接图只能靠通用题来评，分数可不可信要看验证。</li>
+    <li><b>水印没有对应的题。</b>代替现有 filter 之后，带水印的图不会被 Q-Judger 的任何一项拦下。</li>
+    <li><b>端点是共用的。</b><code>scorer-qimagebench</code> 同时给 benchmark 打分和 RL reward 用，打分任务要一个一个排，不能同时跑。</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>7. 验证步骤</h2>
+  <p>测试表：<code>s3://nv-00-10206-vfm/lancedb/image/regular/Aesthetic-Train-V2_slice_from_maintable_20261009.lance</code>（10 万行）。</p>
+  <ol class="steps">
+    <li><span><b>看表结构。</b>有哪些列，caption 是哪一列，图片怎么取。还没做。</span></li>
+    <li><span><b>小样本打分。</b>抽 500 到 2000 行，打 Quality、Aesthetics、Creative Generation 三个维度。看每个 L3 的 Fail / Pass / Excel / N/A 比例，以及解析失败率。</span></li>
+    <li><span><b>复查计入项。</b>看 Physical Logic 和 Anatomical Fidelity 留不留。抽查 caption 准不准，因为 Lighting &amp; Atmosphere 依赖它。</span></li>
+    <li><span><b>和现有 filter 对比。</b>看表里有没有现有 filter 的六列。有的话，重点看被它丢掉的三类图（拼接、带大字、白底）：Q-Judger 的分数能不能把其中好的和差的分开，每类人工看一批。</span></li>
+    <li><span><b>看 Creative Generation 的 7 项。</b>在海报、商品图上有没有区分度，在普通照片上是不是基本都是 N/A。同时量一下这次调用实际多花多少时间。</span></li>
+    <li><span><b>跑全量。</b>信号有用的话，打完 10 万张，再写过滤规则。</span></li>
+    <li><span><b>最后才写 SILA。</b>参照 <code>image_filter_pipeline.py</code> 和 <code>hpsv3_pipeline.py</code>，pipeline 自己起 vLLM 端点，协议代码自带一份。</span></li>
+  </ol>
+</section>
+
+<section class="card">
+  <h2>8. 还没定的问题</h2>
+  <ul>
+    <li>caption 在哪一列，多少行有 caption。</li>
+    <li>表里的 caption 够不够准。Lighting &amp; Atmosphere 计入的前提是 prompt 准确。</li>
+    <li>扔掉的 15 项里（Aesthetics 2 项、Creative Generation 13 项），有没有该改成"计入并标需要准确的 prompt"的。</li>
+    <li>水印怎么办：继续用现有 filter 的 <code>watermark</code> 列，还是不管。</li>
+    <li>NSFW 怎么办：继续用现有 filter 的 <code>nsfw</code> 列，还是多调用一次 Real-world Fidelity 拿 Safety &amp; Compliance。</li>
+    <li>拼接图靠通用题打出来的分数能不能用。</li>
+    <li>最终要过滤的生产表是哪张、多少行。这决定 SILA 要开多少副本。</li>
+  </ul>
+</section>
+
+<footer>
+  同目录另有 <code>qjudge_image_filter_design.md</code>（给 agent 用）和 <code>qjudge_image_filter_design_en.html</code>（英文版）。三份内容保持一致。
+</footer>
+
+</div>
+</body>
+</html>

@@ -12,7 +12,7 @@ srun --account=cosmos_base_training --nodes=1 --exclusive --ntasks-per-node=76 -
      bash -c "pip install playwright && PLAYWRIGHT_BROWSERS_PATH=$HOME/Software/playwright-browsers python -m playwright install --with-deps chromium-headless-shell"
 
      
-Run CMD (same docker/mounts as slaunch, but plain srun: ONE CONTAINER PER TASK, no torchrun):
+Run CMD (plain srun, no torchrun; all tasks on a node share ONE container, so each task runs under script/isolated_tmp.sh to get a private /tmp):
 
 mkdir -p $HOME/log/slurm
 lustrepath=/lustre/fsw/portfolios/cosmos
@@ -24,7 +24,7 @@ sbatch --account=cosmos_base_training --partition=cpu --qos=cpu-long --job-name=
         --container-mounts=$lustrepath:$lustrepath:rw,$HOME:$HOME:rw \
         --container-workdir=$HOME/Project/trichord/scripts/model_playground \
         --container-env=HOME,SLURM_PROCID,SLURM_NTASKS,SLURM_JOB_ID \
-        python3 script/run_poster_generation.py \
+        bash script/isolated_tmp.sh python3 script/run_poster_generation.py \
             --model kimi-k3@nvidia \
             --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_generation_kimi_nb2_kimi_v0 \
             --aspect_ratio random --reasoning_effort random --max_samples_per_process 625"
@@ -43,11 +43,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from agent.poster_generation import poster_generation  # noqa: E402
+from tool.poster_generation import poster_generation  # noqa: E402
 from taxonomy.helper import TOPIC_MESSAGE_TEMPLATE, Taxonomy  # noqa: E402
-from tool.generate_image import ASPECT_RATIO_TO_SIZE  # noqa: E402
 from loguru import logger  # noqa: E402
-from utils import REASONING_EFFORT_LEVELS, random_reasoning_effort  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from utils.gateway import REASONING_EFFORT_LEVELS, random_reasoning_effort  # noqa: E402
 
 PROMPT_DIR = Path(__file__).resolve().parents[1] / "prompt"
 RANK = int(os.environ.get("SLURM_PROCID", 0))
@@ -57,19 +57,20 @@ MODEL_DEFAULT = "default"
 PROGRESS_EVERY = 10
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(aspect_ratios: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--model", default="kimi-k3")
-    parser.add_argument("--prompt_preset", default="agentic_poster_layout_t2i_required_lite")
-    parser.add_argument("--aspect_ratio", default=RANDOM, choices=[RANDOM, *ASPECT_RATIO_TO_SIZE])
+    parser.add_argument("--model", default="kimi-k3@nvidia")
+    parser.add_argument("--prompt_preset", default="poster_generation_agentic_layout_t2i_required")
+    parser.add_argument("--aspect_ratio", default=RANDOM, choices=[RANDOM, *aspect_ratios])
     parser.add_argument("--reasoning_effort", default=MODEL_DEFAULT, choices=[MODEL_DEFAULT, RANDOM, *REASONING_EFFORT_LEVELS])
     parser.add_argument("--max_samples_per_process", type=int, default=0, help="max samples generated per process; 0 or less loops until the process is stopped")
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
+def main(agent_cls: type[poster_generation] = poster_generation) -> None:
+    aspect_ratios = list(agent_cls.aspect_ratio_to_size)
+    args = parse_args(aspect_ratios)
     if RANK != 0:
         logger.remove()
         logger.add(sys.stderr, filter=lambda record: record["extra"].get("progress", False))
@@ -81,7 +82,7 @@ def main() -> None:
     generated = 0
     while args.max_samples_per_process <= 0 or sample < args.max_samples_per_process:
         topic = taxonomy.random_get_one_topic()
-        aspect_ratio = random.choice(list(ASPECT_RATIO_TO_SIZE)) if args.aspect_ratio == RANDOM else args.aspect_ratio
+        aspect_ratio = random.choice(aspect_ratios) if args.aspect_ratio == RANDOM else args.aspect_ratio
         if args.reasoning_effort == MODEL_DEFAULT:
             reasoning_effort = None
         elif args.reasoning_effort == RANDOM:
@@ -89,17 +90,17 @@ def main() -> None:
         else:
             reasoning_effort = args.reasoning_effort
 
-        agent_name = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8]
-        agent = poster_generation(agent_name, model_name=args.model, system_prompt=system_prompt, reasoning_effort=reasoning_effort)
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8]
+        agent = agent_cls(model_name=args.model, system_prompt=system_prompt, reasoning_effort=reasoning_effort)
 
         started = time.time()
         try:
             agent.run({"prompt": TOPIC_MESSAGE_TEMPLATE.format(topic=topic), "aspect_ratio": aspect_ratio})
-            agent.save_history(args.output)
+            agent.save_history(os.path.join(args.output, run_id))
             logger.info(f"rank {RANK}/{WORLD_SIZE} sample {sample} done in {time.time() - started:.1f}s | {aspect_ratio} | {topic}")
             generated += 1
         except Exception as e:
-            logger.warning(f"rank {RANK}/{WORLD_SIZE} sample {sample} agent {agent_name} failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+            logger.warning(f"rank {RANK}/{WORLD_SIZE} sample {sample} run {run_id} failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
             time.sleep(1)
         del agent
         sample += 1

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosmos3.5 T2I Leaderboard 冲刺进展</title>
+<style>
+:root{--bg:#fff;--fg:#1d2330;--muted:#5b6475;--accent:#2f6fed;--card:#f5f7fb;--line:#e1e5ee;--done:#1f9d55}
+@media (prefers-color-scheme:dark){:root{--bg:#14171f;--fg:#e6e9f0;--muted:#9aa3b5;--accent:#6c9bff;--card:#1c2030;--line:#2b3144;--done:#4cc37f}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 -apple-system,"Segoe UI","PingFang SC","Noto Sans CJK SC",Roboto,sans-serif}
+main{max-width:1280px;margin:0 auto;padding:40px 16px 64px}
+h1{font-size:1.8rem;margin:0 0 4px}
+.sub{color:var(--muted);margin-bottom:24px}
+input.t{position:absolute;opacity:0;pointer-events:none}
+.tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);margin-bottom:24px;flex-wrap:wrap}
+.tabs label{padding:8px 16px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+#t1:checked~.tabs label[for=t1],#t2:checked~.tabs label[for=t2],#t3:checked~.tabs label[for=t3]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+#t1:focus-visible~.tabs label[for=t1],#t2:focus-visible~.tabs label[for=t2],#t3:focus-visible~.tabs label[for=t3]{outline:2px solid var(--accent)}
+.panel{display:none}
+#t1:checked~#p1,#t2:checked~#p2,#t3:checked~#p3{display:block}
+.tpl{position:relative;margin:0 0 24px}
+.tpl pre{margin:0;padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:12px;white-space:pre-wrap;word-break:break-word;font:14px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.tpl button{position:absolute;top:10px;right:10px;font:inherit;font-size:.8rem;padding:2px 12px;border-radius:999px;border:1px solid var(--accent);background:var(--bg);color:var(--accent);cursor:pointer}
+.hint{color:var(--muted);margin:0 0 12px}
+h2{font-size:1.2rem;margin:32px 0 14px;padding-left:10px;border-left:4px solid var(--accent)}
+.cat{border:1px solid var(--line);border-radius:16px;padding:18px 18px 8px;margin:0 0 24px;background:var(--bg);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.fixed{margin:0 0 20px;color:var(--muted)}
+.cat>h2{margin:0 0 16px}
+.cat>h3:first-of-type{margin-top:0}
+h2:first-child{margin-top:0}
+h3{font-size:1rem;margin:24px 0 10px;color:var(--muted)}
+ol,ul.items{padding-left:0;list-style:none;margin:0}
+ol{counter-reset:n}
+li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:10px;position:relative}
+ol>li{counter-increment:n;padding-left:52px}
+ol>li::before{content:counter(n);position:absolute;left:16px;top:12px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:.85rem;text-align:center;line-height:24px}
+li.key{border-color:var(--done)}
+li ul{margin:6px 0 0;padding-left:20px;color:var(--muted);font-size:.95rem}
+li.done,.box.done{border-color:var(--done)}
+.tag{display:inline-block;font-size:.8rem;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:4px;white-space:nowrap}
+li.grp{background:none;border:none;padding:0}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.tree{list-style:none;margin:6px 0 0 14px!important;padding:0!important;color:var(--fg)!important;font-size:1rem!important}
+.tree>li{background:none;border:none;border-radius:0;padding:3px 0 3px 26px;margin:0;position:relative}
+.tree .box{padding:6px 12px}
+.tree>li::before{content:"";position:absolute;left:0;top:0;bottom:0;border-left:2px solid var(--line)}
+.tree>li::after{content:"";position:absolute;left:0;top:17px;width:18px;border-top:2px solid var(--line)}
+.tree>li:last-child::before{bottom:auto;height:17px}
+.own{float:right;margin:2px 0 4px 12px;font-size:.75rem;line-height:1.5;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 10px;background:var(--bg);white-space:nowrap}
+.own.set{color:var(--accent);border-color:var(--accent)}
+.badge{font-size:.75rem;background:var(--accent);color:#fff;border-radius:4px;padding:1px 6px;margin-right:6px}
+.badge.done,.badge.keyb{background:var(--done)}
+.badge.progress{background:#d99a00}
+.badge.planning{background:#2f6fed}
+.badge.tbd{background:none;color:var(--muted);border:1px dashed var(--muted)}
+.badge.blocked{background:#d64545}
+.badge.deprio{background:var(--muted)}
+.badge.untracked{background:var(--muted)}
+a{color:var(--accent)}
+.date{font-weight:600;font-size:1.05rem}
+</style>
+</head>
+<body>
+<main>
+<h1>Cosmos3.5 T2I Leaderboard 冲刺进展</h1>
+<div class="sub">更新于 2026-11-12</div>
+<input class="t" type="radio" name="tab" id="t1" checked>
+<input class="t" type="radio" name="tab" id="t2">
+<input class="t" type="radio" name="tab" id="t3">
+<div class="tabs"><label for="t1">整体 Action 计划</label><label for="t2">周汇报流水</label><label for="t3">Slack 汇报模板</label></div>
+<section class="panel" id="p1"><section class='cat'><h2>Evaluation</h2><ul class='items'><li class="done done"><span class='own set'>负责人: Xingqian</span><span class="badge done">Done</span>接入 Qwen-Image-Bench（EMNLP 2026, arXiv 2605.28091）作为额外 benchmark。<ul><li style='background:none;border:none;padding:0;margin:0'>5 个维度：visual quality、aesthetics、prompt alignment、real-world fidelity、creative generation</li></ul></li><li class="done done"><span class='own set'>负责人: Xingqian</span><span class="badge done">Done</span>准备适合 Cosmos 需求的 baseline prompts。</li><li class="done done"><span class='own set'>负责人: Xingqian</span><span class="badge done">Done</span>重新计算 baseline scores。<ul><li style='background:none;border:none;padding:0;margin:0'>报告：<a href="https://docs.google.com/document/d/14rYXYUI6Jpq4WHGXrDpOEZWXdPR8-oGPVnucS2ntxTw/edit?tab=t.0">Design Doc: QImageBench</a></li></ul></li><li><span class='own'>负责人: 待定</span><span class="badge untracked">Untracked</span>登陆团队 official benchmark system。</li></ul></section><section class='cat'><h2>Data</h2><ul class='items'><li class='grp'><div class='box progress'><span class='own'>负责人: 待定</span><span class="badge progress">In Progress</span>追踪并整理现有 Cosmos 图像数据。凡是数据相关的都算 UQ 数据候选，按子项目分别跟踪。</div><ul class='tree'><li><div class='box done'><span class='own set'>负责人: Xingqian</span><span class="badge done">Done</span>针对所有 Image 数据的追踪统计<ul><li style='background:none;border:none;padding:0;margin:0'>报告：<a href="https://docs.google.com/document/d/1o1P3OlvYmV4ibPRFlXARaENRbbL8FXD63oU2geswZEc/edit?tab=t.0#heading=h.e3rm0z80wmcg">Report: Cosmos3.5 Image Training Data Stats</a></li></ul></div></li><li><div class='box planning'><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>Super resolution 数据研究</div></li><li><div class='box planning'><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>Editing 数据研究</div></li><li><div class='box planning'><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>Multi-reference 数据研究</div></li></ul></li><li class='grp'><div class='box progress'><span class='own set'>负责人: Xingqian</span><span class="badge progress">In Progress</span>追踪 Getty / SSTK 新数据获取并做测试。<ul><li style='background:none;border:none;padding:0;margin:0'>涉及外部协议，可能赶不上计划时间线。</li></ul></div><ul class='tree'><li><div class='box done'><span class='own set'>负责人: Xingqian</span><span class="badge done">Done</span>Getty 数据研究<ul><li style='background:none;border:none;padding:0;margin:0'>报告：<a href="https://docs.google.com/document/d/1gldvwfqfYIIwVo6WBIVLYtHtQH-_smwxkVZjx3iD2nk/edit?tab=t.0#heading=h.e3rm0z80wmcg">Report: Cosmos3.5 Getty Image Data Investigation</a></li></ul></div></li><li><div class='box done'><span class='own set'>负责人: Xingqian</span><span class="badge done">Done</span>SSTK 数据研究<ul><li style='background:none;border:none;padding:0;margin:0'>报告：<a href="https://docs.google.com/document/d/1bSdqa7wkP0YUAS-MVuo8C17zcUTHJQMPQ2q-SoRPokM/edit?tab=t.0">Report: Cosmos3.5 SSTK Image Data Investigation</a></li></ul></div></li><li><div class='box blocked'><span class='own set'>负责人: Xingqian</span><span class="badge blocked">Blocked</span>正式数据获取</div></li></ul></li><li class='grp'><div class='box progress'><span class='own set'>负责人: Xingqian</span><span class="badge progress">In Progress</span>OCR：持续生成新的 poster / UI / chart 数据。</div><ul class='tree'><li><div class='box progress'><span class='own set'>负责人: Xingqian</span><span class="badge progress">In Progress</span>高质量图片数据生成</div></li><li><div class='box '><span class='own set'>负责人: Xingqian</span><!--node-->高清分辨率图片生成，作为 SR 数据</div></li><li><div class='box planning'><span class='own set'>负责人: Xingqian</span><span class="badge planning">Not Start</span>高质量 Caption 生成</div></li></ul></li><li class="progress"><span class='own'>负责人: 待定</span><span class="badge progress">In Progress</span>设计新的 filter，可以将 40M 数据筛选到 1M 大小。</li><li class='grp'><div class='box progress'><span class='own set'>负责人: Ruofan</span><span class="badge progress">In Progress</span>SDG 数据研究</div><ul class='tree'><li><div class='box progress'><span class='own set'>负责人: Ruofan</span><span class="badge progress">In Progress</span>针对已经生成的 7M Cosmos3 Proxy 数据进行可能的优化和 filter</div></li><li><div class='box planning'><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>根据已有的 Super Resolution 模型，把图片放大再缩小，看数据质量是否有提升。</div></li></ul></li></ul></section><section class='cat'><h2>Modeling & Training</h2><ul class='items'><li class="done done"><span class='own set'>负责人: Ruofan</span><span class="badge done">Done</span>对 midtrain 数据 recipe 的研究，以及数据使用报告的最终指引。<ul><li style='background:none;border:none;padding:0;margin:0'>报告：<a href="https://docs.google.com/document/d/1cC03VVSlRiEv8Z_S8ULZAGeH-wSr0lNUXLZ6hjwyy2M/edit?tab=t.0">Report: Cosmos3.5 Mid-train Image Recipe</a></li></ul></li><li class="progress"><span class='own set'>负责人: Ruofan</span><span class="badge progress">In Progress</span>对 SDG 数据混合比例做 ablation 研究。</li><li class="planning"><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>针对 real 数据 filter 等的 ablation 研究。</li><li class="planning"><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>对 LoRA 设置做 ablation，找到更适合 text-to-image 的配置。</li><li class="planning"><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>针对模型进行 RL 的研究（可作为最后的提升手段）。</li></ul></section><section class='cat'><h2>Prompt Upsampling</h2><ul class='items'><li class='grp'><div class='box progress'><span class='own set'>负责人: Ruofan, Jiaojiao</span><span class="badge progress">In Progress</span>找到最佳 upsampler 方法。<ul><li style='background:none;border:none;padding:0;margin:0'>报告：<a href="https://docs.google.com/document/d/1WL13lMwbGdVlZRwTgH6oxGwqcqqoNUIHNCTrS4mZHmg/edit?tab=t.nt1wa0vr8cte">Design Doc: Cosmos 3.5 Image Prompt Upsampler Capability</a></li></ul></div><ul class='tree'><li><div class='box done'><span class='own set'>负责人: Ruofan, Jiaojiao</span><span class="badge done">Done</span>K19 Schema 最优：长而密集的 prompt，加轻量的结构排序。</div></li><li><div class='box done'><span class='own set'>负责人: Ruofan, Jiaojiao</span><span class="badge done">Done</span>采用新的 QImageBench，看 K19 是否依旧有效。</div></li><li><div class='box deprio'><span class='own set'>负责人: Ruofan, Jiaojiao</span><span class="badge deprio">Deprioritized</span>进一步研究更前沿的 Prompt Upsampling Schema。</div></li><li><div class='box progress'><span class='own set'>负责人: Jiaojiao</span><span class="badge progress">In Progress</span>Finetune Reasoner 作为前沿的 Image Prompt Upsampler，研究提升效果是否能追赶 KIMI / Astra 等前沿模型。</div></li></ul></li><li class='grp'><div class='box planning'><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>设计并执行最新的 Captioner，让他与 Prompt Upsampler 的基本原则对齐。</div><ul class='tree'><li><div class='box planning'><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>Captioner V3 基础设施的建设</div></li><li><div class='box planning'><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>Captioner V3 针对高质量数据的 Captioning</div></li></ul></li></ul></section><section class='cat'><h2>Leaderboard Tracking</h2><ul class='items'><li class="planning"><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>搭建 Arena serving 的 endpoint。</li><li class="planning"><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>早期版本 leaderboard 提交，再根据实际测试覆盖的内容调优模型。</li></ul></section><section class='cat'><h2>Other Research</h2><ul class='items'><li class="deprio"><span class='own'>负责人: 待定</span><span class="badge deprio">Deprioritized</span>尝试 hot-swap VAE，看能否提升 Cosmos3.5 图像质量，尤其是小字。</li><li class="planning"><span class='own'>负责人: 待定</span><span class="badge planning">Not Start</span>按需 ablate 其他模型参数。</li></ul></section></section>
+<section class="panel" id="p2"><p class='fixed'>周汇报文档：<a href="https://docs.google.com/document/d/1L6LFDJkRzTjT2koI2FjSvaqi8by18Fb-7uSGFiWAONI/edit?tab=t.0#heading=h.e3rm0z80wmcg">Design Doc: Cosmos3.5 Text2Image Lora UQ-Midtrain SoTA Plan</a></p><section class='cat'><h2><span class='date'>2026-11-12</span></h2><h3>本周结果</h3><ol><li>新的 QImageBench（Xingqian Xu 开发）已正式采用，并合并进 data 和 research 两个环节。<ul><li style='background:none;border:none;padding:0;margin:0'>设计文档：<a href="https://docs.google.com/document/d/14rYXYUI6Jpq4WHGXrDpOEZWXdPR8-oGPVnucS2ntxTw/edit?tab=t.0">Design Doc: QImageBench</a></li></ul></li><li class="key"><span class='badge keyb'>关键结论</span>Ruofan Liang 和 Jiaojiao Fan 在新 QImageBench 上验证，K19 prompt upsampling 依然有效。他们正基于 QImageBench 更细粒度的打分，在 open loop 和 close loop 两个方向上继续提升。</li><li>Ruofan 用 QImageBench 打分器对 SDG 数据和真实数据做了初步对比研究，没有发现 SDG 数据有显著问题。至少在这个结果上，基于 Cosmos 的 SDG 数据可以安全地用于训练。</li><li>Jiaojiao 正在 finetune Cosmos Reason，验证 prompt upsampling 的 data trace 是否有用。</li><li>Ultra Training 的 infrastructure 已跑通，为更大规模的实验做好准备。</li></ol><h3>近期计划</h3><ol><li>对当前所有 midtrain 训练数据做新一轮 filtering，筛选出最佳训练数据。<span class="tag">@Xingqian</span></li><li>继续跟踪 Getty、SSTK 等新的高质量 stock photo 数据源。<span class="tag">@Xingqian</span><ul><li style='background:none;border:none;padding:0;margin:0'>报告：<a href="https://docs.google.com/document/d/1bSdqa7wkP0YUAS-MVuo8C17zcUTHJQMPQ2q-SoRPokM/edit?tab=t.0">Report: Cosmos3.5 SSTK Image Data Investigation</a></li></ul></li><li>继续通过 open loop 和 close loop 提升 prompt upsampling 效果。内容包括新的测试、新的 reason ablation，以及 reason 与 generator 如何协作。<span class="tag">@Jiaojiao</span></li><li>对 SDG 数据做进一步的质量提升，通过 ablation 进行验证。<span class="tag">@Ruofan</span></li><li>对 OCR 数据做 caption 处理。<span class="tag">@Xingqian</span></li></ol></section></section>
+<section class="panel" id="p3"><h2>模板</h2><p class='hint'>下次汇报复制后填写，尖括号里的内容替换成实际内容。</p><div class='tpl'><button type='button' data-copy='复制' data-done='已复制'>复制</button><pre>Update (YYYY-MM-DD)
+
+Results this week
+
+• &lt;Result 1&gt; [Doc]
+• Key finding: &lt;who confirmed what, and why it matters&gt;
+• &lt;Result 3&gt;
+• &lt;Result 4&gt;
+
+Next up
+
+• &lt;Plan 1&gt; (@Owner Name) [Doc]
+• &lt;Plan 2&gt; (@Owner Name)
+• &lt;Plan 3&gt; (@Owner Name @Owner Name)
+
+Full action plan and status per item can be also found at:
+Design Doc: Cosmos3.5 Text2Image Lora UQ-Midtrain SoTA Plan</pre></div><h2>示例：2026-11-12 已发布版本</h2><p class='hint'>本周实际发出的内容，原文保留。</p><div class='tpl'><button type='button' data-copy='复制' data-done='已复制'>复制</button><pre>Update (2026-11-12)
+
+Results this week
+
+• The new QImageBench (by @Xingqian Xu) is now formally adopted and merged into both the data and research workflows. [Doc]
+• Key finding: @Ruofan Liang and @Jiaojiao Fan confirmed on the new QImageBench that K19 prompt upsampling is still effective. They are now using the benchmark continue finer-grained and score pushing on both open-loop and closed-loop improvements.
+• @Ruofan Liang ran a preliminary study comparing Cosmos3-as-proxy SDG data with real data using the QImageBench scorer and found no significant issues with the SDG data. Based on this result, Cosmos-based SDG data is safe to use for training. But further ablations and filtering studies are still requires.
+• @Jiaojiao Fan is finetuning Cosmos Reason to check whether the prompt-upsampling data traces are useful.
+• The Ultra Training infrastructure of @Jiaojiao Fan and @Ruofan Liang is up and running, ready for larger experiments.
+
+Next up
+
+• Run the promised new round of filtering over all current midtrain data to select the best training data for ablation study as well next stage LoRA training (@Ruofan Liang @Jiaojiao Fan @Xingqian Xu)
+• Keep tracking new high-quality stock photo sources such as Getty and SSTK (@Xingqian Xu) [Doc]
+• Continue improving prompt upsampling with open-loop and closed-loop methods: collect and conclude reason ablations (@Jiaojiao Fan)
+• Further improve the quality of the SDG data, validated through ablation (@Ruofan Liang)
+• Continue generate OCR data, creating dedicated captioner (@Xingqian Xu)
+
+Full action plan and status per item can be also found at:
+Design Doc: Cosmos3.5 Text2Image Lora UQ-Midtrain SoTA Plan</pre></div></section>
+<script>document.querySelectorAll(".tpl button").forEach(function(b){b.addEventListener("click",function(){var t=b.parentNode.querySelector("pre").textContent;try{navigator.clipboard.writeText(t).then(function(){b.textContent=b.dataset.done;setTimeout(function(){b.textContent=b.dataset.copy},1500)})}catch(e){}})})</script>
+</main>
+</body>
+</html>

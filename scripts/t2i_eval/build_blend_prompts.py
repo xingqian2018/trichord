@@ -16,7 +16,7 @@
 Output: <out_dir>/<name>.json = {"blend", "benchmark": [
     {id, taxonomy, prompt, prompt_upsampled, dims, writer_model, target_words, dims_votes, dims_facets}]}
 
-arena: model_playground_v1/taxonomy/t2i_arena_v0.yaml, no category filter. Every L1 domain gets
+arena: model_playground/taxonomy/t2i_arena_v0.yaml, no category filter. Every L1 domain gets
     --min_per_l1 prompts, the rest is split by L1 weight (largest remainder); inside a domain each
     leaf is drawn L2-by-weight, then uniformly level by level (L3-L5 carry no weights).
 cosmos: taxonomy/t2i_cosmos_v0.yaml. L1 carries the ratio ("name|weight"), split exactly by largest
@@ -49,7 +49,8 @@ from loguru import logger
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from dims_labeler import DimsLabeler  # noqa: E402
-from utils import GATEWAY_CONFIG, UnifiedGatewayLLM  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from utils.gateway import GATEWAY_CONFIG, UnifiedGatewayLLM  # noqa: E402
 
 WRITER_MODELS = ("opus-5.5", "kimi-k3", "gpt-6-astra")
 
@@ -61,7 +62,7 @@ DUP_JACCARD = 0.6
 MAX_ROUNDS = 5
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_ARENA_TAXONOMY = SCRIPT_DIR.parent / "model_playground_v1" / "taxonomy" / "t2i_arena_v0.yaml"
+DEFAULT_ARENA_TAXONOMY = SCRIPT_DIR.parent / "model_playground" / "taxonomy" / "t2i_arena_v0.yaml"
 DEFAULT_COSMOS_TAXONOMY = SCRIPT_DIR / "taxonomy" / "t2i_cosmos_v0.yaml"
 DEFAULT_LENGTH_REFERENCE = SCRIPT_DIR / "taxonomy" / "qwen_image_bench_prompt_en_words.json"
 
@@ -326,7 +327,7 @@ class BlendBuilder:
         responses = self.vlm.query(requests, pbar_desc=f"{self.blend} write round {round_idx}")
         written = 0
         for i, model, response in zip(batch, models, responses):
-            parsed = extract_json(response)
+            parsed = extract_json((response or {}).get("content") or "")
             prompt = parsed.get("prompt") if isinstance(parsed, dict) else None
             if valid_prompt(prompt, items[i]["target_words"], items[i]["chinese_text"]):
                 items[i]["prompt"] = " ".join(prompt.split())

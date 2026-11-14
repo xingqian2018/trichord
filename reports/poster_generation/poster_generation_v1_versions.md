@@ -1,7 +1,7 @@
 # Agentic 海报数据生成：v1 / v1p1 / v1p2 / v1p3 / v1p4 / v1p5 版本说明
 
 更新时间：2026-10-21（产量汇总）
-代码位置：`scripts/model_playground_v1/`
+代码位置：`scripts/model_playground/`
 输出位置：`gcs:nv-00-10206-vfm/debug/xingqianx/agentic_data/`
 
 ## 一句话区别

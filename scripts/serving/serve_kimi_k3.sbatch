@@ -9,8 +9,7 @@
 # Submit (bash): bash scripts/serving/serve.sh kimi_k3 <replicas>      # requests 2 x <replicas> nodes
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
-#SBATCH --qos normal
-#SBATCH --wckey=p1
+#SBATCH --wckey=p0
 #SBATCH --no-kill
 #SBATCH --segment=2
 #SBATCH -N 2

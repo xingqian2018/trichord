@@ -1,0 +1,1342 @@
+<title>QImageBench Scores</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: single-column report; each chart is followed by its raw-score table. */
+:root {
+  --bg: #f7f8f9;
+  --surface: #ffffff;
+  --ink: #15191d;
+  --ink-2: #4c545c;
+  --ink-3: #7b838b;
+  --rule: #dfe3e7;
+  --noise: #eceff2;
+  --accent: #2a78d6;
+  --muted-mark: #9aa3ab;
+  --s1: #22a33a; --s2: #0f3d20; --s3: #f5dc7a; --s4: #e6b800; --s5: #e0201b; --s6: #17a2b8; --s7: #6250d6; --s8: #e87ba4; --s16: #157a2e; --s17: #8ed49a; --s18: #5f8f68; --s19: #4d7c0f; --s20: #a3c93a; --s9: #74d38f; --s10: #f08c00; --s11: #8b5e3c; --s12: #a68a2e; --s13: #b35900; --s14: #b1a6f0; --s15: #8a1512;
+  --neg: #e34948;
+  --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141618; --surface: #1c1f22; --ink: #eef0f2; --ink-2: #b9c0c6; --ink-3: #8a929a;
+    --rule: #30353a; --noise: #262a2e; --accent: #3987e5; --muted-mark: #6f7880; --neg: #e66767; --s1: #3dbb4f; --s2: #4c8a5c; --s3: #ecd889; --s4: #d9ac00; --s5: #f04a3e; --s6: #2bb5c9; --s7: #9085e9; --s8: #d55181; --s16: #1f7a35; --s17: #a8e2b0; --s18: #86b38e; --s19: #86b34a; --s20: #c7e36f; --s9: #8fe0a8; --s10: #f5a23a; --s11: #b58763; --s12: #c4a645; --s13: #d27a1c; --s14: #c4bbf5; --s15: #b8322c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141618; --surface: #1c1f22; --ink: #eef0f2; --ink-2: #b9c0c6; --ink-3: #8a929a;
+  --rule: #30353a; --noise: #262a2e; --accent: #3987e5; --muted-mark: #6f7880; --neg: #e66767; --s1: #3dbb4f; --s2: #4c8a5c; --s3: #ecd889; --s4: #d9ac00; --s5: #f04a3e; --s6: #2bb5c9; --s7: #9085e9; --s8: #d55181; --s16: #1f7a35; --s17: #a8e2b0; --s18: #86b38e; --s19: #86b34a; --s20: #c7e36f; --s9: #8fe0a8; --s10: #f5a23a; --s11: #b58763; --s12: #c4a645; --s13: #d27a1c; --s14: #c4bbf5; --s15: #b8322c; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.7; }
+.page { max-width: 1280px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 44px; }
+header { display: flex; flex-direction: column; gap: 8px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; color: var(--ink-3); }
+h1 { font-size: 30px; line-height: 1.3; margin: 0; font-weight: 700; text-wrap: balance; }
+h2 { font-size: 20px; margin: 0; font-weight: 700; text-wrap: balance; }
+h3 { font-size: 15px; margin: 0; font-weight: 600; }
+p { margin: 0; max-width: 68ch; color: var(--ink-2); }
+.lede { font-size: 16px; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+b { color: var(--ink); font-weight: 600; }
+code { font-family: var(--font-mono); font-size: 0.86em; background: var(--noise); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+.obs { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink-2); max-width: 76ch; }
+.fig { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.fig-title { font-weight: 600; font-size: 15px; }
+.fig-sub { font-size: 13px; color: var(--ink-3); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+
+
+.tblgroup { display: grid; gap: 18px; }
+.tblgroup > div { display: grid; gap: 8px; min-width: 0; }
+.tbl-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+table { border-collapse: collapse; font-size: 13px; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+th { color: var(--ink-3); font-weight: 500; }
+td.num, th.num { text-align: right; font-family: var(--font-mono); }
+td.run { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+td.wrap { white-space: normal; min-width: 180px; }
+tr.cos td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.cap { font-size: 13px; color: var(--ink-3); }
+.src { font-size: 13px; color: var(--ink-3); display: grid; gap: 4px; max-width: none; }
+.src p { color: var(--ink-3); max-width: none; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 24px; }
+}
+
+.lc-legend span { cursor: default; }
+.sw-l { width: 10px; height: 10px; display: inline-block; vertical-align: -1px; margin-right: 8px; border-radius: 2px; }
+.lc { position: relative; width: 100%; }
+.lc svg { display: block; width: 100%; height: 380px; overflow: visible; }
+.lc .grid { stroke: var(--rule); stroke-width: 1; }
+.lc .axl { fill: var(--ink-3); font-size: 12px; font-family: var(--font-mono); }
+.lc .xl { fill: var(--ink-2); font-size: 13px; font-family: var(--font-mono); }
+.lc .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; transition: opacity .15s; }
+.lc .ln.cos { stroke-width: 3.5; }
+.lc .pt { stroke: var(--surface); stroke-width: 2; transition: opacity .15s; }
+.lc .dim { opacity: .15; }
+.lc .cross { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.lc-tip { position: absolute; top: 8px; pointer-events: none; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; font-size: 12.5px; line-height: 1.55; box-shadow: 0 4px 14px rgba(0,0,0,.12); min-width: 230px; color: var(--ink-2); }
+.lc-tip b { color: var(--ink); font-family: var(--font-mono); font-weight: 600; }
+.lc-tip .r { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; }
+.lc-tip .r i { width: 10px; height: 10px; display: block; border-radius: 2px; }
+.lc-tip .r span:last-child { font-family: var(--font-mono); color: var(--ink); }
+.lc-tip .r.cos span { font-weight: 600; color: var(--ink); }
+
+.subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.subtabs button { font: 13px var(--font-mono); padding: 5px 12px; border-radius: 999px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.subtabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.subtabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tbl-wrap[hidden], .fig[hidden] { display: none; }
+.subtab-rows { display: grid; gap: 12px; margin-bottom: 10px; }
+.subtab-rows .subtabs { margin-bottom: 0; }
+table.score tr.cos td { font-weight: 600; color: var(--ink); }
+table.score td.best { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+
+.tabs { display: flex; gap: 4px; margin-top: 14px; border-bottom: 1px solid var(--rule); }
+.tabs button { font: 600 15px var(--font-body); padding: 9px 16px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ink-3); cursor: pointer; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+.tabpanel { display: flex; flex-direction: column; gap: 44px; margin-top: -16px; min-width: 0; }
+.tabpanel[hidden] { display: none; }
+.steps { margin: 0; padding-left: 22px; display: grid; gap: 8px; color: var(--ink-2); max-width: 76ch; }
+.formula { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.8; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 16px; white-space: pre-wrap; max-width: 76ch; }
+.note { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 18px; display: grid; gap: 8px; max-width: 76ch; }
+p, .obs, .steps, .note, .formula { max-width: none; }
+#panel-ugb td.wrap:first-child { white-space: nowrap; min-width: 0; }
+.pair { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.pair figure { margin: 0; display: grid; gap: 4px; }
+.pair img { display: block; height: 280px; width: auto; max-width: 100%; border-radius: 4px; border: 1px solid var(--rule); }
+.pair figcaption { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.pair figcaption b { color: var(--ink); }
+.same { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; align-items: start; }
+.same img { display: block; width: 100%; height: auto; border-radius: 4px; border: 1px solid var(--rule); }
+.same table td.chg { font-family: var(--font-mono); text-align: right; }
+@media (max-width: 560px) { .same { grid-template-columns: 1fr; } }
+.delta-up { color: var(--s1); font-weight: 600; }
+.delta-dn { color: var(--neg); font-weight: 600; }
+@media (max-width: 560px) {
+  .pair figure { width: 100%; }
+  .pair img { height: auto; width: 100%; }
+}
+.l1head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.l1head .meta { font-size: 13px; color: var(--ink-3); }
+table.rules td { white-space: normal; vertical-align: top; }
+table.rules td.l2 { font-weight: 600; color: var(--ink); width: 20%; }
+table.rules td.l3 { font-family: var(--font-mono); font-size: 12px; color: var(--ink); width: 22%; }
+table.rules td.last { border-bottom: 0; }
+.en { display: block; margin-top: 2px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); }
+@media (max-width: 560px) {
+  table.rules th, table.rules td { padding: 7px 8px; }
+  table.rules td.l2 { font-size: 13px; }
+  table.rules td.l3 { font-size: 11px; }
+}
+.nz svg { display: block; width: 100%; height: auto; }
+.nz .grid { stroke: var(--rule); stroke-width: 1; }
+.nz .zero { stroke: var(--ink-3); stroke-width: 1.2; }
+.nz .axl { fill: var(--ink-3); font-size: 12px; font-family: var(--font-mono); }
+.nz .xl { fill: var(--ink-2); font-size: 13px; font-family: var(--font-mono); }
+.nz .wh { stroke: var(--ink-3); stroke-width: 1.5; }
+.nz .bx { fill: color-mix(in srgb, var(--accent) 30%, transparent); stroke: var(--accent); stroke-width: 1.5; }
+.nz .mu { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.nz .vl { fill: var(--ink-3); font-size: 11.5px; font-family: var(--font-mono); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+.nz .sl { fill: var(--accent); font-size: 12px; font-family: var(--font-mono); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+.nz .cv { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.nz .lead { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.nz .cv95 { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.nz .m95 { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.nz .mact { fill: var(--neg); stroke: var(--surface); stroke-width: 1.5; }
+.nz .al { fill: var(--neg); font-size: 12px; font-family: var(--font-mono); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+th.ck, td.ck { width: 28px; padding-right: 0; }
+td.ck input { accent-color: var(--accent); cursor: pointer; width: 15px; height: 15px; vertical-align: -2px; }
+</style>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">QIMAGEBENCH · Q-JUDGER · 2026-11-09</div>
+    <h1>QImageBench Scores</h1>
+    <div class="tabs" role="tablist" aria-label="Report contents">
+      <button type="button" role="tab" id="tab-scores" aria-controls="panel-scores" aria-selected="true">Scores</button>
+      <button type="button" role="tab" id="tab-rules" aria-controls="panel-rules" aria-selected="false" tabindex="-1">Scoring rules</button>
+      <button type="button" role="tab" id="tab-ar" aria-controls="panel-ar" aria-selected="false" tabindex="-1">Aspect ratio</button>
+      <button type="button" role="tab" id="tab-noise" aria-controls="panel-noise" aria-selected="false" tabindex="-1">Judge noise</button>
+      <button type="button" role="tab" id="tab-ugb" aria-controls="panel-ugb" aria-selected="false" tabindex="-1">UGB</button>
+      <button type="button" role="tab" id="tab-aa" aria-controls="panel-aa" aria-selected="false" tabindex="-1">AA alignment</button>
+    </div>
+  </header>
+
+  <div class="tabpanel" id="panel-scores" role="tabpanel" aria-labelledby="tab-scores">
+
+  <section>
+    <h2>1. Setup</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th class="ck"></th><th>Model</th><th>Prompt upsampling</th><th>Prompt fed to the model</th><th>Resolution</th><th>Sampling / other</th><th>run</th></tr></thead>
+      <tbody>
+        <tr><td class="ck"><input type="checkbox" data-i="2" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s3)"></i>GPT-image-2.5 sunburst, quality low</td><td class="wrap">None (handled inside the API)</td><td class="wrap">Original prompt (natural language)</td><td>1024²</td><td class="wrap"><code>quality=low</code></td><td class="run">gpt_image_2p5_sunburst_quality_low</td></tr>
+        <tr><td class="ck"><input type="checkbox" data-i="3" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s4)"></i>Nano Banana 2.1</td><td class="wrap">None (handled inside the API)</td><td class="wrap">Original prompt (natural language)</td><td>1024²</td><td class="wrap">gateway <code>gcp/google/gemini-nano-banana-2.1</code></td><td class="run">nano_banana_2p1</td></tr>
+        <tr><td class="ck"><input type="checkbox" data-i="4" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s5)"></i>Qwen-Image 2.1, pe</td><td class="wrap">Official PE model <code>Qwen-Image-2.1-PE-T2I</code> (thinking on, temperature 1.0)</td><td class="wrap">Rewritten natural language</td><td>2048²</td><td class="wrap">40 steps; cfg = pipeline default (not set explicitly); no negative prompt</td><td class="run">qwen_image_2p1_pe</td></tr>
+        <tr><td class="ck"><input type="checkbox" data-i="5" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s6)"></i>Ideogram 4 nf4 (9.3B×2)</td><td class="wrap">Claude Opus 4.8 + official <code>v1.txt</code> system prompt</td><td class="wrap">Structured JSON (<code>high_level_description</code>, <code>compositional_deconstruction</code>)</td><td>2048²</td><td class="wrap">48 steps (pipeline default), two-branch CFG; 1 rewrite exceeded the 2048-token limit and was truncated to 2040</td><td class="run">ideogram4_nf4</td></tr>
+        <tr><td class="ck"><input type="checkbox" data-i="6" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s7)"></i>FLUX.3 klein-base (5.6B)</td><td class="wrap">Claude Opus 4.8 + official BFL system prompt</td><td class="wrap">Rewritten full scene description (natural language)</td><td>1024²</td><td class="wrap">50 steps, cfg 3.5</td><td class="run">flux3_klein_base</td></tr>
+        <tr><td class="ck"><input type="checkbox" data-i="7" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s8)"></i>Fibo 2.0 dev (8.1B)</td><td class="wrap">bria-vgl + gemini-3.5-flash-lite</td><td class="wrap">Structured VGL JSON (<code>short_description</code>, <code>objects</code>, <code>lighting</code>, …)</td><td>1024²</td><td class="wrap">50 steps, cfg 5.0, official JSON negative prompt and fonts</td><td class="run">fibo2_dev</td></tr>
+        <tr class="cos"><td class="ck"><input type="checkbox" data-i="0" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s1)"></i>cosmos3-super-text2image 1:1</td><td class="wrap"><code>c3json_opus4p7</code>: Opus 4.7 + official Cosmos3-Super-Text2Image template (768, 1:1)</td><td class="wrap">JSON</td><td>1024²</td><td class="wrap">50 steps, cfg 4, cosmos3 negative prompt; EMA weights</td><td class="run">—</td></tr>
+        <tr class="cos"><td class="ck"><input type="checkbox" data-i="8" aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s16)"></i>cosmos3-super-text2image 16:9</td><td class="wrap">Same as above, with <code>resolution</code> and <code>aspect_ratio</code> in the JSON set to the actual output size</td><td class="wrap">JSON</td><td>1360×768</td><td class="wrap">Same as 1:1</td><td class="run">—</td></tr>
+        <tr class="cos"><td class="ck"><input type="checkbox" data-i="9" aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s17)"></i>cosmos3-super-text2image mix7</td><td class="wrap">Same as above</td><td class="wrap">JSON</td><td class="wrap">7 sizes in rotation, see the Aspect ratio tab</td><td class="wrap">Same as 1:1</td><td class="run">—</td></tr>
+        <tr class="cos"><td class="ck"><input type="checkbox" data-i="10" aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s18)"></i>cosmos3-super-text2image mix7→1:1</td><td class="wrap">No regeneration; uses the mix7 images</td><td class="wrap">—</td><td class="wrap">Resized to 1024×1024 without keeping the aspect ratio</td><td class="wrap">Rescored only</td><td class="run">—</td></tr>
+        <tr class="cos"><td class="ck"><input type="checkbox" data-i="1" aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s2)"></i>cosmos3-x9c</td><td class="wrap">Same as above</td><td class="wrap">JSON</td><td>1024²</td><td class="wrap">50 steps, cfg 4, cosmos3 negative prompt</td><td class="run">—</td></tr>
+        <tr class="cos"><td class="ck"><input type="checkbox" data-i="11" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s19)"></i>cosmos3.5-ultra pretrain iter384k</td><td class="wrap"><code>c3p5dense_k19_sq</code>: kimi-k3 + k19 dense upsampler system prompt (1:1, 390–490 words)</td><td class="wrap">Rewritten dense caption (natural language)</td><td>960²</td><td class="wrap">50 steps, cfg 4, shift 3, no negative prompt; EMA weights; <code>470bm235b_v3p5_pretrain</code> iter_000384000</td><td class="run">c3p5_ultra_v3p5pre_iter384000</td></tr>
+        <tr class="cos"><td class="ck"><input type="checkbox" data-i="12" checked aria-label="show"></td><td class="wrap"><i class="sw-l" style="background:var(--s20)"></i>cosmos3.5-ultra midtrain iter343k</td><td class="wrap">Same as above</td><td class="wrap">Same as above</td><td>960²</td><td class="wrap">Same as above; <code>470bm235b_v1p6_midtrain</code> iter_000343040</td><td class="run">c3p5_ultra_v1p6mid_iter343040</td></tr>
+      </tbody>
+    </table></div>
+    <p class="cap">The checkboxes on the left choose which models sections 2–4 show, and normalization uses only the checked models; by default only the public models and cosmos3-super-text2image 1:1 are checked. All images are scored against the original prompt, so this is a system-level comparison of rewrite + generation. The 1:1, 16:9 and mix7 runs of cosmos3-super-text2image use the same checkpoint (<code>exp009_sft0_uhq_iter31k</code>) and differ only in output size; mix7→1:1 takes the mix7 images, squashes them to 1024² and scores them again, so its content is identical to mix7. The charts use four greens: 1:1 the original green, 16:9 dark green, mix7 light green, mix7→1:1 gray-green. The two cosmos3.5-ultra runs also use greens, shifted toward yellow-green to set them apart from cosmos3 (pretrain olive, midtrain yellow-green), and are checked by default; their prompt rewriting (k19 dense caption) and resolution (960²) both differ from the cosmos3 runs, and only the scoring prompt and judge are the same.</p>
+  </section>
+
+  <section>
+    <h2>2. Overall scores</h2>
+    <div class="fig">
+      <div class="fig-title">Score per prompt set (min–max normalized to 0–1 within each set)</div>
+      <div class="lc" id="lc" role="img" aria-label="Line chart of 13 runs on overall plus cosmos500, arena1000, arena1000_ocr and arena1000_noocr; values in the table below"><svg id="lcSvg"></svg><div class="lc-tip" id="lcTip" hidden></div></div>
+    </div>
+    <div class="tbl-wrap" id="lcTbl"></div>
+    <p class="cap">The table shows raw scores; overall = (arena1000 + cosmos500) / 2. The cosmos3 rows are bold; underlined values are the best in each column.</p>
+    <h3>cosmos3.5-ultra: pretrain vs. midtrain</h3>
+    <ul class="obs">
+      <li><b>Midtrain beats pretrain everywhere.</b> Overall 53.90 vs. 51.55, +2.35; midtrain is higher on all 4 prompt sets and all 5 L1s. The largest L1 gains are Creative Generation (53.06 vs. 49.52, +3.5) and Aesthetics (59.77 vs. 56.43, +3.3), then Alignment +1.8, Quality +1.6 and Real-world Fidelity +1.2.</li>
+      <li><b>Text rendering improves clearly.</b> The Text Rendering L2 rises from 60.25 to 65.09 on arena1000 and from 41.74 to 54.17 on arena1000_noocr, matching the visual impression that midtrain renders small text more cleanly. cosmos500 is the exception, dipping from 55.95 to 53.08.</li>
+      <li><b>Both are still below cosmos3-super-text2image 1:1.</b> Midtrain trails it by 1.18 (53.90 vs. 55.08). But prompt rewriting (k19 dense caption vs. JSON) and resolution (960² vs. 1024²) both differ, so this compares the full rewrite + generation system, not the models alone.</li>
+      <li><b>Weak spots.</b> Both runs score low on World Knowledge (pretrain 22.75, midtrain 25.60) and Logical Resolution (19.72, 24.56); the cause has not been investigated yet.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>3. L1 dimensions</h2>
+    <div class="subtabs" data-for="l1" role="tablist" aria-label="benchmark"><button type="button" role="tab" data-sub="overall" aria-selected="true">overall</button><button type="button" role="tab" data-sub="cosmos500" aria-selected="false">cosmos500</button><button type="button" role="tab" data-sub="arena1000" aria-selected="false">arena1000</button><button type="button" role="tab" data-sub="arena1000_ocr" aria-selected="false">arena1000_ocr</button><button type="button" role="tab" data-sub="arena1000_noocr" aria-selected="false">arena1000_noocr</button></div>
+    <div class="fig">
+      <div class="fig-title">L1 scores (min–max normalized to 0–1 within each dimension)</div>
+      <div class="lc" id="l1" role="img" aria-label="Line chart of normalized scores of 13 runs on 5 L1 dimensions; switchable by prompt set"><svg id="l1Svg"></svg><div class="lc-tip" id="l1Tip" hidden></div></div>
+    </div>
+    <div class="tbl-wrap" id="l1Tbl"></div>
+    <p class="cap">The table shows raw scores for the selected prompt set; underlined values are the best in each column.</p>
+  </section>
+
+  <section>
+    <h2>4. L2 dimensions</h2>
+    <div class="subtab-rows">
+      <div class="subtabs" data-for="l2" role="tablist" aria-label="benchmark"><button type="button" role="tab" data-sub="overall" aria-selected="true">overall</button><button type="button" role="tab" data-sub="cosmos500" aria-selected="false">cosmos500</button><button type="button" role="tab" data-sub="arena1000" aria-selected="false">arena1000</button><button type="button" role="tab" data-sub="arena1000_ocr" aria-selected="false">arena1000_ocr</button><button type="button" role="tab" data-sub="arena1000_noocr" aria-selected="false">arena1000_noocr</button></div>
+      <div class="subtabs" data-for="l2g" role="tablist" aria-label="L1"><button type="button" role="tab" data-sub="Quality" aria-selected="true">Quality</button><button type="button" role="tab" data-sub="Aesthetics" aria-selected="false">Aesthetics</button><button type="button" role="tab" data-sub="Alignment" aria-selected="false">Alignment</button><button type="button" role="tab" data-sub="Real-world Fidelity" aria-selected="false">Real-world Fidelity</button><button type="button" role="tab" data-sub="Creative Generation" aria-selected="false">Creative Generation</button></div>
+    </div>
+    <div class="fig">
+      <div class="fig-title">Quality (min–max normalized to 0–1 within each L2)</div>
+      <div class="lc" id="l2g0" role="img" aria-label="Quality — normalized scores of its L2 dimensions"><svg id="l2g0Svg"></svg><div class="lc-tip" id="l2g0Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Aesthetics (min–max normalized to 0–1 within each L2)</div>
+      <div class="lc" id="l2g1" role="img" aria-label="Aesthetics — normalized scores of its L2 dimensions"><svg id="l2g1Svg"></svg><div class="lc-tip" id="l2g1Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Alignment (min–max normalized to 0–1 within each L2)</div>
+      <div class="lc" id="l2g2" role="img" aria-label="Alignment — normalized scores of its L2 dimensions"><svg id="l2g2Svg"></svg><div class="lc-tip" id="l2g2Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Real-world Fidelity (min–max normalized to 0–1 within each L2)</div>
+      <div class="lc" id="l2g3" role="img" aria-label="Real-world Fidelity — normalized scores of its L2 dimensions"><svg id="l2g3Svg"></svg><div class="lc-tip" id="l2g3Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Creative Generation (min–max normalized to 0–1 within each L2)</div>
+      <div class="lc" id="l2g4" role="img" aria-label="Creative Generation — normalized scores of its L2 dimensions"><svg id="l2g4Svg"></svg><div class="lc-tip" id="l2g4Tip" hidden></div></div>
+    </div>
+    <div class="tbl-wrap" id="l2Tbl"></div>
+    <p class="cap">The tables show raw L2 scores for the selected prompt set; underlined values are the best in each column.</p>
+  </section>
+
+  </div>
+
+  <div class="tabpanel" id="panel-rules" role="tabpanel" aria-labelledby="tab-rules" hidden>
+  <section>
+    <h2>1. How scores are computed</h2>
+    <p class="lede">The judge is Q-Judger. It grades each image item by item against a checklist with 0, 1 or 2, which map to 0, 60 and 100 points, and the points are averaged level by level from L3 items up to the total. The judging protocol is ported from the official Qwen-Image-Bench code, with one change to how large images are resized; the prompt sets and the dimensions each prompt is tested on are our own.</p>
+    <ol class="steps">
+      <li><b>Dimensions:</b> each prompt has a <code>dims</code> field listing the L1s it is tested on. Quality, Aesthetics and Alignment apply to every prompt; Real-world Fidelity (RWF) and Creative Generation (CG) only to prompts labeled for them (see section 4).</li>
+      <li><b>Judge calls:</b> one call per image per L1. The input is the original English prompt, the image, the L1 name, the grading scale, and that L1's full checklist. The judge thinks first, then outputs JSON giving each L3 a 0, 1, 2 or N/A.</li>
+      <li><b>Mapping:</b> 0 → 0 points, 1 → 60, 2 → 100; N/A is excluded.</li>
+      <li><b>Averaging:</b> scores are averaged from L3 up to the total as below. An L2 whose L3s are all N/A is skipped; each L1 and L2 of a prompt set is averaged only over the images that have a score for it. arena1000_ocr and arena1000_noocr are splits of arena1000, computed the same way on their own images, and do not enter the total separately.</li>
+    </ol>
+    <pre class="formula">L2 = mean(non-N/A L3s under this L2)
+L1 = mean(L2s under this L1)
+image total = mean(L1s tested on this image, 3 to 5)
+set total = mean(image totals in the set)
+QImageBench total = (arena1000 total + cosmos500 total) / 2
+QImageBench L1 and L2 scores are likewise the equal-weight mean of the two sets</pre>
+    <div class="note">
+      <h3>Reading the scores</h3>
+      <ul class="obs">
+        <li><b>All-Pass gives exactly 60.</b> A score above 60 at any level means some items got Excel; below 60 means some got Fail. The 13 runs' totals range from 51 to 63, so the differences come down to how many Fail and Excel items each has.</li>
+        <li><b>The total is not the plain mean of the 5 L1s.</b> Each image averages only the L1s it is tested on, and RWF and CG apply to only some images. For example, GPT-image-2.5's total is 62.53, while the plain mean of its 5 L1s is 63.14.</li>
+        <li><b>Columns rest on different image counts.</b> RWF comes from 886 images and CG from 802; L2s additionally drop images the judge marked N/A.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Grading scale</h2>
+    <div class="tbl-wrap"><table class="rules">
+      <thead><tr><th>Judge grade</th><th class="num">Points</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="l3">0 · Fail</td><td class="num">0</td><td>Clear defect present. Would noticeably reduce image quality.</td></tr>
+        <tr><td class="l3">1 · Pass</td><td class="num">60</td><td>No defect. Meets baseline expectations.</td></tr>
+        <tr><td class="l3">2 · Excel</td><td class="num">100</td><td>Exceptionally executed. Only when concrete excellence is observable.</td></tr>
+        <tr><td class="l3">N/A</td><td class="num">excluded</td><td>This criterion does not apply to this image/prompt.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="cap">Meanings are quoted verbatim from the judge prompt.</p>
+  </section>
+
+  <section>
+    <h2>3. Checklist: 5 L1s, 23 L2s, 56 L3s</h2>
+    <p>The judge sees one L1's checklist per call. The descriptions below are paraphrased; the judge sees the official English text. Many items only apply when the prompt calls for them (e.g. Font, Storyboard Creation); otherwise the judge gives N/A and the item is not scored. Composition appears twice: under Aesthetics it rates the composition itself; under Creative Generation → Visual Storytelling it checks whether the composition rule named in the prompt is followed.</p>
+    <div class="tblgroup">
+      <div>
+        <div class="l1head"><h3>Quality</h3><span class="meta">3 L2s · 6 L3s · all 1500 prompts</span></div>
+        <div class="tbl-wrap"><table class="rules">
+          <thead><tr><th>L2</th><th>L3</th><th>What it checks</th></tr></thead>
+          <tbody>
+            <tr><td class="l2" rowspan="2">Realism</td><td class="l3">Physical Logic</td><td>Obeys real-world physics, e.g. gravity, reflections, shadow direction, object stability</td></tr>
+            <tr><td class="l3">Material Texture</td><td>Surface textures of skin, cloth, metal, wood etc. look real</td></tr>
+            <tr><td class="l2" rowspan="3">Detail</td><td class="l3">Noise</td><td>Rich detail without excess noise or unnatural smoothing</td></tr>
+            <tr><td class="l3">Edge Clarity</td><td>Object outlines and edges are sharp, without blur or aliasing</td></tr>
+            <tr><td class="l3">Naturalness</td><td>Looks natural, without the typical plastic or greasy AI look</td></tr>
+            <tr><td class="l2">Resolution</td><td class="l3">Resolution</td><td>High definition overall, no visible pixelation or compression artifacts</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <div class="l1head"><h3>Aesthetics</h3><span class="meta">6 L2s · 6 L3s · all 1500 prompts</span></div>
+        <div class="tbl-wrap"><table class="rules">
+          <thead><tr><th>L2</th><th>L3</th><th>What it checks</th></tr></thead>
+          <tbody>
+            <tr><td class="l2">Composition</td><td class="l3">Composition</td><td>Balanced, well-guided, pleasing composition</td></tr>
+            <tr><td class="l2">Color Harmony</td><td class="l3">Color Harmony</td><td>Harmonious, unified palette that fits the mood</td></tr>
+            <tr><td class="l2">Lighting</td><td class="l3">Lighting &amp; Atmosphere</td><td>Contrast and lighting atmosphere fit the scene in the prompt</td></tr>
+            <tr><td class="l2">Anatomical Portraiture</td><td class="l3">Anatomical Fidelity</td><td>Facial proportions, bone structure and joints are anatomically correct; facial skin shows real micro-texture such as pores and fine lines</td></tr>
+            <tr><td class="l2">Emotional Expression</td><td class="l3">Emotional Expression</td><td>Overall aesthetic tone conveys the emotion and mood the prompt asks for</td></tr>
+            <tr><td class="l2">Style Control</td><td class="l3">Style Control</td><td>Accurately renders the requested art style, e.g. Van Gogh brushwork, cyberpunk aesthetics</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <div class="l1head"><h3>Alignment</h3><span class="meta">5 L2s · 16 L3s · all 1500 prompts</span></div>
+        <div class="tbl-wrap"><table class="rules">
+          <thead><tr><th>L2</th><th>L3</th><th>What it checks</th></tr></thead>
+          <tbody>
+            <tr><td class="l2" rowspan="6">Attributes</td><td class="l3">Quantity</td><td>Object counts match the prompt</td></tr>
+            <tr><td class="l3">Facial Expression</td><td>Human or animal expressions match the specified emotion</td></tr>
+            <tr><td class="l3">Material Properties</td><td>Object materials match the prompt</td></tr>
+            <tr><td class="l3">Color</td><td>Object colors match the prompt</td></tr>
+            <tr><td class="l3">Shape</td><td>Object shapes match the prompt</td></tr>
+            <tr><td class="l3">Size</td><td>Object sizes match the prompt</td></tr>
+            <tr><td class="l2" rowspan="3">Actions</td><td class="l3">Contact Interaction</td><td>Physical contact between subjects looks natural and real</td></tr>
+            <tr><td class="l3">Non-contact Interaction</td><td>Non-contact spatial and social relations between subjects are natural and logical</td></tr>
+            <tr><td class="l3">Full-body Action</td><td>Overall pose and action of people or animals match the described activity</td></tr>
+            <tr><td class="l2" rowspan="2">Layout</td><td class="l3">2D Space</td><td>2D relative positions (left/right, above/below, fore/background) match the prompt</td></tr>
+            <tr><td class="l3">3D Space</td><td>3D layout, occlusion and relative positions match the prompt or spatial logic</td></tr>
+            <tr><td class="l2" rowspan="3">Relations</td><td class="l3">Composition Relationship</td><td>Multiple elements combine into a visually coherent, logically consistent whole</td></tr>
+            <tr><td class="l3">Difference/<wbr>Similarity</td><td>Specified differences or similarities in shape, color, material are rendered correctly</td></tr>
+            <tr><td class="l3">Containment</td><td>Containment and enclosure relations are rendered correctly</td></tr>
+            <tr><td class="l2 last" rowspan="2">Scene</td><td class="l3">Real-world Scene</td><td>Scene type and environment (e.g. office, forest, street) match the prompt</td></tr>
+            <tr><td class="l3">Virtual Scene</td><td>Elements of fictional or fantasy scenes are internally consistent</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <div class="l1head"><h3>Real-world Fidelity</h3><span class="meta">3 L2s · 8 L3s · 886 prompts (arena1000 513, cosmos500 373)</span></div>
+        <div class="tbl-wrap"><table class="rules">
+          <thead><tr><th>L2</th><th>L3</th><th>What it checks</th></tr></thead>
+          <tbody>
+            <tr><td class="l2" rowspan="2">Fairness</td><td class="l3">Social Bias</td><td>Avoids automatically tying a gender to an occupation or setting</td></tr>
+            <tr><td class="l3">Cultural Fairness</td><td>Avoids stereotypes based on region, ethnicity or culture</td></tr>
+            <tr><td class="l2">Safety &amp; Compliance</td><td class="l3">Safety &amp; Compliance</td><td>Safe and compliant: no sexual content, violence, hate symbols etc.</td></tr>
+            <tr><td class="l2 last" rowspan="5">World Knowledge</td><td class="l3">Animals</td><td>Anatomy and biological details of real animals are accurate</td></tr>
+            <tr><td class="l3">Objects</td><td>Typical appearance, structure, brand logos or signature features of real objects are accurate</td></tr>
+            <tr><td class="l3">Information Visualization</td><td>Turns abstract or scientific concepts into accurate, clear, readable visuals</td></tr>
+            <tr><td class="l3">Temporal Characteristics</td><td>Accurately shows signature elements of a historical period: technology, clothing, architecture, lifestyle</td></tr>
+            <tr><td class="l3">Cultural Elements</td><td>Cultural elements (symbols, traditional dress, rituals, customs) are accurate and authentic</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <div class="l1head"><h3>Creative Generation</h3><span class="meta">6 L2s · 20 L3s · 802 prompts (arena1000 613, cosmos500 189)</span></div>
+        <div class="tbl-wrap"><table class="rules">
+          <thead><tr><th>L2</th><th>L3</th><th>What it checks</th></tr></thead>
+          <tbody>
+            <tr><td class="l2">Imagination</td><td class="l3">Imagination</td><td>Originality and imagination when combining novel or surreal elements</td></tr>
+            <tr><td class="l2">Feature Matching</td><td class="l3">Feature Matching</td><td>Blended elements are seamless, without abrupt breaks, harsh edges or contradictions</td></tr>
+            <tr><td class="l2">Logical Resolution</td><td class="l3">Logical Resolution</td><td>Cause and effect are depicted correctly, e.g. shattered glass sends shards flying, rain makes the ground wet</td></tr>
+            <tr><td class="l2" rowspan="4">Text Rendering</td><td class="l3">Text Accuracy</td><td>Text in the image is legible, without garbling, misspelling or typos</td></tr>
+            <tr><td class="l3">Text Layout</td><td>Typography (centering, alignment, line spacing, margins) is clean and professional</td></tr>
+            <tr><td class="l3">Font</td><td>Font style matches the requested font, e.g. Song, Hei, handwritten, serif</td></tr>
+            <tr><td class="l3">Cross-lingual Generation</td><td>Writes correct text in the target language as the prompt's translation request asks</td></tr>
+            <tr><td class="l2" rowspan="6">Design Applications</td><td class="l3">Graphic Design</td><td>Ads, posters and other graphic design have clear hierarchy, effective visual flow, professional layout</td></tr>
+            <tr><td class="l3">Product Design</td><td>Product design follows industrial-design logic: ergonomic grip, sensible controls, complete structure</td></tr>
+            <tr><td class="l3">Spatial Design</td><td>Interior or architectural spaces respect perspective, proportion and design conventions</td></tr>
+            <tr><td class="l3">Fashion Styling</td><td>Garment cut and silhouette match the requested style (e.g. Hanfu, cyberpunk, haute couture); makeup suits the occasion and character</td></tr>
+            <tr><td class="l3">Game Design</td><td>Game items and UI elements are usable in-game: recognizable icons, clear interaction cues</td></tr>
+            <tr><td class="l3">Art Design</td><td>Shows the requested art-design style: distinctive strokes, palette and a unified visual language</td></tr>
+            <tr><td class="l2 last" rowspan="7">Visual Storytelling</td><td class="l3">Cinematic Style</td><td>Reproduces a named director's signature visual language, e.g. Wes Anderson's symmetry, Wong Kar-wai's warm tones</td></tr>
+            <tr><td class="l3">Camera / Lens Style</td><td>Shows the imaging traits of the named camera or lens, e.g. film grain, bokeh, digital sharpening</td></tr>
+            <tr><td class="l3">Storyboard Creation</td><td>Panel layout matches the request, e.g. three panels, four panels, split screen</td></tr>
+            <tr><td class="l3">Shot Sizes</td><td>Shot size matches the request, e.g. close-up, medium, wide</td></tr>
+            <tr><td class="l3">Composition</td><td>Follows the composition rule named in the prompt, e.g. rule of thirds, golden ratio, leading lines</td></tr>
+            <tr><td class="l3">Angles</td><td>Camera angle matches the request, e.g. bird's-eye, low angle, Dutch angle</td></tr>
+            <tr><td class="l3">Comic Creation</td><td>Matches the requested comic style, e.g. American, Japanese, European</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. Which prompts are tested on RWF and CG</h2>
+    <p>In the official dataset every prompt comes with its dimensions. Our prompts are written in-house and have no such labels, so we follow the official approach — pick L3s first, then derive L1s — using three labelers: opus-5.5, kimi-k3 and gpt-6-astra. Each sees only the prompt and picks the 3 to 10 of the 56 L3s that the prompt actually tests.</p>
+    <ul class="obs">
+      <li><b>RWF:</b> a prompt is tested on RWF if any one labeler picks an RWF item.</li>
+      <li><b>CG:</b> a prompt is tested on CG only if at least two labelers pick a CG item.</li>
+      <li><b>Calibration:</b> both rules were set on the 1000 official prompts — odd IDs to tune, even IDs held out and evaluated once. On the held-out half, 51.6% are labeled RWF (official 45.8%) with kappa 0.430 against the official labels; CG is 64.8% (official 62.8%) with kappa 0.593. RWF kappa is capped around 0.45–0.52 because the official labels are themselves sparse and inconsistent.</li>
+    </ul>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Prompt set</th><th class="num">Prompts</th><th class="num">RWF</th><th class="num">CG</th><th class="num">3 L1s</th><th class="num">4 L1s</th><th class="num">5 L1s</th></tr></thead>
+      <tbody>
+        <tr><td>arena1000</td><td class="num">1000</td><td class="num">513</td><td class="num">613</td><td class="num">148</td><td class="num">578</td><td class="num">274</td></tr>
+        <tr><td>cosmos500</td><td class="num">500</td><td class="num">373</td><td class="num">189</td><td class="num">76</td><td class="num">286</td><td class="num">138</td></tr>
+      </tbody>
+    </table></div>
+    <p class="cap">cosmos500 has a high RWF share (75%) and a low CG share (38%) because its taxonomy leans toward real-world content such as animals, objects and culture, not because labeling is lenient.</p>
+  </section>
+
+  <section>
+    <h2>5. Prompt sets</h2>
+    <ul class="obs">
+      <li><b>arena1000:</b> 1000 prompts, stratified-sampled by the weights of the arena taxonomy (<code>t2i_arena_v0</code>) and written in English by several writer models in rotation. 350 of them require legible text in the image (<code>ocr</code> true) and form arena1000_ocr; the other 650 are arena1000_noocr.</li>
+      <li><b>cosmos500:</b> 500 prompts, sampled by the category proportions of the Cosmos taxonomy (<code>t2i_cosmos_v0</code>) and written the same way; no ocr split.</li>
+      <li>Target prompt lengths are drawn from quantiles of the official English prompts' word counts, so the length distribution tracks the official one; near-duplicate prompts are rewritten.</li>
+      <li>A real-person and copyrighted-IP screen was run on 2026-11-07: 58 arena1000 prompts naming real people or copyrighted characters were rewritten with fictional ones in the same category and relabeled the same way; cosmos500 had no hits.</li>
+      <li>All 13 runs are scored against the same prompt version; the prompt-set hash recorded in every result file is identical.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6. Judge settings and failure handling</h2>
+    <ul class="obs">
+      <li><b>Model:</b> Q-Judger (<code>Qwen/Qwen-Image-Bench</code>), fine-tuned from Qwen3.6-27B, from Qwen-Image-Bench (EMNLP 2026, arXiv 2605.28091). Served on Lepton (endpoint <code>scorer-qimagebench</code>, vLLM, bf16); RL uses the same service.</li>
+      <li><b>Sampling:</b> thinking on, greedy decoding: temperature 0, top_k 1, top_p 1.0, repetition_penalty 1.05, max_tokens 4096, seed 42.</li>
+      <li><b>Images:</b> images with area up to 1024×1024 are sent as is; larger ones are downscaled, keeping aspect ratio, to 1024×1024 area. So the 2048² images from Qwen-Image 2.1 and Ideogram 4 are downscaled to 1024², and the other models' 1024² images are sent unchanged; every size in the cosmos3 16:9 and mix7 runs is also within 1024² area and sent unchanged. The official <code>judge.py</code> squashes any image with a side over 1024 straight to 1024×1024; for square images the two are identical.</li>
+      <li><b>Prompt:</b> the judge sees the original English prompt, not the rewritten version each model generated from.</li>
+      <li><b>Parsing:</b> only the JSON after <code>&lt;/think&gt;</code> in the judge output is used. An L3 placed under the wrong L2 is moved back per the official mapping.</li>
+      <li><b>Parse failures:</b> if an L1's output cannot be parsed, the image is marked failed and that L1 is excluded (not scored as 0); the image's other L1s still count. This matches the official scorer.</li>
+      <li><b>Request failures:</b> timeouts, malformed responses and image-read failures are retried, up to 3 attempts per image.</li>
+      <li><b>This report:</b> all 13 runs scored 1500/1500 images. There were 5 parse failures in total, all in Quality: 2 for cosmos3-super-text2image 1:1, 1 for its mix7 run, 1 for cosmos3-x9c, 1 for Nano Banana 2.1; none for 16:9 or mix7→1:1. The two cosmos3.5-ultra runs were scored with parse failures also retried, and both ended with 0 failed images.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7. Comparability with the official leaderboard</h2>
+    <p>Not directly comparable. The checklist, judge prompt, sampling parameters, parsing and averaging are all ported from the official code: feeding the raw Q-Judger outputs stored in the official dataset through our parsing and aggregation code reproduces the official README leaderboard exactly (e.g. GPT Image 2 total 64.69). But the prompt sets and per-prompt dimensions are our own, so the scores in this report are only comparable among these 11 runs.</p>
+  </section>
+  </div>
+
+  <div class="tabpanel" id="panel-ar" role="tabpanel" aria-labelledby="tab-ar" hidden>
+  <section>
+    <h2>1. Question</h2>
+    <p class="lede">When the output aspect ratio changes, how much does a single prompt's score move, and can the judge be trusted on non-square images? The subject is cosmos3-super-text2image (<code>exp009_sft0_uhq_iter31k</code>): for each mix7 image, Δ is its per-image total minus the per-image total for the same prompt in the 1:1 run.</p>
+    <ul class="obs">
+      <li><b>The judge input is not distorted.</b> Our preprocessing downscales with the aspect ratio kept only when the area exceeds 1024², and sends smaller images as is; on the vLLM side, Q-Judger's own processor config only snaps sides to multiples of 32. The 7 sizes reach the model as 1008 to 1036 visual tokens, with under 2% aspect error. The official <code>judge.py</code> squashes any image whose longest side exceeds 1024 straight to 1024×1024, which would distort all 6 non-square sizes.</li>
+      <li><b>But Q-Judger has probably seen few non-square images.</b> Every image in the official benchmark is a 1024² square. A correct input does not show whether the judge has an aspect-ratio preference; only the scores can.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>2. How per-image scores change</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Ratio</th><th class="num">Images</th><th class="num">Mean Δ</th><th class="num">Δ std</th><th class="num">|Δ| ≥ 5</th><th class="num">|Δ| ≥ 10</th><th class="num">Max gain</th><th class="num">Max drop</th></tr></thead>
+      <tbody>
+        <tr><td>1:1 (control)</td><td class="num">213</td><td class="num">+0.50</td><td class="num"><b>4.44</b></td><td class="num">17%</td><td class="num">5%</td><td class="num">+26.7</td><td class="num">−20.7</td></tr>
+        <tr><td>16:9</td><td class="num">215</td><td class="num">+1.97</td><td class="num"><b>8.63</b></td><td class="num">48%</td><td class="num">22%</td><td class="num">+39.2</td><td class="num">−35.8</td></tr>
+        <tr><td>3:2</td><td class="num">213</td><td class="num">+2.47</td><td class="num"><b>7.03</b></td><td class="num">49%</td><td class="num">21%</td><td class="num">+24.2</td><td class="num">−18.5</td></tr>
+        <tr><td>4:3</td><td class="num">215</td><td class="num">+1.44</td><td class="num"><b>8.37</b></td><td class="num">49%</td><td class="num">19%</td><td class="num">+35.1</td><td class="num">−24.0</td></tr>
+        <tr><td>3:4</td><td class="num">213</td><td class="num">+1.02</td><td class="num"><b>8.09</b></td><td class="num">51%</td><td class="num">23%</td><td class="num">+23.4</td><td class="num">−26.9</td></tr>
+        <tr><td>2:3</td><td class="num">214</td><td class="num">+1.29</td><td class="num"><b>7.27</b></td><td class="num">43%</td><td class="num">12%</td><td class="num">+32.6</td><td class="num">−21.2</td></tr>
+        <tr><td>9:16</td><td class="num">214</td><td class="num">+0.78</td><td class="num"><b>7.46</b></td><td class="num">42%</td><td class="num">17%</td><td class="num">+23.7</td><td class="num">−28.0</td></tr>
+      </tbody>
+    </table></div>
+    <p class="cap">The control is the set of mix7 prompts assigned 1:1. Its images are nearly pixel-identical to the 1:1 run (3 spot-checked: one exactly identical, two differing by at most 1/255 per pixel), so 4.44 is essentially the spread from the judge scoring the same image twice (see the Judge noise tab). Prompts with a parse failure on either side are excluded.</p>
+    <p>On non-square sizes the std of Δ rises to 7–8.6; removing judge noise (√(σ² − 4.44²)), the aspect-ratio change itself accounts for about 5.5 to 7.4. Moves go both ways, so the mean Δ is only +1 to +2.5.</p>
+  </section>
+
+  <section>
+    <h2>3. Same content squashed to 1:1</h2>
+    <p>Without regenerating, all 1500 mix7 images were resized to 1024×1024 without keeping the aspect ratio, so non-square images are stretched or squashed, and then scored again. Compared with the original mix7 images the content is identical; only the aspect ratio and the distortion differ. This is what the official <code>judge.py</code> does to any image whose longest side exceeds 1024.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Ratio</th><th class="num">Images</th><th class="num">Original</th><th class="num">Squashed</th><th class="num">Mean Δ</th><th class="num">Δ std</th><th class="num">Quality</th><th class="num">Aesthetics</th><th class="num">Alignment</th><th class="num">RWF</th><th class="num">Creative</th></tr></thead>
+      <tbody>
+        <tr><td>16:9</td><td class="num">215</td><td class="num">56.94</td><td class="num">53.70</td><td class="num"><b>−3.24</b></td><td class="num">7.36</td><td class="num">−4.8</td><td class="num">−3.0</td><td class="num">−1.1</td><td class="num">−3.8</td><td class="num">−2.6</td></tr>
+        <tr><td>3:2</td><td class="num">214</td><td class="num">57.97</td><td class="num">54.60</td><td class="num"><b>−3.37</b></td><td class="num">5.64</td><td class="num">−3.3</td><td class="num">−4.5</td><td class="num">−1.4</td><td class="num">−5.0</td><td class="num">−2.4</td></tr>
+        <tr><td>4:3</td><td class="num">215</td><td class="num">57.90</td><td class="num">55.32</td><td class="num"><b>−2.58</b></td><td class="num">6.50</td><td class="num">−3.2</td><td class="num">−1.9</td><td class="num">−0.9</td><td class="num">−4.0</td><td class="num">−4.3</td></tr>
+        <tr><td>1:1 (unchanged)</td><td class="num">213</td><td class="num">56.84</td><td class="num">56.52</td><td class="num">−0.32</td><td class="num">3.95</td><td class="num">0.0</td><td class="num">0.0</td><td class="num">+0.3</td><td class="num">−1.2</td><td class="num">−0.9</td></tr>
+        <tr><td>3:4</td><td class="num">214</td><td class="num">57.15</td><td class="num">56.43</td><td class="num">−0.72</td><td class="num">6.58</td><td class="num">−1.0</td><td class="num">−1.7</td><td class="num">+0.3</td><td class="num">−2.3</td><td class="num">+2.4</td></tr>
+        <tr><td>2:3</td><td class="num">214</td><td class="num">56.88</td><td class="num">54.79</td><td class="num"><b>−2.09</b></td><td class="num">6.52</td><td class="num">−2.2</td><td class="num">−2.9</td><td class="num">−1.8</td><td class="num">−1.1</td><td class="num">−1.1</td></tr>
+        <tr><td>9:16</td><td class="num">214</td><td class="num">56.89</td><td class="num">54.60</td><td class="num"><b>−2.28</b></td><td class="num">6.95</td><td class="num">−2.0</td><td class="num">−2.6</td><td class="num">−1.6</td><td class="num">−3.6</td><td class="num">−1.6</td></tr>
+      </tbody>
+    </table></div>
+    <p class="cap">Δ = squashed − original; the last five columns are mean Δ per L1. The Original and Squashed columns pool per-image totals rather than weighting the two sets equally. Overall: original 56.56, squashed 54.44 (−2.12); the 1:1 run is 55.08. Prompts with a parse failure on either side are excluded.</p>
+    <ul class="obs">
+      <li><b>Distortion costs 2 to 3.4 points.</b> Overall drops from 56.56 to 54.44, 0.6 below rendering 1:1 directly.</li>
+      <li><b>The judge penalizes the distortion, not the content.</b> Alignment barely moves (−1.8 to +0.3), so the content is all still there; the drop is in Quality, RWF and Aesthetics, i.e. distorted proportions and objects that no longer look real.</li>
+      <li><b>Keeping the aspect ratio in preprocessing is right.</b> Squashing non-square images to square like the official <code>judge.py</code> would cost them 2 to 3 points for nothing.</li>
+      <li><b>The 1:1 row is another repeat scoring.</b> Those images did not change; mean −0.32, std 3.95, consistent with the judge noise in the Judge noise tab.</li>
+      <li><b>Not yet explained:</b> 3:4 drops only 0.7 while 4:3 drops 2.6, with the same amount of distortion; the gap exceeds the noise (about ±0.45).</li>
+      <li><b>This experiment cannot isolate an aspect-ratio preference</b>, because the distortion itself is penalized.</li>
+    </ul>
+    <h3>Spot check of 7: mix7 original vs squashed to 1:1</h3>
+    <p>For each non-square ratio we picked images with the largest |Δ|, both drops and gains. Left is the mix7 original, right is the squashed 1:1 image sent to the judge; the content is identical. The aspect ratio changes by 1.33× for 4:3 and 3:4, 1.5× for 3:2 and 2:3, and 1.78× for 16:9 and 9:16.</p>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0001 · 16:9 · 84.3 → 48.7 · <span class="delta-dn">−35.6</span></div>
+      <div class="fig-sub">A robot arm grips the left end of a horizontal shaft that passes through two upright rings to its right</div>
+      <div class="pair">
+        <figure><img src="assets/ar_sq_cosmos500_0001_mix.jpg" alt="16:9 original" loading="lazy"><figcaption>16:9 · <b>84.3</b></figcaption></figure>
+        <figure><img src="assets/ar_sq_cosmos500_0001_sq.jpg" alt="Squashed to 1:1: the rings become ovals and the arm thinner" loading="lazy"><figcaption>Squashed 1:1 · <b>48.7</b></figcaption></figure>
+      </div>
+      <p>Quality 83 → 50, Aesthetics 100 → 60, Alignment 70 → 36. Squashing turns the rings into ovals and thins the arm, so the Quality and Aesthetics drops are justified; but the content is unchanged and a 34-point Alignment drop is too much. <b>Justified, Alignment overdone.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">arena1000_0870 · 3:2 · 66.2 → 41.2 · <span class="delta-dn">−25.0</span></div>
+      <div class="fig-sub">Sleeper train compartment: upper and lower berths with reading lamps, folded table, night view outside, warm light</div>
+      <div class="pair">
+        <figure><img src="assets/ar_sq_arena1000_0870_mix.jpg" alt="3:2 original" loading="lazy"><figcaption>3:2 · <b>66.2</b></figcaption></figure>
+        <figure><img src="assets/ar_sq_arena1000_0870_sq.jpg" alt="Squashed to 1:1: distortion barely visible" loading="lazy"><figcaption>Squashed 1:1 · <b>41.2</b></figcaption></figure>
+      </div>
+      <p>Aesthetics 80 → 30, RWF 80 → 30, the rest unchanged. The compartment has no circles or people that would make distortion obvious, and the two look almost the same. <b>Judge instability.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0051 · 4:3 · 84.3 → 63.2 · <span class="delta-dn">−21.1</span></div>
+      <div class="fig-sub">An orange autonomous sailing drone crosses a polar sea between ice floes, wing sail leaning in the wind, waves over the hull</div>
+      <div class="pair">
+        <figure><img src="assets/ar_sq_cosmos500_0051_mix.jpg" alt="4:3 original" loading="lazy"><figcaption>4:3 · <b>84.3</b></figcaption></figure>
+        <figure><img src="assets/ar_sq_cosmos500_0051_sq.jpg" alt="Squashed to 1:1: the drone barely changes" loading="lazy"><figcaption>Squashed 1:1 · <b>63.2</b></figcaption></figure>
+      </div>
+      <p>Quality 100 → 43, Alignment 87 → 70. Only a 1.33× change; drone and ice look nearly the same, yet Quality drops 57 points. <b>Judge instability.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0027 · 3:4 · 43.5 → 64.5 · <span class="delta-up">+21.0</span></div>
+      <div class="fig-sub">Firefighting drill: a tracked firefighting robot in a concrete yard, its water cannon spraying a scorched steel target</div>
+      <div class="pair">
+        <figure><img src="assets/ar_sq_cosmos500_0027_mix.jpg" alt="3:4 original" loading="lazy"><figcaption>3:4 · <b>43.5</b></figcaption></figure>
+        <figure><img src="assets/ar_sq_cosmos500_0027_sq.jpg" alt="Squashed to 1:1: the robot is stretched wider" loading="lazy"><figcaption>Squashed 1:1 · <b>64.5</b></figcaption></figure>
+      </div>
+      <p>Alignment 34 → 68, RWF 30 → 80. The robot is stretched wider, yet the score goes up. <b>Judge instability.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">arena1000_0424 · 2:3 · 58.0 → 33.1 · <span class="delta-dn">−24.9</span></div>
+      <div class="fig-sub">Fantasy fan art: on a mountain path at night, five travelers form a defensive ring around an overturned wagon</div>
+      <div class="pair">
+        <figure><img src="assets/ar_sq_arena1000_0424_mix.jpg" alt="2:3 original" loading="lazy"><figcaption>2:3 · <b>58.0</b></figcaption></figure>
+        <figure><img src="assets/ar_sq_arena1000_0424_sq.jpg" alt="Squashed to 1:1: the figures look visibly wider" loading="lazy"><figcaption>Squashed 1:1 · <b>33.1</b></figcaption></figure>
+      </div>
+      <p>Aesthetics 80 → 30, Alignment 44 → 26, Quality 50 → 43. The figures are stretched 1.5× and look visibly wider, so a drop is warranted; a 50-point Aesthetics drop is too much. <b>Right direction, inflated.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">arena1000_0825 · 9:16 · 89.9 → 58.3 · <span class="delta-dn">−31.6</span></div>
+      <div class="fig-sub">Studio tabletop: six glazed donuts in two rows on white marble</div>
+      <div class="pair">
+        <figure><img src="assets/ar_sq_arena1000_0825_mix.jpg" alt="9:16 original" loading="lazy"><figcaption>9:16 · <b>89.9</b></figcaption></figure>
+        <figure><img src="assets/ar_sq_arena1000_0825_sq.jpg" alt="Squashed to 1:1: the donuts become flat ovals" loading="lazy"><figcaption>Squashed 1:1 · <b>58.3</b></figcaption></figure>
+      </div>
+      <p>Quality 100 → 53, Aesthetics 100 → 60, Alignment 70 → 62. Stretched 1.78× wide, the donuts become flat ovals; the distortion is obvious. <b>Justified.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">arena1000_0468 · 9:16 · 39.3 → 61.3 · <span class="delta-up">+22.0</span></div>
+      <div class="fig-sub">Studio product shot of a matte gray electric motorcycle side-on in front of a dark backdrop, hubless rear wheel</div>
+      <div class="pair">
+        <figure><img src="assets/ar_sq_arena1000_0468_mix.jpg" alt="9:16 original" loading="lazy"><figcaption>9:16 · <b>39.3</b></figcaption></figure>
+        <figure><img src="assets/ar_sq_arena1000_0468_sq.jpg" alt="Squashed to 1:1: the motorcycle is stretched and the wheels become ovals" loading="lazy"><figcaption>Squashed 1:1 · <b>61.3</b></figcaption></figure>
+      </div>
+      <p>Creative 0 → 76, Aesthetics 48 → 60. The motorcycle is stretched 1.78× and its wheels become ovals, yet the score goes up, perhaps because the bike now fills more of the frame. This is also example 3 in section 4: at 9:16 its Creative fell from 100 (at 1:1) to 0. <b>Judge instability.</b></p>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Example</th><th>Ratio</th><th class="num">Aspect change</th><th class="num">Δ</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td class="run">cosmos500_0001</td><td>16:9</td><td class="num">1.78×</td><td class="num">−35.6</td><td>Justified, Alignment overdone</td></tr>
+        <tr><td class="run">arena1000_0825</td><td>9:16</td><td class="num">1.78×</td><td class="num">−31.6</td><td>Justified</td></tr>
+        <tr><td class="run">arena1000_0424</td><td>2:3</td><td class="num">1.5×</td><td class="num">−24.9</td><td>Right direction, inflated</td></tr>
+        <tr><td class="run">arena1000_0870</td><td>3:2</td><td class="num">1.5×</td><td class="num">−25.0</td><td>Judge instability</td></tr>
+        <tr><td class="run">cosmos500_0051</td><td>4:3</td><td class="num">1.33×</td><td class="num">−21.1</td><td>Judge instability</td></tr>
+        <tr><td class="run">cosmos500_0027</td><td>3:4</td><td class="num">1.33×</td><td class="num">+21.0</td><td>Judge instability</td></tr>
+        <tr><td class="run">arena1000_0468</td><td>9:16</td><td class="num">1.78×</td><td class="num">+22.0</td><td>Judge instability</td></tr>
+      </tbody>
+    </table></div>
+    <ul class="obs">
+      <li><b>Obvious distortion is penalized for good reason:</b> at 1.78× (16:9 and 9:16) rings and donuts turn into ovals, and the drops hold up.</li>
+      <li><b>With mild distortion, single-image scores are mostly noise:</b> 4:3 and 3:2 type changes (1.33× to 1.5×) are barely visible, yet single images drop or gain more than 20 points.</li>
+      <li><b>4 of the 7 are judge instability.</b> This agrees with the rest of the Aspect ratio tab: the averages show the effect of distortion, single-image scores do not.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. Nine examples</h2>
+    <p>From the 6 non-square ratios we picked images with the largest |Δ|, both gains and drops, and compared the two images to judge whether the score change reflects a real change in the image or judge instability. Left is 1:1, right is mix7.</p>
+    <div class="fig">
+      <div class="fig-title">1 · cosmos500_0001 · 16:9 · <span class="delta-up">+39.2</span></div>
+      <div class="fig-sub">In a workshop, a robot arm grips the left end of a horizontal shaft that passes through two upright rings to its right</div>
+      <div class="pair">
+        <figure><img src="assets/ar_cosmos500_0001_1x1.jpg" alt="1:1: the gripper does not hold the shaft" loading="lazy"><figcaption>1:1 · <b>45.1</b></figcaption></figure>
+        <figure><img src="assets/ar_cosmos500_0001_mix.jpg" alt="16:9: the gripper holds the shaft, which passes through both rings" loading="lazy"><figcaption>16:9 · <b>84.3</b></figcaption></figure>
+      </div>
+      <p>Quality 50 → 83, Aesthetics 53 → 100, Alignment 32 → 70. At 1:1 the gripper does not actually hold the shaft; at 16:9 there is room to lay it out, the grip is right and the shaft goes through both rings. <b>The gain is justified</b>: the image itself is better.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">2 · arena1000_0630 · 16:9 · <span class="delta-dn">−35.8</span></div>
+      <div class="fig-sub">A surreal city folds like paper along its central avenue, buildings tilting face to face; sharp crease and coherent perspective required</div>
+      <div class="pair">
+        <figure><img src="assets/ar_arena1000_0630_1x1.jpg" alt="1:1: the city folds along the avenue with a clear crease" loading="lazy"><figcaption>1:1 · <b>68.9</b></figcaption></figure>
+        <figure><img src="assets/ar_arena1000_0630_mix.jpg" alt="16:9: two halves placed side by side with no sense of folding" loading="lazy"><figcaption>16:9 · <b>33.1</b></figcaption></figure>
+      </div>
+      <p>Quality 100 → 64, Alignment 8 → 0, Creative Generation 100 → 0. The 1:1 image shows the crease and the fold; the 16:9 one just puts two halves side by side, with no paper-fold feel. <b>The drop is justified</b>: the content really got worse.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">3 · arena1000_0468 · 9:16 · <span class="delta-dn">−28.0</span></div>
+      <div class="fig-sub">Studio product shot of a matte gray electric motorcycle side-on in front of a dark backdrop, hubless rear wheel</div>
+      <div class="pair">
+        <figure><img src="assets/ar_arena1000_0468_1x1.jpg" alt="1:1: the motorcycle fills the frame" loading="lazy"><figcaption>1:1 · <b>67.3</b></figcaption></figure>
+        <figure><img src="assets/ar_arena1000_0468_mix.jpg" alt="9:16: the same motorcycle, smaller in a tall frame with large empty areas above and below" loading="lazy"><figcaption>9:16 · <b>39.3</b></figcaption></figure>
+      </div>
+      <p>Aesthetics 60 → 48, Creative Generation 100 → 0, the rest unchanged. The two designs are nearly identical; in the tall frame the bike is just smaller with more empty space. Creative dropping all the way from 100 to 0 <b>is too much; this one is judge instability</b>.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">4 · cosmos500_0470 · 16:9 · <span class="delta-up">+29.1</span></div>
+      <div class="fig-sub">Fundus photograph: circular field on black, optic disc on the left, vessels branching out from the disc, macula on the right</div>
+      <div class="pair">
+        <figure><img src="assets/ar_cosmos500_0470_1x1.jpg" alt="1:1: oversized optic disc, purplish vessels" loading="lazy"><figcaption>1:1 · <b>33.7</b></figcaption></figure>
+        <figure><img src="assets/ar_cosmos500_0470_mix.jpg" alt="16:9: normal-sized disc, fine natural vessels" loading="lazy"><figcaption>16:9 · <b>62.8</b></figcaption></figure>
+      </div>
+      <p>Quality 33 → 93, RWF 30 → 80, Alignment 26 → 42, Aesthetics 45 → 36. At 1:1 the optic disc is oversized and the vessels purplish, like a diagram; at 16:9 the disc is a normal size and the vessels fine and natural, much closer to a real fundus photo. <b>The gain is justified.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">5 · arena1000_0870 · 3:2 · <span class="delta-up">+21.2</span></div>
+      <div class="fig-sub">Sleeper train compartment: upper and lower berths with reading lamps, folded table, night view outside, warm light</div>
+      <div class="pair">
+        <figure><img src="assets/ar_arena1000_0870_1x1.jpg" alt="1:1: a stray blue cushion in the foreground" loading="lazy"><figcaption>1:1 · <b>45.0</b></figcaption></figure>
+        <figure><img src="assets/ar_arena1000_0870_mix.jpg" alt="3:2: a cleaner composition" loading="lazy"><figcaption>3:2 · <b>66.2</b></figcaption></figure>
+      </div>
+      <p>Aesthetics 45 → 80, RWF 30 → 80, the rest unchanged. The 3:2 composition is cleaner; the 1:1 one has a stray blue cushion in the foreground. But overall the two are close in quality: <b>right direction, magnitude inflated by the judge</b>.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">6 · cosmos500_0257 · 2:3 · <span class="delta-up">+32.6</span></div>
+      <div class="fig-sub">Old cinema foyer: curved wooden ticket counter, terrazzo floor, broad staircase along the side wall; a balcony with a brass railing above the counter, empty shallow display niches in the wall beneath it</div>
+      <div class="pair">
+        <figure><img src="assets/ar_cosmos500_0257_1x1.jpg" alt="1:1: no display niches in the wall" loading="lazy"><figcaption>1:1 · <b>42.8</b></figcaption></figure>
+        <figure><img src="assets/ar_cosmos500_0257_mix.jpg" alt="2:3: display niches drawn in the wall" loading="lazy"><figcaption>2:3 · <b>75.4</b></figcaption></figure>
+      </div>
+      <p>Aesthetics 30 → 100, Quality 50 → 71, Alignment 48 → 55. The 2:3 image draws the wall niches and the 1:1 one does not, so the small Alignment gain is justified. But the two look similar in quality, and Aesthetics jumping from 30 to 100 is not: <b>mostly judge instability</b>.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">7 · cosmos500_0079 · 4:3 · <span class="delta-dn">−24.0</span></div>
+      <div class="fig-sub">Tailor's workshop: an elderly tailor presses wool flat while a small robot arm cuts along the chalk line; blade-to-fabric contact readable, fingers clear of the blades</div>
+      <div class="pair">
+        <figure><img src="assets/ar_cosmos500_0079_1x1.jpg" alt="1:1: blade along the chalk line, hand well clear" loading="lazy"><figcaption>1:1 · <b>69.1</b></figcaption></figure>
+        <figure><img src="assets/ar_cosmos500_0079_mix.jpg" alt="4:3: scissors closer to the hand, blade off the chalk line" loading="lazy"><figcaption>4:3 · <b>45.1</b></figcaption></figure>
+      </div>
+      <p>Alignment 83 → 44, Aesthetics 68 → 48, Quality 57 → 43. At 4:3 the scissors are closer to the tailor's hand and the blade is off the chalk line, so the Alignment drop is justified; a 20-point Aesthetics drop is too much. <b>Right direction, magnitude inflated.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">8 · arena1000_0089 · 3:4 · <span class="delta-dn">−26.9</span></div>
+      <div class="fig-sub">Antique fair poster: brass mantel clock centered, porcelain vase on the left, walnut chair on the right; heading ANTIQUE FAIR on top, SUNDAY AT MARKET HALL below the objects</div>
+      <div class="pair">
+        <figure><img src="assets/ar_arena1000_0089_1x1.jpg" alt="1:1: clean lettering" loading="lazy"><figcaption>1:1 · <b>79.2</b></figcaption></figure>
+        <figure><img src="assets/ar_arena1000_0089_mix.jpg" alt="3:4: an extra line of illegible small text at the bottom" loading="lazy"><figcaption>3:4 · <b>52.3</b></figcaption></figure>
+      </div>
+      <p>Creative 100 → 42, Aesthetics 68 → 36, Quality 83 → 61. The 3:4 poster has an extra line of illegible small text at the bottom, so the Creative (text rendering) drop is justified; but heading and layout are still fine, and a 32-point Aesthetics drop is too much. <b>Right direction, magnitude inflated.</b></p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">9 · cosmos500_0448 · 9:16 · <span class="delta-dn">−23.8</span></div>
+      <div class="fig-sub">Exploded CAD model of a planetary gearbox: sun gear, three planet gears, carrier and ring gear spaced along the central axis, teeth meshing plausibly</div>
+      <div class="pair">
+        <figure><img src="assets/ar_cosmos500_0448_1x1.jpg" alt="1:1: parts laid out along a horizontal axis with clear labels" loading="lazy"><figcaption>1:1 · <b>57.1</b></figcaption></figure>
+        <figure><img src="assets/ar_cosmos500_0448_mix.jpg" alt="9:16: tiny parts, planet gears bunched together" loading="lazy"><figcaption>9:16 · <b>33.3</b></figcaption></figure>
+      </div>
+      <p>Aesthetics 100 → 45, Quality 76 → 54, Alignment 40 → 22, RWF 55 → 30. A horizontally exploded view squeezed into a tall frame: the parts become tiny, the planet gears bunch together and the labels are barely legible. <b>The drop is justified.</b></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>5. Verdicts</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>#</th><th>Example</th><th>Ratio</th><th class="num">Δ</th><th>Verdict</th><th class="wrap">Why</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="run">cosmos500_0001</td><td>16:9</td><td class="num">+39.2</td><td>Justified</td><td class="wrap">The wide frame gets shaft and rings right</td></tr>
+        <tr><td>2</td><td class="run">arena1000_0630</td><td>16:9</td><td class="num">−35.8</td><td>Justified</td><td class="wrap">16:9 loses the fold</td></tr>
+        <tr><td>4</td><td class="run">cosmos500_0470</td><td>16:9</td><td class="num">+29.1</td><td>Justified</td><td class="wrap">16:9 looks like a real fundus</td></tr>
+        <tr><td>9</td><td class="run">cosmos500_0448</td><td>9:16</td><td class="num">−23.8</td><td>Justified</td><td class="wrap">Wide exploded view in a tall frame, parts too small</td></tr>
+        <tr><td>5</td><td class="run">arena1000_0870</td><td>3:2</td><td class="num">+21.2</td><td>Right direction, inflated</td><td class="wrap">Cleaner composition, but similar quality</td></tr>
+        <tr><td>7</td><td class="run">cosmos500_0079</td><td>4:3</td><td class="num">−24.0</td><td>Right direction, inflated</td><td class="wrap">Scissors near the hand; Aesthetics drops too much</td></tr>
+        <tr><td>8</td><td class="run">arena1000_0089</td><td>3:4</td><td class="num">−26.9</td><td>Right direction, inflated</td><td class="wrap">Extra garbled small text; Aesthetics drops too much</td></tr>
+        <tr><td>3</td><td class="run">arena1000_0468</td><td>9:16</td><td class="num">−28.0</td><td>Judge instability</td><td class="wrap">Nearly identical design, Creative 100 → 0</td></tr>
+        <tr><td>6</td><td class="run">cosmos500_0257</td><td>2:3</td><td class="num">+32.6</td><td>Judge instability</td><td class="wrap">Similar quality, Aesthetics 30 → 100</td></tr>
+      </tbody>
+    </table></div>
+    <p class="cap">All 9 are extreme cases with large |Δ| and do not represent the average.</p>
+  </section>
+
+  <section>
+    <h2>6. Conclusions</h2>
+    <ul class="obs">
+      <li><b>Scoring the same image again changes the score.</b> In a full rescore of all 1500 images, the per-image total std is 3.6, up to 27 points, with Creative the least stable (see the Judge noise tab).</li>
+      <li><b>Non-square images must reach the judge with their aspect ratio kept.</b> Squashing the same content to 1:1 costs non-square images 2 to 3.4 points on average, in Quality, RWF and Aesthetics (section 3).</li>
+      <li><b>Large swings mix real change with judge noise.</b> Of the 9 non-square examples, 4 reflect the image really getting better or worse, 3 go the right way but are inflated by the judge, and 2 are essentially judge instability.</li>
+      <li><b>Changing the aspect ratio really does change the image.</b> Wide subjects (a shaft, an exploded view, a bike seen side-on) lose in a tall frame: the subject shrinks, empty space grows, and the layout can even break; in a wide frame they gain.</li>
+      <li><b>The judge is least stable on Aesthetics and Creative Generation.</b> For two similar images Aesthetics can jump from 30 to 100; Creative often tests only one or two L3s and scores close to 100 or 0, so a small change can flip the whole item.</li>
+      <li><b>On average, the effect is small.</b> Moves go both ways; landscape sizes gain 1 to 2 points on average. Set-level averages are reasonably reliable, but single-image scores should not be used to decide which ratio is better.</li>
+      <li><b>Still to verify:</b> have one comparison model render a 16:9 set too. If it also gains about 2 points, the judge prefers wide frames; if it barely moves, the gain belongs to cosmos3 itself.</li>
+    </ul>
+  </section>
+  </div>
+
+  <div class="tabpanel" id="panel-noise" role="tabpanel" aria-labelledby="tab-noise" hidden>
+  <section>
+    <h2>1. Scoring the same image twice</h2>
+    <p>The 1500 images of the cosmos3-super-text2image 1:1 run were handed to the judge again unchanged (saved as <code>qimagebench_result_rescore1.json</code>; the original result is untouched). The judge uses greedy decoding (temperature 0, seed 42), so the two scores should match; they do not.</p>
+    <h3>How much one image moves on a rescore (Δ = first − rescore, in points)</h3>
+    <p>Each image gets its own Δ; below are the mean, std, min and max of those Δ.</p>
+    <div class="subtabs" data-own="nz" role="tablist" aria-label="subset"><button type="button" role="tab" data-sub="overall" aria-selected="true">overall</button><button type="button" role="tab" data-sub="cosmos500" aria-selected="false">cosmos500</button><button type="button" role="tab" data-sub="arena1000" aria-selected="false">arena1000</button><button type="button" role="tab" data-sub="arena1000_ocr" aria-selected="false">arena1000_ocr</button><button type="button" role="tab" data-sub="arena1000_noocr" aria-selected="false">arena1000_noocr</button></div>
+    <div class="fig">
+      <div class="fig-title">Per-image Δ (points): the dot is the mean, the box is mean ± std, the line is min to max</div>
+      <div class="nz" role="img" aria-label="Mean, std, min and max of per-image Δ for the total and 5 L1 dimensions, switchable by subset"><svg id="nzSvg" viewBox="0 0 1000 420"></svg></div>
+    </div>
+    <div class="tbl-wrap" id="nzTbl"></div>
+    <p class="cap">Only images scored both times count; RWF and Creative are only scored on prompts that test them, so they have fewer images.</p>
+    <p>An earlier estimate used the 213 mix7 prompts assigned 1:1 as a control (their images are nearly pixel-identical to the 1:1 run) and gave a per-image Δ std of 4.44; the same 213 prompts give 4.05 in this full rescore. That batch is noisier than average, so the full-set 3.58 is the more representative number.</p>
+    <p>The likely cause is numerical: vLLM's floating-point results vary slightly with batch composition, and the judge writes a long thinking trace before answering, so once one token diverges the conclusion can change. This has not been verified separately.</p>
+  </section>
+
+  <section>
+    <h2>2. Std of the overall score vs. number of images</h2>
+    <p>Scoring the same image twice, the per-image total differs with std 3.58. Averaging N images, the std of the difference between two overall scores is 3.58 / √N. The curve below plots that for N from 1 to 5000; the dashed line is the 95% range (1.96×). When two models are each scored once, the noise in their score gap is the same size.</p>
+    <div class="fig">
+      <div class="fig-title">Difference between two scorings of the overall score: std vs. number of images (points)</div>
+      <div class="nz" role="img" aria-label="Std of the difference between two overall scorings as images go from 1 to 5000; std 0.092 at 1500 images, actual difference −0.12"><svg viewBox="0 0 1000 400"><line x1="70" x2="960" y1="344.0" y2="344.0" class="zero"/><text x="62" y="348.0" text-anchor="end" class="axl">0.0</text><line x1="70" x2="960" y1="303.5" y2="303.5" class="grid"/><text x="62" y="307.5" text-anchor="end" class="axl">0.5</text><line x1="70" x2="960" y1="263.0" y2="263.0" class="grid"/><text x="62" y="267.0" text-anchor="end" class="axl">1.0</text><line x1="70" x2="960" y1="222.5" y2="222.5" class="grid"/><text x="62" y="226.5" text-anchor="end" class="axl">1.5</text><line x1="70" x2="960" y1="182.0" y2="182.0" class="grid"/><text x="62" y="186.0" text-anchor="end" class="axl">2.0</text><line x1="70" x2="960" y1="141.5" y2="141.5" class="grid"/><text x="62" y="145.5" text-anchor="end" class="axl">2.5</text><line x1="70" x2="960" y1="101.0" y2="101.0" class="grid"/><text x="62" y="105.0" text-anchor="end" class="axl">3.0</text><line x1="70" x2="960" y1="60.5" y2="60.5" class="grid"/><text x="62" y="64.5" text-anchor="end" class="axl">3.5</text><line x1="70" x2="960" y1="20.0" y2="20.0" class="grid"/><text x="62" y="24.0" text-anchor="end" class="axl">4.0</text><line x1="70.0" x2="70.0" y1="20" y2="344" class="grid"/><text x="70.0" y="364" text-anchor="middle" class="axl">1</text><line x1="310.6" x2="310.6" y1="20" y2="344" class="grid"/><text x="310.6" y="364" text-anchor="middle" class="axl">10</text><line x1="551.2" x2="551.2" y1="20" y2="344" class="grid"/><text x="551.2" y="364" text-anchor="middle" class="axl">100</text><line x1="719.4" x2="719.4" y1="20" y2="344" class="grid"/><text x="719.4" y="364" text-anchor="middle" class="axl">500</text><line x1="791.8" x2="791.8" y1="20" y2="344" class="grid"/><text x="791.8" y="364" text-anchor="middle" class="axl">1000</text><line x1="834.2" x2="834.2" y1="20" y2="344" class="grid"/><text x="834.2" y="364" text-anchor="middle" class="axl">1500</text><line x1="960.0" x2="960.0" y1="20" y2="344" class="grid"/><text x="960.0" y="364" text-anchor="middle" class="axl">5000</text><path d="M187.9 20.7 L190.1 24.2 L192.4 27.5 L194.6 30.9 L196.8 34.2 L199.0 37.5 L201.3 40.7 L203.5 43.9 L205.7 47.1 L207.9 50.3 L210.2 53.4 L212.4 56.5 L214.6 59.5 L216.8 62.5 L219.1 65.5 L221.3 68.4 L223.5 71.4 L225.8 74.2 L228.0 77.1 L230.2 79.9 L232.4 82.7 L234.7 85.5 L236.9 88.2 L239.1 90.9 L241.3 93.6 L243.6 96.3 L245.8 98.9 L248.0 101.5 L250.2 104.1 L252.4 106.6 L254.7 109.1 L256.9 111.6 L259.1 114.1 L261.4 116.5 L263.6 118.9 L265.8 121.3 L268.0 123.6 L270.2 126.0 L272.5 128.3 L274.7 130.6 L276.9 132.8 L279.1 135.1 L281.4 137.3 L283.6 139.5 L285.8 141.6 L288.1 143.8 L290.3 145.9 L292.5 148.0 L294.7 150.1 L296.9 152.1 L299.2 154.2 L301.4 156.2 L303.6 158.2 L305.9 160.1 L308.1 162.1 L310.3 164.0 L312.5 165.9 L314.8 167.8 L317.0 169.7 L319.2 171.5 L321.4 173.3 L323.6 175.1 L325.9 176.9 L328.1 178.7 L330.3 180.5 L332.6 182.2 L334.8 183.9 L337.0 185.6 L339.2 187.3 L341.4 188.9 L343.7 190.6 L345.9 192.2 L348.1 193.8 L350.4 195.4 L352.6 197.0 L354.8 198.5 L357.0 200.1 L359.2 201.6 L361.5 203.1 L363.7 204.6 L365.9 206.1 L368.1 207.5 L370.4 209.0 L372.6 210.4 L374.8 211.8 L377.1 213.2 L379.3 214.6 L381.5 216.0 L383.7 217.3 L385.9 218.7 L388.2 220.0 L390.4 221.3 L392.6 222.6 L394.9 223.9 L397.1 225.2 L399.3 226.4 L401.5 227.7 L403.7 228.9 L406.0 230.1 L408.2 231.3 L410.4 232.5 L412.7 233.7 L414.9 234.9 L417.1 236.0 L419.3 237.2 L421.6 238.3 L423.8 239.4 L426.0 240.5 L428.2 241.6 L430.5 242.7 L432.7 243.8 L434.9 244.8 L437.1 245.9 L439.3 246.9 L441.6 248.0 L443.8 249.0 L446.0 250.0 L448.2 251.0 L450.5 252.0 L452.7 252.9 L454.9 253.9 L457.1 254.9 L459.4 255.8 L461.6 256.7 L463.8 257.7 L466.1 258.6 L468.3 259.5 L470.5 260.4 L472.7 261.3 L474.9 262.1 L477.2 263.0 L479.4 263.9 L481.6 264.7 L483.9 265.5 L486.1 266.4 L488.3 267.2 L490.5 268.0 L492.7 268.8 L495.0 269.6 L497.2 270.4 L499.4 271.2 L501.7 272.0 L503.9 272.7 L506.1 273.5 L508.3 274.2 L510.5 275.0 L512.8 275.7 L515.0 276.4 L517.2 277.1 L519.5 277.8 L521.7 278.5 L523.9 279.2 L526.1 279.9 L528.3 280.6 L530.6 281.3 L532.8 281.9 L535.0 282.6 L537.2 283.2 L539.5 283.9 L541.7 284.5 L543.9 285.1 L546.1 285.8 L548.4 286.4 L550.6 287.0 L552.8 287.6 L555.1 288.2 L557.3 288.8 L559.5 289.4 L561.7 290.0 L563.9 290.5 L566.2 291.1 L568.4 291.7 L570.6 292.2 L572.9 292.8 L575.1 293.3 L577.3 293.8 L579.5 294.4 L581.8 294.9 L584.0 295.4 L586.2 295.9 L588.4 296.4 L590.7 296.9 L592.9 297.4 L595.1 297.9 L597.3 298.4 L599.5 298.9 L601.8 299.4 L604.0 299.8 L606.2 300.3 L608.5 300.8 L610.7 301.2 L612.9 301.7 L615.1 302.1 L617.4 302.6 L619.6 303.0 L621.8 303.5 L624.0 303.9 L626.2 304.3 L628.5 304.7 L630.7 305.1 L632.9 305.6 L635.1 306.0 L637.4 306.4 L639.6 306.8 L641.8 307.2 L644.1 307.5 L646.3 307.9 L648.5 308.3 L650.7 308.7 L652.9 309.1 L655.2 309.4 L657.4 309.8 L659.6 310.2 L661.9 310.5 L664.1 310.9 L666.3 311.2 L668.5 311.6 L670.7 311.9 L673.0 312.3 L675.2 312.6 L677.4 312.9 L679.6 313.3 L681.9 313.6 L684.1 313.9 L686.3 314.2 L688.5 314.5 L690.8 314.9 L693.0 315.2 L695.2 315.5 L697.5 315.8 L699.7 316.1 L701.9 316.4 L704.1 316.7 L706.4 316.9 L708.6 317.2 L710.8 317.5 L713.0 317.8 L715.2 318.1 L717.5 318.3 L719.7 318.6 L721.9 318.9 L724.1 319.2 L726.4 319.4 L728.6 319.7 L730.8 319.9 L733.0 320.2 L735.3 320.4 L737.5 320.7 L739.7 320.9 L742.0 321.2 L744.2 321.4 L746.4 321.7 L748.6 321.9 L750.9 322.1 L753.1 322.4 L755.3 322.6 L757.5 322.8 L759.8 323.0 L762.0 323.3 L764.2 323.5 L766.4 323.7 L768.7 323.9 L770.9 324.1 L773.1 324.3 L775.3 324.6 L777.5 324.8 L779.8 325.0 L782.0 325.2 L784.2 325.4 L786.5 325.6 L788.7 325.8 L790.9 325.9 L793.1 326.1 L795.3 326.3 L797.6 326.5 L799.8 326.7 L802.0 326.9 L804.2 327.1 L806.5 327.2 L808.7 327.4 L810.9 327.6 L813.1 327.8 L815.4 327.9 L817.6 328.1 L819.8 328.3 L822.0 328.4 L824.3 328.6 L826.5 328.8 L828.7 328.9 L830.9 329.1 L833.2 329.3 L835.4 329.4 L837.6 329.6 L839.9 329.7 L842.1 329.9 L844.3 330.0 L846.5 330.2 L848.8 330.3 L851.0 330.5 L853.2 330.6 L855.4 330.7 L857.7 330.9 L859.9 331.0 L862.1 331.2 L864.3 331.3 L866.5 331.4 L868.8 331.6 L871.0 331.7 L873.2 331.8 L875.5 332.0 L877.7 332.1 L879.9 332.2 L882.1 332.3 L884.3 332.5 L886.6 332.6 L888.8 332.7 L891.0 332.8 L893.3 332.9 L895.5 333.1 L897.7 333.2 L899.9 333.3 L902.2 333.4 L904.4 333.5 L906.6 333.6 L908.8 333.7 L911.1 333.8 L913.3 333.9 L915.5 334.1 L917.7 334.2 L919.9 334.3 L922.2 334.4 L924.4 334.5 L926.6 334.6 L928.8 334.7 L931.1 334.8 L933.3 334.9 L935.5 335.0 L937.7 335.1 L940.0 335.2 L942.2 335.2 L944.4 335.3 L946.6 335.4 L948.9 335.5 L951.1 335.6 L953.3 335.7 L955.5 335.8 L957.8 335.9 L960.0 336.0" class="cv95"/><path d="M70.0 54.0 L72.2 57.1 L74.5 60.1 L76.7 63.1 L78.9 66.1 L81.1 69.1 L83.3 72.0 L85.6 74.8 L87.8 77.7 L90.0 80.5 L92.2 83.3 L94.5 86.1 L96.7 88.8 L98.9 91.5 L101.2 94.2 L103.4 96.8 L105.6 99.4 L107.8 102.0 L110.1 104.6 L112.3 107.1 L114.5 109.6 L116.7 112.1 L118.9 114.6 L121.2 117.0 L123.4 119.4 L125.6 121.8 L127.8 124.1 L130.1 126.5 L132.3 128.8 L134.5 131.0 L136.8 133.3 L139.0 135.5 L141.2 137.7 L143.4 139.9 L145.6 142.1 L147.9 144.2 L150.1 146.3 L152.3 148.4 L154.6 150.5 L156.8 152.6 L159.0 154.6 L161.2 156.6 L163.4 158.6 L165.7 160.5 L167.9 162.5 L170.1 164.4 L172.4 166.3 L174.6 168.2 L176.8 170.0 L179.0 171.9 L181.2 173.7 L183.5 175.5 L185.7 177.3 L187.9 179.1 L190.1 180.8 L192.4 182.5 L194.6 184.3 L196.8 185.9 L199.0 187.6 L201.3 189.3 L203.5 190.9 L205.7 192.5 L207.9 194.1 L210.2 195.7 L212.4 197.3 L214.6 198.8 L216.8 200.4 L219.1 201.9 L221.3 203.4 L223.5 204.9 L225.8 206.4 L228.0 207.8 L230.2 209.3 L232.4 210.7 L234.7 212.1 L236.9 213.5 L239.1 214.9 L241.3 216.3 L243.6 217.6 L245.8 218.9 L248.0 220.3 L250.2 221.6 L252.4 222.9 L254.7 224.2 L256.9 225.4 L259.1 226.7 L261.4 227.9 L263.6 229.2 L265.8 230.4 L268.0 231.6 L270.2 232.8 L272.5 233.9 L274.7 235.1 L276.9 236.3 L279.1 237.4 L281.4 238.5 L283.6 239.7 L285.8 240.8 L288.1 241.8 L290.3 242.9 L292.5 244.0 L294.7 245.1 L296.9 246.1 L299.2 247.1 L301.4 248.2 L303.6 249.2 L305.9 250.2 L308.1 251.2 L310.3 252.2 L312.5 253.1 L314.8 254.1 L317.0 255.1 L319.2 256.0 L321.4 256.9 L323.6 257.8 L325.9 258.8 L328.1 259.7 L330.3 260.6 L332.6 261.4 L334.8 262.3 L337.0 263.2 L339.2 264.0 L341.4 264.9 L343.7 265.7 L345.9 266.5 L348.1 267.4 L350.4 268.2 L352.6 269.0 L354.8 269.8 L357.0 270.6 L359.2 271.3 L361.5 272.1 L363.7 272.9 L365.9 273.6 L368.1 274.4 L370.4 275.1 L372.6 275.8 L374.8 276.6 L377.1 277.3 L379.3 278.0 L381.5 278.7 L383.7 279.4 L385.9 280.1 L388.2 280.7 L390.4 281.4 L392.6 282.1 L394.9 282.7 L397.1 283.4 L399.3 284.0 L401.5 284.6 L403.7 285.3 L406.0 285.9 L408.2 286.5 L410.4 287.1 L412.7 287.7 L414.9 288.3 L417.1 288.9 L419.3 289.5 L421.6 290.1 L423.8 290.6 L426.0 291.2 L428.2 291.8 L430.5 292.3 L432.7 292.9 L434.9 293.4 L437.1 293.9 L439.3 294.5 L441.6 295.0 L443.8 295.5 L446.0 296.0 L448.2 296.5 L450.5 297.0 L452.7 297.5 L454.9 298.0 L457.1 298.5 L459.4 299.0 L461.6 299.5 L463.8 299.9 L466.1 300.4 L468.3 300.9 L470.5 301.3 L472.7 301.8 L474.9 302.2 L477.2 302.7 L479.4 303.1 L481.6 303.5 L483.9 304.0 L486.1 304.4 L488.3 304.8 L490.5 305.2 L492.7 305.6 L495.0 306.0 L497.2 306.4 L499.4 306.8 L501.7 307.2 L503.9 307.6 L506.1 308.0 L508.3 308.4 L510.5 308.8 L512.8 309.1 L515.0 309.5 L517.2 309.9 L519.5 310.2 L521.7 310.6 L523.9 311.0 L526.1 311.3 L528.3 311.6 L530.6 312.0 L532.8 312.3 L535.0 312.7 L537.2 313.0 L539.5 313.3 L541.7 313.7 L543.9 314.0 L546.1 314.3 L548.4 314.6 L550.6 314.9 L552.8 315.2 L555.1 315.5 L557.3 315.8 L559.5 316.1 L561.7 316.4 L563.9 316.7 L566.2 317.0 L568.4 317.3 L570.6 317.6 L572.9 317.9 L575.1 318.1 L577.3 318.4 L579.5 318.7 L581.8 318.9 L584.0 319.2 L586.2 319.5 L588.4 319.7 L590.7 320.0 L592.9 320.2 L595.1 320.5 L597.3 320.7 L599.5 321.0 L601.8 321.2 L604.0 321.5 L606.2 321.7 L608.5 321.9 L610.7 322.2 L612.9 322.4 L615.1 322.6 L617.4 322.9 L619.6 323.1 L621.8 323.3 L624.0 323.5 L626.2 323.7 L628.5 324.0 L630.7 324.2 L632.9 324.4 L635.1 324.6 L637.4 324.8 L639.6 325.0 L641.8 325.2 L644.1 325.4 L646.3 325.6 L648.5 325.8 L650.7 326.0 L652.9 326.2 L655.2 326.4 L657.4 326.6 L659.6 326.7 L661.9 326.9 L664.1 327.1 L666.3 327.3 L668.5 327.5 L670.7 327.6 L673.0 327.8 L675.2 328.0 L677.4 328.1 L679.6 328.3 L681.9 328.5 L684.1 328.6 L686.3 328.8 L688.5 329.0 L690.8 329.1 L693.0 329.3 L695.2 329.4 L697.5 329.6 L699.7 329.7 L701.9 329.9 L704.1 330.0 L706.4 330.2 L708.6 330.3 L710.8 330.5 L713.0 330.6 L715.2 330.8 L717.5 330.9 L719.7 331.1 L721.9 331.2 L724.1 331.3 L726.4 331.5 L728.6 331.6 L730.8 331.7 L733.0 331.9 L735.3 332.0 L737.5 332.1 L739.7 332.2 L742.0 332.4 L744.2 332.5 L746.4 332.6 L748.6 332.7 L750.9 332.8 L753.1 333.0 L755.3 333.1 L757.5 333.2 L759.8 333.3 L762.0 333.4 L764.2 333.5 L766.4 333.6 L768.7 333.8 L770.9 333.9 L773.1 334.0 L775.3 334.1 L777.5 334.2 L779.8 334.3 L782.0 334.4 L784.2 334.5 L786.5 334.6 L788.7 334.7 L790.9 334.8 L793.1 334.9 L795.3 335.0 L797.6 335.1 L799.8 335.2 L802.0 335.3 L804.2 335.4 L806.5 335.5 L808.7 335.5 L810.9 335.6 L813.1 335.7 L815.4 335.8 L817.6 335.9 L819.8 336.0 L822.0 336.1 L824.3 336.1 L826.5 336.2 L828.7 336.3 L830.9 336.4 L833.2 336.5 L835.4 336.6 L837.6 336.6 L839.9 336.7 L842.1 336.8 L844.3 336.9 L846.5 336.9 L848.8 337.0 L851.0 337.1 L853.2 337.2 L855.4 337.2 L857.7 337.3 L859.9 337.4 L862.1 337.4 L864.3 337.5 L866.5 337.6 L868.8 337.7 L871.0 337.7 L873.2 337.8 L875.5 337.9 L877.7 337.9 L879.9 338.0 L882.1 338.0 L884.3 338.1 L886.6 338.2 L888.8 338.2 L891.0 338.3 L893.3 338.4 L895.5 338.4 L897.7 338.5 L899.9 338.5 L902.2 338.6 L904.4 338.6 L906.6 338.7 L908.8 338.8 L911.1 338.8 L913.3 338.9 L915.5 338.9 L917.7 339.0 L919.9 339.0 L922.2 339.1 L924.4 339.1 L926.6 339.2 L928.8 339.2 L931.1 339.3 L933.3 339.3 L935.5 339.4 L937.7 339.4 L940.0 339.5 L942.2 339.5 L944.4 339.6 L946.6 339.6 L948.9 339.7 L951.1 339.7 L953.3 339.8 L955.5 339.8 L957.8 339.9 L960.0 339.9" class="cv"/><line x1="834.2" x2="834.2" y1="344.0" y2="218.5" class="lead"/><circle cx="834.2" cy="336.5" r="4.5" class="mu"/><circle cx="834.2" cy="329.3" r="4" class="m95"/><rect x="829.2" y="329.2" width="10" height="10" class="mact" transform="rotate(45 834.2 334.2)"/><text x="822.2" y="222.5" text-anchor="end" class="vl">Two scorings at 1500 images:</text><text x="822.2" y="241.5" text-anchor="end" class="sl">std 0.092 (blue line)</text><text x="822.2" y="260.5" text-anchor="end" class="vl">95% range ±0.18 (dashed)</text><text x="822.2" y="279.5" text-anchor="end" class="al">actual diff −0.12 (diamond)</text><text x="82.0" y="58.0" class="vl">1 image: std 3.58</text><line x1="960.0" x2="960.0" y1="344.0" y2="267.0" class="lead"/><circle cx="960.0" cy="339.9" r="4.5" class="mu"/><circle cx="960.0" cy="336.0" r="4" class="m95"/><text x="950.0" y="271.0" text-anchor="end" class="vl">5000 images:</text><text x="950.0" y="290.0" text-anchor="end" class="sl">std 0.051</text><text x="950.0" y="309.0" text-anchor="end" class="vl">95% range ±0.10</text><text x="515.0" y="394" text-anchor="middle" class="axl">images (log scale)</text></svg></div>
+    </div>
+    <p class="cap">The curve weights all images equally. The actual overall is the equal-weight mean of arena1000 and cosmos500, so the expected std at 1500 images is 0.10, slightly above the curve’s 0.092; the actual difference of −0.12 falls inside the 95% range.</p>
+  </section>
+
+  <section>
+    <h2>3. 10 cases</h2>
+    <p>The 10 images whose per-image total moved the most in the full rescore. Both scorings used the same image file.</p>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0172 · 41.9 → 68.6 · <span class="delta-up">+26.7</span></div>
+      <div class="fig-sub">On a pottery bench a thumb presses into the top of a wet clay cylinder, the top sinking and the rim curling out</div>
+      <div class="same">
+        <img src="assets/ar_noise_cosmos500_0172.jpg" alt="Pottery: a thumb pressing into a clay cylinder" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Creative / Logical Resolution</td><td class="chg">0</td><td class="chg">100</td></tr>
+          <tr><td>Quality / Naturalness</td><td class="chg">0</td><td class="chg">60</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Single-item flip.</b> For this prompt Creative is graded on Logical Resolution alone; it flips from 0 to 100, so Creative jumps from 0 to 100. The same image also scored 68.6 in the mix7 run, so two of three scorings give 68.6 and the outlier is the first one.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">arena1000_0851 · 51.8 → 71.3 · <span class="delta-up">+19.6</span></div>
+      <div class="fig-sub">Shoe shop fitting area: a seated customer, and a sales assistant kneeling beside her holding the heel of a loafer</div>
+      <div class="same">
+        <img src="assets/ar_noise_arena1000_0851.jpg" alt="Shoe shop fitting" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Aesthetics / Anatomical Fidelity</td><td class="chg">0</td><td class="chg">100</td></tr>
+          <tr><td>Aesthetics / Composition, Color Harmony, Lighting, Emotional Expression</td><td class="chg">60</td><td class="chg">100</td></tr>
+          <tr><td>Quality / Material Texture</td><td class="chg">60</td><td class="chg">100</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Block shift.</b> Five Aesthetics items jump up together: four from Pass to Excel and anatomy straight from Fail to Excel, so Aesthetics goes from 48 to 100.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0167 · 62.1 → 42.9 · <span class="delta-dn">−19.2</span></div>
+      <div class="fig-sub">Close-up: hands wring a wet towel into a tight spiral over a sink, droplets falling, wrinkles following the twist</div>
+      <div class="same">
+        <img src="assets/ar_noise_cosmos500_0167.jpg" alt="Wringing a wet towel" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Creative / Logical Resolution</td><td class="chg">100</td><td class="chg">0</td></tr>
+          <tr><td>Creative / Shot Sizes</td><td class="chg">100</td><td class="chg">60</td></tr>
+          <tr><td>Quality / Edge Clarity</td><td class="chg">60</td><td class="chg">0</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Single-item flip.</b> The opposite of the pottery case: Logical Resolution goes straight from Excel to Fail, so Creative drops from 100 to 30.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0417 · 40.6 → 58.7 · <span class="delta-up">+18.1</span></div>
+      <div class="fig-sub">Close-up of a starfish's underside on aquarium glass: five arms, ambulacral grooves and tube feet</div>
+      <div class="same">
+        <img src="assets/ar_noise_cosmos500_0417.jpg" alt="Starfish underside close-up" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Quality / Material Texture</td><td class="chg">0</td><td class="chg">100</td></tr>
+          <tr><td>Quality / Naturalness</td><td class="chg">0</td><td class="chg">60</td></tr>
+          <tr><td>Aesthetics / Composition, Color Harmony, Lighting</td><td class="chg">60</td><td class="chg">100</td></tr>
+          <tr><td>Alignment / Quantity</td><td class="chg">60</td><td class="chg">0</td></tr>
+          <tr><td>Alignment / Composition Relationship</td><td class="chg">0</td><td class="chg">60</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Ups and downs at once.</b> Material texture jumps from Fail to Excel and three Aesthetics items move up a grade, while Quantity drops from Pass to Fail. This image scored 53.6 in the mix7 run, so its three scorings are 40.6, 53.6 and 58.7.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0456 · 53.6 → 36.6 · <span class="delta-dn">−17.0</span></div>
+      <div class="fig-sub">A desktop filament printer on a lab bench, its nozzle laying a layer along the rim of a hollow hexagonal container</div>
+      <div class="same">
+        <img src="assets/ar_noise_cosmos500_0456.jpg" alt="Desktop 3D printer" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Quality / Naturalness</td><td class="chg">100</td><td class="chg">0</td></tr>
+          <tr><td>Quality / Material Texture, Noise, Edge Clarity, Resolution</td><td class="chg">100</td><td class="chg">60</td></tr>
+          <tr><td>Aesthetics / Composition</td><td class="chg">60</td><td class="chg">0</td></tr>
+          <tr><td>Alignment / Real-world Scene</td><td class="chg">100</td><td class="chg">60</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Block shift.</b> Five Quality items drop together: four from Excel to Pass and naturalness straight from Excel to Fail, so Quality falls from 83 to 43.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0021 · 57.2 → 40.8 · <span class="delta-dn">−16.3</span></div>
+      <div class="fig-sub">A beach-cleaning robot advances along the tideline; its front rake lifts litter onto an inclined mesh conveyor and sand falls back through</div>
+      <div class="same">
+        <img src="assets/ar_noise_cosmos500_0021.jpg" alt="Beach-cleaning robot" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Alignment / 3D Space, Composition Relationship</td><td class="chg">60</td><td class="chg">0</td></tr>
+          <tr><td>Alignment / Real-world Scene</td><td class="chg">100</td><td class="chg">60</td></tr>
+          <tr><td>Alignment / Full-body Action</td><td class="chg">60</td><td class="chg">N/A</td></tr>
+          <tr><td>Creative / Product Design</td><td class="chg">100</td><td class="chg">0</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Pass and Fail swap.</b> Two Alignment items go from Pass to Fail and one goes from scored to not applicable, so Alignment drops from 59 to 27; Product Design goes straight from Excel to Fail.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">arena1000_0865 · 43.9 → 59.7 · <span class="delta-up">+15.8</span></div>
+      <div class="fig-sub">A compact electric car parked by a street charger: closed front with no grille, no exhaust or fuel door, charging port on the left rear fender with the plug in</div>
+      <div class="same">
+        <img src="assets/ar_noise_arena1000_0865.jpg" alt="Electric car charging" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Aesthetics / Composition</td><td class="chg">0</td><td class="chg">100</td></tr>
+          <tr><td>Aesthetics / Color Harmony, Lighting, Emotional Expression</td><td class="chg">60</td><td class="chg">100</td></tr>
+          <tr><td>Aesthetics / Style Control</td><td class="chg">N/A</td><td class="chg">100</td></tr>
+          <tr><td>Alignment / Real-world Scene</td><td class="chg">60</td><td class="chg">100</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Block shift.</b> Aesthetics jumps as a block: composition goes straight from Fail to Excel, three items rise from Pass to Excel, and style control goes from N/A to scored, so Aesthetics goes from 45 to 100.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">arena1000_0882 · 49.6 → 64.8 · <span class="delta-up">+15.2</span></div>
+      <div class="fig-sub">A solarpunk district at dawn: a vertical-forest tower with white terracotta balconies stepping out, residents pruning planters on a timber stair, curved photovoltaic glass</div>
+      <div class="same">
+        <img src="assets/ar_noise_arena1000_0882.jpg" alt="Vertical-forest tower" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Creative / Spatial Design</td><td class="chg">0</td><td class="chg">100</td></tr>
+          <tr><td>Creative / Feature Matching, Logical Resolution</td><td class="chg">0</td><td class="chg">60</td></tr>
+          <tr><td>Alignment / 3D Space</td><td class="chg">0</td><td class="chg">60</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Fail turns into Pass or Excel.</b> All three Creative items climb out of Fail, so Creative goes from 25 to 80. On the same image, spatial design is judged a fail once and excellent once.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">cosmos500_0311 · 49.4 → 64.6 · <span class="delta-up">+15.2</span></div>
+      <div class="fig-sub">A hyacinth on a windowsill grown in water: the bulb sits in the narrow neck of a glass vase with its base fully above the waterline, white roots hanging into the water</div>
+      <div class="same">
+        <img src="assets/ar_noise_cosmos500_0311.jpg" alt="Hyacinth in water" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>RWF / World Knowledge · Objects</td><td class="chg">0</td><td class="chg">100</td></tr>
+          <tr><td>Quality / Naturalness</td><td class="chg">0</td><td class="chg">60</td></tr>
+          <tr><td>Alignment / Composition Relationship</td><td class="chg">0</td><td class="chg">60</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Single flip.</b> The world-knowledge objects item goes straight from Fail to Excel, so RWF goes from 30 to 80. In the image the bulb base is indeed above the water, so the first score is the more likely mistake.</p>
+    </div>
+    <div class="fig">
+      <div class="fig-title">arena1000_0180 · 51.4 → 66.3 · <span class="delta-up">+14.9</span></div>
+      <div class="fig-sub">Channel banner illustration: a morning kitchen with fresh sourdough, flour and a whisk on a wooden table, steam from the oven, and blank space on the right with hand-lettered “Home Baking Days”</div>
+      <div class="same">
+        <img src="assets/ar_noise_arena1000_0180.jpg" alt="Baking channel banner" loading="lazy">
+        <div class="tbl-wrap"><table><thead><tr><th>L1 / L3</th><th class="num">First</th><th class="num">Rescore</th></tr></thead><tbody>
+          <tr><td>Aesthetics / Composition, Color Harmony, Lighting, Emotional Expression, Style Control</td><td class="chg">60</td><td class="chg">100</td></tr>
+          <tr><td>Alignment / Composition Relationship</td><td class="chg">0</td><td class="chg">60</td></tr>
+          <tr><td>Alignment / Containment</td><td class="chg">60</td><td class="chg">0</td></tr>
+          <tr><td>Creative / Logical Resolution</td><td class="chg">0</td><td class="chg">N/A</td></tr>
+        </tbody></table></div>
+      </div>
+      <p><b>Block shift plus moves both ways.</b> All five Aesthetics items rise from Pass to Excel, so Aesthetics goes from 60 to 100; one Alignment item goes up and one goes down, cancelling out; Creative’s logic item goes from Fail to N/A, so Creative rises from 58 to 78.</p>
+    </div>
+  </section>
+  </div>
+
+  <div class="tabpanel" id="panel-ugb" role="tabpanel" aria-labelledby="tab-ugb" hidden>
+
+  <section>
+    <h2>1. Setup</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Model</th><th>Prompt upsampling</th><th>Prompt fed to the model</th><th>Resolution</th><th>Sampling / other</th><th class="num">Images</th><th>run</th></tr></thead>
+      <tbody>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s12)"></i>GPT-image-2.5 sunburst, high</td><td class="wrap">None (handled inside the API)</td><td class="wrap">Original prompt (natural language)</td><td>1024²</td><td class="wrap"><code>quality=high</code></td><td class="num">1165/1170</td><td class="run">gpt_image_2p5_sunburst_quality_high</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s3)"></i>GPT-image-2.5 sunburst, low</td><td class="wrap">None (handled inside the API)</td><td class="wrap">Original prompt (natural language)</td><td>1024²</td><td class="wrap"><code>quality=low</code> (gateway default)</td><td class="num">1167/1170</td><td class="run">gpt_image_2p5_sunburst</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s13)"></i>GPT-image-2, high</td><td class="wrap">None (handled inside the API)</td><td class="wrap">Original prompt (natural language)</td><td>1024²</td><td class="wrap"><code>quality=high</code></td><td class="num">1166/1170</td><td class="run">gpt_image_2_quality_high</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s10)"></i>GPT-image-2, low</td><td class="wrap">None (handled inside the API)</td><td class="wrap">Original prompt (natural language)</td><td>1024²</td><td class="wrap"><code>quality=low</code> (gateway default)</td><td class="num">1168/1170</td><td class="run">gpt_image_2</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s4)"></i>Nano Banana 2 (Gemini 3.1 flash image)</td><td class="wrap">None (handled inside the API)</td><td class="wrap">Original prompt (natural language)</td><td>1024²</td><td class="wrap">gateway <code>gcp/google/gemini-3.1-flash-image</code>, <code>1k</code>, 1:1</td><td class="num">1169/1170</td><td class="run">gemini_3_1_flash_image</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s7)"></i>FLUX.3 klein-base (5.6B)</td><td class="wrap">Claude Opus 4.8 + official BFL system prompt</td><td class="wrap">Rewritten full scene description (natural language)</td><td>1024²</td><td class="wrap">50 steps, cfg 3.5</td><td class="num">1167/1170</td><td class="run">flux3_klein_base</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s14)"></i>FLUX.3 klein (5.6B, distilled)</td><td class="wrap">Same as above</td><td class="wrap">Same as above</td><td>1024²</td><td class="wrap">Distilled, 16 steps, no guidance</td><td class="num">1167/1170</td><td class="run">flux3_klein</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s8)"></i>Fibo 2.0 dev (8.1B)</td><td class="wrap">bria-vgl + gemini-3.5-flash-lite</td><td class="wrap">Structured VGL JSON</td><td>1024²</td><td class="wrap">50 steps, cfg 5.0, official JSON negative prompt and fonts</td><td class="num">1167/1170</td><td class="run">fibo2_dev</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s15)"></i>Qwen-Image 2.1, nope</td><td class="wrap">None</td><td class="wrap">Original prompt (natural language)</td><td>2048²</td><td class="wrap">40 steps, pipeline-default cfg, no negative prompt</td><td class="num">1170/1170</td><td class="run">qwen_image_2p1_nope</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s5)"></i>Qwen-Image 2.1, pe</td><td class="wrap">Official PE model <code>Qwen-Image-2.1-PE-T2I</code> (thinking on, temperature 1.0)</td><td class="wrap">Rewritten natural language</td><td>2048²</td><td class="wrap">40 steps, pipeline-default cfg, no negative prompt</td><td class="num">1170/1170</td><td class="run">qwen_image_2p1_pe</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s6)"></i>Ideogram 4 nf4 (9.3B×2)</td><td class="wrap">Claude Opus 4.8 + official <code>v1.txt</code> system prompt</td><td class="wrap">Structured JSON (<code>high_level_description</code>, <code>compositional_deconstruction</code>)</td><td>1024²</td><td class="wrap">48 steps (pipeline default), two-branch CFG</td><td class="num">1166/1170</td><td class="run">ideogram4_nf4</td></tr>
+        <tr><td class="wrap"><i class="sw-l" style="background:var(--s11)"></i>Krea 2 Turbo (12.8B)</td><td class="wrap">None</td><td class="wrap">Original prompt (natural language)</td><td>1024²</td><td class="wrap">Distilled, 8 steps, cfg 0</td><td class="num">1170/1170</td><td class="run">krea2_turbo</td></tr>
+        <tr class="cos"><td class="wrap"><i class="sw-l" style="background:var(--s1)"></i>cosmos3-super-text2image</td><td class="wrap">Opus 4.7 rewrite into Cosmos3 JSON (<code>v2_1170L_opus4p7_for_ga</code>)</td><td class="wrap">JSON</td><td>1024²</td><td class="wrap">50 steps, cfg 4, cosmos3 negative prompt; EMA weights</td><td class="num">1170/1170</td><td class="run">—</td></tr>
+        <tr class="cos"><td class="wrap"><i class="sw-l" style="background:var(--s9)"></i>Cosmos3.5 Ultra v3p4 (pretrain)</td><td class="wrap">GPT-5.5 dense rewrite (<code>v2_1170L_gpt5p5_cosmos3p5_dense_hamid</code>)</td><td class="wrap">Rewritten dense prompt</td><td>960²</td><td class="wrap">cfg 4, shift 3, CFG at every step, seed = row index, no negative prompt; EMA; iter360000, no SFT</td><td class="num">1170/1170</td><td class="run">—</td></tr>
+      </tbody>
+    </table></div>
+    <p class="cap">All runs are scored with the original <code>v2_1170L</code> prompts and testpoints; the judge is <code>gemini-3.1-pro@nvidia</code> (the two Qwen-Image runs list <code>gemini-3.1-pro</code>, which is the same model; scoring one image set under both names differs by less than 0.1). As with QImageBench, this is a system-level “rewrite + generate” comparison: public models use each vendor’s official rewrite flow, cosmos3-super-text2image uses an Opus 4.7 JSON rewrite, and Cosmos3.5 Ultra uses a GPT-5.5 dense rewrite. Krea 2 Turbo and Ideogram 4 were generated at 1024² under the old setup, not the officially recommended 2048², so their scores may be underestimated.</p>
+  </section>
+
+  <section>
+    <h2>2. Overall scores</h2>
+    <div class="fig">
+      <div class="fig-title">Overall scores (min–max normalized to 0–1 within each column)</div>
+      <div class="legend lc-legend" id="ug0Legend"></div>
+      <div class="lc" id="ug0" role="img" aria-label="Line chart of 14 runs on overall, orig and phi; values in the table below"><svg id="ug0Svg"></svg><div class="lc-tip" id="ug0Tip" hidden></div></div>
+    </div>
+    <div class="tbl-wrap" id="ug0Tbl"></div>
+    <p class="cap">The table shows raw accuracy (%); overall pools all testpoints from the orig and phi halves. Cosmos rows are bold; underline marks the best score in each column.</p>
+  </section>
+
+  <section>
+    <h2>3. L1 dimensions</h2>
+    <div class="subtabs" data-for="ug1" role="tablist" aria-label="subset"><button type="button" role="tab" data-sub="overall" aria-selected="true">overall</button><button type="button" role="tab" data-sub="orig" aria-selected="false">orig</button><button type="button" role="tab" data-sub="phi" aria-selected="false">phi</button></div>
+    <div class="fig">
+      <div class="fig-title">L1 scores (min–max normalized to 0–1 within each dimension)</div>
+      <div class="legend lc-legend" id="ug1Legend"></div>
+      <div class="lc" id="ug1" role="img" aria-label="Line chart of normalized scores for 14 runs on 10 L1 dimensions, switchable by subset"><svg id="ug1Svg"></svg><div class="lc-tip" id="ug1Tip" hidden></div></div>
+    </div>
+    <div class="tbl-wrap" id="ug1Tbl"></div>
+    <p class="cap">The table shows raw accuracy (%) for the selected subset; underline marks the best score in each column.</p>
+  </section>
+
+  <section>
+    <h2>4. L2 dimensions</h2>
+    <div class="subtab-rows">
+      <div class="subtabs" data-for="ug2" role="tablist" aria-label="subset"><button type="button" role="tab" data-sub="overall" aria-selected="true">overall</button><button type="button" role="tab" data-sub="orig" aria-selected="false">orig</button><button type="button" role="tab" data-sub="phi" aria-selected="false">phi</button></div>
+      <div class="subtabs" data-for="ug2g" role="tablist" aria-label="L1"><button type="button" role="tab" data-sub="Attribute" aria-selected="true">Attribute</button><button type="button" role="tab" data-sub="Compound" aria-selected="false">Compound</button><button type="button" role="tab" data-sub="Entity Layout" aria-selected="false">Entity Layout</button><button type="button" role="tab" data-sub="Action" aria-selected="false">Action</button><button type="button" role="tab" data-sub="Grammar" aria-selected="false">Grammar</button><button type="button" role="tab" data-sub="Relationship" aria-selected="false">Relationship</button></div>
+    </div>
+    <div class="fig">
+      <div class="fig-title">Attribute (min–max normalized to 0–1 within each L2)</div>
+      <div class="legend lc-legend" id="ug2g0Legend"></div>
+      <div class="lc" id="ug2g0" role="img" aria-label="Attribute: normalized scores per L2 dimension"><svg id="ug2g0Svg"></svg><div class="lc-tip" id="ug2g0Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Compound (min–max normalized to 0–1 within each L2)</div>
+      <div class="legend lc-legend" id="ug2g1Legend"></div>
+      <div class="lc" id="ug2g1" role="img" aria-label="Compound: normalized scores per L2 dimension"><svg id="ug2g1Svg"></svg><div class="lc-tip" id="ug2g1Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Entity Layout (min–max normalized to 0–1 within each L2)</div>
+      <div class="legend lc-legend" id="ug2g2Legend"></div>
+      <div class="lc" id="ug2g2" role="img" aria-label="Entity Layout: normalized scores per L2 dimension"><svg id="ug2g2Svg"></svg><div class="lc-tip" id="ug2g2Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Action (min–max normalized to 0–1 within each L2)</div>
+      <div class="legend lc-legend" id="ug2g3Legend"></div>
+      <div class="lc" id="ug2g3" role="img" aria-label="Action: normalized scores per L2 dimension"><svg id="ug2g3Svg"></svg><div class="lc-tip" id="ug2g3Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Grammar (min–max normalized to 0–1 within each L2)</div>
+      <div class="legend lc-legend" id="ug2g4Legend"></div>
+      <div class="lc" id="ug2g4" role="img" aria-label="Grammar: normalized scores per L2 dimension"><svg id="ug2g4Svg"></svg><div class="lc-tip" id="ug2g4Tip" hidden></div></div>
+    </div>
+    <div class="fig" hidden>
+      <div class="fig-title">Relationship (min–max normalized to 0–1 within each L2)</div>
+      <div class="legend lc-legend" id="ug2g5Legend"></div>
+      <div class="lc" id="ug2g5" role="img" aria-label="Relationship: normalized scores per L2 dimension"><svg id="ug2g5Svg"></svg><div class="lc-tip" id="ug2g5Tip" hidden></div></div>
+    </div>
+    <div class="tbl-wrap" id="ug2Tbl"></div>
+    <p class="cap">The table shows raw accuracy (%) per L2 for the selected subset and L1; underline marks the best score in each column. Style, World Knowledge, Logical Reasoning and Text Generation have a single L2 equal to the L1 and are not repeated here.</p>
+  </section>
+
+  <section>
+    <h2>5. How scoring works</h2>
+    <ol class="steps">
+      <li>UGB (UniGenBench <code>v2_1170L</code>) has 1170 prompts split into <code>orig</code> (the original prompts) and <code>phi</code> (the other half). Each prompt carries several testpoints; each testpoint belongs to one L2 category, and L2s roll up into 10 L1s.</li>
+      <li>The judge sees the image and the original prompt and marks each testpoint correct or incorrect.</li>
+      <li>Accuracy = correct testpoints / total testpoints, counted per testpoint rather than averaged per prompt. L1 and L2 scores are the accuracy over that category’s testpoints; overall pools all testpoints from both subsets.</li>
+      <li>Missing images are excluded from the denominator. API and open models lost 1–5 images to safety filters or upsampler failures (see “Images” in section 1); accuracy only counts samples that were scored.</li>
+      <li>Noise reference: scoring one image set with <code>gemini-3.1-pro</code> and with <code>gemini-3.1-pro@nvidia</code> differs by 0.01–0.11 overall.</li>
+    </ol>
+    <p class="cap">Testpoints per L1 (overall): Style 616, World Knowledge 327, Attribute 2586, Compound 413, Entity Layout 1102, Action 1518, Grammar 227, Relationship 1005, Logical Reasoning 154, Text Generation 207.</p>
+  </section>
+
+  </div>
+
+  <div class="tabpanel" id="panel-aa" role="tabpanel" aria-labelledby="tab-aa" hidden>
+  <div class="note"><p><b>AA leaderboard captured: 2026-11-09, about 16:30 PST</b>. Source: the AA-Image-T2I v2.1 board (artificialanalysis.ai/image/leaderboard/text-to-image), 108 models at the time. The page has no last-updated stamp, and the AA board will keep changing.</p></div>
+  <section>
+    <h2>1. QImageBench ↔ AA</h2>
+    <p class="lede">Our tested models mapped to entries on the current Artificial Analysis (AA) text-to-image leaderboard, with the two rankings compared. The AA board is an Elo from blind pairwise human votes and serves as a human-preference reference. Hover over a line to see the matching AA entry and how close the match is (exact or approximate). cosmos3-x9c, the cosmos3 16:9 / mix7 runs and Cosmos3.5 Ultra are not on the AA board and are not drawn. Correlations for every subset are in section 3.</p>
+    <div class="subtabs" data-for="aaq" role="tablist" aria-label="QImageBench subset"><button type="button" role="tab" data-sub="overall" aria-selected="true">overall</button><button type="button" role="tab" data-sub="cosmos500" aria-selected="false">cosmos500</button><button type="button" role="tab" data-sub="arena1000" aria-selected="false">arena1000</button><button type="button" role="tab" data-sub="arena1000_ocr" aria-selected="false">arena1000_ocr</button><button type="button" role="tab" data-sub="arena1000_noocr" aria-selected="false">arena1000_noocr</button></div>
+    <div class="fig">
+      <div class="fig-title">QImageBench score vs AA rank (left min–max normalized to 0–1, right evenly spaced by AA rank in set)</div>
+      <div class="lc" id="aaqc" role="img" aria-label="Slope chart of each model's QImageBench score against its AA rank"><svg id="aaqcSvg"></svg><div class="lc-tip" id="aaqcTip" hidden></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. UGB ↔ AA</h2>
+    <div class="subtabs" data-for="aau" role="tablist" aria-label="UGB subset"><button type="button" role="tab" data-sub="overall" aria-selected="true">overall</button><button type="button" role="tab" data-sub="orig" aria-selected="false">orig</button><button type="button" role="tab" data-sub="phi" aria-selected="false">phi</button></div>
+    <div class="fig">
+      <div class="fig-title">UGB accuracy vs AA rank (left min–max normalized to 0–1, right evenly spaced by AA rank in set)</div>
+      <div class="lc" id="aauc" role="img" aria-label="Slope chart of each model's UGB accuracy against its AA rank"><svg id="aaucSvg"></svg><div class="lc-tip" id="aaucTip" hidden></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. Rank correlation by subset</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Benchmark / subset</th><th class="num">Models</th><th class="num">Spearman</th><th class="num">Kendall</th><th class="num">Pearson (with Elo)</th><th class="num">Spearman without cosmos3</th><th class="num">Pearson without cosmos3</th></tr></thead>
+      <tbody>
+        <tr><td><b>QImageBench overall</b></td><td class="num">7</td><td class="num"><b>+0.89</b></td><td class="num">+0.81</td><td class="num"><b>+0.91</b></td><td class="num">+0.83</td><td class="num">+0.94</td></tr>
+        <tr><td>QImageBench cosmos500</td><td class="num">7</td><td class="num">+0.89</td><td class="num">+0.81</td><td class="num">+0.90</td><td class="num">+0.83</td><td class="num">+0.94</td></tr>
+        <tr><td>QImageBench arena1000</td><td class="num">7</td><td class="num">+0.89</td><td class="num">+0.81</td><td class="num">+0.91</td><td class="num">+0.83</td><td class="num">+0.94</td></tr>
+        <tr><td>QImageBench arena1000_ocr</td><td class="num">7</td><td class="num"><b>+0.96</b></td><td class="num">+0.90</td><td class="num">+0.82</td><td class="num">+0.94</td><td class="num">+0.87</td></tr>
+        <tr><td>QImageBench arena1000_noocr</td><td class="num">7</td><td class="num">+0.86</td><td class="num">+0.71</td><td class="num"><b>+0.96</b></td><td class="num">+0.77</td><td class="num">+0.95</td></tr>
+        <tr><td><b>UGB overall</b></td><td class="num">9</td><td class="num"><b>+0.68</b></td><td class="num">+0.56</td><td class="num"><b>+0.77</b></td><td class="num">+0.90</td><td class="num">+0.96</td></tr>
+        <tr><td>UGB orig</td><td class="num">9</td><td class="num">+0.73</td><td class="num">+0.67</td><td class="num">+0.76</td><td class="num">+0.98</td><td class="num">+0.95</td></tr>
+        <tr><td>UGB phi</td><td class="num">9</td><td class="num">+0.57</td><td class="num">+0.44</td><td class="num">+0.74</td><td class="num">+0.74</td><td class="num">+0.91</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note">
+      <p><b>Spearman: how far each model's rank moves.</b> Both sides are converted to ranks and ρ = 1 − 6·Σd² / (n(n² − 1)), where d is a model's rank difference between the two sides. Example: among the 7 models in QImageBench vs AA, Ideogram 4 is off by 2 places, FLUX.3 klein and Fibo 2.0 by 1 each, the rest match; Σd² = 4 + 1 + 1 = 6, so ρ = 1 − 36 / 336 = 0.89. Rank differences are squared, so one model jumping many places costs a lot.</p>
+      <p><b>Kendall: how many pairs of models are in the opposite order.</b> All models are paired up; a pair is concordant if both sides agree on which is higher and discordant otherwise, and τ = (concordant − discordant) / number of pairs. Example: 7 models make 21 pairs, and only "Ideogram 4 vs FLUX.3 klein" and "Ideogram 4 vs Fibo 2.0" are reversed, so τ = (19 − 2) / 21 = 0.81, which reads directly as "2 of 21 pairs are in the opposite order".</p>
+      <p><b>Pearson: whether scores and Elo values are proportional.</b> No conversion to ranks; it is the linear correlation of the raw values. When the order is right but the gaps are not proportional to Elo, Pearson drops; for example, arena1000_ocr has Spearman 0.96 but Pearson only 0.82.</p>
+      <p>All three range from −1 to 1: 1 means fully consistent, 0 means unrelated, −1 means fully reversed. Each comparison here has only 6 to 9 models, so one model changing place moves the coefficient a lot.</p>
+    </div>
+  </section>
+  </div>
+</div>
+
+<script>
+(() => {
+const NS = "http://www.w3.org/2000/svg";
+const ALL = [2, 3, 4, 5, 6, 7, 0, 8, 9, 10, 1, 11, 12];
+const ORDER = ALL.filter(i => document.querySelector(`#panel-scores input[data-i="${i}"]`)?.checked);
+function swh(s) {
+  return `<i class="sw-l" style="background:${s.c}"></i>`;
+}
+function lineChart(id, X, curve, ord = ORDER) {
+  const box = document.getElementById(id), svg = document.getElementById(id + "Svg"), tip = document.getElementById(id + "Tip"), leg = document.getElementById(id + "Legend");
+  const el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); svg.appendChild(e); return e; };
+  let S = [], focus = -1, hoverI = -1, lines = [], pts = [];
+  const paintFocus = () => {
+    lines.forEach((l, i) => l.classList.toggle("dim", focus >= 0 && i !== focus));
+    pts.forEach((g, i) => g.forEach(p => p.classList.toggle("dim", focus >= 0 && i !== focus)));
+  };
+  function legend() {
+    if (!leg) return;
+    leg.innerHTML = "";
+    ord.forEach(i => {
+      const sp = document.createElement("span");
+      sp.innerHTML = `${swh(S[i])}${S[i].n}`;
+      sp.addEventListener("mouseenter", () => { focus = i; paintFocus(); });
+      sp.addEventListener("mouseleave", () => { focus = -1; paintFocus(); });
+      leg.appendChild(sp);
+    });
+  }
+  function draw() {
+    svg.innerHTML = ""; lines = []; pts = []; hoverI = -1; tip.hidden = true;
+    const W = box.clientWidth; if (!W) return;
+    const H = 380, L = 44, R = 24, T = 12, B = 44, Y0 = -0.05, Y1 = 1.05;
+    const MN = X.map((_, i) => Math.min(...ord.map(k => S[k].v[i]))), MX = X.map((_, i) => Math.max(...ord.map(k => S[k].v[i])));
+    const nv = (v, i) => MX[i] > MN[i] ? (v - MN[i]) / (MX[i] - MN[i]) : 0.5;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const xs = i => L + (W - L - R) * (i + 0.5) / X.length, ys = v => T + (H - T - B) * (Y1 - v) / (Y1 - Y0);
+    for (let k = 0; k <= 5; k++) {
+      const v = k / 5;
+      el("line", { x1: L, x2: W - R, y1: ys(v), y2: ys(v), class: "grid" });
+      el("text", { x: L - 8, y: ys(v) + 4, "text-anchor": "end", class: "axl" }).textContent = v.toFixed(1);
+    }
+    X.forEach((x, i) => {
+      const w = x.split(" "), k = x.length > 12 && w.length > 1 ? Math.ceil(w.length / 2) : w.length;
+      const ln = k < w.length ? [w.slice(0, k).join(" "), w.slice(k).join(" ")] : [x];
+      ln.forEach((s, j) => { el("text", { x: xs(i), y: H - (ln.length === 2 ? 25 - j * 15 : 18), "text-anchor": "middle", class: "xl" }).textContent = s; });
+    });
+    const cross = el("line", { y1: T, y2: H - B, class: "cross", visibility: "hidden" });
+    const pathD = s => {
+      const P = s.v.map((v, i) => [xs(i), ys(nv(v, i))]);
+      if (!curve) return P.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ");
+      const n = P.length, d = [], m = [];
+      for (let i = 0; i < n - 1; i++) d.push((P[i + 1][1] - P[i][1]) / (P[i + 1][0] - P[i][0]));
+      for (let i = 0; i < n; i++) m.push(i === 0 ? d[0] : i === n - 1 ? d[n - 2] : (d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2));
+      for (let i = 0; i < n - 1; i++) {
+        if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+        const a = m[i] / d[i], b = m[i + 1] / d[i], h = a * a + b * b;
+        if (h > 9) { const t = 3 / Math.sqrt(h); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+      }
+      let out = `M${P[0][0]} ${P[0][1]}`;
+      for (let i = 0; i < n - 1; i++) {
+        const dx = (P[i + 1][0] - P[i][0]) / 3;
+        out += ` C${P[i][0] + dx} ${P[i][1] + m[i] * dx} ${P[i + 1][0] - dx} ${P[i + 1][1] - m[i + 1] * dx} ${P[i + 1][0]} ${P[i + 1][1]}`;
+      }
+      return out;
+    };
+    ord.forEach(k => { lines[k] = el("path", { d: pathD(S[k]), class: S[k].cos ? "ln cos" : "ln", stroke: S[k].c }); });
+    ord.forEach(k => { pts[k] = S[k].v.map((v, i) => el("circle", { cx: xs(i), cy: ys(nv(v, i)), r: 4.5, class: "pt", fill: S[k].c })); });
+    paintFocus();
+    const hit = el("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" });
+    hit.addEventListener("mousemove", e => {
+      const mx = e.clientX - svg.getBoundingClientRect().left;
+      const i = Math.max(0, Math.min(X.length - 1, Math.floor((mx - L) / ((W - L - R) / X.length))));
+      cross.setAttribute("x1", xs(i)); cross.setAttribute("x2", xs(i)); cross.setAttribute("visibility", "visible");
+      pts.forEach(g => g.forEach((p, j) => p.setAttribute("r", j === i ? 6 : 4.5)));
+      if (i !== hoverI) {
+        hoverI = i;
+        const sorted = ord.map(k => [S[k], S[k].v[i]]).sort((a, b) => b[1] - a[1]);
+        tip.innerHTML = `<b>${X[i]}</b>` + sorted.map(([s, v]) => `<div class="r${s.cos ? " cos" : ""}"><i style="background:${s.c}"></i><span>${s.n}</span><span>${v.toFixed(2)}</span></div>`).join("");
+      }
+      tip.hidden = false;
+      const tw = tip.offsetWidth, px = xs(i);
+      tip.style.left = (px + 14 + tw > W ? px - 14 - tw : px + 14) + "px";
+    });
+    hit.addEventListener("mouseleave", () => { tip.hidden = true; hoverI = -1; cross.setAttribute("visibility", "hidden"); pts.forEach(g => g.forEach(p => p.setAttribute("r", 4.5))); });
+  }
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(draw, 100); });
+  return { set(data) { S = data; legend(); draw(); } };
+}
+const BASE = [
+  {n:"cosmos3-super-text2image 1:1",c:"var(--s1)",o:55.08,cos:1,v:[52.72,57.44,60.02,56.04]},
+  {n:"cosmos3-x9c",c:"var(--s2)",o:54.10,cos:1,v:[52.06,56.15,58.72,54.76]},
+  {n:"GPT-image-2.5 sunburst, low",c:"var(--s3)",o:62.53,v:[61.34,63.73,70.07,60.31]},
+  {n:"Nano Banana 2.1",c:"var(--s4)",o:61.04,v:[59.52,62.55,68.26,59.48]},
+  {n:"Qwen-Image 2.1, pe",c:"var(--s5)",o:59.33,v:[57.66,60.99,66.95,57.78]},
+  {n:"Ideogram 4 nf4",c:"var(--s6)",o:58.51,v:[56.75,60.27,65.61,57.39]},
+  {n:"FLUX.3 klein-base",c:"var(--s7)",o:58.24,v:[56.42,60.05,66.10,56.80]},
+  {n:"Fibo 2.0 dev",c:"var(--s8)",o:57.63,v:[55.84,59.41,63.68,57.11]},
+  {n:"cosmos3-super-text2image 16:9",c:"var(--s16)",cos:1,o:57.35,v:[55.34, 59.37, 61.87, 58.02],l1:{"cosmos500":[52.69,64.91,55.03,46.44,52.23],"arena1000":[58.2,63.41,58.13,50.87,63.09],"arena1000_ocr":[63.06,64.36,58.84,49.06,65.85],"arena1000_noocr":[55.58,62.89,57.74,51.81,59.45],"overall":[55.44,64.16,56.58,48.66,57.66]},l2:{"cosmos500":{"Quality":[56.29,40.62,60.88],"Aesthetics":[19.32,70.24,65.0,62.04,71.73,60.98],"Alignment":[47.75,57.1,55.5,47.47,67.23],"Real-world Fidelity":[60.0,60.0,29.87],"Creative Generation":[61.28,49.79,61.82,21.02,52.51,69.23]},"arena1000":{"Quality":[60.97,48.96,62.88],"Aesthetics":[18.44,72.53,63.98,62.72,71.43,66.68],"Alignment":[48.39,59.61,59.0,55.21,66.93],"Real-world Fidelity":[60.08,59.88,38.65],"Creative Generation":[73.28,50.51,63.9,36.6,64.32,66.8]},"arena1000_ocr":{"Quality":[66.15,54.78,65.14],"Aesthetics":[23.92,71.89,64.57,63.18,70.69,62.03],"Alignment":[51.52,58.59,61.58,55.63,66.03],"Real-world Fidelity":[60.0,60.0,35.34],"Creative Generation":[74.63,50.51,62.0,43.86,66.74,66.52]},"arena1000_noocr":{"Quality":[58.18,46.09,61.66],"Aesthetics":[16.93,72.88,63.66,62.49,71.83,70.64],"Alignment":[47.25,60.17,57.57,54.99,67.31],"Real-world Fidelity":[60.1,59.82,40.36],"Creative Generation":[71.3,50.5,64.87,32.24,50.7,67.13]},"overall":{"Quality":[58.63,44.79,61.88],"Aesthetics":[18.88,71.39,64.49,62.38,71.58,63.83],"Alignment":[48.07,58.36,57.25,51.34,67.08],"Real-world Fidelity":[60.04,59.94,34.26],"Creative Generation":[67.28,50.15,62.86,28.81,58.41,68.02]}}},
+  {n:"cosmos3-super-text2image mix7",c:"var(--s17)",cos:1,o:56.56,v:[54.62, 58.5, 60.31, 57.53],l1:{"cosmos500":[53.13,63.39,54.25,45.87,50.18],"arena1000":[56.51,62.16,57.65,51.13,62.33],"arena1000_ocr":[60.17,62.8,57.27,49.34,64.59],"arena1000_noocr":[54.55,61.82,57.85,52.06,59.35],"overall":[54.82,62.78,55.95,48.5,56.26]},l2:{"cosmos500":{"Quality":[56.43,41.75,60.88],"Aesthetics":[11.36,69.44,63.84,61.35,69.76,59.39],"Alignment":[46.47,57.39,55.08,45.69,67.18],"Real-world Fidelity":[60.0,60.0,28.74],"Creative Generation":[60.12,45.98,61.14,21.18,52.76,66.7]},"arena1000":{"Quality":[59.46,46.99,61.72],"Aesthetics":[13.75,71.91,63.42,62.41,71.29,63.59],"Alignment":[48.84,59.79,58.22,53.75,66.82],"Real-world Fidelity":[60.08,59.65,39.8],"Creative Generation":[70.62,49.04,64.59,37.24,63.49,68.45]},"arena1000_ocr":{"Quality":[63.5,52.23,62.52],"Aesthetics":[15.84,70.51,64.29,62.7,70.71,58.1],"Alignment":[49.49,58.42,61.26,52.48,63.22],"Real-world Fidelity":[60.0,59.66,37.16],"Creative Generation":[72.03,49.2,62.34,42.25,65.65,68.38]},"arena1000_noocr":{"Quality":[57.29,44.41,61.29],"Aesthetics":[13.17,72.66,62.95,62.26,71.6,68.24],"Alignment":[48.59,60.53,56.54,54.44,68.38],"Real-world Fidelity":[60.1,59.64,41.17],"Creative Generation":[68.53,48.91,65.71,33.97,51.77,68.52]},"overall":{"Quality":[57.94,44.37,61.3],"Aesthetics":[12.55,70.67,63.63,61.88,70.53,61.49],"Alignment":[47.65,58.59,56.65,49.72,67.0],"Real-world Fidelity":[60.04,59.82,34.27],"Creative Generation":[65.37,47.51,62.87,29.21,58.13,67.58]}}},
+  {n:"cosmos3-super-text2image mix7→1:1",c:"var(--s18)",cos:1,o:54.44,v:[52.36, 56.52, 59.45, 54.94],l1:{"cosmos500":[50.89,60.92,53.16,43.3,47.34],"arena1000":[54.07,59.83,56.85,47.77,61.27],"arena1000_ocr":[58.1,62.2,57.1,47.32,64.5],"arena1000_noocr":[51.9,58.55,56.71,48.01,56.99],"overall":[52.48,60.37,55.0,45.54,54.3]},l2:{"cosmos500":{"Quality":[53.24,38.46,60.48],"Aesthetics":[9.27,67.92,59.88,59.84,66.97,57.68],"Alignment":[43.93,56.42,54.54,44.18,66.45],"Real-world Fidelity":[60.0,60.0,23.14],"Creative Generation":[54.32,38.24,62.5,16.61,52.1,66.93]},"arena1000":{"Quality":[56.75,43.2,60.8],"Aesthetics":[7.92,70.56,61.7,60.69,67.77,62.23],"Alignment":[46.49,58.71,58.04,53.6,65.82],"Real-world Fidelity":[60.08,59.65,31.71],"Creative Generation":[69.89,47.55,63.71,33.67,63.87,66.8]},"arena1000_ocr":{"Quality":[61.75,48.46,61.49],"Aesthetics":[13.2,70.06,64.46,62.37,67.77,58.55],"Alignment":[48.18,58.07,60.98,53.62,62.04],"Real-world Fidelity":[60.0,60.0,31.53],"Creative Generation":[72.0,48.9,61.82,41.18,65.63,67.87]},"arena1000_noocr":{"Quality":[54.05,40.64,60.43],"Aesthetics":[6.52,70.84,60.22,59.83,67.76,65.35],"Alignment":[45.87,59.06,56.43,53.59,67.44],"Real-world Fidelity":[60.1,59.47,31.8],"Creative Generation":[66.76,46.49,64.65,28.97,53.67,65.63]},"overall":{"Quality":[54.99,40.83,60.64],"Aesthetics":[8.6,69.24,60.79,60.27,67.37,59.95],"Alignment":[45.21,57.57,56.29,48.89,66.14],"Real-world Fidelity":[60.04,59.82,27.43],"Creative Generation":[62.1,42.9,63.1,25.14,57.99,66.86]}}},
+  {n:"cosmos3.5-ultra pretrain iter384k",c:"var(--s19)",cos:1,o:51.55,v:[49.20, 53.90, 57.28, 52.08],l1:{"cosmos500":[48.74,55.93,50.7,40.84,43.79],"arena1000":[52.58,56.93,54.96,46.39,55.25],"arena1000_ocr":[57.4,59.92,56.73,47.03,58.84],"arena1000_noocr":[49.98,55.31,54.02,46.06,50.5],"overall":[50.66,56.43,52.83,43.61,49.52]},l2:{"cosmos500":{"Quality":[50.33,34.76,60.72],"Aesthetics":[6.41,64.52,51.28,56.81,62.93,54.05],"Alignment":[42.16,54.62,52.69,40.65,63.43],"Real-world Fidelity":[60.0,60.0,17.6],"Creative Generation":[50.09,34.8,58.38,13.05,55.95,66.67]},"arena1000":{"Quality":[55.12,39.74,61.0],"Aesthetics":[7.86,68.45,57.22,58.52,65.6,58.52],"Alignment":[44.54,57.58,56.71,50.12,64.19],"Real-world Fidelity":[60.08,59.65,27.9],"Creative Generation":[65.72,35.65,61.99,26.4,60.25,64.31]},"arena1000_ocr":{"Quality":[60.11,47.12,62.06],"Aesthetics":[10.98,68.97,60.63,60.66,67.28,55.81],"Alignment":[47.67,57.5,60.71,51.62,63.47],"Real-world Fidelity":[60.0,60.0,30.57],"Creative Generation":[67.65,38.15,61.16,29.51,61.48,64.03]},"arena1000_noocr":{"Quality":[52.43,36.01,60.43],"Aesthetics":[7.01,68.17,55.38,57.41,64.72,60.9],"Alignment":[43.43,57.62,54.5,49.31,64.5],"Real-world Fidelity":[60.1,59.47,26.52],"Creative Generation":[62.83,33.71,62.42,24.17,41.74,64.61]},"overall":{"Quality":[52.73,37.25,60.86],"Aesthetics":[7.13,66.48,54.25,57.67,64.26,56.29],"Alignment":[43.35,56.1,54.7,45.39,63.81],"Real-world Fidelity":[60.04,59.82,22.75],"Creative Generation":[57.91,35.23,60.19,19.72,58.1,65.49]}}},
+  {n:"cosmos3.5-ultra midtrain iter343k",c:"var(--s20)",cos:1,o:53.90,v:[51.60, 56.20, 58.65, 54.88],l1:{"cosmos500":[50.28,60.05,52.57,41.56,46.72],"arena1000":[54.26,59.48,56.78,48.03,59.39],"arena1000_ocr":[58.06,60.78,57.33,47.85,62.42],"arena1000_noocr":[52.21,58.79,56.48,48.12,55.39],"overall":[52.27,59.77,54.67,44.79,53.06]},l2:{"cosmos500":{"Quality":[51.88,38.17,60.48],"Aesthetics":[9.62,67.4,57.12,60.54,67.74,55.87],"Alignment":[44.12,56.42,53.05,42.83,65.27],"Real-world Fidelity":[60.0,60.0,19.32],"Creative Generation":[53.76,36.67,64.1,17.63,53.08,66.91]},"arena1000":{"Quality":[56.34,44.09,61.0],"Aesthetics":[9.83,70.03,60.1,60.7,68.84,60.16],"Alignment":[48.26,59.74,57.79,51.98,65.48],"Real-world Fidelity":[60.08,59.77,31.88],"Creative Generation":[68.87,42.2,64.55,31.49,65.09,65.45]},"arena1000_ocr":{"Quality":[60.23,50.68,61.37],"Aesthetics":[11.65,68.74,62.69,61.61,67.25,56.55],"Alignment":[51.6,58.92,60.97,52.54,61.97],"Real-world Fidelity":[60.0,60.0,32.26],"Creative Generation":[69.98,43.67,60.24,35.0,65.84,66.08]},"arena1000_noocr":{"Quality":[54.25,40.72,60.8],"Aesthetics":[9.33,70.73,58.71,60.24,69.69,63.31],"Alignment":[47.04,60.18,56.01,51.68,67.05],"Real-world Fidelity":[60.1,59.64,31.69],"Creative Generation":[67.22,41.06,66.79,29.01,54.17,64.78]},"overall":{"Quality":[54.11,41.13,60.74],"Aesthetics":[9.72,68.72,58.61,60.62,68.29,58.01],"Alignment":[46.19,58.08,55.42,47.41,65.38],"Real-world Fidelity":[60.04,59.88,25.6],"Creative Generation":[61.32,39.43,64.33,24.56,59.08,66.18]}}}
+];
+const tbl =(id, cols, rows, ord = ORDER) => {
+  const best = cols.map((_, k) => Math.max(...rows.map(r => r.v[k])));
+  document.getElementById(id).innerHTML = `<table class="score"><thead><tr><th>Model</th>${cols.map(c => `<th class="num">${c}</th>`).join("")}</tr></thead><tbody>${ord.map(i => rows[i]).map(r => `<tr${r.cos ? ' class="cos"' : ""}><td>${swh(r)}${r.n}</td>${r.v.map((v, k) => `<td class="num${v === best[k] ? " best" : ""}">${v.toFixed(2)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+};
+const SUBS = ["cosmos500", "arena1000", "arena1000_ocr", "arena1000_noocr"];
+const TOT = sub => BASE.map(s => sub === "overall" ? s.o : s.v[SUBS.indexOf(sub)]);
+const lcC = lineChart("lc", ["overall", ...SUBS], true);
+const lcDraw = () => { lcC.set(BASE.map(s => ({ ...s, v: [s.o, ...s.v] }))); tbl("lcTbl", ["overall", ...SUBS], BASE.map(s => ({ ...s, v: [s.o, ...s.v] }))); };
+lcDraw();
+const L1D = {"overall": [[53.19, 61.16, 55.3, 45.97, 55.59], [52.58, 60.78, 54.56, 44.82, 52.18], [58.16, 67.68, 62.33, 56.57, 70.96], [57.72, 65.71, 60.69, 54.12, 68.53], [57.56, 64.83, 56.76, 53.8, 64.36], [57.36, 62.46, 57.13, 53.4, 63.14], [56.32, 63.07, 57.37, 51.65, 63.35], [56.19, 62.71, 56.79, 50.87, 59.26]], "cosmos500": [[51.28, 61.73, 53.68, 42.33, 48.38], [50.87, 61.43, 52.61, 42.55, 45.19], [56.55, 68.29, 61.95, 55.16, 68.38], [56.03, 65.8, 60.1, 52.49, 65.01], [55.81, 65.66, 55.14, 52.14, 59.66], [55.63, 62.81, 56.03, 50.53, 58.28], [54.92, 63.5, 55.39, 48.99, 59.26], [54.7, 63.3, 55.1, 48.77, 53.47]], "arena1000": [[55.11, 60.6, 56.92, 49.6, 62.8], [54.29, 60.13, 56.52, 47.1, 59.17], [59.77, 67.07, 62.71, 57.99, 73.54], [59.41, 65.62, 61.27, 55.76, 72.06], [59.31, 64.0, 58.38, 55.46, 69.05], [59.09, 62.11, 58.24, 56.26, 68.0], [57.73, 62.65, 59.35, 54.32, 67.43], [57.68, 62.12, 58.48, 52.97, 65.05]], "arena1000_ocr": [[59.38, 61.81, 57.07, 49.09, 65.86], [57.79, 61.33, 57.04, 47.52, 63.13], [66.61, 72.58, 64.75, 62.7, 79.78], [63.94, 70.89, 64.35, 59.08, 78.1], [63.42, 70.4, 61.03, 58.69, 76.55], [63.57, 66.81, 60.55, 59.7, 74.38], [62.89, 68.06, 62.27, 58.33, 74.63], [61.55, 66.46, 59.74, 54.06, 70.73]], "arena1000_noocr": [[52.81, 59.94, 56.84, 49.86, 58.75], [52.41, 59.49, 56.24, 46.89, 53.94], [56.09, 64.11, 61.61, 55.55, 65.25], [56.98, 62.79, 59.62, 54.04, 64.06], [57.1, 60.55, 56.95, 53.79, 59.13], [56.68, 59.58, 56.99, 54.48, 59.5], [54.95, 59.73, 57.78, 52.24, 57.92], [55.61, 59.78, 57.81, 52.41, 57.53]]};
+const L1N = ["Quality", "Aesthetics", "Alignment", "Real-world Fidelity", "Creative Generation"];
+const l1 = lineChart("l1", L1N, true);
+const L2N = {"Quality": ["Detail", "Realism", "Resolution"], "Aesthetics": ["Anatomical Portraiture", "Color Harmony", "Composition", "Emotional Expression", "Lighting", "Style Control"], "Alignment": ["Actions", "Attributes", "Layout", "Relations", "Scene"], "Real-world Fidelity": ["Fairness", "Safety & Compliance", "World Knowledge"], "Creative Generation": ["Design Applications", "Feature Matching", "Imagination", "Logical Resolution", "Text Rendering", "Visual Storytelling"]};
+const L2D = {"overall": {"Quality": [[55.71, 41.82, 61.1], [54.84, 41.14, 60.82], [61.25, 49.68, 62.64], [61.25, 49.53, 61.72], [60.8, 49.84, 61.64], [61.03, 48.53, 61.84], [59.58, 47.27, 61.31], [59.27, 47.46, 61.3]], "Aesthetics": [[11.09, 69.76, 61.75, 60.83, 68.31, 59.78], [10.72, 69.61, 62.13, 61.01, 68.78, 54.84], [25.07, 74.01, 68.38, 64.32, 74.02, 75.4], [21.88, 71.89, 66.13, 63.71, 71.96, 73.29], [21.9, 71.16, 65.05, 62.96, 73.33, 67.62], [18.37, 69.26, 63.01, 60.57, 66.87, 69.81], [13.44, 70.22, 63.8, 61.19, 69.28, 68.91], [12.21, 70.06, 62.38, 61.56, 70.62, 65.36]], "Alignment": [[45.05, 57.76, 56.35, 49.9, 66.16], [44.57, 57.24, 55.7, 48.15, 66.51], [52.75, 62.41, 61.33, 61.14, 71.44], [49.95, 61.13, 59.1, 57.87, 72.06], [45.92, 57.6, 55.51, 53.44, 69.19], [46.06, 58.03, 56.89, 54.07, 68.1], [46.66, 59.73, 57.45, 53.43, 67.14], [46.34, 58.91, 56.64, 51.26, 69.13]], "Real-world Fidelity": [[60.08, 59.94, 28.18], [60.0, 59.82, 25.43], [60.04, 59.88, 51.67], [60.07, 59.94, 46.2], [59.88, 59.88, 45.59], [60.0, 59.71, 45.3], [60.08, 59.94, 40.73], [60.0, 59.94, 38.83]], "Creative Generation": [[65.19, 46.2, 64.81, 24.01, 58.87, 67.51], [62.91, 40.0, 63.7, 18.96, 55.07, 65.85], [78.97, 56.18, 70.48, 43.16, 86.13, 72.28], [76.69, 52.86, 68.5, 43.56, 79.05, 71.53], [73.8, 49.37, 65.05, 31.74, 82.53, 65.86], [72.16, 50.94, 63.75, 31.4, 77.03, 65.05], [71.22, 46.43, 62.44, 32.19, 80.46, 69.33], [67.43, 46.6, 61.7, 26.42, 71.07, 66.41]]}, "cosmos500": {"Quality": [[53.73, 39.01, 60.72], [52.91, 38.63, 60.56], [59.85, 47.76, 61.68], [59.65, 47.35, 60.84], [59.17, 47.07, 61.12], [59.53, 46.06, 61.2], [57.99, 45.61, 60.88], [58.01, 44.84, 60.88]], "Aesthetics": [[12.77, 68.28, 60.72, 60.74, 67.49, 57.44], [11.31, 68.44, 61.32, 60.9, 67.67, 52.0], [28.43, 72.64, 68.2, 63.49, 73.75, 77.39], [24.15, 70.0, 65.72, 62.96, 71.28, 73.19], [23.64, 69.6, 65.52, 62.76, 72.09, 71.1], [16.56, 68.72, 62.36, 59.9, 66.48, 70.61], [13.66, 69.12, 63.0, 60.85, 69.1, 67.7], [8.24, 68.88, 61.88, 60.73, 70.6, 65.81]], "Alignment": [[42.78, 56.51, 55.13, 46.23, 66.45], [42.7, 56.13, 53.57, 44.09, 66.38], [53.28, 61.77, 60.34, 59.43, 72.36], [50.33, 60.4, 57.78, 54.49, 74.29], [44.12, 56.63, 53.81, 49.2, 69.86], [43.54, 57.22, 56.07, 50.82, 69.09], [45.88, 58.65, 54.61, 48.75, 66.8], [45.21, 57.75, 54.44, 46.4, 70.12]], "Real-world Fidelity": [[60.0, 60.0, 21.01], [60.0, 60.0, 21.03], [60.0, 60.0, 48.4], [60.0, 60.0, 42.63], [59.76, 60.0, 41.85], [60.0, 60.0, 38.84], [60.0, 60.0, 35.29], [60.0, 60.0, 34.59]], "Creative Generation": [[58.67, 44.83, 62.35, 16.35, 52.95, 66.1], [57.37, 36.97, 62.0, 9.34, 49.35, 64.64], [77.44, 55.11, 70.67, 40.68, 85.67, 73.33], [73.93, 50.57, 65.52, 42.81, 75.97, 71.85], [72.42, 45.42, 64.57, 22.41, 81.24, 64.8], [69.38, 50.13, 65.6, 22.28, 74.77, 63.03], [65.94, 46.67, 62.14, 28.03, 78.82, 70.62], [60.97, 44.21, 59.29, 17.88, 66.28, 67.79]]}, "arena1000": {"Quality": [[57.69, 44.63, 61.48], [56.77, 43.66, 61.08], [62.64, 51.6, 63.6], [62.86, 51.71, 62.6], [62.43, 52.6, 62.16], [62.52, 51.01, 62.49], [61.17, 48.92, 61.74], [60.52, 50.08, 61.72]], "Aesthetics": [[9.41, 71.24, 62.78, 60.92, 69.12, 62.12], [10.13, 70.78, 62.94, 61.12, 69.9, 57.67], [21.71, 75.38, 68.56, 65.14, 74.3, 73.41], [19.61, 73.78, 66.54, 64.46, 72.64, 73.39], [20.17, 72.72, 64.58, 63.16, 74.58, 64.15], [20.18, 69.8, 63.66, 61.24, 67.26, 69.01], [13.22, 71.32, 64.6, 61.53, 69.46, 70.11], [16.19, 71.24, 62.88, 62.4, 70.65, 64.9]], "Alignment": [[47.32, 59.01, 57.57, 53.57, 65.86], [46.45, 58.35, 57.83, 52.21, 66.64], [52.23, 63.05, 62.32, 62.85, 70.52], [49.57, 61.86, 60.43, 61.26, 69.84], [47.72, 58.56, 57.21, 57.69, 68.53], [48.59, 58.84, 57.71, 57.31, 67.12], [47.43, 60.81, 60.29, 58.11, 67.47], [47.47, 60.07, 58.83, 56.13, 68.14]], "Real-world Fidelity": [[60.15, 59.88, 35.36], [60.0, 59.65, 29.82], [60.07, 59.77, 54.93], [60.15, 59.88, 49.76], [60.0, 59.77, 49.34], [60.0, 59.42, 51.75], [60.16, 59.88, 46.17], [60.0, 59.88, 43.07]], "Creative Generation": [[71.71, 47.57, 67.27, 31.68, 64.8, 68.92], [68.44, 43.04, 65.41, 28.57, 60.79, 67.06], [80.5, 57.25, 70.3, 45.65, 86.58, 71.22], [79.46, 55.15, 71.48, 44.3, 82.12, 71.21], [75.18, 53.31, 65.52, 41.07, 83.82, 66.92], [74.95, 51.76, 61.91, 40.52, 79.3, 67.06], [76.5, 46.19, 62.73, 36.34, 82.1, 68.05], [73.88, 49.0, 64.12, 34.96, 75.85, 65.03]]}, "arena1000_ocr": {"Quality": [[63.13, 49.09, 62.98], [60.84, 48.22, 61.83], [70.21, 59.35, 67.66], [67.64, 57.49, 64.8], [67.62, 57.61, 63.77], [68.06, 56.84, 64.01], [67.49, 55.16, 63.43], [64.84, 55.53, 63.2]], "Aesthetics": [[7.84, 70.91, 64.4, 61.05, 68.25, 57.48], [11.54, 71.26, 64.11, 61.26, 69.44, 53.4], [29.71, 79.77, 74.57, 66.62, 75.76, 76.7], [24.71, 78.29, 71.49, 67.31, 74.29, 75.64], [27.31, 78.06, 71.83, 65.78, 76.8, 70.54], [23.19, 71.81, 68.8, 63.86, 69.05, 72.78], [18.99, 74.63, 69.89, 64.17, 72.35, 71.73], [24.91, 73.26, 66.4, 64.32, 71.76, 68.31]], "Alignment": [[50.14, 57.84, 59.6, 53.54, 63.59], [49.06, 57.68, 61.55, 51.96, 63.91], [55.75, 62.15, 67.0, 68.28, 67.57], [53.69, 62.28, 65.86, 67.46, 67.38], [51.73, 58.96, 60.69, 64.05, 67.3], [52.32, 59.31, 61.47, 62.33, 64.78], [50.96, 59.94, 65.44, 63.59, 67.23], [48.63, 59.71, 61.86, 59.16, 65.64]], "Real-world Fidelity": [[60.0, 60.0, 35.09], [60.0, 60.0, 31.25], [60.0, 60.0, 65.42], [60.0, 60.0, 57.47], [60.0, 60.0, 57.57], [60.0, 59.66, 60.17], [60.33, 60.0, 55.7], [60.0, 60.0, 46.55]], "Creative Generation": [[73.79, 48.73, 64.16, 40.67, 66.9, 68.53], [71.14, 45.39, 64.76, 37.62, 64.14, 67.44], [85.18, 57.94, 69.51, 53.71, 89.03, 72.8], [83.17, 57.27, 70.6, 57.96, 85.87, 71.6], [81.48, 54.16, 65.98, 53.13, 86.13, 70.33], [79.72, 54.48, 61.37, 45.86, 81.46, 70.06], [80.46, 49.38, 61.84, 46.0, 84.05, 70.65], [76.93, 51.27, 62.78, 46.93, 77.66, 66.98]]}, "arena1000_noocr": {"Quality": [[54.77, 42.42, 60.68], [54.58, 41.38, 60.68], [58.57, 47.67, 61.42], [60.28, 48.72, 61.42], [59.64, 50.0, 61.29], [59.53, 48.01, 61.67], [57.76, 45.79, 60.83], [58.19, 47.21, 60.92]], "Aesthetics": [[9.83, 71.42, 61.91, 60.85, 69.58, 66.07], [9.73, 70.53, 62.31, 61.04, 70.14, 61.25], [19.45, 73.0, 65.32, 64.38, 73.52, 70.6], [18.16, 71.34, 63.88, 62.97, 71.77, 71.38], [18.17, 69.83, 60.68, 61.79, 73.4, 58.52], [19.37, 68.71, 60.89, 59.87, 66.31, 65.76], [11.62, 69.54, 61.75, 60.17, 67.93, 68.73], [13.71, 70.15, 60.98, 61.4, 70.05, 62.09]], "Alignment": [[46.27, 59.63, 56.45, 53.58, 66.85], [45.49, 58.7, 55.78, 52.35, 67.81], [50.89, 63.54, 59.75, 59.92, 71.86], [48.04, 61.63, 57.42, 57.92, 70.97], [46.18, 58.35, 55.28, 54.26, 69.08], [47.15, 58.58, 55.65, 54.62, 68.15], [46.11, 61.29, 57.44, 55.16, 67.57], [47.02, 60.27, 57.14, 54.49, 69.29]], "Real-world Fidelity": [[60.2, 59.82, 35.5], [60.0, 59.47, 29.08], [60.1, 59.64, 49.5], [60.2, 59.82, 45.77], [60.0, 59.64, 45.08], [60.0, 59.29, 47.4], [60.1, 59.82, 41.24], [60.0, 59.82, 41.27]], "Creative Generation": [[68.64, 46.67, 68.83, 25.84, 53.74, 69.35], [64.57, 41.28, 65.75, 22.22, 44.84, 66.63], [73.47, 56.63, 70.73, 39.72, 77.32, 69.47], [73.95, 53.07, 71.95, 34.68, 61.72, 70.73], [65.61, 52.53, 65.26, 32.78, 75.07, 63.02], [67.64, 49.4, 62.18, 36.49, 65.89, 63.63], [70.55, 43.35, 63.18, 28.53, 65.53, 65.02], [69.3, 46.96, 64.83, 26.13, 59.83, 62.8]]}};
+BASE.filter(s => s.l1).forEach(s => {
+  for (const k in L1D) {
+    L1D[k].push(s.l1[k]);
+    for (const g in L2D[k]) L2D[k][g].push(s.l2[k][g]);
+  }
+});
+const l2 = L1N.map((g, j) => [g, lineChart("l2g" + j, L2N[g], true), document.getElementById("l2g" + j).closest(".fig")]);
+const mk = rows => BASE.map((s, i) => ({ n: s.n, c: s.c, cos: s.cos, v: rows[i] }));
+let l2sub = "overall", l2grp = L1N[0];
+const l2show = () => l2.forEach(([g, c, fig]) => {
+  fig.hidden = g !== l2grp;
+  if (g === l2grp) { c.set(mk(L2D[l2sub][g])); tbl("l2Tbl", L2N[g], mk(L2D[l2sub][g])); }
+});
+const PICK = {
+  l1: sub => { l1.set(mk(L1D[sub])); tbl("l1Tbl", ["Total", ...L1N], mk(L1D[sub]).map((s, i) => ({ ...s, v: [TOT(sub)[i], ...s.v] }))); },
+  l2: sub => { l2sub = sub; l2show(); },
+  l2g: g => { l2grp = g; l2show(); }
+};
+const UG = [{"n": "GPT-image-2.5 sunburst, high", "c": "var(--s12)", "v": [94.45, 96.45, 92.6], "l1": {"overall": [98.86, 98.17, 97.68, 95.4, 94.83, 86.96, 97.36, 93.43, 86.36, 93.72], "orig": [98.33, 99.42, 98.17, 96.5, 97.13, 91.63, 96.94, 96.76, 88.24, 96.74], "phi": [99.37, 96.75, 97.18, 90.0, 93.91, 83.72, 100.0, 90.59, 82.69, 91.3]}, "l2": {"overall": {"Attribute": [93.15, 91.9, 95.87, 99.7, 98.48, 96.53], "Compound": [94.56, 96.55], "Entity Layout": [93.86, 95.86], "Action": [93.31, 91.68, 88.76, 71.43, 89.57, 88.52], "Grammar": [96.97, 100.0, 95.38], "Relationship": [93.68, 92.61, 93.28, 94.19]}, "orig": {"Attribute": [95.65, 93.89, 97.71, 99.79, 98.49, 98.6], "Compound": [95.34, 99.07], "Entity Layout": [97.73, 96.38], "Action": [94.25, 91.27, 98.55, 91.14, 85.71, 88.46], "Grammar": [95.77, 100.0, 95.16], "Relationship": [96.43, 100.0, 95.1, 96.15]}, "phi": {"Attribute": [99.62, 98.46, 93.69, 93.97, 92.0, 80.0], "Compound": [92.54, 33.33], "Entity Layout": [92.13, 95.69], "Action": [88.57, 92.76, 64.83, 92.06, 91.59, 55.0], "Grammar": [100.0, 100.0], "Relationship": [92.25, 88.11, 82.35, 75.0]}}}, {"n": "GPT-image-2.5 sunburst, low", "c": "var(--s3)", "v": [94.22, 95.89, 92.69], "l1": {"overall": [98.87, 97.85, 97.49, 93.95, 95.11, 86.18, 96.04, 93.75, 89.68, 92.27], "orig": [98.33, 98.84, 97.86, 94.75, 96.18, 90.82, 95.41, 96.34, 92.16, 94.51], "phi": [99.37, 96.75, 97.11, 90.0, 94.69, 82.98, 100.0, 91.54, 84.91, 90.52]}, "l2": {"overall": {"Attribute": [93.88, 91.87, 96.3, 99.6, 98.07, 95.37], "Compound": [93.72, 94.25], "Entity Layout": [93.88, 96.44], "Action": [88.33, 90.93, 85.39, 73.19, 90.8, 88.46], "Grammar": [94.95, 100.0, 93.94], "Relationship": [93.71, 93.48, 94.17, 94.19]}, "orig": {"Attribute": [91.49, 93.85, 97.73, 99.79, 98.49, 97.2], "Compound": [94.07, 96.26], "Entity Layout": [96.02, 96.38], "Action": [90.8, 90.48, 95.65, 93.75, 91.07, 84.42], "Grammar": [92.96, 100.0, 93.65], "Relationship": [96.94, 98.85, 94.17, 94.87]}, "phi": {"Attribute": [99.44, 97.7, 94.59, 93.1, 95.0, 80.0], "Compound": [91.04, 66.67], "Entity Layout": [92.93, 96.46], "Action": [91.43, 86.93, 66.24, 91.34, 90.65, 50.0], "Grammar": [100.0, 100.0], "Relationship": [92.02, 90.21, 94.12, 87.5]}}}, {"n": "GPT-image-2, high", "c": "var(--s13)", "v": [92.97, 95.48, 90.64], "l1": {"overall": [99.19, 98.47, 96.71, 92.74, 94.02, 82.66, 95.61, 92.25, 87.74, 93.75], "orig": [99.0, 99.42, 97.41, 95.34, 95.24, 89.55, 94.92, 95.69, 90.2, 96.74], "phi": [99.37, 97.4, 96.0, 80.0, 93.54, 77.88, 100.0, 89.32, 83.02, 91.38]}, "l2": {"overall": {"Attribute": [89.12, 91.39, 95.04, 99.11, 98.06, 93.8], "Compound": [93.31, 91.95], "Entity Layout": [93.71, 94.36], "Action": [86.61, 89.2, 84.27, 69.3, 85.28, 78.57], "Grammar": [93.94, 100.0, 93.94], "Relationship": [92.12, 91.3, 93.33, 94.19]}, "orig": {"Attribute": [89.36, 92.78, 96.21, 99.58, 99.1, 95.8], "Compound": [94.07, 98.13], "Entity Layout": [95.48, 94.93], "Action": [91.95, 91.27, 95.65, 90.0, 89.29, 75.64], "Grammar": [91.55, 100.0, 93.65], "Relationship": [95.41, 97.7, 93.2, 97.44]}, "phi": {"Attribute": [98.68, 97.18, 93.64, 91.3, 89.0, 82.76], "Compound": [82.09, 33.33], "Entity Layout": [92.91, 94.16], "Action": [80.77, 83.55, 62.29, 87.32, 83.18, 45.0], "Grammar": [100.0, 100.0], "Relationship": [90.4, 87.41, 94.12, 62.5]}}}, {"n": "GPT-image-2, low", "c": "var(--s10)", "v": [93.09, 95.43, 90.93], "l1": {"overall": [98.87, 99.08, 96.68, 91.77, 94.03, 83.76, 95.61, 92.26, 85.81, 94.23], "orig": [98.01, 99.42, 97.25, 94.17, 95.87, 90.68, 95.43, 95.91, 87.25, 95.65], "phi": [99.68, 98.7, 96.1, 80.0, 93.3, 78.98, 96.77, 89.15, 83.02, 93.1]}, "l2": {"overall": {"Attribute": [89.12, 90.0, 94.24, 99.6, 97.24, 95.75], "Compound": [94.14, 88.51], "Entity Layout": [92.84, 95.31], "Action": [85.83, 89.6, 86.52, 69.4, 88.34, 83.61], "Grammar": [92.93, 100.0, 95.45], "Relationship": [91.96, 92.61, 90.0, 96.51]}, "orig": {"Attribute": [91.49, 91.67, 96.97, 99.79, 97.89, 96.5], "Compound": [94.49, 93.46], "Entity Layout": [96.05, 95.65], "Action": [88.51, 89.29, 97.1, 91.25, 91.07, 91.03], "Grammar": [91.55, 100.0, 95.24], "Relationship": [95.92, 98.85, 92.23, 97.44]}, "phi": {"Attribute": [99.44, 96.68, 90.99, 94.83, 88.0, 80.0], "Compound": [80.6, 66.67], "Entity Layout": [91.41, 95.19], "Action": [78.1, 84.31, 62.03, 89.89, 86.92, 50.0], "Grammar": [96.43, 100.0], "Relationship": [89.89, 88.81, 76.47, 87.5]}}}, {"n": "Nano Banana 2 (Gemini 3.1 flash image)", "c": "var(--s4)", "v": [92.17, 94.2, 90.31], "l1": {"overall": [99.35, 97.24, 96.53, 90.82, 92.7, 82.48, 92.95, 91.99, 81.94, 86.96], "orig": [99.33, 98.84, 96.87, 92.13, 95.54, 86.8, 93.37, 95.26, 88.24, 86.81], "phi": [99.37, 95.45, 96.18, 84.51, 91.57, 79.51, 90.32, 89.21, 69.81, 87.07]}, "l2": {"overall": {"Attribute": [91.16, 89.47, 95.47, 98.91, 97.38, 94.59], "Compound": [90.79, 90.86], "Entity Layout": [92.33, 93.08], "Action": [85.0, 88.11, 79.78, 71.7, 85.28, 80.43], "Grammar": [89.9, 100.0, 90.91], "Relationship": [93.02, 90.09, 89.17, 94.19]}, "orig": {"Attribute": [89.36, 91.06, 97.73, 99.58, 97.59, 95.1], "Compound": [91.53, 93.46], "Entity Layout": [95.45, 95.65], "Action": [83.91, 88.49, 88.41, 90.0, 85.71, 80.52], "Grammar": [88.73, 100.0, 92.06], "Relationship": [95.41, 98.85, 91.26, 96.15]}, "phi": {"Attribute": [98.31, 97.2, 92.79, 93.97, 92.0, 80.0], "Compound": [86.76, 33.33], "Entity Layout": [90.95, 92.19], "Action": [80.37, 85.62, 65.55, 87.77, 85.05, 50.0], "Grammar": [92.86, 66.67], "Relationship": [91.78, 84.83, 76.47, 75.0]}}}, {"n": "FLUX.3 klein-base (5.6B)", "c": "var(--s7)", "v": [90.63, 91.84, 89.51], "l1": {"overall": [99.19, 95.72, 95.9, 87.65, 92.95, 77.86, 90.79, 91.68, 76.13, 84.06], "orig": [99.0, 95.38, 95.88, 90.09, 93.97, 81.83, 89.85, 93.32, 79.41, 81.52], "phi": [99.37, 96.1, 95.92, 75.71, 92.54, 75.11, 96.77, 90.29, 69.81, 86.09]}, "l2": {"overall": {"Attribute": [89.66, 86.19, 91.36, 99.01, 98.2, 93.02], "Compound": [89.96, 84.48], "Entity Layout": [93.71, 92.13], "Action": [78.75, 88.28, 82.02, 64.67, 79.63, 65.95], "Grammar": [91.92, 95.24, 84.85], "Relationship": [93.71, 91.38, 85.0, 88.37]}, "orig": {"Attribute": [93.62, 87.78, 91.67, 99.16, 97.59, 95.8], "Compound": [90.25, 89.72], "Entity Layout": [94.92, 92.75], "Action": [75.86, 88.49, 89.86, 81.25, 78.57, 62.82], "Grammar": [88.73, 95.24, 85.71], "Relationship": [96.94, 96.55, 86.41, 89.74]}, "phi": {"Attribute": [98.87, 98.72, 90.99, 89.57, 87.76, 76.67], "Compound": [76.12, 66.67], "Entity Layout": [93.16, 91.92], "Action": [68.22, 80.39, 59.07, 88.09, 80.19, 55.0], "Grammar": [100.0, 66.67], "Relationship": [92.02, 88.28, 76.47, 75.0]}}}, {"n": "FLUX.3 klein (5.6B, distilled)", "c": "var(--s14)", "v": [89.72, 91.71, 87.89], "l1": {"overall": [98.71, 94.8, 95.17, 85.47, 91.14, 77.4, 92.54, 89.21, 79.35, 85.51], "orig": [98.01, 95.38, 95.73, 88.05, 92.38, 82.64, 91.88, 91.59, 86.27, 85.87], "phi": [99.37, 94.16, 94.59, 72.86, 90.64, 73.78, 96.77, 87.18, 66.04, 85.22]}, "l2": {"overall": {"Attribute": [88.28, 84.76, 90.53, 98.71, 97.23, 92.25], "Compound": [87.87, 82.18], "Entity Layout": [91.26, 91.01], "Action": [75.0, 87.15, 75.28, 64.35, 75.93, 77.3], "Grammar": [91.92, 100.0, 86.36], "Relationship": [90.03, 90.09, 85.83, 86.05]}, "orig": {"Attribute": [95.74, 86.11, 93.18, 99.16, 97.29, 95.1], "Compound": [88.14, 87.85], "Entity Layout": [94.35, 89.86], "Action": [73.56, 88.49, 82.61, 83.75, 78.57, 75.64], "Grammar": [88.73, 100.0, 87.3], "Relationship": [92.86, 98.85, 87.38, 85.9]}, "phi": {"Attribute": [98.31, 97.18, 87.39, 88.7, 84.69, 76.67], "Compound": [73.13, 66.67], "Entity Layout": [89.87, 91.41], "Action": [78.5, 75.82, 57.81, 85.92, 74.53, 50.0], "Grammar": [100.0, 66.67], "Relationship": [88.56, 84.83, 76.47, 87.5]}}}, {"n": "Fibo 2.0 dev (8.1B)", "c": "var(--s8)", "v": [87.43, 89.2, 85.81], "l1": {"overall": [95.79, 96.33, 93.32, 79.66, 91.15, 75.46, 84.65, 86.03, 62.58, 86.96], "orig": [92.67, 97.11, 93.81, 81.92, 94.27, 82.13, 83.25, 88.36, 66.67, 96.74], "phi": [98.74, 95.45, 92.81, 68.57, 89.91, 70.86, 93.55, 84.04, 54.72, 79.13]}, "l2": {"overall": {"Attribute": [82.88, 81.34, 89.71, 97.72, 95.86, 88.03], "Compound": [82.43, 75.86], "Entity Layout": [90.77, 91.56], "Action": [71.97, 82.77, 76.4, 64.67, 79.01, 74.05], "Grammar": [81.82, 93.65, 80.3], "Relationship": [87.24, 83.98, 85.0, 84.88]}, "orig": {"Attribute": [87.23, 83.8, 93.94, 97.9, 94.88, 92.31], "Compound": [82.63, 80.37], "Entity Layout": [97.18, 90.51], "Action": [77.91, 87.3, 84.06, 80.0, 85.71, 67.95], "Grammar": [76.06, 93.65, 80.95], "Relationship": [87.24, 93.1, 88.35, 85.9]}, "phi": {"Attribute": [97.56, 96.68, 84.68, 82.76, 80.81, 66.67], "Compound": [68.66, 66.67], "Entity Layout": [87.91, 91.92], "Action": [78.5, 68.63, 59.49, 78.62, 75.47, 50.0], "Grammar": [96.43, 66.67], "Relationship": [87.23, 78.47, 64.71, 75.0]}}}, {"n": "Qwen-Image 2.1, nope", "c": "var(--s15)", "v": [86.99, 90.71, 83.57], "l1": {"overall": [95.97, 95.11, 94.72, 82.85, 89.01, 73.25, 85.96, 85.95, 76.13, 63.46], "orig": [93.02, 97.11, 95.35, 86.3, 90.16, 83.28, 84.77, 92.24, 79.41, 91.3], "phi": [98.75, 92.86, 94.08, 66.2, 88.55, 66.33, 93.55, 80.62, 69.81, 41.38]}, "l2": {"overall": {"Attribute": [79.59, 87.14, 90.95, 98.22, 98.07, 89.96], "Compound": [84.52, 80.57], "Entity Layout": [87.48, 90.65], "Action": [74.17, 85.47, 78.65, 53.46, 76.07, 65.95], "Grammar": [83.84, 93.65, 81.82], "Relationship": [87.26, 84.48, 83.33, 84.88]}, "orig": {"Attribute": [74.47, 88.89, 94.7, 99.16, 98.8, 90.21], "Compound": [85.17, 88.79], "Entity Layout": [91.53, 88.41], "Action": [77.01, 88.1, 88.41, 82.5, 82.14, 71.79], "Grammar": [78.87, 93.65, 82.54], "Relationship": [94.9, 95.4, 88.35, 87.18]}, "phi": {"Attribute": [97.38, 97.46, 86.49, 89.66, 82.0, 76.67], "Compound": [67.65, 33.33], "Entity Layout": [85.68, 91.44], "Action": [61.68, 72.55, 43.7, 83.09, 72.9, 45.0], "Grammar": [96.43, 66.67], "Relationship": [83.29, 77.93, 52.94, 62.5]}}}, {"n": "Qwen-Image 2.1, pe", "c": "var(--s5)", "v": [85.8, 88.34, 83.48], "l1": {"overall": [94.84, 95.11, 92.06, 81.4, 86.04, 73.38, 82.89, 82.89, 70.32, 93.75], "orig": [91.03, 96.53, 93.52, 86.3, 88.57, 80.55, 81.22, 85.56, 75.49, 93.48], "phi": [98.43, 93.51, 90.58, 57.75, 85.03, 68.44, 93.55, 80.62, 60.38, 93.97]}, "l2": {"overall": {"Attribute": [82.99, 83.33, 87.24, 96.74, 94.07, 84.94], "Compound": [86.61, 74.29], "Entity Layout": [84.52, 87.66], "Action": [70.83, 82.08, 77.53, 57.55, 75.46, 75.14], "Grammar": [80.81, 92.06, 77.27], "Relationship": [84.47, 82.33, 81.67, 75.58]}, "orig": {"Attribute": [87.23, 86.11, 93.18, 96.44, 96.39, 88.81], "Compound": [87.71, 83.18], "Entity Layout": [89.27, 87.68], "Action": [72.41, 85.32, 86.96, 76.25, 78.57, 74.36], "Grammar": [74.65, 92.06, 77.78], "Relationship": [85.71, 90.8, 87.38, 76.92]}, "phi": {"Attribute": [97.0, 92.11, 80.18, 80.17, 81.0, 66.67], "Compound": [60.29, 0.0], "Entity Layout": [82.41, 87.66], "Action": [75.7, 69.93, 51.26, 79.14, 73.83, 45.0], "Grammar": [96.43, 66.67], "Relationship": [83.82, 77.24, 47.06, 62.5]}}}, {"n": "Ideogram 4 nf4 (9.3B×2)", "c": "var(--s6)", "v": [86.19, 86.89, 85.54], "l1": {"overall": [96.44, 95.41, 92.22, 80.87, 89.31, 71.5, 81.58, 88.0, 64.52, 79.71], "orig": [94.35, 97.11, 91.53, 82.8, 89.21, 77.33, 79.19, 88.79, 68.63, 76.09], "phi": [98.42, 93.51, 92.93, 71.43, 89.35, 67.45, 96.77, 87.32, 56.6, 82.61]}, "l2": {"overall": {"Attribute": [86.21, 77.14, 88.43, 96.13, 94.87, 88.8], "Compound": [83.68, 77.01], "Entity Layout": [88.44, 90.24], "Action": [72.27, 81.02, 73.03, 57.14, 75.93, 63.24], "Grammar": [80.81, 88.89, 75.76], "Relationship": [90.02, 88.31, 80.83, 83.72]}, "orig": {"Attribute": [91.49, 77.78, 90.15, 95.81, 94.28, 89.51], "Compound": [84.32, 79.44], "Entity Layout": [90.96, 86.96], "Action": [78.16, 83.33, 78.26, 76.25, 75.0, 58.97], "Grammar": [73.24, 88.89, 76.19], "Relationship": [89.8, 94.25, 85.44, 84.62]}, "phi": {"Attribute": [96.42, 95.37, 86.36, 87.93, 83.67, 73.33], "Compound": [73.13, 33.33], "Entity Layout": [87.31, 91.39], "Action": [66.36, 68.87, 50.64, 78.91, 76.42, 55.0], "Grammar": [100.0, 66.67], "Relationship": [90.13, 84.72, 52.94, 75.0]}}}, {"n": "Krea 2 Turbo (12.8B)", "c": "var(--s11)", "v": [85.6, 87.19, 84.13], "l1": {"overall": [97.42, 94.8, 91.79, 77.54, 90.45, 72.13, 83.33, 85.86, 58.06, 69.23], "orig": [97.01, 95.95, 91.76, 80.47, 90.16, 79.1, 83.25, 87.28, 59.8, 81.52], "phi": [97.81, 93.51, 91.82, 63.38, 90.57, 67.33, 83.87, 84.64, 54.72, 59.48]}, "l2": {"overall": {"Attribute": [82.31, 70.48, 90.12, 97.43, 94.34, 86.87], "Compound": [78.24, 76.57], "Entity Layout": [90.09, 90.84], "Action": [68.33, 80.19, 74.16, 56.92, 76.69, 75.14], "Grammar": [77.78, 93.65, 81.82], "Relationship": [88.31, 86.21, 79.17, 77.91]}, "orig": {"Attribute": [89.36, 71.11, 95.45, 97.27, 94.88, 89.51], "Compound": [78.39, 85.05], "Entity Layout": [92.09, 87.68], "Action": [78.16, 80.16, 79.71, 76.25, 83.93, 75.64], "Grammar": [73.24, 93.65, 84.13], "Relationship": [90.31, 94.25, 81.55, 79.49]}, "phi": {"Attribute": [97.57, 93.89, 83.78, 83.62, 79.0, 66.67], "Compound": [63.24, 66.67], "Entity Layout": [89.2, 91.94], "Action": [74.77, 62.75, 50.42, 80.22, 72.9, 55.0], "Grammar": [89.29, 33.33], "Relationship": [87.27, 81.38, 64.71, 62.5]}}}, {"n": "cosmos3-super-text2image", "c": "var(--s1)", "v": [91.63, 93.85, 89.59], "l1": {"overall": [99.03, 96.94, 96.84, 91.55, 93.96, 81.38, 91.23, 91.2, 80.65, 69.71], "orig": [98.67, 97.69, 97.48, 93.29, 96.51, 87.46, 90.36, 95.04, 86.27, 65.22], "phi": [99.37, 96.1, 96.18, 83.1, 92.96, 77.19, 96.77, 87.93, 69.81, 73.28]}, "l2": {"overall": {"Attribute": [91.84, 88.57, 94.24, 98.91, 98.48, 96.14], "Compound": [92.05, 90.86], "Entity Layout": [93.91, 94.02], "Action": [83.33, 87.92, 86.52, 67.92, 85.28, 77.3], "Grammar": [87.88, 95.24, 92.42], "Relationship": [91.27, 91.38, 90.0, 91.86]}, "orig": {"Attribute": [89.36, 91.11, 98.48, 99.37, 98.8, 97.9], "Compound": [92.37, 95.33], "Entity Layout": [97.74, 94.93], "Action": [86.21, 88.1, 95.65, 88.75, 91.07, 75.64], "Grammar": [83.1, 95.24, 93.65], "Relationship": [95.92, 98.85, 91.26, 93.59]}, "phi": {"Attribute": [98.5, 98.22, 89.19, 93.97, 93.0, 73.33], "Compound": [83.82, 66.67], "Entity Layout": [92.21, 93.7], "Action": [78.5, 81.7, 60.92, 87.77, 82.24, 55.0], "Grammar": [100.0, 66.67], "Relationship": [88.86, 86.9, 82.35, 75.0]}}, "cos": 1}, {"n": "Cosmos3.5 Ultra v3p4 (pretrain)", "c": "var(--s9)", "v": [88.45, 90.26, 86.8], "l1": {"overall": [98.23, 96.64, 95.34, 86.96, 93.33, 74.56, 92.98, 88.72, 78.06, 40.87], "orig": [97.34, 98.27, 95.27, 90.96, 95.87, 79.58, 92.39, 92.24, 80.39, 27.17], "phi": [99.06, 94.81, 95.4, 67.61, 92.33, 71.1, 96.77, 85.74, 73.58, 51.72]}, "l2": {"overall": {"Attribute": [84.35, 85.24, 95.06, 99.11, 96.69, 91.51], "Compound": [89.96, 82.86], "Entity Layout": [92.52, 94.21], "Action": [77.08, 85.85, 82.02, 62.58, 82.82, 48.65], "Grammar": [96.97, 96.83, 83.33], "Relationship": [90.05, 86.64, 85.83, 89.53]}, "orig": {"Attribute": [82.98, 87.78, 97.73, 98.95, 95.78, 93.01], "Compound": [90.68, 91.59], "Entity Layout": [98.31, 92.75], "Action": [77.01, 85.71, 89.86, 85.0, 82.14, 46.15], "Grammar": [95.77, 96.83, 84.13], "Relationship": [92.86, 96.55, 89.32, 89.74]}, "phi": {"Attribute": [99.25, 97.46, 91.89, 89.66, 85.0, 70.0], "Compound": [69.12, 33.33], "Entity Layout": [89.95, 94.71], "Action": [50.47, 77.12, 55.04, 85.97, 83.18, 55.0], "Grammar": [100.0, 66.67], "Relationship": [88.59, 80.69, 64.71, 87.5]}}, "cos": 1}];
+const UGO = [...UG.keys()].filter(i => !UG[i].cos).concat([...UG.keys()].filter(i => UG[i].cos));
+const UGB1 = ["Style", "World Knowledge", "Attribute", "Compound", "Entity Layout", "Action", "Grammar", "Relationship", "Logical Reasoning", "Text Generation"];
+const UGG = ["Attribute", "Compound", "Entity Layout", "Action", "Grammar", "Relationship"];
+const UGN = {"Attribute": ["Quantity", "Expression", "Size", "Color", "Material", "Shape"], "Compound": ["Imagination", "Feature Matching"], "Entity Layout": ["Two-Dimensional Space", "Three-Dimensional Space"], "Action": ["Contact Interaction", "State", "Animal", "Full-body", "Non-contact Interaction", "Hand"], "Grammar": ["Negation", "Pronoun Reference", "Consistency"], "Relationship": ["Composition", "Inclusion", "Comparison", "Similarity"]};
+const ugm = f => UG.map(s => ({ n: s.n, c: s.c, cos: s.cos, d: s.d, v: f(s) }));
+lineChart("ug0", ["overall", "orig", "phi"], true, UGO).set(UG);
+tbl("ug0Tbl", ["overall", "orig", "phi"], UG, UGO);
+const ug1 = lineChart("ug1", UGB1, true, UGO);
+const ug2 = UGG.map((g, j) => [g, lineChart("ug2g" + j, UGN[g], true, UGO), document.getElementById("ug2g" + j).closest(".fig")]);
+let ug2sub = "overall", ug2grp = UGG[0];
+const ug2show = () => ug2.forEach(([g, c, fig]) => {
+  fig.hidden = g !== ug2grp;
+  if (g === ug2grp) { const r = ugm(s => s.l2[ug2sub][g]); c.set(r); tbl("ug2Tbl", UGN[g], r, UGO); }
+});
+Object.assign(PICK, {
+  ug1: sub => { const r = ugm(s => s.l1[sub]); ug1.set(r); tbl("ug1Tbl", ["Total", ...UGB1], r.map((s, i) => ({ ...s, v: [UG[i].v[["overall", "orig", "phi"].indexOf(sub)], ...s.v] })), UGO); },
+  ug2: sub => { ug2sub = sub; ug2show(); },
+  ug2g: g => { ug2grp = g; ug2show(); }
+});
+const AAQ = [
+  { i: 2, aa: "GPT Image 2.5 Sunburst (max)", elo: 1227, r: 3, m: "Approximate: we test quality low, AA uses max" },
+  { i: 3, aa: "Nano Banana 2.1", elo: 1176, r: 6, m: "Exact" },
+  { i: 4, aa: "Qwen-Image-2.1", elo: 1045, r: 23, m: "Approximate: we use PE, AA does not say" },
+  { i: 5, aa: "Ideogram 4.0", elo: 1003, r: 47, m: "Approximate: ours is nf4-quantized; AA's Quality tier is 1027 (#34)" },
+  { i: 6, aa: "FLUX 3 Image Klein", elo: 1043, r: 24, m: "Approximate: ours is klein-base, AA does not say which" },
+  { i: 7, aa: "Fibo 2.0", elo: 1039, r: 25, m: "Exact" },
+  { i: 0, aa: "Cosmos3-Super-Text2Image", elo: 987, r: 60, m: "Exact; AA also lists an agentic version at 995 (#52)" }
+];
+const AAU = [
+  { i: 0, aa: "GPT Image 2.5 Sunburst (max)", elo: 1227, r: 3, m: "Approximate: we test quality high, AA uses max" },
+  { i: 2, aa: "GPT Image 2 (high)", elo: 1188, r: 5, m: "Exact" },
+  { i: 4, aa: "Nano Banana 2 (Gemini 3.1 Flash Image)", elo: 1142, r: 9, m: "Exact" },
+  { i: 6, aa: "FLUX 3 Image Klein", elo: 1043, r: 24, m: "Approximate: ours is the distilled version, AA does not say which" },
+  { i: 7, aa: "Fibo 2.0", elo: 1039, r: 25, m: "Exact" },
+  { i: 8, aa: "Qwen-Image-2.1", elo: 1045, r: 23, m: "Approximate: ours is without PE, AA does not say" },
+  { i: 10, aa: "Ideogram 4.0", elo: 1003, r: 47, m: "Approximate: ours is nf4-quantized" },
+  { i: 11, aa: "Krea 2 Medium Turbo", elo: 1020, r: 38, m: "Approximate: names do not match; closest entry used" },
+  { i: 12, aa: "Cosmos3-Super-Text2Image", elo: 987, r: 60, m: "Exact; AA also lists an agentic version at 995 (#52)" }
+];
+const ranks = v => v.map(x => 1 + v.filter(y => y > x).length + (v.filter(y => y === x).length - 1) / 2);
+const aaOrd = rows => rows.map((_, k) => k).sort((a, b) => rows[b].elo - rows[a].elo);
+const fmtRank = x => Number.isInteger(x) ? x : x.toFixed(1);
+function slopeChart(id, lab, ord) {
+  const box = document.getElementById(id), svg = document.getElementById(id + "Svg"), tip = document.getElementById(id + "Tip"), leg = document.getElementById(id + "Legend");
+  const el = (t, a, p = svg) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e; };
+  let S = [], focus = -1, groups = [];
+  const paint = () => groups.forEach((g, i) => g && g.classList.toggle("dim", focus >= 0 && i !== focus));
+  function legend() {
+    if (!leg) return;
+    leg.innerHTML = "";
+    ord.forEach(i => {
+      const sp = document.createElement("span");
+      sp.innerHTML = `${swh(S[i])}${S[i].n}`;
+      sp.addEventListener("mouseenter", () => { focus = i; paint(); });
+      sp.addEventListener("mouseleave", () => { focus = -1; paint(); });
+      leg.appendChild(sp);
+    });
+  }
+  function draw() {
+    svg.innerHTML = ""; groups = []; tip.hidden = true;
+    const W = box.clientWidth; if (!W) return;
+    const H = 380, T = 12, B = 34, Y0 = -0.05, Y1 = 1.05, n = S.length;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const x0 = W * 0.18, x1 = W * 0.58, xm = (x0 + x1) / 2, ys = v => T + (H - T - B) * (Y1 - v) / (Y1 - Y0);
+    const sv = S.map(s => s.s), mn = Math.min(...sv), mx = Math.max(...sv);
+    const yl = s => ys(mx > mn ? (s.s - mn) / (mx - mn) : 0.5), yr = s => ys(n > 1 ? (n - s.r) / (n - 1) : 0.5);
+    el("line", { x1: x0, x2: x0, y1: ys(Y1), y2: ys(Y0), class: "grid" });
+    el("line", { x1: x1, x2: x1, y1: ys(Y1), y2: ys(Y0), class: "grid" });
+    for (let k = 0; k <= 5; k++) {
+      el("line", { x1: x0 - 6, x2: x0, y1: ys(k / 5), y2: ys(k / 5), class: "grid" });
+      el("text", { x: x0 - 10, y: ys(k / 5) + 4, "text-anchor": "end", class: "axl" }).textContent = (k / 5).toFixed(1);
+    }
+    el("text", { x: x0, y: H - 10, "text-anchor": "middle", class: "xl" }).textContent = lab.x0;
+    el("text", { x: x1, y: H - 10, "text-anchor": "middle", class: "xl" }).textContent = lab.x1;
+    S.forEach(s => { el("text", { x: x1 + 12, y: yr(s) + 4, class: "axl" }).textContent = `#${fmtRank(s.r)} · ${s.elo} · ${s.nm}`; });
+    const drawOrder = [...ord.filter(i => !S[i].cos), ...ord.filter(i => S[i].cos)];
+    drawOrder.forEach(i => {
+      const s = S[i], a = yl(s), b = yr(s), d = `M${x0} ${a} C${xm} ${a} ${xm} ${b} ${x1} ${b}`;
+      const g = el("g", {});
+      groups[i] = g;
+      el("path", { d, class: s.cos ? "ln cos" : "ln", stroke: s.c }, g);
+      el("circle", { cx: x0, cy: a, r: 4.5, class: "pt", fill: s.c }, g);
+      el("circle", { cx: x1, cy: b, r: 4.5, class: "pt", fill: s.c }, g);
+      el("path", { d, fill: "none", stroke: "transparent", "stroke-width": 14 }, g);
+      g.addEventListener("mouseenter", () => {
+        focus = i; paint();
+        tip.innerHTML = `<b>${s.nm}</b><div>${lab.tipScore} ${s.s.toFixed(2)} (#${fmtRank(s.rank)})</div><div>AA Elo ${s.elo} (#${fmtRank(s.r)} in set, #${s.ar} overall)</div><div>AA entry: ${s.aa}</div><div>${s.m}</div>`;
+        tip.hidden = false;
+      });
+      g.addEventListener("mousemove", e => {
+        const rc = svg.getBoundingClientRect(), px = e.clientX - rc.left, tw = tip.offsetWidth;
+        tip.style.left = (px + 14 + tw > W ? px - 14 - tw : px + 14) + "px";
+        tip.style.top = (e.clientY - rc.top + 12) + "px";
+      });
+      g.addEventListener("mouseleave", () => { focus = -1; paint(); tip.hidden = true; });
+    });
+    paint();
+  }
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(draw, 100); });
+  return { set(data) { S = data; legend(); draw(); } };
+}
+const aaqc = slopeChart("aaqc", { x0: "QImageBench score", x1: "AA rank in set", tipScore: "QImageBench" }, aaOrd(AAQ));
+const aauc = slopeChart("aauc", { x0: "UGB accuracy", x1: "AA rank in set", tipScore: "UGB" }, aaOrd(AAU));
+const aaMap = (rows, nameOf, scoreOf, isCos, chart, bench, colorOf) => {
+  const sc = rows.map(scoreOf), elo = rows.map(r => r.elo), rs = ranks(sc), ra = ranks(elo);
+  chart.set(rows.map((r, k) => ({ n: `${nameOf(r)} · ${bench} #${fmtRank(rs[k])} · AA #${fmtRank(ra[k])}`, nm: nameOf(r), c: colorOf(r), cos: isCos(r), s: sc[k], rank: rs[k], r: ra[k], elo: elo[k], aa: r.aa, ar: r.r, m: r.m })));
+};
+Object.assign(PICK, {
+  aaq: sub => aaMap(AAQ, r => BASE[r.i].n, r => sub === "overall" ? BASE[r.i].o : BASE[r.i].v[SUBS.indexOf(sub)], r => r.i === 0, aaqc, "QImageBench", r => BASE[r.i].c),
+  aau: sub => aaMap(AAU, r => UG[r.i].n, r => UG[r.i].v[["overall", "orig", "phi"].indexOf(sub)], r => r.i === 12, aauc, "UGB", r => UG[r.i].c)
+});
+document.querySelectorAll("#panel-scores input[data-i]").forEach(cb => cb.addEventListener("change", () => {
+  ORDER.splice(0, ORDER.length, ...ALL.filter(i => document.querySelector(`#panel-scores input[data-i="${i}"]`).checked));
+  lcDraw();
+  document.querySelectorAll('.subtabs[data-for="l1"], .subtabs[data-for="l2"]').forEach(tl => PICK[tl.dataset.for](tl.querySelector('[aria-selected="true"]').dataset.sub));
+}));
+document.querySelectorAll(".subtabs[data-for]").forEach(tl => {
+  const bs = [...tl.querySelectorAll("button")], go = PICK[tl.dataset.for];
+  bs.forEach(b => b.addEventListener("click", () => { bs.forEach(x => x.setAttribute("aria-selected", x === b)); go(b.dataset.sub); }));
+  go(tl.querySelector('[aria-selected="true"]').dataset.sub);
+});
+})();
+</script>
+
+
+<script>
+(() => {
+const tabs = [...document.querySelectorAll('.tabs [role="tab"]')];
+const show = (tab, focus) => {
+  tabs.forEach(t => {
+    const on = t === tab;
+    t.setAttribute("aria-selected", on);
+    t.tabIndex = on ? 0 : -1;
+    document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+  });
+  if (focus) tab.focus();
+  if (tab.id !== "tab-rules") window.dispatchEvent(new Event("resize"));
+};
+tabs.forEach((t, i) => {
+  t.addEventListener("click", () => show(t));
+  t.addEventListener("keydown", e => {
+    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (step) { e.preventDefault(); show(tabs[(i + step + tabs.length) % tabs.length], true); }
+  });
+});
+})();
+</script>
+
+<script>
+(() => {
+const NZ = {"overall": [{"d": "total", "n": 1497, "mean": -0.12, "std": 3.58, "min": -26.7, "max": 19.2, "same": 33.9}, {"d": "Quality", "n": 1497, "mean": -0.15, "std": 5.97, "min": -56.7, "max": 43.3, "same": 79.8}, {"d": "Aesthetics", "n": 1497, "mean": -0.46, "std": 7.4, "min": -72.0, "max": 60.0, "same": 83.0}, {"d": "Alignment", "n": 1497, "mean": -0.02, "std": 6.92, "min": -40.0, "max": 36.0, "same": 60.7}, {"d": "Real-world Fidelity", "n": 884, "mean": -0.09, "std": 6.9, "min": -50.0, "max": 50.0, "same": 88.8}, {"d": "Creative Generation", "n": 799, "mean": 0.28, "std": 9.79, "min": -100.0, "max": 70.0, "same": 69.5}], "cosmos500": [{"d": "total", "n": 499, "mean": -0.09, "std": 3.98, "min": -26.7, "max": 19.2, "same": 34.7}, {"d": "Quality", "n": 499, "mean": -0.09, "std": 5.61, "min": -56.7, "max": 40.0, "same": 79.4}, {"d": "Aesthetics", "n": 499, "mean": -0.37, "std": 8.05, "min": -72.0, "max": 60.0, "same": 84.2}, {"d": "Alignment", "n": 499, "mean": 0.28, "std": 7.63, "min": -40.0, "max": 36.0, "same": 58.9}, {"d": "Real-world Fidelity", "n": 372, "mean": -0.41, "std": 7.73, "min": -50.0, "max": 50.0, "same": 90.3}, {"d": "Creative Generation", "n": 188, "mean": 0.21, "std": 12.45, "min": -100.0, "max": 70.0, "same": 74.5}], "arena1000": [{"d": "total", "n": 998, "mean": -0.14, "std": 3.36, "min": -19.6, "max": 12.5, "same": 33.5}, {"d": "Quality", "n": 998, "mean": -0.18, "std": 6.14, "min": -37.8, "max": 43.3, "same": 80.0}, {"d": "Aesthetics", "n": 998, "mean": -0.51, "std": 7.06, "min": -55.0, "max": 42.0, "same": 82.4}, {"d": "Alignment", "n": 998, "mean": -0.17, "std": 6.53, "min": -38.0, "max": 34.3, "same": 61.6}, {"d": "Real-world Fidelity", "n": 512, "mean": 0.14, "std": 6.22, "min": -50.0, "max": 50.0, "same": 87.7}, {"d": "Creative Generation", "n": 611, "mean": 0.31, "std": 8.82, "min": -55.0, "max": 55.0, "same": 67.9}], "arena1000_ocr": [{"d": "total", "n": 348, "mean": -0.33, "std": 3.29, "min": -14.9, "max": 10.8, "same": 28.7}, {"d": "Quality", "n": 348, "mean": -0.33, "std": 7.56, "min": -37.8, "max": 43.3, "same": 78.2}, {"d": "Aesthetics", "n": 348, "mean": -0.97, "std": 6.5, "min": -40.0, "max": 16.0, "same": 82.5}, {"d": "Alignment", "n": 348, "mean": -0.45, "std": 6.42, "min": -32.5, "max": 24.0, "same": 64.4}, {"d": "Real-world Fidelity", "n": 174, "mean": -0.05, "std": 4.39, "min": -25.0, "max": 25.0, "same": 89.7}, {"d": "Creative Generation", "n": 347, "mean": 0.45, "std": 8.46, "min": -33.3, "max": 41.1, "same": 67.4}], "arena1000_noocr": [{"d": "total", "n": 650, "mean": -0.03, "std": 3.39, "min": -19.6, "max": 12.5, "same": 36.0}, {"d": "Quality", "n": 650, "mean": -0.1, "std": 5.22, "min": -33.3, "max": 34.4, "same": 80.9}, {"d": "Aesthetics", "n": 650, "mean": -0.27, "std": 7.33, "min": -55.0, "max": 42.0, "same": 82.3}, {"d": "Alignment", "n": 650, "mean": -0.02, "std": 6.58, "min": -38.0, "max": 34.3, "same": 60.2}, {"d": "Real-world Fidelity", "n": 338, "mean": 0.24, "std": 6.98, "min": -50.0, "max": 50.0, "same": 86.7}, {"d": "Creative Generation", "n": 264, "mean": 0.11, "std": 9.27, "min": -55.0, "max": 55.0, "same": 68.6}]};
+const NZX = ["Per-image total", "Quality", "Aesthetics", "Alignment", "Real-world Fidelity", "Creative Generation"];
+const NS = "http://www.w3.org/2000/svg", svg = document.getElementById("nzSvg");
+const f2 = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
+const f1 = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1);
+const el = (n, a, txt) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; };
+function draw(sub) {
+  svg.innerHTML = "";
+  const W = 1000, RH = 78, L = 270, R = 50, T = 14, B = 40, Y = 100, H = T + RH * NZX.length + B;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const xs = v => L + (W - L - R) * (v + Y) / (2 * Y), ys = i => T + RH * (i + 0.5);
+  for (let v = -Y; v <= Y; v += 25) {
+    el("line", { x1: xs(v), x2: xs(v), y1: T, y2: H - B, class: v === 0 ? "zero" : "grid" });
+    el("text", { x: xs(v), y: H - B + 20, "text-anchor": "middle", class: "axl" }, v === 0 ? "0" : f1(v).replace(".0", ""));
+  }
+  NZ[sub].forEach((r, i) => {
+    const y = ys(i), hb = 22;
+    el("text", { x: L - 40, y: y + 4, "text-anchor": "end", class: "xl" }, NZX[i]);
+    el("line", { x1: xs(r.min), x2: xs(r.max), y1: y, y2: y, class: "wh" });
+    el("line", { x1: xs(r.min), x2: xs(r.min), y1: y - 8, y2: y + 8, class: "wh" });
+    el("line", { x1: xs(r.max), x2: xs(r.max), y1: y - 8, y2: y + 8, class: "wh" });
+    el("rect", { x: xs(r.mean - r.std), y: y - hb / 2, width: xs(r.mean + r.std) - xs(r.mean - r.std), height: hb, rx: 3, class: "bx" });
+    el("circle", { cx: xs(r.mean), cy: y, r: 4.5, class: "mu" });
+    el("text", { x: xs(r.min), y: y + hb / 2 + 15, "text-anchor": "middle", class: "vl" }, "min " + f1(r.min));
+    el("text", { x: xs(r.max), y: y + hb / 2 + 15, "text-anchor": "middle", class: "vl" }, "max " + f1(r.max));
+    el("text", { x: xs(r.mean), y: y - hb / 2 - 6, "text-anchor": "middle", class: "sl" }, `mean ${f2(r.mean)} · std ${r.std.toFixed(2)}`);
+  });
+  document.getElementById("nzTbl").innerHTML = `<table class="score"><thead><tr><th>Dimension</th><th class="num">Images</th><th class="num">mean</th><th class="num">std</th><th class="num">min</th><th class="num">max</th></tr></thead><tbody>${NZ[sub].map((r, i) => `<tr><td>${NZX[i]}</td><td class="num">${r.n}</td><td class="num">${f2(r.mean)}</td><td class="num">${r.std.toFixed(2)}</td><td class="num">${f1(r.min)}</td><td class="num">${f1(r.max)}</td></tr>`).join("")}</tbody></table>`;
+}
+const bar = document.querySelector('.subtabs[data-own="nz"]'), bs = [...bar.querySelectorAll("button")];
+bs.forEach(b => b.addEventListener("click", () => { bs.forEach(x => x.setAttribute("aria-selected", x === b)); draw(b.dataset.sub); }));
+draw("overall");
+})();
+</script>

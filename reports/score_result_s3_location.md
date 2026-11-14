@@ -72,3 +72,22 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/cvtg/`
 | cvtg102ch_opus_ascii/cosmos3_ga_64bm32b_t2ionly_exp009_sft0_uhq_from_exp009_25k_lr1em5_iter31k    | 102      | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json |
 | cvtg102ch_opus_ascii/cosmos3_ga_64bm32b_t2ionly_exp009_sft1_text_from_exp009_25k_lr1em5_iter40k   | 102      | result_cvtg_cvtg102ch_opus_ascii_g3p1p.json |
 
+---
+
+## QImageBench
+
+Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/` (public-model baselines under `qimagebench_baseline/default/`, Cosmos3 under `qimagebench/c3json_opus4p7/`, Cosmos3.5 under `qimagebench/c3p5dense_k19_sq/`)
+
+| Run                                                             | Images   | Result JSON             |
+|-----------------------------------------------------------------|----------|-------------------------|
+| qimagebench/c3p5dense_k19_sq/c3p5_ultra_v3p5pre_iter384000      | 1500     | qimagebench_result.json |
+| qimagebench/c3p5dense_k19_sq/c3p5_ultra_v1p6mid_iter343040      | 1500     | qimagebench_result.json |
+| qimagebench_baseline/default/gpt_image_2p5_sunburst_quality_low | 1500     | qimagebench_result.json |
+| qimagebench_baseline/default/nano_banana_2p1                    | 1500     | qimagebench_result.json |
+| qimagebench_baseline/default/qwen_image_2p1_pe                  | 1500     | qimagebench_result.json |
+| qimagebench_baseline/default/flux3_klein_base                   | 1500     | qimagebench_result.json |
+| qimagebench_baseline/default/fibo2_dev                          | 1500     | qimagebench_result.json |
+| qimagebench_baseline/default/ideogram4_nf4                      | 1500     | qimagebench_result.json |
+| qimagebench/c3json_opus4p7/exp009_sft0_uhq_iter31k              | 1500     | qimagebench_result.json |
+| qimagebench/c3json_opus4p7/exp009c_x9c_iter100                  | 1500     | qimagebench_result.json |
+

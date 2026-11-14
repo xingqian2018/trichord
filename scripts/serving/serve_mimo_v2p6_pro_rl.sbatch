@@ -9,8 +9,7 @@
 # Submit (bash): bash scripts/serving/serve.sh mimo_v2p6_pro_rl <replicas>
 #SBATCH -A cosmos_base_training
 #SBATCH -p batch_long
-#SBATCH --qos normal
-#SBATCH --wckey=p1
+#SBATCH --wckey=p0
 #SBATCH --no-kill
 #SBATCH --segment=1
 #SBATCH -N 1

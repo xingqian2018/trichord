@@ -17,7 +17,20 @@ MAX_STOP = 4
 
 
 def _patch_openai(m):
-    """post-import hook of openai.resources.completions (lazy: generated-code subprocesses never import openai)."""
+    """post-import hook of openai.resources.completions (lazy: generated-code subprocesses never import openai).
+    Besides the stop cap (1.), two switches for OUR ladder checkpoints behind Megatron's dynamic text-generation server
+    (nemo6_ladder.sbatch; both unset for the vLLM external references):
+      NEMO6_STOP_TOKEN_IDS=151643: every request also carries stop_token_ids. The ladder data ends each document with <|endoftext|>
+        151643, while Megatron's HuggingFaceTokenizer EOD for the Qwen3 tokenizer is <|im_end|> 151645: without it a generation would
+        run past the document end into a new "document" until a stop string or max_tokens (vLLM stops at the base model's EOS itself).
+      NEMO6_DROP_SEED=1: requests go without the client's constant seed=-1 (local-completions asserts seed == -1). Megatron rejects
+        any negative seed (400 "seed must be a nonnegative int64 or null", job 43373), and a fixed seed would repeat samples anyway:
+        Megatron derives per-request seeds seed + index inside one HTTP request, so the same prompt sent in two batches
+        (hmmt_sampled: repeats 32 > batch 16) would get identical samples; unseeded requests draw from the engine's RNG stream.
+        Greedy (temperature 0 -> top_k 1) and likelihood requests do not depend on the seed.
+    The lm_eval batch-cache key is computed from the client kwargs before this call, so resumability is unaffected."""
+    stop_ids = [int(x) for x in os.environ.get("NEMO6_STOP_TOKEN_IDS", "").split(",") if x.strip()]
+    drop_seed = os.environ.get("NEMO6_DROP_SEED") == "1"
     for cls in (m.AsyncCompletions, m.Completions):
         orig = cls.create
         if getattr(orig, "_nemo6", False):
@@ -28,6 +41,12 @@ def _patch_openai(m):
                 st = kw.get("stop")
                 if isinstance(st, (list, tuple)) and len(st) > MAX_STOP:
                     kw["stop"] = list(st)[:MAX_STOP]
+                if stop_ids:
+                    eb = dict(kw.get("extra_body") or {})
+                    eb.setdefault("stop_token_ids", stop_ids)
+                    kw["extra_body"] = eb
+                if drop_seed:
+                    kw.pop("seed", None)
                 return orig(self, *a, **kw)
             create._nemo6 = True
             return create
@@ -145,8 +164,107 @@ def _patch_judge(m):
     m.AsyncOpenAIJudge.__init__ = __init__
 
 
+_BCB_PYTHON_DEFAULT = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/boxiangw/envs/bcb_eval/bin/python"
+
+
+def _patch_bcb_checker(m):
+    """BigCodeBench judged by the OFFICIAL checker (11-06, user: "Bigcodebench 我们的实验的数字异常的高"). This harness revision writes
+    candidate + tests to a file and runs python on it: the unittest TestCases are defined but never run, so a program "passes" iff it
+    exits 0 (empty answers pass). Same fix as Boxiang's nemo6_driver.py (his rows in the downstream sheet): every BigCodeBench program
+    goes to his bcb_official/bcb_check.py (official untrusted_check: official sandbox, TestCases run, any failure / error = fail) in his
+    BigCodeBench venv (NEMO6_BCB_PYTHON). Sanitizing, prompts and pass@k stay the harness's. At most NEMO6_BCB_WORKERS (32) checks run at
+    once (the harness pool is 128 threads). ON BY DEFAULT (user 11-06: "这个harness不对要修复，不能直接放一个不对的分数"): NEMO6_BCB_PYTHON
+    defaults to Boxiang's venv; if it is missing the BigCodeBench check raises (task fails, no number) - never the old exit-code scoring.
+    NEMO6_BCB_PYTHON=0 restores the harness runner (debugging only)."""
+    import json as _json
+    import subprocess as _subprocess
+    import tempfile as _tempfile
+    import threading as _threading
+
+    py = os.environ.get("NEMO6_BCB_PYTHON", _BCB_PYTHON_DEFAULT)
+    check = os.environ.get("NEMO6_BCB_CHECK", "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmos_ultra_pre/"
+                                              "evals/nemo6/bcb_official/bcb_check.py")
+    sem = _threading.Semaphore(int(os.environ.get("NEMO6_BCB_WORKERS", "32")))
+    harness_check = m.check_correctness
+    if getattr(harness_check, "_nemo6", False):
+        return
+
+    def check_correctness(check_program, timeout, task_id, completion_id):
+        if not str(task_id).startswith("BigCodeBench/"):
+            return harness_check(check_program, timeout, task_id, completion_id)
+        if not os.access(py, os.X_OK):
+            raise RuntimeError(f"BigCodeBench needs the official test environment, {py} missing (NEMO6_BCB_PYTHON)")
+        # 11-10: Boxiang's evals/nemo6/ (bcb_check.py) vanished from disk; `python -I <missing script>` prints nothing, which scored every
+        # program "fail" (BigCodeBench = 0.0 written as a valid number). A missing checker must fail the task ("-"), never score 0.
+        if not os.path.isfile(check):
+            raise RuntimeError(f"BigCodeBench checker {check} missing (NEMO6_BCB_CHECK): task fails instead of scoring 0")
+        with _tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            _json.dump({"program": check_program}, f)
+        try:
+            with sem:
+                r = _subprocess.run([py, "-I", check, f.name], capture_output=True, text=True, timeout=600)
+            lines = [x for x in r.stdout.strip().splitlines() if x.startswith("{")]
+            out = _json.loads(lines[-1]) if lines else {"status": "fail", "details": {"checker": r.stderr[-1000:]}}
+        except _subprocess.TimeoutExpired:
+            out = {"status": "timeout", "details": {}}
+        finally:
+            os.unlink(f.name)
+        return {"program": check_program, "status": out["status"], "passed": out["status"] == "pass", "result": out.get("details"),
+                "task_id": task_id, "completion_id": completion_id}
+
+    check_correctness._nemo6 = True
+    m.check_correctness = check_correctness
+
+
+def _patch_replay(m):
+    """NEMO6_REPLAY_DIR=<dir with the run's old samples_*.jsonl>: re-score greedy generate_until tasks WITHOUT a server and without a
+    request cache (11-06: Qwen3-30B-A3B-Base / Qwen3.8-27B ran BigCodeBench before --use_cache existed). generate_until returns, per
+    request, the response logged for the same (task, prompt) in the newest samples file of that task; a request with no logged response,
+    or a sampled request, raises (the task fails, no number) - never a substitute answer. Scoring then runs unchanged in the harness."""
+    import glob as _glob
+    import json as _json
+
+    rdir = os.environ["NEMO6_REPLAY_DIR"]
+    cls = m.OpenaiCompletionsLM
+    if getattr(cls.generate_until, "_nemo6", False):
+        return
+    logged = {}
+
+    def responses(task):
+        if task not in logged:
+            fs = sorted(_glob.glob(f"{rdir}/**/samples_{task}_20*.jsonl", recursive=True), key=os.path.getmtime)
+            if not fs:
+                raise RuntimeError(f"replay: no samples for {task} under {rdir}")
+            mp = {}
+            for line in open(fs[-1]):
+                x = _json.loads(line)
+                a, r = x["arguments"]["gen_args_0"], x["resps"][0]
+                mp[a["arg_0"]] = r[0] if isinstance(r, list) else r
+            logged[task] = mp
+        return logged[task]
+
+    def generate_until(self, requests, disable_tqdm=False):
+        out = []
+        for req in requests:
+            ctx, kw = req.args[0], req.args[1]
+            if kw.get("do_sample"):
+                raise RuntimeError("replay: sampled request, only greedy tasks can be replayed")
+            mp = responses(req.task_name)
+            if ctx not in mp:
+                raise RuntimeError(f"replay: no logged response for a {req.task_name} request (doc {req.doc_id})")
+            out.append(mp[ctx])
+        return out
+
+    generate_until._nemo6 = True
+    cls.generate_until = generate_until
+
+
+if os.environ.get("NEMO6_REPLAY_DIR"):
+    _POST["lm_eval.models.openai_completions"] = _patch_replay
 _POST["lm_eval.api.judge"] = _patch_judge
 _POST["openai.resources.completions"] = _patch_openai
+if os.environ.get("NEMO6_BCB_PYTHON", _BCB_PYTHON_DEFAULT) not in ("", "0", "none"):
+    _POST["lm_eval.metrics.code_eval"] = _patch_bcb_checker
 if os.environ.get("NEMO6_TRUST_REMOTE_CODE") == "1" or os.environ.get("NEMO6_ADD_BOS") == "1":
     _POST["transformers.models.auto.tokenization_auto"] = _patch_auto_tokenizer
 if not any(isinstance(f, _PostImportHook) for f in sys.meta_path):

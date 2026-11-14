@@ -1,0 +1,1487 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Downstream evaluation details</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+.neg { color:var(--good); }
+.pos { color:var(--bad); }
+hr { border:0; border-top:1px solid var(--border); margin:28px 0; }
+em { color:var(--muted); }
+
+main { max-width:1080px; }
+nav { background:color-mix(in srgb, Canvas 92%, transparent); }
+p, li { line-height:1.65; }
+h3 { font-size:16px; margin-top:26px; }
+table { display:table; width:100%; }
+th, td { white-space:normal; vertical-align:top; text-align:left; overflow-wrap:anywhere; }
+th { white-space:nowrap; }
+td:first-child { min-width:8em; }
+td code, li code, p code { overflow-wrap:anywhere; }
+pre { background:var(--head); border:1px solid var(--border); border-radius:6px; padding:10px 14px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:12.5px; white-space:pre; }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent); background:var(--head); border-radius:0 6px 6px 0; }
+blockquote p { margin:4px 0; }
+</style></head>
+<body><nav><a href="#s1">1. Settings shared by all tasks</a><a href="#s2">2. Settings of every task</a><a href="#s3">3. How LiveCodeBench is run</a><a href="#s4">4. HumanEval and MBPP: comparison with public practice</a><a href="#s5">5. What truncation does in practice: share of answers that reach the generation cap</a><a href="#s6">6. Sources</a></nav><main>
+<h1>Downstream evaluation details</h1>
+<p>This document records how we run the downstream tasks today: the settings of every task (temperature, top-p, top-k, generation cap, samples per question, stop strings) and how they compare with the official or commonly used settings.</p>
+<ul>
+<li>It is a record only. It changes no evaluation setting. Decision (2026-11-13): the current method and settings stay as they are, and the existing baselines are not re-run.</li>
+<li>The task list is <code>cosmos_ultra_ladder</code>: 36 tasks, 66 scores. Every model uses the same list.</li>
+<li>The settings are taken from the records the evaluation stored, that is, the values actually sent to the model. The example is the Qwen3.8-Max run.</li>
+<li>Last updated: 2026-11-13.</li>
+</ul>
+<h2 id="s1">1. Settings shared by all tasks</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>What we do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>top-k</td>
+<td>Not used by any task. The request does not carry this parameter</td>
+</tr>
+<tr>
+<td>top-p</td>
+<td>Only three tasks send it: HumanEval 0.95, LiveCodeBench 0.95, MBPP 1.0 (which cuts nothing). The other tasks do not send it and sample from the full distribution</td>
+</tr>
+<tr>
+<td>Sampling defaults shipped with a model</td>
+<td>Not used. The servers of the reference models are started so that only the sampling parameters in the request apply. For our own checkpoints we checked before the evaluation that a request without parameters uses the full distribution</td>
+</tr>
+<tr>
+<td>Server length limit</td>
+<td>16,384 tokens (prompt plus generation)</td>
+</tr>
+<tr>
+<td>Random seed for the few-shot examples</td>
+<td>1234, recorded in every score file</td>
+</tr>
+<tr>
+<td>Seed of the sampled tasks</td>
+<td>Sample number r uses seed r, so sampled results can be reproduced</td>
+</tr>
+</tbody>
+</table>
+<p>The two kinds of task handle truncation differently:</p>
+<ul>
+<li><strong>Multiple choice</strong> (13 tasks): the model writes nothing. The prompt plus the option may be up to 16,383 tokens long. The longest MMLU prompt we measured is 3,097 tokens, so no question is cut. The old evaluation flow used the default limit of 2,048, and with it 373 MMLU questions lost their beginning.</li>
+<li><strong>Generation</strong> (23 tasks): the prompt is sent whole and is never cut. What the model writes has a cap (see &quot;generation cap&quot; in 2.1) and is cut off there. It is also cut at a stop string.</li>
+</ul>
+<h2 id="s2">2. Settings of every task</h2>
+<h3>2.1 Generation tasks (23)</h3>
+<p>&quot;Temperature 0&quot; means no sampling: the model writes its single most likely answer per question.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th style="text-align:right">Questions</th>
+<th style="text-align:right">Examples</th>
+<th style="text-align:right">Samples per question</th>
+<th style="text-align:right">Temperature</th>
+<th>top-p</th>
+<th style="text-align:right">Generation cap</th>
+<th>Stop strings</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mbpp_sanitized_3shot_sampled</td>
+<td style="text-align:right">257</td>
+<td style="text-align:right">3</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.5</td>
+<td>1.0</td>
+<td style="text-align:right">768</td>
+<td><code>[DONE]</code>, <code>[DONE</code>, <code>\nYou are an expert Python programmer</code>, <code>&lt;/s&gt;</code></td>
+</tr>
+<tr>
+<td>humaneval_sampled</td>
+<td style="text-align:right">164</td>
+<td style="text-align:right">0</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.2</td>
+<td>0.95</td>
+<td style="text-align:right">512</td>
+<td>12 strings, listed below the table</td>
+</tr>
+<tr>
+<td>lcb_codegen</td>
+<td style="text-align:right">1,055</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>0.95</td>
+<td style="text-align:right">1,024</td>
+<td><code>###</code></td>
+</tr>
+<tr>
+<td>lcb_codegen_sampled</td>
+<td style="text-align:right">1,055</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.2</td>
+<td>0.95</td>
+<td style="text-align:right">1,024</td>
+<td><code>###</code></td>
+</tr>
+<tr>
+<td>mmlu_pro_5_shot_base</td>
+<td style="text-align:right">12,032</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">2,048</td>
+<td><code>Question:</code></td>
+</tr>
+<tr>
+<td>agieval_en_cot</td>
+<td style="text-align:right">2,546</td>
+<td style="text-align:right">2 to 5</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">2,000</td>
+<td><code>&lt;END&gt;</code></td>
+</tr>
+<tr>
+<td>gpqa_diamond_cot_n_shot</td>
+<td style="text-align:right">196</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">2,048</td>
+<td><code>&lt;/s&gt;</code>, <code>Question:</code></td>
+</tr>
+<tr>
+<td>gpqa_diamond_cot_n_shot_sampled</td>
+<td style="text-align:right">196</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.7</td>
+<td>not sent</td>
+<td style="text-align:right">2,048</td>
+<td><code>&lt;/s&gt;</code>, <code>Question:</code>, the model's end marker</td>
+</tr>
+<tr>
+<td>supergpqa_main_cot_n_shot</td>
+<td style="text-align:right">26,529</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">2,048</td>
+<td><code>&lt;/s&gt;</code>, <code>Question:</code></td>
+</tr>
+<tr>
+<td>mgsm_native_cot_zh</td>
+<td style="text-align:right">250</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">4,096</td>
+<td><code>问题:</code>, <code>问题：</code>, <code>&lt;/s&gt;</code>, three line breaks in a row, the model's end marker</td>
+</tr>
+<tr>
+<td>math_500_sampled</td>
+<td style="text-align:right">500</td>
+<td style="text-align:right">4</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.7</td>
+<td>not sent</td>
+<td style="text-align:right">4,096</td>
+<td><code>Problem:</code>, <code>Question:</code>, <code>Q:</code>, <code>&lt;/s&gt;</code>, the model's end marker</td>
+</tr>
+<tr>
+<td>hmmt_sampled</td>
+<td style="text-align:right">30</td>
+<td style="text-align:right">4</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.7</td>
+<td>not sent</td>
+<td style="text-align:right">4,096</td>
+<td><code>Problem:</code>, <code>Question:</code>, <code>&lt;/s&gt;</code>, the model's end marker</td>
+</tr>
+<tr>
+<td>aime24</td>
+<td style="text-align:right">30</td>
+<td style="text-align:right">4</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.7</td>
+<td>not sent</td>
+<td style="text-align:right">4,096</td>
+<td><code>Problem:</code>, <code>Question:</code>, <code>Q:</code>, <code>&lt;/s&gt;</code>, the model's end marker</td>
+</tr>
+<tr>
+<td>aime25</td>
+<td style="text-align:right">30</td>
+<td style="text-align:right">4</td>
+<td style="text-align:right">32</td>
+<td style="text-align:right">0.7</td>
+<td>not sent</td>
+<td style="text-align:right">4,096</td>
+<td>same as aime24</td>
+</tr>
+<tr>
+<td>minerva_math_nemo</td>
+<td style="text-align:right">5,000</td>
+<td style="text-align:right">4</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">4,096</td>
+<td>same as aime24</td>
+</tr>
+<tr>
+<td>gsm8k_cot</td>
+<td style="text-align:right">1,319</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">1,024</td>
+<td><code>Q:</code>, <code>&lt;/s&gt;</code>, the model's end marker</td>
+</tr>
+<tr>
+<td>gsm8k_cot_nemo</td>
+<td style="text-align:right">1,319</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">1,024</td>
+<td><code>Problem:</code>, <code>Question:</code>, <code>Q:</code>, <code>&lt;/s&gt;</code>, the model's end marker</td>
+</tr>
+<tr>
+<td>trivia_qa</td>
+<td style="text-align:right">17,944</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">256</td>
+<td>line break (only the first line is the answer)</td>
+</tr>
+<tr>
+<td>popqa_15shot</td>
+<td style="text-align:right">14,267</td>
+<td style="text-align:right">15</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">15</td>
+<td>line break</td>
+</tr>
+<tr>
+<td>naturalqs_5shot</td>
+<td style="text-align:right">3,610</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">256</td>
+<td>line break</td>
+</tr>
+<tr>
+<td>simpleqa_5shot</td>
+<td style="text-align:right">4,326</td>
+<td style="text-align:right">5</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">64</td>
+<td>line break, <code>&lt;/s&gt;</code>, the model's end marker</td>
+</tr>
+<tr>
+<td>simpleqa_verified_25shot</td>
+<td style="text-align:right">1,000</td>
+<td style="text-align:right">25</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">64</td>
+<td>line break, <code>&lt;/s&gt;</code>, the model's end marker</td>
+</tr>
+<tr>
+<td>facts_parametric_25shot</td>
+<td style="text-align:right">1,052</td>
+<td style="text-align:right">25</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>not sent</td>
+<td style="text-align:right">64</td>
+<td>line break, <code>&lt;/s&gt;</code>, the model's end marker</td>
+</tr>
+</tbody>
+</table>
+<p>Notes:</p>
+<ul>
+<li>The 12 stop strings of HumanEval: <code>&lt;/s&gt;</code>, the code fence, <code>\ndef </code>, <code>\nimport </code>, <code>\nfrom </code>, <code>\nclass </code>, <code>\nprint(</code>, <code>\nassert </code>, <code>\nif __name__</code>, <code>\n@</code>, and lines that start with either kind of triple quote.</li>
+<li>&quot;The model's end marker&quot; is each model family's own end symbol (im_end, endoftext, eot_id and so on).</li>
+<li>The &quot;1 example&quot; of LiveCodeBench is one fixed example problem that the prompt always carries, see section 3.</li>
+<li>The values of the five math tasks (math_500, hmmt, aime24, aime25, minerva) come from the re-run of the math tasks (<code>MATHFIX_*</code>).</li>
+</ul>
+<h3>2.2 Multiple-choice tasks (13)</h3>
+<p>No text is generated, so there is no temperature, top-p, generation cap or stop string. Each option is appended to the prompt in turn, and the option the model finds most likely is its answer.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th style="text-align:right">Questions</th>
+<th style="text-align:right">Subjects</th>
+<th style="text-align:right">Examples</th>
+<th>Options per question</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mmlu</td>
+<td style="text-align:right">14,042</td>
+<td style="text-align:right">57</td>
+<td style="text-align:right">5</td>
+<td>4</td>
+</tr>
+<tr>
+<td>mmlu_redux</td>
+<td style="text-align:right">5,330</td>
+<td style="text-align:right">57</td>
+<td style="text-align:right">5</td>
+<td>4</td>
+</tr>
+<tr>
+<td>global_mmlu_zh</td>
+<td style="text-align:right">400</td>
+<td style="text-align:right">6</td>
+<td style="text-align:right">5</td>
+<td>4</td>
+</tr>
+<tr>
+<td>include_base_44_chinese</td>
+<td style="text-align:right">545</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">5</td>
+<td>4</td>
+</tr>
+<tr>
+<td>commonsense_qa</td>
+<td style="text-align:right">1,221</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">7</td>
+<td>5</td>
+</tr>
+<tr>
+<td>arc_challenge_llama</td>
+<td style="text-align:right">1,172</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">25</td>
+<td>4 (a few questions have 3 or 5)</td>
+</tr>
+<tr>
+<td>hellaswag</td>
+<td style="text-align:right">10,042</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">10</td>
+<td>4</td>
+</tr>
+<tr>
+<td>openbookqa</td>
+<td style="text-align:right">500</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>4</td>
+</tr>
+<tr>
+<td>piqa</td>
+<td style="text-align:right">1,838</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>2</td>
+</tr>
+<tr>
+<td>social_iqa</td>
+<td style="text-align:right">1,954</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>3</td>
+</tr>
+<tr>
+<td>truthfulqa_mc2</td>
+<td style="text-align:right">817</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>2 to 20</td>
+</tr>
+<tr>
+<td>winogrande</td>
+<td style="text-align:right">1,267</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">5</td>
+<td>2</td>
+</tr>
+<tr>
+<td>race_high_all</td>
+<td style="text-align:right">3,498</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<h2 id="s3">3. How LiveCodeBench is run</h2>
+<p>LCB here means LiveCodeBench (competitive programming problems). There is also a LongCodeBench (a whole code repository in the context, up to 1 million tokens) with the same abbreviation. We have never run it.</p>
+<h3>3.1 Problem set</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dataset</td>
+<td><code>sam-paech/livecodebench-code_generation_lite</code>, a mirror of the official <code>livecodebench/code_generation_lite</code></td>
+</tr>
+<tr>
+<td>Version</td>
+<td><code>release_v6</code>, 1,055 problems, the same number as the official release_v6</td>
+</tr>
+<tr>
+<td>Problem dates</td>
+<td>May 2023 to April 2025</td>
+</tr>
+<tr>
+<td>Source</td>
+<td>AtCoder 602, LeetCode 444, Codeforces 9</td>
+</tr>
+<tr>
+<td>Difficulty</td>
+<td>easy 322, medium 383, hard 350</td>
+</tr>
+<tr>
+<td>Problem type</td>
+<td>611 read standard input (AtCoder, Codeforces); 444 complete a function (LeetCode)</td>
+</tr>
+</tbody>
+</table>
+<h3>3.2 Two tasks</h3>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th style="text-align:right">Programs per problem</th>
+<th>Randomness</th>
+<th>Scores reported</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lcb_codegen</code></td>
+<td style="text-align:right">1</td>
+<td>none (temperature 0)</td>
+<td>pass rate</td>
+</tr>
+<tr>
+<td><code>lcb_codegen_sampled</code></td>
+<td style="text-align:right">32</td>
+<td>temperature 0.2, top-p 0.95</td>
+<td>pass rate of a single program; share of problems where at least one of the 32 passes</td>
+</tr>
+</tbody>
+</table>
+<h3>3.3 How the prompt is built</h3>
+<p>We use the official format for base models (not chat models): one fixed example problem with its reference program, then the problem under test, ending right after <code>### Answer</code>.</p>
+<pre><code>### Question
+(statement of the example problem)
+
+### Answer
+
+(reference program of the example problem)
+
+### Question
+(statement of the problem under test)
+
+### Answer
+
+</code></pre>
+<p>A function-completion problem has an extra <code>### Starter Code</code> block after the statement, with the function signature. Each of the two problem types has its own fixed example problem.</p>
+<p>Prompt length (Qwen3 tokenizer): median 1,412 tokens, longest 2,935 tokens, far below the server limit of 16,384, so no problem is cut.</p>
+<h3>3.4 Generation settings</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th><code>lcb_codegen</code></th>
+<th><code>lcb_codegen_sampled</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Programs per problem</td>
+<td>1</td>
+<td>32</td>
+</tr>
+<tr>
+<td>Temperature</td>
+<td>0</td>
+<td>0.2</td>
+</tr>
+<tr>
+<td>top-p</td>
+<td>0.95 (has no effect at temperature 0)</td>
+<td>0.95</td>
+</tr>
+<tr>
+<td>top-k</td>
+<td>not used</td>
+<td>not used</td>
+</tr>
+<tr>
+<td>Generation cap</td>
+<td>1,024 tokens</td>
+<td>1,024 tokens</td>
+</tr>
+<tr>
+<td>Stop string</td>
+<td><code>###</code></td>
+<td><code>###</code></td>
+</tr>
+</tbody>
+</table>
+<h3>3.5 How an answer is judged</h3>
+<ol>
+<li>The model's answer, with leading and trailing whitespace removed, is run as a program as it is. Markdown code fences are not removed. This is the official handling for base models.</li>
+<li>The tests are the public examples plus the hidden tests. A program passes only when it passes all of them. A problem has 1 to 103 tests, median 13.</li>
+<li>Standard-input problems: the input is fed to the program and the output is compared line by line (after removing leading and trailing whitespace; when the lines differ, they are compared once more as numbers).</li>
+<li>Function-completion problems: the model's function is called, and the return value must equal the expected value.</li>
+<li>Each test has a time limit of 6 seconds. There are five outcomes: passed, wrong answer, timed out, runtime error, error in the test program.</li>
+<li>16 processes judge in parallel, and each test process may add at most 16 GB of memory.</li>
+</ol>
+<p>How the scores are computed:</p>
+<ul>
+<li><strong>Pass rate (1 program)</strong>: problems passed divided by 1,055.</li>
+<li><strong>Pass rate of a single program (32 programs)</strong>: per problem, the share of the 32 programs that pass, averaged over all problems.</li>
+<li><strong>At least one of 32 passes</strong>: problems where at least one program passes, divided by 1,055.</li>
+</ul>
+<p>The score file also gives the pass rate by difficulty (easy, medium, hard). These are not among the 66 scores.</p>
+<h3>3.6 Comparison with the official settings</h3>
+<p>The official values come from the parameter definition file and the README of the LiveCodeBench repository.</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Ours</th>
+<th>Official</th>
+<th>Same</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Temperature</td>
+<td>0.2</td>
+<td>0.2</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>top-p</td>
+<td>0.95</td>
+<td>0.95</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>top-k</td>
+<td>not used</td>
+<td>no such parameter</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Stop string</td>
+<td><code>###</code></td>
+<td><code>###</code></td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Generation cap</td>
+<td>1,024</td>
+<td>2,000</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Programs per problem</td>
+<td>32</td>
+<td>10</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Prompt format, handling of the answer</td>
+<td>the official base-model format</td>
+<td></td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<p>The README says: &quot;We use n=10 and temperature=0.2 for generation&quot;. <code>lcb_codegen</code> (no sampling, 1 program) is not an official setting. We added it ourselves.</p>
+<h3>3.7 Effect of the two differences</h3>
+<p><strong>Generation cap 1,024 versus 2,000.</strong> Share of answers that reach the cap without stopping (<code>lcb_codegen</code> / <code>lcb_codegen_sampled</code>, counted on the first 400 problems of each run):</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th style="text-align:right">1 program</th>
+<th style="text-align:right">32 programs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen3.8-Max</td>
+<td style="text-align:right">0.5%</td>
+<td style="text-align:right">0.4%</td>
+</tr>
+<tr>
+<td>MiMo-V2.5-Pro-Base</td>
+<td style="text-align:right">1.0%</td>
+<td style="text-align:right">0.7%</td>
+</tr>
+<tr>
+<td>Qwen3-235B</td>
+<td style="text-align:right">1.2%</td>
+<td style="text-align:right">1.4%</td>
+</tr>
+<tr>
+<td>MiMo-V2.6-Pro-RL</td>
+<td style="text-align:right">2.2%</td>
+<td style="text-align:right">1.3%</td>
+</tr>
+<tr>
+<td>PROD1_DPSK_LATENT2_E2X_QBK3 q3</td>
+<td style="text-align:right">2.2%</td>
+<td style="text-align:right">2.3%</td>
+</tr>
+<tr>
+<td>59B iter18000</td>
+<td style="text-align:right">3.0%</td>
+<td style="text-align:right">2.8%</td>
+</tr>
+<tr>
+<td>Qwen3-30B-Base</td>
+<td style="text-align:right">4.2%</td>
+<td style="text-align:right">3.9%</td>
+</tr>
+<tr>
+<td>Qwen3.8-27B</td>
+<td style="text-align:right">5.5%</td>
+<td style="text-align:right">6.0%</td>
+</tr>
+<tr>
+<td>Qwen3.8-Flash-Next</td>
+<td style="text-align:right">6.5%</td>
+<td style="text-align:right">5.5%</td>
+</tr>
+<tr>
+<td>PROD1_DPSK_LATENT2_E2X q3</td>
+<td style="text-align:right">6.8%</td>
+<td style="text-align:right">6.1%</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>A normal program is short: median 110 to 130 tokens.</li>
+<li>There are two reasons for reaching the cap. For our own E2X q3, 83% of the capped answers repeat themselves in a loop, and a higher cap would not make them pass. For Qwen3.8-27B and Flash-Next only 7% and 1% are loops; the rest are genuinely long answers.</li>
+<li>A comment in the task list records an estimate: on the stored answers, the difference between a cap of 1,024 and 2,000 is −0.04 to +0.01 points.</li>
+</ul>
+<p><strong>32 programs per problem versus 10.</strong> The pass rate of a single program does not depend on the number of programs, so it can be compared with official numbers. &quot;At least one of N passes&quot; depends on N, so our 32 cannot be compared directly with the official 10.</p>
+<h3>3.8 How the two tasks relate</h3>
+<p>Over 10 runs the two tasks lead to almost the same conclusion:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th style="text-align:right">Pass rate, 1 program</th>
+<th style="text-align:right">Single-program pass rate, 32 programs</th>
+<th style="text-align:right">Difference</th>
+<th style="text-align:right">At least one of 32 passes</th>
+<th>Time (minutes)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen3.8-Max</td>
+<td style="text-align:right">52.6</td>
+<td style="text-align:right">51.7</td>
+<td style="text-align:right">0.9</td>
+<td style="text-align:right">68.8</td>
+<td>10 / 157</td>
+</tr>
+<tr>
+<td>MiMo-V2.6-Pro-RL</td>
+<td style="text-align:right">49.7</td>
+<td style="text-align:right">50.0</td>
+<td style="text-align:right">−0.3</td>
+<td style="text-align:right">69.3</td>
+<td>7 / 93</td>
+</tr>
+<tr>
+<td>MiMo-V2.5-Pro-Base</td>
+<td style="text-align:right">45.8</td>
+<td style="text-align:right">45.9</td>
+<td style="text-align:right">−0.1</td>
+<td style="text-align:right">65.2</td>
+<td>7 / 96</td>
+</tr>
+<tr>
+<td>Qwen3.8-27B</td>
+<td style="text-align:right">40.7</td>
+<td style="text-align:right">41.1</td>
+<td style="text-align:right">−0.5</td>
+<td style="text-align:right">62.0</td>
+<td>5 / 92</td>
+</tr>
+<tr>
+<td>Qwen3.8-Flash-Next</td>
+<td style="text-align:right">40.4</td>
+<td style="text-align:right">37.8</td>
+<td style="text-align:right">2.6</td>
+<td style="text-align:right">65.6</td>
+<td>8 / 155</td>
+</tr>
+<tr>
+<td>Qwen3-235B</td>
+<td style="text-align:right">38.3</td>
+<td style="text-align:right">36.5</td>
+<td style="text-align:right">1.8</td>
+<td style="text-align:right">56.1</td>
+<td>5 / 97</td>
+</tr>
+<tr>
+<td>Qwen3-30B-Base</td>
+<td style="text-align:right">36.3</td>
+<td style="text-align:right">35.8</td>
+<td style="text-align:right">0.5</td>
+<td style="text-align:right">51.5</td>
+<td>4 / 42</td>
+</tr>
+<tr>
+<td>59B iter18000</td>
+<td style="text-align:right">23.3</td>
+<td style="text-align:right">22.9</td>
+<td style="text-align:right">0.4</td>
+<td style="text-align:right">35.8</td>
+<td>13 / 255</td>
+</tr>
+<tr>
+<td>PROD1_DPSK_LATENT2_E2X_QBK3 q3</td>
+<td style="text-align:right">16.3</td>
+<td style="text-align:right">15.9</td>
+<td style="text-align:right">0.4</td>
+<td style="text-align:right">26.2</td>
+<td>8 / 151</td>
+</tr>
+<tr>
+<td>PROD1_DPSK_LATENT2_E2X q3</td>
+<td style="text-align:right">14.6</td>
+<td style="text-align:right">14.2</td>
+<td style="text-align:right">0.4</td>
+<td style="text-align:right">24.8</td>
+<td>9 / 179</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The correlation between the two pass rates is 0.9975, and the 10 models rank in exactly the same order. The mean difference is 0.8 points, the largest 2.6 points.</li>
+<li>The error ranges of the two numbers are ±1.5 and ±1.35, almost the same: the error comes mainly from having only 1,055 problems, and writing 31 more programs makes the result hardly more precise.</li>
+<li>What only the 32-program task provides is &quot;at least one of 32 passes&quot;.</li>
+<li>The time is the wall-clock time from the job records. The server was running other tasks at the same time, so it shows the order of magnitude only.</li>
+<li>Decision (2026-11-13): both tasks continue to be run.</li>
+</ul>
+<h2 id="s4">4. HumanEval and MBPP: comparison with public practice</h2>
+<p>Apart from the original papers, these two benchmarks have no single agreed setting. The table puts the commonly cited ones side by side.</p>
+<ul>
+<li><strong>Original paper</strong>: the method of the benchmark's authors. HumanEval is from OpenAI's Codex paper of 2021, MBPP from a Google paper of 2021.</li>
+<li><strong>Upstream lm-eval</strong>: the public original of our evaluation framework, with the tasks it ships.</li>
+<li><strong>EvalPlus</strong>: a public code evaluation tool and leaderboard.</li>
+<li><strong>bigcode</strong>: the evaluation tool of the BigCode leaderboard.</li>
+</ul>
+<h3>4.1 HumanEval</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Ours</th>
+<th>Original paper</th>
+<th>Upstream lm-eval</th>
+<th>EvalPlus</th>
+<th>bigcode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Temperature</td>
+<td>0.2</td>
+<td>0.2 for the single-sample pass rate</td>
+<td>no sampling</td>
+<td>no sampling</td>
+<td>0.2</td>
+</tr>
+<tr>
+<td>top-p</td>
+<td>0.95</td>
+<td>0.95</td>
+<td>none</td>
+<td>not set</td>
+<td>0.95</td>
+</tr>
+<tr>
+<td>top-k</td>
+<td>not used</td>
+<td>not mentioned</td>
+<td>none</td>
+<td>not set</td>
+<td>off</td>
+</tr>
+<tr>
+<td>Generation cap</td>
+<td>512</td>
+<td>not specified</td>
+<td>1,024</td>
+<td>768</td>
+<td>512</td>
+</tr>
+<tr>
+<td>Samples per problem</td>
+<td>32</td>
+<td>200</td>
+<td>1</td>
+<td>1</td>
+<td>200</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The original paper writes 200 samples per problem because it reports &quot;at least one of 100 passes&quot;. The single-sample pass rate alone does not need that many.</li>
+<li>Generation cap: the original paper specifies none. Our 512 is the tightest of these. Whether bigcode's 512 includes the prompt is not clear from its documentation.</li>
+</ul>
+<h3>4.2 MBPP</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Ours</th>
+<th>Original paper</th>
+<th>Upstream lm-eval</th>
+<th>EvalPlus</th>
+<th>bigcode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Temperature</td>
+<td>0.5</td>
+<td>0.5</td>
+<td>no sampling</td>
+<td>no sampling</td>
+<td>0.1</td>
+</tr>
+<tr>
+<td>top-p, top-k</td>
+<td>neither used</td>
+<td>neither mentioned</td>
+<td>none</td>
+<td>not set</td>
+<td>top-p 0.95</td>
+</tr>
+<tr>
+<td>Generation cap</td>
+<td>768</td>
+<td>not specified</td>
+<td>not set</td>
+<td>768</td>
+<td>512</td>
+</tr>
+<tr>
+<td>Samples per problem</td>
+<td>32</td>
+<td>80</td>
+<td>1</td>
+<td>1</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Examples</td>
+<td>problems 2, 3, 4</td>
+<td>the dataset README names problems 2, 3, 4</td>
+<td>problems 2, 3, 4</td>
+<td></td>
+<td>another prompt</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The main metric of the original paper is &quot;solved when any one of 80 samples passes&quot;. It reports no single-sample pass rate. Our counterpart is &quot;at least one of 32 passes&quot;, but the number of samples differs, so the two cannot be compared directly.</li>
+<li>The problem set differs: the original paper uses 500 test problems, we use the hand-verified subset of 257.</li>
+</ul>
+<h2 id="s5">5. What truncation does in practice: share of answers that reach the generation cap</h2>
+<p>Share of answers that reach the cap without stopping, counted on the first 400 questions of each task.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th style="text-align:right">Cap</th>
+<th style="text-align:right">Qwen3.8-Max</th>
+<th style="text-align:right">Qwen3.8-27B</th>
+<th style="text-align:right">Qwen3-30B-Base</th>
+<th style="text-align:right">E2X q3</th>
+<th style="text-align:right">59B iter18000</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>popqa_15shot</td>
+<td style="text-align:right">15</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+</tr>
+<tr>
+<td>simpleqa_5shot</td>
+<td style="text-align:right">64</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">1.0%</td>
+<td style="text-align:right">0.2%</td>
+<td style="text-align:right">0.5%</td>
+</tr>
+<tr>
+<td>simpleqa_verified_25shot</td>
+<td style="text-align:right">64</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0.5%</td>
+<td style="text-align:right">0.2%</td>
+<td style="text-align:right">0.2%</td>
+</tr>
+<tr>
+<td>facts_parametric_25shot</td>
+<td style="text-align:right">64</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">2.2%</td>
+<td style="text-align:right">5.0%</td>
+<td style="text-align:right">11.2%</td>
+</tr>
+<tr>
+<td>trivia_qa</td>
+<td style="text-align:right">256</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0.2%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+</tr>
+<tr>
+<td>naturalqs_5shot</td>
+<td style="text-align:right">256</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0.2%</td>
+<td style="text-align:right">0.5%</td>
+<td style="text-align:right">1.5%</td>
+</tr>
+<tr>
+<td>humaneval_sampled</td>
+<td style="text-align:right">512</td>
+<td style="text-align:right">1.7%</td>
+<td style="text-align:right">0.7%</td>
+<td style="text-align:right">1.1%</td>
+<td style="text-align:right">8.9%</td>
+<td style="text-align:right">15.1%</td>
+</tr>
+<tr>
+<td>mbpp_sanitized_3shot_sampled</td>
+<td style="text-align:right">768</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">5.7%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0.2%</td>
+<td style="text-align:right">0.2%</td>
+</tr>
+<tr>
+<td>lcb_codegen</td>
+<td style="text-align:right">1,024</td>
+<td style="text-align:right">0.5%</td>
+<td style="text-align:right">5.5%</td>
+<td style="text-align:right">4.2%</td>
+<td style="text-align:right">6.8%</td>
+<td style="text-align:right">3.0%</td>
+</tr>
+<tr>
+<td>lcb_codegen_sampled</td>
+<td style="text-align:right">1,024</td>
+<td style="text-align:right">0.4%</td>
+<td style="text-align:right">6.0%</td>
+<td style="text-align:right">3.9%</td>
+<td style="text-align:right">6.1%</td>
+<td style="text-align:right">2.8%</td>
+</tr>
+<tr>
+<td>gsm8k_cot</td>
+<td style="text-align:right">1,024</td>
+<td style="text-align:right">0.2%</td>
+<td style="text-align:right">0.2%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">1.2%</td>
+<td style="text-align:right">1.0%</td>
+</tr>
+<tr>
+<td>gsm8k_cot_nemo</td>
+<td style="text-align:right">1,024</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">1.8%</td>
+<td style="text-align:right">0.5%</td>
+</tr>
+<tr>
+<td>agieval_en_cot</td>
+<td style="text-align:right">2,000</td>
+<td style="text-align:right">0.9%</td>
+<td style="text-align:right">9.5%</td>
+<td style="text-align:right">3.0%</td>
+<td style="text-align:right">12.7%</td>
+<td style="text-align:right">9.4%</td>
+</tr>
+<tr>
+<td>mmlu_pro_5_shot_base</td>
+<td style="text-align:right">2,048</td>
+<td style="text-align:right">3.3%</td>
+<td style="text-align:right">6.6%</td>
+<td style="text-align:right">0.4%</td>
+<td style="text-align:right">4.2%</td>
+<td style="text-align:right">1.9%</td>
+</tr>
+<tr>
+<td>supergpqa_main_cot_n_shot</td>
+<td style="text-align:right">2,048</td>
+<td style="text-align:right">7.2%</td>
+<td style="text-align:right">24.2%</td>
+<td style="text-align:right">8.2%</td>
+<td style="text-align:right">20.0%</td>
+<td style="text-align:right">12.0%</td>
+</tr>
+<tr>
+<td>gpqa_diamond_cot_n_shot</td>
+<td style="text-align:right">2,048</td>
+<td style="text-align:right">5.6%</td>
+<td style="text-align:right">55.1%</td>
+<td style="text-align:right">6.1%</td>
+<td style="text-align:right">33.2%</td>
+<td style="text-align:right">13.3%</td>
+</tr>
+<tr>
+<td>gpqa_diamond_cot_n_shot_sampled</td>
+<td style="text-align:right">2,048</td>
+<td style="text-align:right">0.9%</td>
+<td style="text-align:right">51.3%</td>
+<td style="text-align:right">1.3%</td>
+<td style="text-align:right">9.1%</td>
+<td style="text-align:right">4.5%</td>
+</tr>
+<tr>
+<td>math_500_sampled</td>
+<td style="text-align:right">4,096</td>
+<td style="text-align:right">1.5%</td>
+<td style="text-align:right">5.4%</td>
+<td style="text-align:right">1.1%</td>
+<td style="text-align:right">8.8%</td>
+<td style="text-align:right">3.4%</td>
+</tr>
+<tr>
+<td>minerva_math_nemo</td>
+<td style="text-align:right">4,096</td>
+<td style="text-align:right">2.4%</td>
+<td style="text-align:right">7.1%</td>
+<td style="text-align:right">4.2%</td>
+<td style="text-align:right">16.3%</td>
+<td style="text-align:right">11.4%</td>
+</tr>
+<tr>
+<td>aime24</td>
+<td style="text-align:right">4,096</td>
+<td style="text-align:right">16.2%</td>
+<td style="text-align:right">41.0%</td>
+<td style="text-align:right">4.4%</td>
+<td style="text-align:right">24.5%</td>
+<td style="text-align:right">13.3%</td>
+</tr>
+<tr>
+<td>aime25</td>
+<td style="text-align:right">4,096</td>
+<td style="text-align:right">12.9%</td>
+<td style="text-align:right">49.3%</td>
+<td style="text-align:right">4.4%</td>
+<td style="text-align:right">22.2%</td>
+<td style="text-align:right">15.4%</td>
+</tr>
+<tr>
+<td>hmmt_sampled</td>
+<td style="text-align:right">4,096</td>
+<td style="text-align:right">23.8%</td>
+<td style="text-align:right">66.6%</td>
+<td style="text-align:right">4.4%</td>
+<td style="text-align:right">19.1%</td>
+<td style="text-align:right">12.5%</td>
+</tr>
+<tr>
+<td>mgsm_native_cot_zh</td>
+<td style="text-align:right">4,096</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0%</td>
+<td style="text-align:right">0.4%</td>
+<td style="text-align:right">0.8%</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Qwen3.8-27B reaches the cap very often on HMMT, GPQA, AIME and SuperGPQA (24% to 67%): its reasoning is long. Its scores on these tasks are affected by the cap, which matters when it is compared with other models.</li>
+<li>Reaching the cap is not the same as losing points. An answer that repeats itself in a loop would not become right with a higher cap.</li>
+</ul>
+<h2 id="s6">6. Sources</h2>
+<ul>
+<li>LiveCodeBench official parameters: <a href="https://raw.githubusercontent.com/LiveCodeBench/LiveCodeBench/main/lcb_runner/runner/parser.py">https://raw.githubusercontent.com/LiveCodeBench/LiveCodeBench/main/lcb_runner/runner/parser.py</a></li>
+<li>LiveCodeBench official README: <a href="https://raw.githubusercontent.com/LiveCodeBench/LiveCodeBench/main/README.md">https://raw.githubusercontent.com/LiveCodeBench/LiveCodeBench/main/README.md</a></li>
+<li>HumanEval original paper (Codex, arXiv 2107.03374): <a href="https://ar5iv.labs.arxiv.org/html/2107.03374">https://ar5iv.labs.arxiv.org/html/2107.03374</a></li>
+<li>MBPP original paper (arXiv 2108.07732): <a href="https://ar5iv.labs.arxiv.org/html/2108.07732">https://ar5iv.labs.arxiv.org/html/2108.07732</a></li>
+<li>MBPP dataset README: <a href="https://raw.githubusercontent.com/google-research/google-research/master/mbpp/README.md">https://raw.githubusercontent.com/google-research/google-research/master/mbpp/README.md</a></li>
+<li>Upstream lm-eval HumanEval task: <a href="https://raw.githubusercontent.com/EleutherAI/lm-evaluation-harness/main/lm_eval/tasks/humaneval/humaneval.yaml">https://raw.githubusercontent.com/EleutherAI/lm-evaluation-harness/main/lm_eval/tasks/humaneval/humaneval.yaml</a></li>
+<li>Upstream lm-eval MBPP task: <a href="https://raw.githubusercontent.com/EleutherAI/lm-evaluation-harness/main/lm_eval/tasks/mbpp/mbpp.yaml">https://raw.githubusercontent.com/EleutherAI/lm-evaluation-harness/main/lm_eval/tasks/mbpp/mbpp.yaml</a></li>
+<li>EvalPlus: <a href="https://raw.githubusercontent.com/evalplus/evalplus/master/evalplus/codegen.py">https://raw.githubusercontent.com/evalplus/evalplus/master/evalplus/codegen.py</a></li>
+<li>bigcode-evaluation-harness: <a href="https://raw.githubusercontent.com/bigcode-project/bigcode-evaluation-harness/main/docs/README.md">https://raw.githubusercontent.com/bigcode-project/bigcode-evaluation-harness/main/docs/README.md</a></li>
+<li>LongCodeBench paper (arXiv 2505.07897): <a href="https://arxiv.org/abs/2505.07897v3">https://arxiv.org/abs/2505.07897v3</a></li>
+</ul>
+<p>Our own numbers come from the score files, per-question records and health-check files of the runs under <code>runs/cosmos_eval_downstream/</code>. The official and public settings were read from the pages above on 2026-11-13.</p>
+</main>
+<script type="text/markdown" id="md-source"># Downstream evaluation details
+
+This document records how we run the downstream tasks today: the settings of every task (temperature, top-p, top-k, generation cap, samples per question, stop strings) and how they compare with the official or commonly used settings.
+
+- It is a record only. It changes no evaluation setting. Decision (2026-11-13): the current method and settings stay as they are, and the existing baselines are not re-run.
+- The task list is `cosmos_ultra_ladder`: 36 tasks, 66 scores. Every model uses the same list.
+- The settings are taken from the records the evaluation stored, that is, the values actually sent to the model. The example is the Qwen3.8-Max run.
+- Last updated: 2026-11-13.
+
+## 1. Settings shared by all tasks
+
+| Item | What we do |
+|---|---|
+| top-k | Not used by any task. The request does not carry this parameter |
+| top-p | Only three tasks send it: HumanEval 0.95, LiveCodeBench 0.95, MBPP 1.0 (which cuts nothing). The other tasks do not send it and sample from the full distribution |
+| Sampling defaults shipped with a model | Not used. The servers of the reference models are started so that only the sampling parameters in the request apply. For our own checkpoints we checked before the evaluation that a request without parameters uses the full distribution |
+| Server length limit | 16,384 tokens (prompt plus generation) |
+| Random seed for the few-shot examples | 1234, recorded in every score file |
+| Seed of the sampled tasks | Sample number r uses seed r, so sampled results can be reproduced |
+
+The two kinds of task handle truncation differently:
+
+- **Multiple choice** (13 tasks): the model writes nothing. The prompt plus the option may be up to 16,383 tokens long. The longest MMLU prompt we measured is 3,097 tokens, so no question is cut. The old evaluation flow used the default limit of 2,048, and with it 373 MMLU questions lost their beginning.
+- **Generation** (23 tasks): the prompt is sent whole and is never cut. What the model writes has a cap (see "generation cap" in 2.1) and is cut off there. It is also cut at a stop string.
+
+## 2. Settings of every task
+
+### 2.1 Generation tasks (23)
+
+"Temperature 0" means no sampling: the model writes its single most likely answer per question.
+
+| Task | Questions | Examples | Samples per question | Temperature | top-p | Generation cap | Stop strings |
+|---|---:|---:|---:|---:|---|---:|---|
+| mbpp_sanitized_3shot_sampled | 257 | 3 | 32 | 0.5 | 1.0 | 768 | `[DONE]`, `[DONE`, `\nYou are an expert Python programmer`, `&lt;/s&gt;` |
+| humaneval_sampled | 164 | 0 | 32 | 0.2 | 0.95 | 512 | 12 strings, listed below the table |
+| lcb_codegen | 1,055 | 1 | 1 | 0 | 0.95 | 1,024 | `###` |
+| lcb_codegen_sampled | 1,055 | 1 | 32 | 0.2 | 0.95 | 1,024 | `###` |
+| mmlu_pro_5_shot_base | 12,032 | 5 | 1 | 0 | not sent | 2,048 | `Question:` |
+| agieval_en_cot | 2,546 | 2 to 5 | 1 | 0 | not sent | 2,000 | `&lt;END&gt;` |
+| gpqa_diamond_cot_n_shot | 196 | 5 | 1 | 0 | not sent | 2,048 | `&lt;/s&gt;`, `Question:` |
+| gpqa_diamond_cot_n_shot_sampled | 196 | 5 | 32 | 0.7 | not sent | 2,048 | `&lt;/s&gt;`, `Question:`, the model's end marker |
+| supergpqa_main_cot_n_shot | 26,529 | 5 | 1 | 0 | not sent | 2,048 | `&lt;/s&gt;`, `Question:` |
+| mgsm_native_cot_zh | 250 | 8 | 1 | 0 | not sent | 4,096 | `问题:`, `问题：`, `&lt;/s&gt;`, three line breaks in a row, the model's end marker |
+| math_500_sampled | 500 | 4 | 32 | 0.7 | not sent | 4,096 | `Problem:`, `Question:`, `Q:`, `&lt;/s&gt;`, the model's end marker |
+| hmmt_sampled | 30 | 4 | 32 | 0.7 | not sent | 4,096 | `Problem:`, `Question:`, `&lt;/s&gt;`, the model's end marker |
+| aime24 | 30 | 4 | 32 | 0.7 | not sent | 4,096 | `Problem:`, `Question:`, `Q:`, `&lt;/s&gt;`, the model's end marker |
+| aime25 | 30 | 4 | 32 | 0.7 | not sent | 4,096 | same as aime24 |
+| minerva_math_nemo | 5,000 | 4 | 1 | 0 | not sent | 4,096 | same as aime24 |
+| gsm8k_cot | 1,319 | 8 | 1 | 0 | not sent | 1,024 | `Q:`, `&lt;/s&gt;`, the model's end marker |
+| gsm8k_cot_nemo | 1,319 | 8 | 1 | 0 | not sent | 1,024 | `Problem:`, `Question:`, `Q:`, `&lt;/s&gt;`, the model's end marker |
+| trivia_qa | 17,944 | 5 | 1 | 0 | not sent | 256 | line break (only the first line is the answer) |
+| popqa_15shot | 14,267 | 15 | 1 | 0 | not sent | 15 | line break |
+| naturalqs_5shot | 3,610 | 5 | 1 | 0 | not sent | 256 | line break |
+| simpleqa_5shot | 4,326 | 5 | 1 | 0 | not sent | 64 | line break, `&lt;/s&gt;`, the model's end marker |
+| simpleqa_verified_25shot | 1,000 | 25 | 1 | 0 | not sent | 64 | line break, `&lt;/s&gt;`, the model's end marker |
+| facts_parametric_25shot | 1,052 | 25 | 1 | 0 | not sent | 64 | line break, `&lt;/s&gt;`, the model's end marker |
+
+Notes:
+
+- The 12 stop strings of HumanEval: `&lt;/s&gt;`, the code fence, `\ndef `, `\nimport `, `\nfrom `, `\nclass `, `\nprint(`, `\nassert `, `\nif __name__`, `\n@`, and lines that start with either kind of triple quote.
+- "The model's end marker" is each model family's own end symbol (im_end, endoftext, eot_id and so on).
+- The "1 example" of LiveCodeBench is one fixed example problem that the prompt always carries, see section 3.
+- The values of the five math tasks (math_500, hmmt, aime24, aime25, minerva) come from the re-run of the math tasks (`MATHFIX_*`).
+
+### 2.2 Multiple-choice tasks (13)
+
+No text is generated, so there is no temperature, top-p, generation cap or stop string. Each option is appended to the prompt in turn, and the option the model finds most likely is its answer.
+
+| Task | Questions | Subjects | Examples | Options per question |
+|---|---:|---:|---:|---|
+| mmlu | 14,042 | 57 | 5 | 4 |
+| mmlu_redux | 5,330 | 57 | 5 | 4 |
+| global_mmlu_zh | 400 | 6 | 5 | 4 |
+| include_base_44_chinese | 545 | 8 | 5 | 4 |
+| commonsense_qa | 1,221 | 1 | 7 | 5 |
+| arc_challenge_llama | 1,172 | 1 | 25 | 4 (a few questions have 3 or 5) |
+| hellaswag | 10,042 | 1 | 10 | 4 |
+| openbookqa | 500 | 1 | 0 | 4 |
+| piqa | 1,838 | 1 | 0 | 2 |
+| social_iqa | 1,954 | 1 | 0 | 3 |
+| truthfulqa_mc2 | 817 | 1 | 0 | 2 to 20 |
+| winogrande | 1,267 | 1 | 5 | 2 |
+| race_high_all | 3,498 | 1 | 0 | 4 |
+
+## 3. How LiveCodeBench is run
+
+LCB here means LiveCodeBench (competitive programming problems). There is also a LongCodeBench (a whole code repository in the context, up to 1 million tokens) with the same abbreviation. We have never run it.
+
+### 3.1 Problem set
+
+| Item | Content |
+|---|---|
+| Dataset | `sam-paech/livecodebench-code_generation_lite`, a mirror of the official `livecodebench/code_generation_lite` |
+| Version | `release_v6`, 1,055 problems, the same number as the official release_v6 |
+| Problem dates | May 2023 to April 2025 |
+| Source | AtCoder 602, LeetCode 444, Codeforces 9 |
+| Difficulty | easy 322, medium 383, hard 350 |
+| Problem type | 611 read standard input (AtCoder, Codeforces); 444 complete a function (LeetCode) |
+
+### 3.2 Two tasks
+
+| Task | Programs per problem | Randomness | Scores reported |
+|---|---:|---|---|
+| `lcb_codegen` | 1 | none (temperature 0) | pass rate |
+| `lcb_codegen_sampled` | 32 | temperature 0.2, top-p 0.95 | pass rate of a single program; share of problems where at least one of the 32 passes |
+
+### 3.3 How the prompt is built
+
+We use the official format for base models (not chat models): one fixed example problem with its reference program, then the problem under test, ending right after `### Answer`.
+
+```
+### Question
+(statement of the example problem)
+
+### Answer
+
+(reference program of the example problem)
+
+### Question
+(statement of the problem under test)
+
+### Answer
+
+```
+
+A function-completion problem has an extra `### Starter Code` block after the statement, with the function signature. Each of the two problem types has its own fixed example problem.
+
+Prompt length (Qwen3 tokenizer): median 1,412 tokens, longest 2,935 tokens, far below the server limit of 16,384, so no problem is cut.
+
+### 3.4 Generation settings
+
+| Item | `lcb_codegen` | `lcb_codegen_sampled` |
+|---|---|---|
+| Programs per problem | 1 | 32 |
+| Temperature | 0 | 0.2 |
+| top-p | 0.95 (has no effect at temperature 0) | 0.95 |
+| top-k | not used | not used |
+| Generation cap | 1,024 tokens | 1,024 tokens |
+| Stop string | `###` | `###` |
+
+### 3.5 How an answer is judged
+
+1. The model's answer, with leading and trailing whitespace removed, is run as a program as it is. Markdown code fences are not removed. This is the official handling for base models.
+2. The tests are the public examples plus the hidden tests. A program passes only when it passes all of them. A problem has 1 to 103 tests, median 13.
+3. Standard-input problems: the input is fed to the program and the output is compared line by line (after removing leading and trailing whitespace; when the lines differ, they are compared once more as numbers).
+4. Function-completion problems: the model's function is called, and the return value must equal the expected value.
+5. Each test has a time limit of 6 seconds. There are five outcomes: passed, wrong answer, timed out, runtime error, error in the test program.
+6. 16 processes judge in parallel, and each test process may add at most 16 GB of memory.
+
+How the scores are computed:
+
+- **Pass rate (1 program)**: problems passed divided by 1,055.
+- **Pass rate of a single program (32 programs)**: per problem, the share of the 32 programs that pass, averaged over all problems.
+- **At least one of 32 passes**: problems where at least one program passes, divided by 1,055.
+
+The score file also gives the pass rate by difficulty (easy, medium, hard). These are not among the 66 scores.
+
+### 3.6 Comparison with the official settings
+
+The official values come from the parameter definition file and the README of the LiveCodeBench repository.
+
+| Item | Ours | Official | Same |
+|---|---|---|---|
+| Temperature | 0.2 | 0.2 | yes |
+| top-p | 0.95 | 0.95 | yes |
+| top-k | not used | no such parameter | yes |
+| Stop string | `###` | `###` | yes |
+| Generation cap | 1,024 | 2,000 | no |
+| Programs per problem | 32 | 10 | no |
+| Prompt format, handling of the answer | the official base-model format | | yes |
+
+The README says: "We use n=10 and temperature=0.2 for generation". `lcb_codegen` (no sampling, 1 program) is not an official setting. We added it ourselves.
+
+### 3.7 Effect of the two differences
+
+**Generation cap 1,024 versus 2,000.** Share of answers that reach the cap without stopping (`lcb_codegen` / `lcb_codegen_sampled`, counted on the first 400 problems of each run):
+
+| Model | 1 program | 32 programs |
+|---|---:|---:|
+| Qwen3.8-Max | 0.5% | 0.4% |
+| MiMo-V2.5-Pro-Base | 1.0% | 0.7% |
+| Qwen3-235B | 1.2% | 1.4% |
+| MiMo-V2.6-Pro-RL | 2.2% | 1.3% |
+| PROD1_DPSK_LATENT2_E2X_QBK3 q3 | 2.2% | 2.3% |
+| 59B iter18000 | 3.0% | 2.8% |
+| Qwen3-30B-Base | 4.2% | 3.9% |
+| Qwen3.8-27B | 5.5% | 6.0% |
+| Qwen3.8-Flash-Next | 6.5% | 5.5% |
+| PROD1_DPSK_LATENT2_E2X q3 | 6.8% | 6.1% |
+
+- A normal program is short: median 110 to 130 tokens.
+- There are two reasons for reaching the cap. For our own E2X q3, 83% of the capped answers repeat themselves in a loop, and a higher cap would not make them pass. For Qwen3.8-27B and Flash-Next only 7% and 1% are loops; the rest are genuinely long answers.
+- A comment in the task list records an estimate: on the stored answers, the difference between a cap of 1,024 and 2,000 is −0.04 to +0.01 points.
+
+**32 programs per problem versus 10.** The pass rate of a single program does not depend on the number of programs, so it can be compared with official numbers. "At least one of N passes" depends on N, so our 32 cannot be compared directly with the official 10.
+
+### 3.8 How the two tasks relate
+
+Over 10 runs the two tasks lead to almost the same conclusion:
+
+| Model | Pass rate, 1 program | Single-program pass rate, 32 programs | Difference | At least one of 32 passes | Time (minutes) |
+|---|---:|---:|---:|---:|---|
+| Qwen3.8-Max | 52.6 | 51.7 | 0.9 | 68.8 | 10 / 157 |
+| MiMo-V2.6-Pro-RL | 49.7 | 50.0 | −0.3 | 69.3 | 7 / 93 |
+| MiMo-V2.5-Pro-Base | 45.8 | 45.9 | −0.1 | 65.2 | 7 / 96 |
+| Qwen3.8-27B | 40.7 | 41.1 | −0.5 | 62.0 | 5 / 92 |
+| Qwen3.8-Flash-Next | 40.4 | 37.8 | 2.6 | 65.6 | 8 / 155 |
+| Qwen3-235B | 38.3 | 36.5 | 1.8 | 56.1 | 5 / 97 |
+| Qwen3-30B-Base | 36.3 | 35.8 | 0.5 | 51.5 | 4 / 42 |
+| 59B iter18000 | 23.3 | 22.9 | 0.4 | 35.8 | 13 / 255 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 q3 | 16.3 | 15.9 | 0.4 | 26.2 | 8 / 151 |
+| PROD1_DPSK_LATENT2_E2X q3 | 14.6 | 14.2 | 0.4 | 24.8 | 9 / 179 |
+
+- The correlation between the two pass rates is 0.9975, and the 10 models rank in exactly the same order. The mean difference is 0.8 points, the largest 2.6 points.
+- The error ranges of the two numbers are ±1.5 and ±1.35, almost the same: the error comes mainly from having only 1,055 problems, and writing 31 more programs makes the result hardly more precise.
+- What only the 32-program task provides is "at least one of 32 passes".
+- The time is the wall-clock time from the job records. The server was running other tasks at the same time, so it shows the order of magnitude only.
+- Decision (2026-11-13): both tasks continue to be run.
+
+## 4. HumanEval and MBPP: comparison with public practice
+
+Apart from the original papers, these two benchmarks have no single agreed setting. The table puts the commonly cited ones side by side.
+
+- **Original paper**: the method of the benchmark's authors. HumanEval is from OpenAI's Codex paper of 2021, MBPP from a Google paper of 2021.
+- **Upstream lm-eval**: the public original of our evaluation framework, with the tasks it ships.
+- **EvalPlus**: a public code evaluation tool and leaderboard.
+- **bigcode**: the evaluation tool of the BigCode leaderboard.
+
+### 4.1 HumanEval
+
+| Item | Ours | Original paper | Upstream lm-eval | EvalPlus | bigcode |
+|---|---|---|---|---|---|
+| Temperature | 0.2 | 0.2 for the single-sample pass rate | no sampling | no sampling | 0.2 |
+| top-p | 0.95 | 0.95 | none | not set | 0.95 |
+| top-k | not used | not mentioned | none | not set | off |
+| Generation cap | 512 | not specified | 1,024 | 768 | 512 |
+| Samples per problem | 32 | 200 | 1 | 1 | 200 |
+
+- The original paper writes 200 samples per problem because it reports "at least one of 100 passes". The single-sample pass rate alone does not need that many.
+- Generation cap: the original paper specifies none. Our 512 is the tightest of these. Whether bigcode's 512 includes the prompt is not clear from its documentation.
+
+### 4.2 MBPP
+
+| Item | Ours | Original paper | Upstream lm-eval | EvalPlus | bigcode |
+|---|---|---|---|---|---|
+| Temperature | 0.5 | 0.5 | no sampling | no sampling | 0.1 |
+| top-p, top-k | neither used | neither mentioned | none | not set | top-p 0.95 |
+| Generation cap | 768 | not specified | not set | 768 | 512 |
+| Samples per problem | 32 | 80 | 1 | 1 | 15 |
+| Examples | problems 2, 3, 4 | the dataset README names problems 2, 3, 4 | problems 2, 3, 4 | | another prompt |
+
+- The main metric of the original paper is "solved when any one of 80 samples passes". It reports no single-sample pass rate. Our counterpart is "at least one of 32 passes", but the number of samples differs, so the two cannot be compared directly.
+- The problem set differs: the original paper uses 500 test problems, we use the hand-verified subset of 257.
+
+## 5. What truncation does in practice: share of answers that reach the generation cap
+
+Share of answers that reach the cap without stopping, counted on the first 400 questions of each task.
+
+| Task | Cap | Qwen3.8-Max | Qwen3.8-27B | Qwen3-30B-Base | E2X q3 | 59B iter18000 |
+|---|---:|---:|---:|---:|---:|---:|
+| popqa_15shot | 15 | 0% | 0% | 0% | 0% | 0% |
+| simpleqa_5shot | 64 | 0% | 0% | 1.0% | 0.2% | 0.5% |
+| simpleqa_verified_25shot | 64 | 0% | 0% | 0.5% | 0.2% | 0.2% |
+| facts_parametric_25shot | 64 | 0% | 0% | 2.2% | 5.0% | 11.2% |
+| trivia_qa | 256 | 0% | 0% | 0.2% | 0% | 0% |
+| naturalqs_5shot | 256 | 0% | 0% | 0.2% | 0.5% | 1.5% |
+| humaneval_sampled | 512 | 1.7% | 0.7% | 1.1% | 8.9% | 15.1% |
+| mbpp_sanitized_3shot_sampled | 768 | 0% | 5.7% | 0% | 0.2% | 0.2% |
+| lcb_codegen | 1,024 | 0.5% | 5.5% | 4.2% | 6.8% | 3.0% |
+| lcb_codegen_sampled | 1,024 | 0.4% | 6.0% | 3.9% | 6.1% | 2.8% |
+| gsm8k_cot | 1,024 | 0.2% | 0.2% | 0% | 1.2% | 1.0% |
+| gsm8k_cot_nemo | 1,024 | 0% | 0% | 0% | 1.8% | 0.5% |
+| agieval_en_cot | 2,000 | 0.9% | 9.5% | 3.0% | 12.7% | 9.4% |
+| mmlu_pro_5_shot_base | 2,048 | 3.3% | 6.6% | 0.4% | 4.2% | 1.9% |
+| supergpqa_main_cot_n_shot | 2,048 | 7.2% | 24.2% | 8.2% | 20.0% | 12.0% |
+| gpqa_diamond_cot_n_shot | 2,048 | 5.6% | 55.1% | 6.1% | 33.2% | 13.3% |
+| gpqa_diamond_cot_n_shot_sampled | 2,048 | 0.9% | 51.3% | 1.3% | 9.1% | 4.5% |
+| math_500_sampled | 4,096 | 1.5% | 5.4% | 1.1% | 8.8% | 3.4% |
+| minerva_math_nemo | 4,096 | 2.4% | 7.1% | 4.2% | 16.3% | 11.4% |
+| aime24 | 4,096 | 16.2% | 41.0% | 4.4% | 24.5% | 13.3% |
+| aime25 | 4,096 | 12.9% | 49.3% | 4.4% | 22.2% | 15.4% |
+| hmmt_sampled | 4,096 | 23.8% | 66.6% | 4.4% | 19.1% | 12.5% |
+| mgsm_native_cot_zh | 4,096 | 0% | 0% | 0% | 0.4% | 0.8% |
+
+- Qwen3.8-27B reaches the cap very often on HMMT, GPQA, AIME and SuperGPQA (24% to 67%): its reasoning is long. Its scores on these tasks are affected by the cap, which matters when it is compared with other models.
+- Reaching the cap is not the same as losing points. An answer that repeats itself in a loop would not become right with a higher cap.
+
+## 6. Sources
+
+- LiveCodeBench official parameters: &lt;https://raw.githubusercontent.com/LiveCodeBench/LiveCodeBench/main/lcb_runner/runner/parser.py&gt;
+- LiveCodeBench official README: &lt;https://raw.githubusercontent.com/LiveCodeBench/LiveCodeBench/main/README.md&gt;
+- HumanEval original paper (Codex, arXiv 2107.03374): &lt;https://ar5iv.labs.arxiv.org/html/2107.03374&gt;
+- MBPP original paper (arXiv 2108.07732): &lt;https://ar5iv.labs.arxiv.org/html/2108.07732&gt;
+- MBPP dataset README: &lt;https://raw.githubusercontent.com/google-research/google-research/master/mbpp/README.md&gt;
+- Upstream lm-eval HumanEval task: &lt;https://raw.githubusercontent.com/EleutherAI/lm-evaluation-harness/main/lm_eval/tasks/humaneval/humaneval.yaml&gt;
+- Upstream lm-eval MBPP task: &lt;https://raw.githubusercontent.com/EleutherAI/lm-evaluation-harness/main/lm_eval/tasks/mbpp/mbpp.yaml&gt;
+- EvalPlus: &lt;https://raw.githubusercontent.com/evalplus/evalplus/master/evalplus/codegen.py&gt;
+- bigcode-evaluation-harness: &lt;https://raw.githubusercontent.com/bigcode-project/bigcode-evaluation-harness/main/docs/README.md&gt;
+- LongCodeBench paper (arXiv 2505.07897): &lt;https://arxiv.org/abs/2505.07897v3&gt;
+
+Our own numbers come from the score files, per-question records and health-check files of the runs under `runs/cosmos_eval_downstream/`. The official and public settings were read from the pages above on 2026-11-13.
+</script></body></html>

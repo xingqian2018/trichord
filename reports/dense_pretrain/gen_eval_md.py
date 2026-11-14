@@ -41,7 +41,7 @@ _由 `reports_xx/gen_eval_md.py` 生成于 {ts}：正文 = `qwen3_scaling_ladder
 附录 = `trichord/dense_pretrain_result/*.json` 的原始数。不要手改：改 `gen_eval_html.py` 后重跑它（它会自动重写本文件）。_
 
 读法：
-- 内容和 HTML 一一对应、顺序相同。HTML 的每个页签 = 下面一个 `## 页签：…` 大节（doc-isolated = 主评测（逐项叠加的架构变化 + 数据 derisk）；doc-isolated老实验 = 其余单项实验（优化器、KD 对 CE、尾部估算方式、KD teacher、文档 mask、SWA、router、负熵均衡、第 0 层 dense、Latent MoE、位置编码），同一套评测；外部参考；LR 拟合实验；packed = Boxiang 训练时自带的验证，绝对值比 doc-isolated 高约 0.013–0.016，两者的绝对值不能互比）。
+- 内容和 HTML 一一对应、顺序相同。HTML 的每个页签 = 下面一个 `## 页签：…` 大节（doc-isolated = 主评测（逐项叠加的架构变化 + 数据 derisk）；prod downstream = 我们自己的 checkpoint 的全量测评（统一 harness 的 cosmos_ultra_ladder：36 个任务、66 个指标，重点 19 个任务；分数 ×100）；外部参考 = 外部模型的 doc-isolated 测试 + 同一套全量测评；老实验 = doc-isolated 的其余单项实验（优化器、KD 对 CE、尾部估算方式、KD teacher、文档 mask、SWA、router、负熵均衡、第 0 层 dense、Latent MoE、位置编码），和主评测同一套评测；LR 拟合实验；packed = Boxiang 训练时自带的验证，绝对值比 doc-isolated 高约 0.013–0.016，两者的绝对值不能互比）。
 - 每张图都换成了数据表，数取自图上的悬停提示：表头是 rung（或横轴上的点），每行是图里的一条线；横轴点多时（LR 扫描、训练步数）行列互换，router 健康曲线均匀抽 12 个点（含首尾）。`·` = 该点没有数据。
 - HTML 里靠按钮切换的内容全部展开，每块前面标明是哪个按钮：〔指标：…〕（overall_tsqw / overall_tw / overall_macro / 单个验证集）、〔视图：…〕（窗口、统计量等）、〔窗口：…〕。
 - 单位 nats/token（另注 bpb、ppl 的除外）；图里的数大多是“该线 − 0 线”的 Δloss，负数 = 比 0 线好；各节的 0 线写在该节说明里，不同节的 0 线常常不同。

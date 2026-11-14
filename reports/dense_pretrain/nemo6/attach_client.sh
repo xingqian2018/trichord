@@ -14,10 +14,12 @@ addr=$(getent hosts "$head" | awk '{print $1}')
 curl -sf "http://$addr:8000/health" >/dev/null || { echo "server of job $JOB ($head) not healthy"; exit 1; }
 export LME_SRC_DIR=$RT/src VENV=$RT/env HF_HOME=$U/data/nemo6_hf_cache HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTHONNOUSERSITE=1
 export OMP_NUM_THREADS=8 XDG_CACHE_HOME=/tmp/nemo6_attach_$$ NEMO6_LCB_WORKERS=${NEMO6_LCB_WORKERS:-32} NEMO6_EXEC_DATA_GB=${NEMO6_EXEC_DATA_GB:-16}
+# client = v2 only (user 11-08): NEMO6_MAX_LENGTH must be the server's max sequence (vLLM --max-model-len / ladder MAXSEQ)
+export NEMO6_FIX=v2 NEMO6_FEWSHOT_SEED=${NEMO6_FEWSHOT_SEED:-1234} NEMO6_MAX_GEN_TOKS=${NEMO6_MAX_GEN_TOKS:-4096} NEMO6_MAX_LENGTH=${NEMO6_MAX_LENGTH:-16384}
 echo "$(date) attach to job $JOB ($head $addr): $NAME tasks $TASKS"
 srun -A cosmos_base_training --jobid="$JOB" --overlap --nodes=1 --ntasks=1 -w "$head" --container-image="$CIMAGE" \
     --container-mounts=/lustre:/lustre,/scratch:/scratch --container-workdir=/tmp \
-    --export=ALL,PYTHONPATH=$N6/client_compat:$LME_SRC_DIR bash -c \
+    --export=ALL,PYTHONPATH=$N6/client_compat_v2:$N6/client_compat:$LME_SRC_DIR bash -c \
     'mkdir -p $XDG_CACHE_HOME; source $VENV/bin/activate; cd $LME_SRC_DIR; exec python -u "$@"' _ \
     "$N6/run_tasks.py" --config "$N6/${CONFIG:-nemo6_report.yml}" --results-dir "$U/runs/nemo6_eval" --model-name "$NAME" --tokenizer "$MODEL" \
     --host "$addr" --port 8000 --lanes "$LANES" --tasks "$TASKS" --judge-env "$U/private/nemo6_judge.env" \

@@ -33,6 +33,33 @@ from assemble_results import load_results, tabulate_results  # noqa: E402
 from launch_evals import vllm_model_args  # noqa: E402
 
 JUDGE_TASKS = {"simpleqa_verified_25shot", "facts_parametric_25shot"}
+# 11-10 decision (user + Runlong): MATH-500 / Minerva results count only at their 32K-context caps (nemo6_report.yml); a 1024-token result
+# does not mark the task done. Same table in collect_nemo6.py. PROMPT_MARGIN = room for the prompt in the server's max length.
+MIN_GEN_TOKS = {"math_500_sampled": 31232, "minerva_math_nemo": 30720}
+PROMPT_MARGIN = 1536
+
+
+def task_gen_cap(t):
+    """max_gen_toks of a nemo6_report.yml task entry (overrides / generation_kwargs); 0 = none set (harness / client default)."""
+    od = t.get("overrides") or {}
+    gk = t.get("generation_kwargs") or {}
+    return int(od.get("generation_kwargs.max_gen_toks") or gk.get("max_gen_toks") or 0)
+
+
+def gen_caps(out, task):
+    """max_gen_toks of every full results file holding `task` under `out` (a group: its smallest subtask cap; 0 = not recorded)."""
+    caps_seen = set()
+    for f in sorted(Path(out).glob("**/results_*.json"), key=os.path.getmtime):
+        try:
+            r = json.load(open(f))
+        except Exception:
+            continue
+        if task in r.get("results", {}) and r.get("config", {}).get("limit") is None:
+            cfgs = r.get("configs", {})
+            subs = [task] if task in cfgs else ((r.get("group_subtasks") or {}).get(task) or [])     # a group: smallest subtask cap
+            caps = [int(((cfgs.get(x) or {}).get("generation_kwargs") or {}).get("max_gen_toks") or 0) for x in subs]
+            caps_seen.add(min(caps) if caps else 0)
+    return caps_seen
 RESUME_CACHE = os.environ.get("NEMO6_RESUME_CACHE", "1") == "1"   # see task_cmd
 # tasks that execute generated programs at scoring time: at most one at a time (pilot 39048: LCB scoring OOM-killed the client)
 CODE_TASKS = {"lcb_codegen", "lcb_codegen_sampled", "humaneval_sampled", "mbpp_sanitized_3shot_sampled",
@@ -140,9 +167,24 @@ def main():
     (out / f"manifest_{os.environ.get('SLURM_JOB_ID', 'local')}.json").write_text(json.dumps(man, indent=1))
 
     done = {k[0] for k in load_results(out).keys()}
+    done -= {t for t in MIN_GEN_TOKS if max(gen_caps(out, t) or {0}) < MIN_GEN_TOKS[t]}   # only a 32K-cap result counts as done (11-10)
+    if os.environ.get("NEMO6_FORCE_TASKS") == "1":          # rescoring (e.g. official BigCodeBench checker): rerun the --tasks even if done;
+        done = set()                                          # the newer results file wins in collect_nemo6.py
     todo = [t for t in tasks if t["task_name"] not in done]
+    # a task whose cap + prompt does not fit the server (e.g. a requeued job whose stored script still has MAXSEQ / MML 16384) is skipped,
+    # not run with requests the server would reject
+    maxlen = int(os.environ.get("NEMO6_MAX_LENGTH", "0") or 0)
+    for t in [t for t in todo if maxlen and task_gen_cap(t) + PROMPT_MARGIN > maxlen]:
+        print(f"SKIP {t['task_name']}: max_gen_toks {task_gen_cap(t)} + prompt {PROMPT_MARGIN} > server max length {maxlen} "
+              f"(resubmit with MAXSEQ / MML >= {task_gen_cap(t) + PROMPT_MARGIN})", flush=True)
+        todo.remove(t)
     print(f"{len(tasks)} tasks, {len(tasks) - len(todo)} already done, {len(todo)} to run; lanes {a.lanes} conc {a.conc}", flush=True)
-    todo.sort(key=lambda t: (t["task_name"] in JUDGE_TASKS, -EST.get(t["task_name"], 3)))
+    # NEMO6_FIRST=<task,task,...>: these tasks are queued before all others (e.g. the report's key-benchmark tasks first, user 11-10);
+    # unset = the old order (judge tasks last, longest first)
+    first = set(filter(None, os.environ.get("NEMO6_FIRST", "").split(",")))
+    todo.sort(key=lambda t: (t["task_name"] not in first, t["task_name"] in JUDGE_TASKS, -EST.get(t["task_name"], 3)))
+    if first:
+        print("queue order:", ", ".join(t["task_name"] for t in todo), flush=True)
     lock = threading.Condition()
     status = {}
     code_running = [False]
@@ -190,7 +232,8 @@ def main():
                     print(f"[lane {li}] SKIP {name}: judge credentials unusable ({why})", flush=True)
                     return
                 env.update(je)
-            if not healthy(a.host, a.port):
+            # NEMO6_NO_SERVER=1: cached-only scoring with no server (score_cached_cpu.sbatch); an uncached batch then fails to connect
+            if os.environ.get("NEMO6_NO_SERVER") != "1" and not healthy(a.host, a.port):
                 with lock:
                     status[name] = "not run (server down)"
                 print(f"[lane {li}] server not healthy, not starting {name}", flush=True)

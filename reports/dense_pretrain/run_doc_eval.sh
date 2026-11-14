@@ -61,15 +61,18 @@ for key in "${keys[@]}"; do
     change="${key%/*}"; rung="${key#*/}"; src="${spec:-${CKPTS[${key}]:-p}}"   # any other CHANGE/rung: Boxiang's promoted dir
     if [[ "${src}" == p ]]; then ckpt="${PROMOTED}/${change}/ckpts/${rung}"
     elif [[ "${src}" == p:* ]]; then ckpt="${PROMOTED}/${src#p:}/ckpts/${rung}"   # CHANGE/rung=p:<promoted CHANGE>: another eval id (e.g. <ID>_W32K) of a promoted run (11-04)
+    elif [[ "${src}" == ckpt:* ]]; then ckpt="${src#ckpt:}"   # CHANGE/rung=ckpt:<dir>: a checkpoint dir staged elsewhere (stage_prod_ckpt.py: one iteration of a production run, rung it<N>; 11-13)
     else ckpt="$(stage "${change}" "${rung}" "${src#run:}")"; fi
     [[ -f "${ckpt}/latest_checkpointed_iteration.txt" && -f "${ckpt}/argv.txt" ]] || { echo "ERROR: ${ckpt} is not a checkpoint dir" >&2; exit 1; }
-    limit="${LIMIT[${rung}]}"                                # off-ladder depth cells (_L<n>H<h>): ~4 min per layer (L 48 took 3:10)
+    limit="${LIMIT[${rung}]:-${EVAL_TIME:-}}"; [[ -n "${limit}" ]] || { echo "ERROR: no time limit for rung ${rung}: set EVAL_TIME=HH:MM:SS" >&2; exit 1; }
+                                                             # off-ladder depth cells (_L<n>H<h>): ~4 min per layer (L 48 took 3:10)
     if [[ "${change}" =~ _L([0-9]+)H[0-9]+ ]]; then nl="${BASH_REMATCH[1]}"; h=$(( nl * 6 / 60 + 1 )); (( h > ${limit%%:*} )) && limit="$(printf %02d "${h}"):00:00"; fi
     if [[ "${change}" == *_W32K* ]]; then h=$(( 10#${limit%%:*} + 1 )); limit="$(printf %02d "${h}"):${limit#*:}"; fi   # 32K window: ~1.4x the 8K time (+1 h)
     if [[ -n "${DUALWIN}" ]]; then
         [[ "${change}" == *_W32K* ]] || { echo "ERROR: EVAL_DUALWIN_SEQ: ${change} must contain _W32K (window A = 32K, B = ${DUALWIN})" >&2; exit 1; }
         h=$(( 10#${limit%%:*} * 2 )); limit="$(printf %02d "${h}"):${limit#*:}"   # both windows in one job: the 32K limit + the 8K limit
     fi
+    if [[ -n "${EVAL_TIME:-}" ]]; then limit="${EVAL_TIME}"; fi   # EVAL_TIME=HH:MM:SS: the job's time limit as given (production-run checkpoints: the rung table does not apply; 11-13)
     dep=(); if [[ -n "${PREV}" ]]; then dep=(--dependency="afterany:${PREV}"); fi
     qos=(--qos=hero-res --reservation=sla_res_cosmos); [[ "${EVAL_QOS:-hero-res}" != hero-res ]] && qos=(--qos="${EVAL_QOS}")   # EVAL_QOS=normal: sla_res_cosmos drained 10-29 (user 10-30)
     # EVAL_SPLIT3=1 (11-03, user "好慢啊"): three parallel 1-node jobs on disjoint suite groups (VAL_SUITES; samples at 8K: 60k / 47k / 33k of 141k),
@@ -84,11 +87,14 @@ for key in "${keys[@]}"; do
         name="xxdoc-${ch}-${rung}"
         dw=""; if [[ -n "${DUALWIN}" ]]; then chb="${change/_W32K/}"; [[ -n "${parts[$i]}" ]] && chb="${chb}__P$((i + 1))of${#parts[@]}"
             dw="export PYTHONDONTWRITEBYTECODE=1 DUALWIN_SEQ=${DUALWIN} DUALWIN_DIR=${WORK_DIR}/${chb}-${rung}-\${SLURM_JOB_ID}; "; fi
+        # EVAL_CACHE_PER_JOB=1 (11-13): the dataset index cache of this job only, <eval dir>/data_cache/index, instead of the shared corpus_v2
+        # cache - for checkpoints staged without a training blend (nothing to reuse there; parallel jobs then never write the same index file)
+        pc=""; if [[ "${EVAL_CACHE_PER_JOB:-0}" == 1 ]]; then pc="export EVAL_DATA_CACHE=${WORK_DIR}/${ch}-${rung}-\${SLURM_JOB_ID}/data_cache/index; mkdir -p \${EVAL_DATA_CACHE}; "; fi
         cmd=(sbatch --parsable "${dep[@]}" -A cosmos_base_training -p batch_long "${qos[@]}" --segment=1 --nodes=1 --ntasks-per-node=4
              --gres=gpu:4 --exclusive --mem=0 --time="${limit}" --job-name="${name}" --output="${WORK_DIR}/sbatch/${name}_%j.log"
              --export=ALL,VAL_PER_SPLIT=1,LADDER_DIR="${LADDER_CODE}",EVAL_DATA_CACHE="${WORK_DIR}/data_cache/corpus_v2"
-             --wrap="${dw}export EVAL_DIR=${WORK_DIR}/${ch}-${rung}-\${SLURM_JOB_ID}; exec bash ${LADDER_CODE}/sh/eval_ckpt.sh ${ckpt} doc")
-        if (( DRY )); then echo "[dry] ${ch}/${rung}: ${ckpt} (${limit})${PREV:+ after ${PREV}}${parts[$i]:+ suites: ${parts[$i]}}${dw:+ + window ${DUALWIN} -> ${chb}} tree ${LADDER_CODE}"; last="dry"; continue; fi
+             --wrap="${dw}export EVAL_DIR=${WORK_DIR}/${ch}-${rung}-\${SLURM_JOB_ID}; ${pc}exec bash ${LADDER_CODE}/sh/eval_ckpt.sh ${ckpt} doc")
+        if (( DRY )); then echo "[dry] ${ch}/${rung}: ${ckpt} (${limit})${pc:+ per-job cache}${PREV:+ after ${PREV}}${parts[$i]:+ suites: ${parts[$i]}}${dw:+ + window ${DUALWIN} -> ${chb}} tree ${LADDER_CODE}"; last="dry"; continue; fi
         if [[ -n "${parts[$i]}" ]]; then last="$(VAL_SUITES="${parts[$i]}" "${cmd[@]}")"; else last="$("${cmd[@]}")"; fi
         last="${last%%;*}"
         echo "${ch}/${rung}: job ${last} (${limit})${dep[*]:+ ${dep[*]}}"

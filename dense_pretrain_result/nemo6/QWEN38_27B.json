@@ -3,10 +3,16 @@
  "display_name": "Qwen3.8-27B",
  "post_trained": true,
  "suite": "nemo6_report",
- "complete": true,
+ "complete": false,
  "n_tasks": 40,
  "n_metrics": 75,
- "missing": [],
+ "missing": [
+  "math_500_sampled pass@1[32],math_verify",
+  "math_500_sampled pass@32[32],math_verify",
+  "minerva_math_nemo exact_match,none",
+  "minerva_math_nemo level_5_exact_match,none",
+  "minerva_math_nemo math500_exact_match,none"
+ ],
  "scale": "0-1 as written by lm_eval (chrF++ / 100 too); report x100",
  "groups": {
   "code": [
@@ -42,7 +48,8 @@
       },
       "results_file": "results_2026-11-05T01-30-29.105526.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    },
    {
     "task": "humaneval_sampled",
@@ -76,7 +83,8 @@
       },
       "results_file": "results_2026-11-05T01-55-53.388765.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    },
    {
     "task": "lcb_codegen",
@@ -96,7 +104,8 @@
       },
       "results_file": "results_2026-11-05T01-42-27.814994.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    },
    {
     "task": "lcb_codegen_sampled",
@@ -130,47 +139,50 @@
       },
       "results_file": "results_2026-11-05T00-35-07.230128.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0001
    },
    {
     "task": "bigcodebench_complete_greedy",
-    "minutes": 3.3,
+    "minutes": 12.5,
     "metrics": [
      {
       "task": "bigcodebench_complete_greedy",
       "alias": "bigcodebench_complete_greedy",
       "result_key": "bigcodebench_complete_greedy",
       "metric": "pass@1[1],bigcodebench_sanitized",
-      "value": 0.5166666666666667,
+      "value": 0.5701754385964912,
       "stderr": "N/A",
       "n_shot": 0,
       "n_samples": {
        "original": 1140,
        "effective": 1140
       },
-      "results_file": "results_2026-11-05T02-11-41.442880.json"
+      "results_file": "results_2026-11-06T22-52-39.810426.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    },
    {
     "task": "bigcodebench_instruct_greedy",
-    "minutes": 5.1,
+    "minutes": 12.5,
     "metrics": [
      {
       "task": "bigcodebench_instruct_greedy",
       "alias": "bigcodebench_instruct_greedy",
       "result_key": "bigcodebench_instruct_greedy",
       "metric": "pass@1[1],bigcodebench_instruct_sanitized",
-      "value": 0.5201754385964912,
+      "value": 0.42719298245614035,
       "stderr": "N/A",
       "n_shot": 0,
       "n_samples": {
        "original": 1140,
        "effective": 1140
       },
-      "results_file": "results_2026-11-05T02-16-48.032401.json"
+      "results_file": "results_2026-11-06T23-05-08.508335.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    }
   ],
   "aggregate": [
@@ -189,7 +201,8 @@
       "n_samples": null,
       "results_file": "results_2026-11-05T01-31-20.222978.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0011
    },
    {
     "task": "agieval_en_cot",
@@ -206,7 +219,8 @@
       "n_samples": null,
       "results_file": "results_2026-11-05T02-05-01.285932.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    },
    {
     "task": "gpqa_diamond_cot_n_shot",
@@ -226,7 +240,8 @@
       },
       "results_file": "results_2026-11-05T02-22-04.153959.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    },
    {
     "task": "gpqa_diamond_cot_n_shot_sampled",
@@ -260,7 +275,8 @@
       },
       "results_file": "results_2026-11-05T01-09-36.020102.json"
      }
-    ]
+    ],
+    "empty_frac": 0.2787
    },
    {
     "task": "supergpqa_main_cot_n_shot",
@@ -280,7 +296,8 @@
       },
       "results_file": "results_2026-11-05T02-21-39.642097.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    },
    {
     "task": "hle_text_sampled",
@@ -314,7 +331,8 @@
       },
       "results_file": "results_2026-11-05T00-57-07.268047.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0213
    },
    {
     "task": "mmlu_pro_0_shot_sampled",
@@ -342,7 +360,8 @@
       "n_samples": null,
       "results_file": "results_2026-11-05T03-51-30.427779.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0172
    },
    {
     "task": "mmlu_str",
@@ -573,7 +592,8 @@
       },
       "results_file": "results_2026-11-05T02-23-34.812391.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0229
    },
    {
     "task": "adlr_include",
@@ -691,28 +711,22 @@
       "alias": "math_500_sampled",
       "result_key": "math_500_sampled",
       "metric": "pass@1[32],math_verify",
-      "value": 0.675,
-      "stderr": "N/A",
-      "n_shot": 4,
-      "n_samples": {
-       "original": 500,
-       "effective": 500
-      },
-      "results_file": "results_2026-11-05T01-07-58.676086.json"
+      "value": null,
+      "stderr": null,
+      "n_shot": null,
+      "n_samples": null,
+      "results_file": null
      },
      {
       "task": "math_500_sampled",
       "alias": "math_500_sampled",
       "result_key": "math_500_sampled",
       "metric": "pass@32[32],math_verify",
-      "value": 0.942,
-      "stderr": "N/A",
-      "n_shot": 4,
-      "n_samples": {
-       "original": 500,
-       "effective": 500
-      },
-      "results_file": "results_2026-11-05T01-07-58.676086.json"
+      "value": null,
+      "stderr": null,
+      "n_shot": null,
+      "n_samples": null,
+      "results_file": null
      }
     ]
    },
@@ -748,7 +762,8 @@
       },
       "results_file": "results_2026-11-05T02-11-38.309946.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0021
    },
    {
     "task": "gsm8k_cot_nemo",
@@ -768,7 +783,8 @@
       },
       "results_file": "results_2026-11-05T02-13-09.738107.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0
    },
    {
     "task": "minerva_math_nemo",
@@ -779,33 +795,33 @@
       "alias": "minerva_math_nemo",
       "result_key": "minerva_math_nemo",
       "metric": "exact_match,none",
-      "value": 0.767,
-      "stderr": 0.005644660329178893,
+      "value": null,
+      "stderr": null,
       "n_shot": null,
       "n_samples": null,
-      "results_file": "results_2026-11-05T01-39-15.035342.json"
+      "results_file": null
      },
      {
       "task": "minerva_math_nemo",
       "alias": "minerva_math_nemo",
       "result_key": "minerva_math_nemo",
       "metric": "level_5_exact_match,none",
-      "value": 0.5974539990339511,
-      "stderr": "N/A",
+      "value": null,
+      "stderr": null,
       "n_shot": null,
       "n_samples": null,
-      "results_file": "results_2026-11-05T01-39-15.035342.json"
+      "results_file": null
      },
      {
       "task": "minerva_math_nemo",
       "alias": "minerva_math_nemo",
       "result_key": "minerva_math_nemo",
       "metric": "math500_exact_match,none",
-      "value": 0.7707534384041003,
-      "stderr": "N/A",
+      "value": null,
+      "stderr": null,
       "n_shot": null,
       "n_samples": null,
-      "results_file": "results_2026-11-05T01-39-15.035342.json"
+      "results_file": null
      }
     ]
    },
@@ -841,7 +857,8 @@
       },
       "results_file": "results_2026-11-05T02-22-37.500835.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0427
    },
    {
     "task": "aime25",
@@ -875,7 +892,8 @@
       },
       "results_file": "results_2026-11-05T02-24-52.722480.json"
      }
-    ]
+    ],
+    "empty_frac": 0.0583
    }
   ],
   "reasoning": [
@@ -1256,10 +1274,10 @@
   "client_image": "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/container/nvidia+pytorch+25.08-py3.sqsh",
   "harness_commit": "17abcb7d88e805e0edace00f3135736970dfa706",
   "config": "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/Project/cosmos_llm_scaling_ladder/reports_xx/nemo6/nemo6_report.yml",
-  "config_sha256": "d933ccb08abc699d73c54432bb2fa300054e6b96364ed012ca67482366e7a2d7",
+  "config_sha256": "d0bc6e8fd611c27daf4b414526c56403731523b439544c22e25d8f8ca7ac1ed0",
   "client_patches": {
    "file": "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/Project/cosmos_llm_scaling_ladder/reports_xx/nemo6/client_compat/nemo6_patches.py",
-   "sha256": "14eaf488f2f0ba50ff25475b35fba7a9d991329a371ed5270999dfeebc6b2518",
+   "sha256": "411f4c9220a187bc417b828c6534d23e06aa828d1256f6c7c34ee7cc4f74f28b",
    "what": "stop<=4 sent to vLLM (client cuts on all until strings); LCB exec 32 workers + 16 GB RLIMIT_DATA"
   },
   "judge": {
@@ -1269,10 +1287,13 @@
    "PARAMETRIC_QA_JUDGE_CONCURRENCY": "4"
   },
   "slurm_jobs": [
-   "39777"
+   "39777",
+   "44298",
+   "44678",
+   "44712"
   ],
   "raw_dir": "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/runs/nemo6_eval/QWEN38_27B",
-  "task_minutes_total": 767.0,
-  "collected": "2026-11-05 22:44:39"
+  "task_minutes_total": 783.6,
+  "collected": "2026-11-10 15:02:59"
  }
 }

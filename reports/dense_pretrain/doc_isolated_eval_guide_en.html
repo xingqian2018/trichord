@@ -1,0 +1,1210 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Doc-isolated (iso-doc) eval guide: what it measures, result format, where things are, how to run it</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+.neg { color:var(--good); }
+.pos { color:var(--bad); }
+hr { border:0; border-top:1px solid var(--border); margin:28px 0; }
+em { color:var(--muted); }
+
+main { max-width:1080px; }
+nav { background:color-mix(in srgb, Canvas 92%, transparent); }
+p, li { line-height:1.65; }
+h3 { font-size:16px; margin-top:26px; }
+table { display:table; width:100%; }
+th, td { white-space:normal; vertical-align:top; text-align:left; overflow-wrap:anywhere; }
+th { white-space:nowrap; }
+td:first-child { min-width:8em; }
+td code, li code, p code { overflow-wrap:anywhere; }
+pre { background:var(--head); border:1px solid var(--border); border-radius:6px; padding:10px 14px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:12.5px; white-space:pre; }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent); background:var(--head); border-radius:0 6px 6px 0; }
+blockquote p { margin:4px 0; }
+</style></head>
+<body><nav><a href="#s1">1. What the eval measures</a><a href="#s2">2. Metrics</a><a href="#s3">3. Result file formats</a><a href="#s4">4. Where things are stored</a><a href="#s5">5. How to run it</a><a href="#s6">6. Current state (2026-11-13 23:30)</a></nav><main>
+<h1>Doc-isolated (iso-doc) eval guide: what it measures, result format, where things are, how to run it</h1>
+<h2 id="s1">1. What the eval measures</h2>
+<p><strong>Definition</strong>: every validation document becomes its own sample, with no context from any other document. For every token of the document the negative log-likelihood (NLL) of predicting it is computed, and these are averaged. The validation inside training packs documents end to end into the window, so documents see each other; doc-isolated scoring does not have this, which makes models with different packing or training length comparable.</p>
+<p><strong>Scoring rule</strong> (code: <code>scripts/doc_isolated/</code> in the harness repo, see 4.3):</p>
+<ul>
+<li>Every document is scored on its own and never sees another document (how, see &quot;Two implementations&quot; below).</li>
+<li>For a document of N tokens (its final EOD included) the inputs are tokens 1 to N−1 and the labels are tokens 2 to N. The first token is never predicted and the EOD is never a target, so a document has N−2 predicted tokens.</li>
+<li>A document with more predicted tokens than the window is cut into consecutive chunks. Each chunk is its own sample and <strong>starts without the previous chunk's context</strong>.</li>
+<li>The loss of a split is the mean NLL over all predicted tokens of that split (token-weighted).</li>
+</ul>
+<p><strong>Two implementations, identical scores</strong>:</p>
+<ul>
+<li><strong>packed (the new method, default since 2026-11-13)</strong>: every row is 32,768 tokens wide and holds several documents, kept apart by the model's own segment isolation (<code>cu_seqlens</code>). One job and one model load per checkpoint, running the three passes of the table below. 8K result = S + L8, 32K result = S + L32.</li>
+<li><strong>padded (the old method)</strong>: one document per row, padded up to the window length. Now used only to reproduce an old result.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Pass</th>
+<th>Documents</th>
+<th>Segment length</th>
+<th>Gives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S</td>
+<td>Those with ≤ 8,192 predicted tokens, packed</td>
+<td>One per document</td>
+<td>Their score for both windows</td>
+</tr>
+<tr>
+<td>L32</td>
+<td>The remaining long documents, cut into 32K chunks, packed</td>
+<td>32,768</td>
+<td>Their 32K score</td>
+</tr>
+<tr>
+<td>L8</td>
+<td>The same rows as L32</td>
+<td>8,192</td>
+<td>Their 8K score</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The two implementations were compared split by split: the 59B at steps 10,000 / 20,000 / 24,000, both windows, 690 splits; ladder checkpoints OPT_MUONH q1 (trained at 8K without document masking) and PROD1_DPSK q1, 345 splits. Token counts identical everywhere, largest loss difference 1.2e-7.</li>
+<li>The new method does not depend on how the checkpoint was trained: the eval always turns the segment isolation on (<code>--dataloader-inter-document-masking</code>, changes no weight) and always uses 32K rows.</li>
+<li>Cost: one 59B checkpoint takes about 1 hour on one node (old method: about 13.6 node-hours); a ladder q1 about 15 minutes.</li>
+</ul>
+<p><strong>Two windows</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Window</th>
+<th>Length</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8K</td>
+<td>8,192</td>
+<td>Comparable with every earlier result; the default for comparisons</td>
+</tr>
+<tr>
+<td>32K</td>
+<td>32,768</td>
+<td>Matches the training length of models trained at 32K</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Both windows score exactly the same tokens; they differ only in how long documents are cut. A document shorter than 8K gives the same result at both windows; a long document has more context at 32K and a lower loss.</li>
+<li>Do not read the 32K result of a checkpoint trained at 8K: it never saw positions beyond 8,192 and its loss gets clearly worse (measured: for the 8K-trained <code>KD_MUONH_A0P8_S64Y_FIT_DOCMASK</code> q0–q2, overall_tsqw at 32K is 0.18–0.40 higher than at 8K). The new method gives only the 8K result for a checkpoint trained shorter than 32K.</li>
+<li>Both windows must come from <strong>one model load</strong> (the user's rule of 2026-11-04): the new method runs the passes S, L32 and L8 in one job.</li>
+</ul>
+<p><strong>Data</strong>: 9 suites, 115 splits, 130,957 documents, 234,291,595 scored tokens. The suites group into 7 collections.</p>
+<table>
+<thead>
+<tr>
+<th>Suite</th>
+<th>Collection</th>
+<th style="text-align:right">Splits</th>
+<th style="text-align:right">Documents</th>
+<th style="text-align:right">Scored tokens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cosmos_val_v2_cc_decon_qwen3</code></td>
+<td>val_v2</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">9,784</td>
+<td style="text-align:right">12,938,323</td>
+</tr>
+<tr>
+<td><code>cosmos_val_v2_python_decon_qwen3</code></td>
+<td>val_v2</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">3,200</td>
+<td style="text-align:right">5,671,655</td>
+</tr>
+<tr>
+<td><code>cosmos_val_v2_arxiv_decon_qwen3</code></td>
+<td>val_v2</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">205</td>
+<td style="text-align:right">7,976,849</td>
+</tr>
+<tr>
+<td><code>uncheatable_decon_qwen3</code></td>
+<td>uncheatable</td>
+<td style="text-align:right">55</td>
+<td style="text-align:right">26,689</td>
+<td style="text-align:right">114,928,353</td>
+</tr>
+<tr>
+<td><code>codefresh_decon_qwen3</code></td>
+<td>codefresh</td>
+<td style="text-align:right">30</td>
+<td style="text-align:right">26,720</td>
+<td style="text-align:right">19,029,400</td>
+</tr>
+<tr>
+<td><code>v3small_decon_qwen3</code></td>
+<td>v3small</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">4,572</td>
+<td style="text-align:right">2,765,345</td>
+</tr>
+<tr>
+<td><code>private_internal_decon_qwen3</code></td>
+<td>private_internal</td>
+<td style="text-align:right">2</td>
+<td style="text-align:right">1,968</td>
+<td style="text-align:right">3,204,144</td>
+</tr>
+<tr>
+<td><code>pile_test_decon_qwen3</code></td>
+<td>pile_test</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">54,977</td>
+<td style="text-align:right">60,395,136</td>
+</tr>
+<tr>
+<td><code>pile_10k_decon_qwen3</code></td>
+<td>pile_10k</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">2,842</td>
+<td style="text-align:right">7,382,390</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Token files and suite yamls: <code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/cosmos3_llm_datasets/pretrain/qwen3_tokenized/val_set/eval_ppl_decon/</code>; the yamls are in its <code>suites/</code> and record every split's token, document and byte counts.</li>
+<li>Original text (JSONL, one document per line, aligned document by document with the token files): <code>~/data/eval_ppl_decon/</code>, used to re-tokenise for other tokenizers.</li>
+<li><code>private_internal</code> is non-public data (file mode 600); result files hold only its loss numbers.</li>
+</ul>
+<h2 id="s2">2. Metrics</h2>
+<p>Every metric has three numbers: <code>loss</code> (nats per token, lower is better), <code>ppl</code> = exp(loss), and <code>bpb</code> (bits per byte) = loss × tokens ÷ (bytes × ln 2).</p>
+<table>
+<thead>
+<tr>
+<th>Metric key</th>
+<th>Display name</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00_overall_tsqw</code></td>
+<td>overall_tsqw</td>
+<td><strong>Headline metric.</strong> The token-weighted loss of each of the 7 collections, averaged with weights proportional to the square root of the collection's token count</td>
+</tr>
+<tr>
+<td><code>00_overall_tw</code></td>
+<td>overall_tw</td>
+<td>All tokens of 6 collections (pile_10k left out) pooled and averaged</td>
+</tr>
+<tr>
+<td><code>00_overall_macro</code></td>
+<td>overall_macro</td>
+<td>Plain mean of the losses of those 6 collections</td>
+</tr>
+<tr>
+<td><code>01_val_v2_overall_tw</code></td>
+<td>val_v2</td>
+<td>The cc + python + arxiv suites pooled, token-weighted</td>
+</tr>
+<tr>
+<td><code>01_val_v2_cc</code> / <code>_python</code> / <code>_arxiv</code></td>
+<td>the three parts of val_v2</td>
+<td>Each part's loss</td>
+</tr>
+<tr>
+<td><code>02_uncheatable_tw</code></td>
+<td>uncheatable</td>
+<td>55 splits, token-weighted</td>
+</tr>
+<tr>
+<td><code>03_codefresh_tw</code></td>
+<td>codefresh</td>
+<td>30 splits, token-weighted</td>
+</tr>
+<tr>
+<td><code>04_v3small_tw</code></td>
+<td>v3small</td>
+<td>8 splits, token-weighted</td>
+</tr>
+<tr>
+<td><code>04_private_internal_tw</code></td>
+<td>private_internal</td>
+<td>2 splits, token-weighted</td>
+</tr>
+<tr>
+<td><code>05_pile_test_tw</code></td>
+<td>pile_test</td>
+<td>16 splits, token-weighted</td>
+</tr>
+<tr>
+<td><code>05_pile_10k_tw</code></td>
+<td>pile_10k</td>
+<td>1 split</td>
+</tr>
+<tr>
+<td><code>02_uncheatable_macro</code>, <code>04_v3small_macro</code>, <code>05_pile_test_macro</code></td>
+<td>(macro)</td>
+<td>Plain mean of the split losses of that collection, not token-weighted</td>
+</tr>
+</tbody>
+</table>
+<p>Weight of each collection in the two overall metrics:</p>
+<table>
+<thead>
+<tr>
+<th>Collection</th>
+<th style="text-align:right">Scored tokens</th>
+<th style="text-align:right">Weight in overall_tsqw</th>
+<th style="text-align:right">Weight in overall_tw</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>uncheatable</td>
+<td style="text-align:right">114,928,353</td>
+<td style="text-align:right">31.4%</td>
+<td style="text-align:right">50.6%</td>
+</tr>
+<tr>
+<td>pile_test</td>
+<td style="text-align:right">60,395,136</td>
+<td style="text-align:right">22.7%</td>
+<td style="text-align:right">26.6%</td>
+</tr>
+<tr>
+<td>val_v2</td>
+<td style="text-align:right">26,586,827</td>
+<td style="text-align:right">15.1%</td>
+<td style="text-align:right">11.7%</td>
+</tr>
+<tr>
+<td>codefresh</td>
+<td style="text-align:right">19,029,400</td>
+<td style="text-align:right">12.8%</td>
+<td style="text-align:right">8.4%</td>
+</tr>
+<tr>
+<td>pile_10k</td>
+<td style="text-align:right">7,382,390</td>
+<td style="text-align:right">7.9%</td>
+<td style="text-align:right">not included</td>
+</tr>
+<tr>
+<td>private_internal</td>
+<td style="text-align:right">3,204,144</td>
+<td style="text-align:right">5.2%</td>
+<td style="text-align:right">1.4%</td>
+</tr>
+<tr>
+<td>v3small</td>
+<td style="text-align:right">2,765,345</td>
+<td style="text-align:right">4.9%</td>
+<td style="text-align:right">1.2%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rules for comparing</strong>:</p>
+<ul>
+<li>Compare <code>loss</code> between models with the same tokenizer. Our models, the Qwen3 family and MiMo share the same token ids.</li>
+<li>Between models with different tokenizers compare only <code>bpb</code>. The overall_tsqw weights use the Qwen3 token counts for every model.</li>
+<li>Compare new results with old ones at the 8K window.</li>
+</ul>
+<h2 id="s3">3. Result file formats</h2>
+<h3>3.1 Full result: one checkpoint, one window, one JSON</h3>
+<p>File name <code>&lt;Change ID&gt;_&lt;rung&gt;.json</code>, about 14 KB. Results of the new and the old method have exactly the same fields.</p>
+<ul>
+<li><strong>Change ID</strong>: the experiment's name, for example <code>PROD1_DPSK_LATENT2_E2X_QBK3</code>.</li>
+<li><strong>rung</strong>: <code>q0</code>–<code>q6</code> are the model sizes of the ladder; <code>ref</code> marks an external model; <code>it&lt;N&gt;</code> marks the checkpoint at iteration N of a production run.</li>
+<li><strong>Window</strong>: a 32K result has <code>_W32K</code> in its Change ID, for example <code>PROD1_DPSK_LATENT2_E2X_QBK3_W32K_q3.json</code>. The file has no separate window field; the eval window is recorded in <code>train.seq_length</code> (that field holds the <code>--seq-length</code> of the eval, not the training length).</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>change</code>, <code>rung</code></td>
+<td>Change ID and rung, as in the file name</td>
+</tr>
+<tr>
+<td><code>iteration</code></td>
+<td>Training iteration of the checkpoint (0 for an external model)</td>
+</tr>
+<tr>
+<td><code>protocol</code></td>
+<td>Always <code>doc_isolated</code></td>
+</tr>
+<tr>
+<td><code>checkpoint</code></td>
+<td>Full path of the checkpoint (the HF model directory for an external model)</td>
+</tr>
+<tr>
+<td><code>eval_job</code>, <code>eval_dir</code>, <code>evaluated_at</code></td>
+<td>Slurm job id, raw eval directory and finish time of the eval. With the new method <code>eval_dir</code> is the directory of that window's long-document pass (<code>&lt;ID&gt;__PKL8-…</code> or <code>&lt;ID&gt;__PKL32-…</code>); for an old-method eval run in three parts it is part 1's directory and <code>eval_job</code> the largest job id</td>
+</tr>
+<tr>
+<td><code>train</code></td>
+<td><code>lr</code>, <code>min_lr</code>, <code>train_iters</code>, <code>num_layers</code>, <code>hidden_size</code>, <code>global_batch_size</code>, <code>seq_length</code> from the eval arguments; null for an external model</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td>The 16 metrics of section 2, each <code>{loss, ppl, bpb}</code></td>
+</tr>
+<tr>
+<td><code>suites</code></td>
+<td>The 9 suites, each with <code>loss_tw</code> (token-weighted loss), <code>tokens</code> and <code>splits</code> (every split's <code>loss</code> and <code>tokens</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>For an external model with its own tokenizer, every suite and split in <code>suites</code> also has <code>bytes</code> and <code>bpb</code>.</p>
+<p>A real example (shortened):</p>
+<pre><code class="language-json">{
+ &quot;change&quot;: &quot;PROD1_DPSK_LATENT2_E2X_QBK3&quot;, &quot;rung&quot;: &quot;q3&quot;, &quot;iteration&quot;: 70438,
+ &quot;protocol&quot;: &quot;doc_isolated&quot;,
+ &quot;checkpoint&quot;: &quot;.../results/PROD1_DPSK_LATENT2_E2X_QBK3/ckpts/q3/iter_0070438&quot;,
+ &quot;eval_job&quot;: 56590, &quot;eval_dir&quot;: &quot;.../runs/ladder_doc_eval/PROD1_DPSK_LATENT2_E2X_QBK3__P1of3-q3-56588&quot;,
+ &quot;evaluated_at&quot;: &quot;2026-11-10T01:56:48&quot;,
+ &quot;train&quot;: {&quot;lr&quot;: 0.00687, &quot;num_layers&quot;: 30, &quot;hidden_size&quot;: 1280, &quot;seq_length&quot;: 8192},
+ &quot;metrics&quot;: {
+  &quot;00_overall_tsqw&quot;:      {&quot;loss&quot;: 1.5320, &quot;ppl&quot;: 4.6275, &quot;bpb&quot;: 0.5966},
+  &quot;01_val_v2_overall_tw&quot;: {&quot;loss&quot;: 1.2549, &quot;ppl&quot;: 3.5074, &quot;bpb&quot;: 0.5101}
+ },
+ &quot;suites&quot;: {
+  &quot;v3small_decon_qwen3&quot;: {&quot;loss_tw&quot;: 2.3000, &quot;tokens&quot;: 2765345,
+    &quot;splits&quot;: {&quot;c4_en&quot;: {&quot;loss&quot;: 2.4880, &quot;tokens&quot;: 463467},
+               &quot;dolma_common_crawl&quot;: {&quot;loss&quot;: 2.8063, &quot;tokens&quot;: 195508}}}
+ }
+}
+</code></pre>
+<h3>3.2 Pooled result (Boxiang's evals, not shown in the report)</h3>
+<p>Before 2026-11-13 the production run (59B, <code>ULTRA59B_MUONH_KD_QBK3</code>) had only 5 results of this kind (steps 4,000 / 10,000 / 18,000 / 20,000 / 24,000, 8K), from the evals Boxiang runs as loss-parity reference of the downstream eval. The 59B now has full results (3.1); these pooled results stay in their files and are not shown in the report. Such an eval puts all documents of a collection into one validation set, so a collection has one loss and no split detail. The scoring code is the same as in 3.1 and the document and token counts equal those of our collection of the same name, so a collection's value is the same quantity.</p>
+<p>File, in the ladder repo: <code>results_xx/prod_isodoc/&lt;RUN&gt;[_W32K]_iter&lt;7-digit iteration&gt;.json</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run</code>, <code>iteration</code>, <code>window</code></td>
+<td>Run name, iteration, eval window (8192 or 32768)</td>
+</tr>
+<tr>
+<td><code>pooled_sets</code></td>
+<td>Always true</td>
+</tr>
+<tr>
+<td><code>checkpoint</code>, <code>train</code></td>
+<td>Checkpoint path; training configuration (total iterations, training length, layers, KD teacher, ...)</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td>Only the collections that were scored, with the keys of 3.1 (now <code>01_val_v2_overall_tw</code> and <code>04_v3small_tw</code>), plus <code>tokens</code>, <code>docs</code>, <code>set</code></td>
+</tr>
+<tr>
+<td><code>not_scored</code></td>
+<td>Keys of the collections not scored</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>Eval directory, job id, time, who ran it, the Megatron and ladder code used</td>
+</tr>
+<tr>
+<td><code>other_evals</code></td>
+<td>Other evals of the same checkpoint and window (only the newest one is used)</td>
+</tr>
+</tbody>
+</table>
+<h3>3.3 The files of a model in the new folder</h3>
+<p><code>~/runs/cosmos_eval_doc_isolate/&lt;category&gt;/&lt;model&gt;/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>summary.md</code></td>
+<td>For people: every metric in one table, one pair of loss / bpb columns per window</td>
+</tr>
+<tr>
+<td><code>summary.json</code></td>
+<td>The same numbers: <code>windows.&lt;window&gt;.metrics.&lt;metric key&gt;.{loss, ppl, bpb}</code>, and per window <code>eval_job</code>, <code>evaluated_at</code>, <code>what</code> (full or pooled result)</td>
+</tr>
+<tr>
+<td><code>identity.json</code></td>
+<td>What was evaluated: <code>checkpoint</code>, <code>iteration</code>, <code>train</code>, <code>protocol</code>; <code>evals.&lt;window&gt;</code> records the result file's name, the job id, the raw eval directory and where the result file was copied from</td>
+</tr>
+<tr>
+<td><code>breakdowns/&lt;window&gt;.json</code></td>
+<td>The complete result file of that window, an unchanged copy of the JSON of 3.1 or 3.2. Window names are <code>8k</code>, <code>16k</code>, <code>32k</code></td>
+</tr>
+<tr>
+<td><code>runs/&lt;directory name&gt;</code></td>
+<td>Links to the raw eval directories</td>
+</tr>
+</tbody>
+</table>
+<p>The window name is taken from the result file's <code>train.seq_length</code>, so a model evaluated at 16K shows <code>16k</code>.</p>
+<h3>3.4 The files of a raw eval directory</h3>
+<p>Since 2026-11-13 in <code>~/runs/cosmos_eval_doc_isolate/_runs/</code>, earlier ones in <code>~/runs/ladder_doc_eval/</code>. Directory names:</p>
+<ul>
+<li>New method: three directories per job, <code>&lt;ID&gt;__PKS-&lt;rung&gt;-&lt;job id&gt;</code>, <code>&lt;ID&gt;__PKL32-…</code>, <code>&lt;ID&gt;__PKL8-…</code> (no <code>__PKL32</code> for a checkpoint trained shorter than 32K).</li>
+<li>Old method: <code>&lt;ID&gt;[_W32K][__P&lt;i&gt;of3]-&lt;rung&gt;-&lt;job id&gt;</code>.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>argv_doc.txt</code></td>
+<td>Every argument this eval passed to Megatron, one per line</td>
+</tr>
+<tr>
+<td><code>logs/doc.log</code></td>
+<td>The eval log</td>
+</tr>
+<tr>
+<td><code>doc_eval_stats.json</code></td>
+<td>Per split: documents, chunked documents, samples, predicted tokens, fill ratio</td>
+</tr>
+<tr>
+<td><code>eval/val_splits_iter&lt;N&gt;_doc_isolated.json</code></td>
+<td>The raw result: <code>iteration</code>, <code>time</code>, <code>protocol</code>, <code>suites.&lt;suite&gt;.{labels, loss, tokens}</code> (three lists of equal length, one entry per split)</td>
+</tr>
+<tr>
+<td><code>RESULTS.md</code></td>
+<td>A summary table written when the eval ends</td>
+</tr>
+<tr>
+<td><code>data_cache/</code>, <code>tensorboard/</code></td>
+<td>The per-split JSON and index cache of this eval; tensorboard output</td>
+</tr>
+<tr>
+<td><code>PACKED.json</code></td>
+<td>In every directory of the new method: which pass it is (S / L32 / L8), the segment length, which passes the job ran. Logs and <code>RESULTS.md</code> are only in the <code>__PKS</code> directory</td>
+</tr>
+<tr>
+<td><code>DUALWIN.md</code></td>
+<td>Old method, only in the directory of the second window (8K): names the 32K directory it shares a model load with. Logs and <code>RESULTS.md</code> are only in the 32K directory</td>
+</tr>
+</tbody>
+</table>
+<h2 id="s4">4. Where things are stored</h2>
+<h3>4.1 The home of the results</h3>
+<p><code>~/runs/cosmos_eval_doc_isolate/</code> (<code>~/runs/cosmos_eval_doc_isolated</code> is a link to it). Next to it is the downstream eval's <code>~/runs/cosmos_eval_downstream/</code>.</p>
+<pre><code>baseline/&lt;model&gt;/                  external reference models, 21
+ours_ladder/&lt;Change ID&gt;_&lt;rung&gt;/    ladder checkpoints, 599
+ours_prod/&lt;run&gt;_iter&lt;iteration&gt;/   production-run checkpoints
+    summary.md  summary.json  identity.json  breakdowns/  runs/
+&lt;category&gt;/index.md                one line per model: overall_tsqw and val_v2
+_runs/                             raw directories of every eval job since 2026-11-13
+_slurm/                            the Slurm logs of those jobs
+README.md
+</code></pre>
+<ul>
+<li>Model directory names match the downstream side, for example <code>QWEN3_30B_A3B_BASE</code>, <code>PROD1_DPSK_LATENT2_E2X_QBK3_q3</code>, <code>ULTRA59B_MUONH_KD_QBK3_iter0024000</code>.</li>
+<li>A model directory is rebuilt from the result files; deleting it loses nothing.</li>
+<li><code>ours_ladder/</code> holds every existing result, old experiments included.</li>
+</ul>
+<h3>4.2 Other locations</h3>
+<table>
+<thead>
+<tr>
+<th>Content</th>
+<th>Path</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Old raw eval directories and support files</td>
+<td><code>~/runs/ladder_doc_eval/</code></td>
+<td>About 1,170 raw directories from before 2026-11-13, not moved for now. Also <code>stage/</code> (staged production-run checkpoints), <code>code_snapshots/</code> (the code copy each batch of jobs ran from), <code>packed_trees/</code> and <code>dualwin_trees/</code> (code link trees), <code>data_cache/corpus_v2/</code> (the shared dataset index cache), <code>sbatch/</code> (old job logs, <code>finish_*.log</code>), <code>lustre_stuck_nodes.txt</code> (nodes every submission avoids)</td>
+</tr>
+<tr>
+<td>Test output</td>
+<td><code>~/runs/ladder_doc_eval_speedtest/</code></td>
+<td>Validation and speed-test jobs write here. The collectors do not read it, so it never reaches the results home</td>
+</tr>
+<tr>
+<td>Result JSONs, originals</td>
+<td><code>~/Project/trichord/dense_pretrain_result/</code></td>
+<td>The collector writes here first. It is in trichord's git: do not move, delete or replace with links</td>
+</tr>
+<tr>
+<td>Result JSONs, group-readable copy</td>
+<td><code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/dense_pretrain_result/</code></td>
+<td>For others to read</td>
+</tr>
+<tr>
+<td>Result JSONs, the report's copy</td>
+<td><code>~/Project/cosmos_llm_scaling_ladder/results_xx/</code></td>
+<td>The report generator reads here; <code>results_xx/prod_isodoc/</code> holds the production run's pooled results</td>
+</tr>
+<tr>
+<td>Raw directories of the production run's pooled evals</td>
+<td><code>~/runs/cosmos_eval_downstream/_doc_eval59/</code> and <code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmos_ultra_pre/runs/eval59/doc_eval/</code></td>
+<td>The first was submitted from our account, the second is Boxiang's</td>
+</tr>
+<tr>
+<td>Report</td>
+<td><code>~/Project/cosmos_llm_scaling_ladder/reports_xx/qwen3_scaling_ladder_eval.html</code>, <code>_en.html</code>, <code>.md</code></td>
+<td>Tabs in order: doc-isolated, prod iso-doc, prod downstream, External references, Older experiments, LR fitting, packed (names and order since 2026-11-14). URL <code>http://oci-jhb-slurm-2-vscode-02:8765/qwen3_scaling_ladder_eval.html</code></td>
+</tr>
+</tbody>
+</table>
+<p>Permissions: <code>~/Project/</code> and trichord are readable by the owner only and must stay that way; copy what others need to another place.</p>
+<h3>4.3 Code</h3>
+<p>The code lives in <code>scripts/doc_isolated/</code> of the lm-evaluation-harness repo (<code>~/Project/lm-evaluation-harness</code>). It was copied from the ladder repo on 2026-11-13; the files there were left in place and are no longer used. It is committed on branch <code>xingqianx/eval</code> (2026-11-14, commit 9edbbea7, not pushed yet). Paths below are relative to that directory:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core/doc_eval.py</code></td>
+<td>Scoring core: how documents are cut, which tokens are scored (also the old method's datasets)</td>
+</tr>
+<tr>
+<td><code>core/packed/</code></td>
+<td><strong>The new method</strong>: <code>doc_eval_packed.py</code> (packing, row format), <code>pretrain_doceval.py</code> (passes S, L32, L8 in one model load), <code>test_doc_eval_packed_cpu.py</code> (CPU test against the old method, chunk by chunk)</td>
+</tr>
+<tr>
+<td><code>core/pretrain_doceval.py</code></td>
+<td>Eval entry point, wraps Megatron's <code>pretrain_gpt.py</code></td>
+</tr>
+<tr>
+<td><code>core/val_metrics.py</code></td>
+<td>Per-split validation and the metric definitions</td>
+</tr>
+<tr>
+<td><code>core/sh/eval_ckpt.sh</code>, <code>core/tools/eval_argv.py</code></td>
+<td>The body of an eval job; turns training arguments into eval arguments</td>
+</tr>
+<tr>
+<td><code>core/dualwin/</code></td>
+<td>Old method: two windows from one model load</td>
+</tr>
+<tr>
+<td><code>run_doc_eval.sh</code></td>
+<td><strong>Submit evals</strong></td>
+</tr>
+<tr>
+<td><code>stage_prod_ckpt.py</code></td>
+<td>Stages one checkpoint of a production run in the ladder's directory format</td>
+</tr>
+<tr>
+<td><code>mimo_doc_eval.py</code>, <code>mimo_doc_eval.sbatch</code></td>
+<td>Eval of an external model (vLLM)</td>
+</tr>
+<tr>
+<td><code>collect_doc_eval.py</code></td>
+<td><strong>Collect</strong> into result JSONs</td>
+</tr>
+<tr>
+<td><code>collect_prod_isodoc.py</code></td>
+<td>Collect the production run's pooled results</td>
+</tr>
+<tr>
+<td><code>organize_doc_isolated.py</code></td>
+<td><strong>Organise</strong> into <code>~/runs/cosmos_eval_doc_isolate/</code></td>
+</tr>
+<tr>
+<td><code>compare_packed_padded.py</code></td>
+<td>New vs old method on the same checkpoint, split by split (read-only)</td>
+</tr>
+<tr>
+<td><code>finish_when_done.sh</code></td>
+<td>Waits for jobs, then collects, organises and publishes the prod iso-doc tab (runs in tmux)</td>
+</tr>
+<tr>
+<td><code>README.md</code></td>
+<td>Notes in English</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The report code stays in the ladder repo's <code>reports_xx/</code>: <code>gen_eval_html.py</code>, <code>prod_isodoc_section.py</code> (the prod iso-doc tab), <code>render_doc.py</code> (the HTML of this guide). The eval scripts of the same names in <code>reports_xx/</code> are old copies; do not use them.</li>
+<li><code>core/doc_eval.py</code> and <code>core/val_metrics.py</code> are byte-identical to the ladder repo's <code>code/scaling_ladder/</code> and to Boxiang's snapshot for the 59B, <code>cosmos_ultra_pre/ladder-prod-a38190d8</code>.</li>
+</ul>
+<h2 id="s5">5. How to run it</h2>
+<h3>5.0 Common to all</h3>
+<ul>
+<li>Cluster oci-jhb-slurm-2, account <code>cosmos_base_training</code>. Every eval job uses 1 node with 4 GPUs.</li>
+<li><strong>Submit from a frozen copy of the code</strong>, so that editing the repo cannot change the code under a running job:</li>
+</ul>
+<pre><code class="language-bash">S=~/runs/ladder_doc_eval/code_snapshots/doc_isolated_$(date +%Y%m%d_%H%M)
+rsync -a --exclude __pycache__ ~/Project/lm-evaluation-harness/scripts/doc_isolated/ $S/ &amp;&amp; cd $S
+</code></pre>
+<ul>
+<li><strong>Run with <code>--dry</code> first</strong> to see what would be submitted, then without it.</li>
+<li>The new method is the default: one job per checkpoint, giving all the windows due.</li>
+<li><code>EVAL_QOS=normal</code> is rewritten to <code>normal_quota</code> on slurm-2. The script uses wckey p0 by default (the user's rule of 2026-11-13); p0 preempts p1 jobs of the same QOS, for example the tc_full teacher-cache tasks (they requeue by themselves). This is the state of 2026-11-13; cluster rules change often, check before submitting.</li>
+</ul>
+<h3>5.1 A ladder checkpoint</h3>
+<pre><code class="language-bash">EVAL_QOS=normal EVAL_EXTRA_ARGS= bash run_doc_eval.sh --dry &lt;ID&gt;/q3=run:&lt;absolute path of the run directory&gt;
+</code></pre>
+<ul>
+<li>The Change ID has no <code>_W32K</code>. A checkpoint trained at 32K (or longer) gets an 8K and a 32K result, the 32K one written as <code>&lt;ID&gt;_W32K</code>; one trained shorter gets 8K only.</li>
+<li>How to name the checkpoint: <code>=run:&lt;run directory&gt;</code> (the run's last checkpoint); <code>=p:&lt;ID&gt;</code> (a promoted Change ID); no <code>=</code> takes the promoted directory of the same name.</li>
+<li>Job name <code>xxdoc-&lt;ID&gt;__PK-&lt;rung&gt;</code>.</li>
+<li>Checkpoints with sliding-window attention (<code>SWA_FIT_SINK_*</code>) have not been run with the new method yet: compare one against the old method first (<code>compare_packed_padded.py</code>).</li>
+</ul>
+<p>Environment variables:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EVAL_QOS=normal</code></td>
+<td>The QOS. Unset means hero-res, which slurm-2 does not have</td>
+</tr>
+<tr>
+<td><code>SBATCH_WCKEY</code></td>
+<td>Priority, p0 by default</td>
+</tr>
+<tr>
+<td><code>EVAL_LADDER_CODE=&lt;dir&gt;</code></td>
+<td>The ladder code tree; must be the one the run was trained with (the PROD1 overlay trees)</td>
+</tr>
+<tr>
+<td><code>EVAL_EXTRA_ARGS=&quot;--flag value&quot;</code></td>
+<td>Rewrites eval arguments, for example <code>--distributed-timeout-minutes 240</code></td>
+</tr>
+<tr>
+<td><code>EVAL_TIME=HH:MM:SS</code></td>
+<td>The time limit as given. Unset: per rung as below; 3 hours for a production run's <code>it&lt;N&gt;</code></td>
+</tr>
+<tr>
+<td><code>EVAL_CACHE_PER_JOB=1</code></td>
+<td>Each job uses its own dataset index cache instead of the shared one</td>
+</tr>
+<tr>
+<td><code>EVAL_RUN_ROOT=&lt;dir&gt;</code></td>
+<td>Writes the eval directories elsewhere (for tests, under <code>~/runs/ladder_doc_eval_speedtest/</code>; the collectors do not read it)</td>
+</tr>
+<tr>
+<td><code>EVAL_PACKED=0</code></td>
+<td>Use the old method. Setting any of the old method's <code>EVAL_DUALWIN_SEQ=8192</code> (an 8K window from the same load; the Change ID then needs <code>_W32K</code>), <code>EVAL_SPLIT3=1</code> (three parallel jobs), <code>EVAL_ONLY_PARTS=2</code> selects it as well</td>
+</tr>
+</tbody>
+</table>
+<p>Time limits without <code>EVAL_TIME</code> (set for the old method; the new one needs far less): q0 2:30; q1, q2 3:30; q3 4:30; q4 5:30; q5 8:00; q6 12:00. Measured with the new method: ladder q1 13–17 minutes, the 59B 1:01.</p>
+<h3>5.2 A checkpoint of a production run</h3>
+<p>A production run has no checkpoint directory like the ladder's. Stage one first, then use the same submit script:</p>
+<pre><code class="language-bash">BX=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmos_ultra_pre   # Boxiang's production directory, read-only
+
+# 1. stage: writes argv.txt, run.json and a link to the checkpoint under OUR directory, prints the directory
+python3 stage_prod_ckpt.py --view $BX/runs/eval59/view/ultra59b_muonh_kd_qbk3 --iter 30000 --change ULTRA59B_MUONH_KD_QBK3
+
+# 2. submit: the rung is it&lt;iteration&gt;
+EVAL_QOS=normal EVAL_EXTRA_ARGS= EVAL_CACHE_PER_JOB=1 \
+bash run_doc_eval.sh --dry ULTRA59B_MUONH_KD_QBK3/it30000=ckpt:$HOME/runs/ladder_doc_eval/stage/ULTRA59B_MUONH_KD_QBK3/ckpts/it30000
+</code></pre>
+<ul>
+<li>One call per checkpoint. Several checkpoints in one call form a chain: each waits for the previous one to end.</li>
+<li>The staging script drops the training-only arguments (pack plan, wandb, ...) and has <strong>no training dataset</strong>, so the eval never builds a training-set index.</li>
+<li>The model arguments are identical to those of Boxiang's 59B eval (checked one by one on 2026-11-13).</li>
+<li>Measured: steps 10,000 / 20,000 / 24,000 took 1:00–1:01 each on one node; both windows agreed with the old method split by split.</li>
+</ul>
+<h3>5.3 An external model</h3>
+<p>Scored offline with vLLM, one document per sequence, by the same rules; every split's token count is checked against the ladder's records. The new method is for Megatron checkpoints only.</p>
+<pre><code class="language-bash">sbatch -N 1 -t 08:00:00 --export=ALL,NAME=&lt;name&gt;,MODEL=&lt;HF model directory&gt;,PP=1 mimo_doc_eval.sbatch
+</code></pre>
+<ul>
+<li>32K window: add <code>SEQ=32760</code> and name it <code>&lt;name&gt;_W32K</code>.</li>
+<li>A model with its own tokenizer: add <code>HFO='{}' EXTRA=&quot;--text-dir ~/data/eval_ppl_decon&quot;</code>, plus <code>--bos</code> if it needs a BOS token. Such a model's loss is per its own tokens; compare bpb only.</li>
+<li>Large models use 2 nodes (<code>-N 2</code>, <code>PP=2</code>). The exact arguments used for each model are in the comments at the top of <code>mimo_doc_eval.sbatch</code>.</li>
+<li>Output directory <code>~/runs/cosmos_eval_doc_isolate/_runs/&lt;name&gt;-ref-&lt;job id&gt;/</code>.</li>
+</ul>
+<h3>5.4 Boxiang's pooled eval (not part of this pipeline)</h3>
+<p>Boxiang's <code>cosmos_ultra_pre/launch/eval59/doc_eval_59b.sbatch</code>: one checkpoint, 1 node, about 1 hour, only the pooled collections he configured (val_v2 and v3small for now), window 8K by default. It is the loss-parity reference checked before the downstream eval starts and is used by the downstream session. <code>collect_prod_isodoc.py</code> collects its results; the report does not show them.</p>
+<h3>5.5 Collect, organise, publish</h3>
+<p>The easiest way is a waiting script in tmux, started after submitting: whenever a job ends or a new result appears it collects, organises and publishes the prod iso-doc tab:</p>
+<pre><code class="language-bash">tmux new -d -s iso_finish &quot;bash finish_when_done.sh &lt;job id&gt; [&lt;job id&gt; ...]&quot;   # log ~/runs/ladder_doc_eval/sbatch/finish_&lt;first job id&gt;.log
+</code></pre>
+<p>By hand (in <code>scripts/doc_isolated/</code> or its frozen copy):</p>
+<pre><code class="language-bash">python3 collect_doc_eval.py        # raw directories -&gt; result JSONs (trichord first, then the two copies)
+python3 collect_prod_isodoc.py     # the production run's pooled results -&gt; results_xx/prod_isodoc/
+python3 organize_doc_isolated.py   # result JSONs -&gt; ~/runs/cosmos_eval_doc_isolate/
+cd ~/Project/cosmos_llm_scaling_ladder/reports_xx
+python3 gen_eval_html.py --only prod                                       # republish only the report's prod iso-doc tab
+rsync -a --exclude __pycache__ ./ ../../trichord/reports/dense_pretrain/   # the report's mirror
+</code></pre>
+<ul>
+<li><code>collect_doc_eval.py</code> takes, per (Change ID, rung, window), the eval with the newest job id: for the new method a window is collected as soon as pass S and that window's pass (L32 or L8) have their results, so the 32K result reaches the report about 17 minutes before the 8K one; for the old method all 3 parts must be done at the same iteration. Every split's scored-token count is checked against the suite yaml.</li>
+<li>New vs old method: <code>python3 compare_packed_padded.py &lt;ID&gt; &lt;rung&gt; [&lt;rung&gt; ...]</code>; exit status 0 means everything agrees.</li>
+<li>Several sessions build the report together: <strong>publish only your own tab with <code>--only &lt;tab&gt;</code></strong>, never rebuild the whole report.</li>
+</ul>
+<h3>5.6 What to check first when something goes wrong</h3>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check first</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The job exits at once with <code>LUSTRE CHECK FAILED</code> in its log</td>
+<td>The node's Lustre is stuck. Add the node name to <code>~/runs/ladder_doc_eval/lustre_stuck_nodes.txt</code> and resubmit; submissions avoid it from then on</td>
+</tr>
+<tr>
+<td>The job hangs at its first file read</td>
+<td>Same as above (nvl72d007-t01 on 2026-11-13, OST0157/0158)</td>
+</tr>
+<tr>
+<td>No output for a long time, then an NCCL timeout</td>
+<td>Zero-byte files in the dataset index cache: <code>find ~/runs/ladder_doc_eval/data_cache/corpus_v2 -name '*.npy' -size -128c</code></td>
+</tr>
+<tr>
+<td>The job stays PENDING with reason requeued held</td>
+<td><code>scontrol release &lt;job id&gt;</code></td>
+</tr>
+<tr>
+<td>Some jobs of one batch get preempted and requeued</td>
+<td>The batch has mixed wckeys; p0 preempts non-p0 jobs in the same QOS</td>
+</tr>
+<tr>
+<td><code>sacct</code> does not show whether a job was cancelled</td>
+<td>Use <code>sacct -o State%30</code>; the default width cuts <code>CANCELLED by &lt;uid&gt;</code></td>
+</tr>
+<tr>
+<td>The job shows PREEMPTED</td>
+<td>slurm-2 requeues it and it still finishes; it has not ended</td>
+</tr>
+<tr>
+<td>The eval starts by building thousands of index files</td>
+<td>The run carries its training dataset. Runs trained on pre-packed data do this; for a production run the staging of 5.2 avoids it</td>
+</tr>
+<tr>
+<td>A checkpoint has no result JSON</td>
+<td>New method: whether <code>__PKS</code>, <code>__PKL8</code> (and <code>__PKL32</code>) all have <code>eval/val_splits_*.json</code>; old method: whether all 3 parts have one, at the same iteration</td>
+</tr>
+<tr>
+<td>A new-method job stops because <code>--dataloader-inter-document-masking</code> is missing</td>
+<td>It was not submitted with <code>run_doc_eval.sh</code>, which adds that switch for every checkpoint</td>
+</tr>
+</tbody>
+</table>
+<h2 id="s6">6. Current state (2026-11-13 23:30)</h2>
+<ul>
+<li><strong>The new method is the default</strong> (since 23:26): every new iso-doc eval uses it, and its result files have the same structure and content as the old ones. Existing old results need no re-run.</li>
+<li><strong>59B</strong> (<code>ULTRA59B_MUONH_KD_QBK3</code>): steps 10,000 / 20,000 / 24,000 have full 8K and 32K results (measured once with each method, identical split by split; the result files hold the new method's run); step 30,000 is done as well (new method). Steps 4,000 / 18,000 have only Boxiang's pooled results, which the report does not show.</li>
+<li><strong>Step 30,000</strong> is done (job 65045, in the report since 2026-11-14 00:07).</li>
+<li><strong>Not decided yet</strong>: whether the raw directories from before 2026-11-13 in <code>~/runs/ladder_doc_eval/</code> move into <code>_runs/</code>.</li>
+</ul>
+</main>
+<script type="text/markdown" id="md-source"># Doc-isolated (iso-doc) eval guide: what it measures, result format, where things are, how to run it
+
+## 1. What the eval measures
+
+**Definition**: every validation document becomes its own sample, with no context from any other document. For every token of the document the negative log-likelihood (NLL) of predicting it is computed, and these are averaged. The validation inside training packs documents end to end into the window, so documents see each other; doc-isolated scoring does not have this, which makes models with different packing or training length comparable.
+
+**Scoring rule** (code: `scripts/doc_isolated/` in the harness repo, see 4.3):
+
+- Every document is scored on its own and never sees another document (how, see "Two implementations" below).
+- For a document of N tokens (its final EOD included) the inputs are tokens 1 to N−1 and the labels are tokens 2 to N. The first token is never predicted and the EOD is never a target, so a document has N−2 predicted tokens.
+- A document with more predicted tokens than the window is cut into consecutive chunks. Each chunk is its own sample and **starts without the previous chunk's context**.
+- The loss of a split is the mean NLL over all predicted tokens of that split (token-weighted).
+
+**Two implementations, identical scores**:
+
+- **packed (the new method, default since 2026-11-13)**: every row is 32,768 tokens wide and holds several documents, kept apart by the model's own segment isolation (`cu_seqlens`). One job and one model load per checkpoint, running the three passes of the table below. 8K result = S + L8, 32K result = S + L32.
+- **padded (the old method)**: one document per row, padded up to the window length. Now used only to reproduce an old result.
+
+| Pass | Documents | Segment length | Gives |
+|---|---|---|---|
+| S | Those with ≤ 8,192 predicted tokens, packed | One per document | Their score for both windows |
+| L32 | The remaining long documents, cut into 32K chunks, packed | 32,768 | Their 32K score |
+| L8 | The same rows as L32 | 8,192 | Their 8K score |
+
+- The two implementations were compared split by split: the 59B at steps 10,000 / 20,000 / 24,000, both windows, 690 splits; ladder checkpoints OPT_MUONH q1 (trained at 8K without document masking) and PROD1_DPSK q1, 345 splits. Token counts identical everywhere, largest loss difference 1.2e-7.
+- The new method does not depend on how the checkpoint was trained: the eval always turns the segment isolation on (`--dataloader-inter-document-masking`, changes no weight) and always uses 32K rows.
+- Cost: one 59B checkpoint takes about 1 hour on one node (old method: about 13.6 node-hours); a ladder q1 about 15 minutes.
+
+**Two windows**:
+
+| Window | Length | Use |
+|---|---|---|
+| 8K | 8,192 | Comparable with every earlier result; the default for comparisons |
+| 32K | 32,768 | Matches the training length of models trained at 32K |
+
+- Both windows score exactly the same tokens; they differ only in how long documents are cut. A document shorter than 8K gives the same result at both windows; a long document has more context at 32K and a lower loss.
+- Do not read the 32K result of a checkpoint trained at 8K: it never saw positions beyond 8,192 and its loss gets clearly worse (measured: for the 8K-trained `KD_MUONH_A0P8_S64Y_FIT_DOCMASK` q0–q2, overall_tsqw at 32K is 0.18–0.40 higher than at 8K). The new method gives only the 8K result for a checkpoint trained shorter than 32K.
+- Both windows must come from **one model load** (the user's rule of 2026-11-04): the new method runs the passes S, L32 and L8 in one job.
+
+**Data**: 9 suites, 115 splits, 130,957 documents, 234,291,595 scored tokens. The suites group into 7 collections.
+
+| Suite | Collection | Splits | Documents | Scored tokens |
+|---|---|---:|---:|---:|
+| `cosmos_val_v2_cc_decon_qwen3` | val_v2 | 1 | 9,784 | 12,938,323 |
+| `cosmos_val_v2_python_decon_qwen3` | val_v2 | 1 | 3,200 | 5,671,655 |
+| `cosmos_val_v2_arxiv_decon_qwen3` | val_v2 | 1 | 205 | 7,976,849 |
+| `uncheatable_decon_qwen3` | uncheatable | 55 | 26,689 | 114,928,353 |
+| `codefresh_decon_qwen3` | codefresh | 30 | 26,720 | 19,029,400 |
+| `v3small_decon_qwen3` | v3small | 8 | 4,572 | 2,765,345 |
+| `private_internal_decon_qwen3` | private_internal | 2 | 1,968 | 3,204,144 |
+| `pile_test_decon_qwen3` | pile_test | 16 | 54,977 | 60,395,136 |
+| `pile_10k_decon_qwen3` | pile_10k | 1 | 2,842 | 7,382,390 |
+
+- Token files and suite yamls: `/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/cosmos3_llm_datasets/pretrain/qwen3_tokenized/val_set/eval_ppl_decon/`; the yamls are in its `suites/` and record every split's token, document and byte counts.
+- Original text (JSONL, one document per line, aligned document by document with the token files): `~/data/eval_ppl_decon/`, used to re-tokenise for other tokenizers.
+- `private_internal` is non-public data (file mode 600); result files hold only its loss numbers.
+
+## 2. Metrics
+
+Every metric has three numbers: `loss` (nats per token, lower is better), `ppl` = exp(loss), and `bpb` (bits per byte) = loss × tokens ÷ (bytes × ln 2).
+
+| Metric key | Display name | Definition |
+|---|---|---|
+| `00_overall_tsqw` | overall_tsqw | **Headline metric.** The token-weighted loss of each of the 7 collections, averaged with weights proportional to the square root of the collection's token count |
+| `00_overall_tw` | overall_tw | All tokens of 6 collections (pile_10k left out) pooled and averaged |
+| `00_overall_macro` | overall_macro | Plain mean of the losses of those 6 collections |
+| `01_val_v2_overall_tw` | val_v2 | The cc + python + arxiv suites pooled, token-weighted |
+| `01_val_v2_cc` / `_python` / `_arxiv` | the three parts of val_v2 | Each part's loss |
+| `02_uncheatable_tw` | uncheatable | 55 splits, token-weighted |
+| `03_codefresh_tw` | codefresh | 30 splits, token-weighted |
+| `04_v3small_tw` | v3small | 8 splits, token-weighted |
+| `04_private_internal_tw` | private_internal | 2 splits, token-weighted |
+| `05_pile_test_tw` | pile_test | 16 splits, token-weighted |
+| `05_pile_10k_tw` | pile_10k | 1 split |
+| `02_uncheatable_macro`, `04_v3small_macro`, `05_pile_test_macro` | (macro) | Plain mean of the split losses of that collection, not token-weighted |
+
+Weight of each collection in the two overall metrics:
+
+| Collection | Scored tokens | Weight in overall_tsqw | Weight in overall_tw |
+|---|---:|---:|---:|
+| uncheatable | 114,928,353 | 31.4% | 50.6% |
+| pile_test | 60,395,136 | 22.7% | 26.6% |
+| val_v2 | 26,586,827 | 15.1% | 11.7% |
+| codefresh | 19,029,400 | 12.8% | 8.4% |
+| pile_10k | 7,382,390 | 7.9% | not included |
+| private_internal | 3,204,144 | 5.2% | 1.4% |
+| v3small | 2,765,345 | 4.9% | 1.2% |
+
+**Rules for comparing**:
+
+- Compare `loss` between models with the same tokenizer. Our models, the Qwen3 family and MiMo share the same token ids.
+- Between models with different tokenizers compare only `bpb`. The overall_tsqw weights use the Qwen3 token counts for every model.
+- Compare new results with old ones at the 8K window.
+
+## 3. Result file formats
+
+### 3.1 Full result: one checkpoint, one window, one JSON
+
+File name `&lt;Change ID&gt;_&lt;rung&gt;.json`, about 14 KB. Results of the new and the old method have exactly the same fields.
+
+- **Change ID**: the experiment's name, for example `PROD1_DPSK_LATENT2_E2X_QBK3`.
+- **rung**: `q0`–`q6` are the model sizes of the ladder; `ref` marks an external model; `it&lt;N&gt;` marks the checkpoint at iteration N of a production run.
+- **Window**: a 32K result has `_W32K` in its Change ID, for example `PROD1_DPSK_LATENT2_E2X_QBK3_W32K_q3.json`. The file has no separate window field; the eval window is recorded in `train.seq_length` (that field holds the `--seq-length` of the eval, not the training length).
+
+| Field | Content |
+|---|---|
+| `change`, `rung` | Change ID and rung, as in the file name |
+| `iteration` | Training iteration of the checkpoint (0 for an external model) |
+| `protocol` | Always `doc_isolated` |
+| `checkpoint` | Full path of the checkpoint (the HF model directory for an external model) |
+| `eval_job`, `eval_dir`, `evaluated_at` | Slurm job id, raw eval directory and finish time of the eval. With the new method `eval_dir` is the directory of that window's long-document pass (`&lt;ID&gt;__PKL8-…` or `&lt;ID&gt;__PKL32-…`); for an old-method eval run in three parts it is part 1's directory and `eval_job` the largest job id |
+| `train` | `lr`, `min_lr`, `train_iters`, `num_layers`, `hidden_size`, `global_batch_size`, `seq_length` from the eval arguments; null for an external model |
+| `metrics` | The 16 metrics of section 2, each `{loss, ppl, bpb}` |
+| `suites` | The 9 suites, each with `loss_tw` (token-weighted loss), `tokens` and `splits` (every split's `loss` and `tokens`) |
+
+For an external model with its own tokenizer, every suite and split in `suites` also has `bytes` and `bpb`.
+
+A real example (shortened):
+
+```json
+{
+ "change": "PROD1_DPSK_LATENT2_E2X_QBK3", "rung": "q3", "iteration": 70438,
+ "protocol": "doc_isolated",
+ "checkpoint": ".../results/PROD1_DPSK_LATENT2_E2X_QBK3/ckpts/q3/iter_0070438",
+ "eval_job": 56590, "eval_dir": ".../runs/ladder_doc_eval/PROD1_DPSK_LATENT2_E2X_QBK3__P1of3-q3-56588",
+ "evaluated_at": "2026-11-10T01:56:48",
+ "train": {"lr": 0.00687, "num_layers": 30, "hidden_size": 1280, "seq_length": 8192},
+ "metrics": {
+  "00_overall_tsqw":      {"loss": 1.5320, "ppl": 4.6275, "bpb": 0.5966},
+  "01_val_v2_overall_tw": {"loss": 1.2549, "ppl": 3.5074, "bpb": 0.5101}
+ },
+ "suites": {
+  "v3small_decon_qwen3": {"loss_tw": 2.3000, "tokens": 2765345,
+    "splits": {"c4_en": {"loss": 2.4880, "tokens": 463467},
+               "dolma_common_crawl": {"loss": 2.8063, "tokens": 195508}}}
+ }
+}
+```
+
+### 3.2 Pooled result (Boxiang's evals, not shown in the report)
+
+Before 2026-11-13 the production run (59B, `ULTRA59B_MUONH_KD_QBK3`) had only 5 results of this kind (steps 4,000 / 10,000 / 18,000 / 20,000 / 24,000, 8K), from the evals Boxiang runs as loss-parity reference of the downstream eval. The 59B now has full results (3.1); these pooled results stay in their files and are not shown in the report. Such an eval puts all documents of a collection into one validation set, so a collection has one loss and no split detail. The scoring code is the same as in 3.1 and the document and token counts equal those of our collection of the same name, so a collection's value is the same quantity.
+
+File, in the ladder repo: `results_xx/prod_isodoc/&lt;RUN&gt;[_W32K]_iter&lt;7-digit iteration&gt;.json`:
+
+| Field | Content |
+|---|---|
+| `run`, `iteration`, `window` | Run name, iteration, eval window (8192 or 32768) |
+| `pooled_sets` | Always true |
+| `checkpoint`, `train` | Checkpoint path; training configuration (total iterations, training length, layers, KD teacher, ...) |
+| `metrics` | Only the collections that were scored, with the keys of 3.1 (now `01_val_v2_overall_tw` and `04_v3small_tw`), plus `tokens`, `docs`, `set` |
+| `not_scored` | Keys of the collections not scored |
+| `source` | Eval directory, job id, time, who ran it, the Megatron and ladder code used |
+| `other_evals` | Other evals of the same checkpoint and window (only the newest one is used) |
+
+### 3.3 The files of a model in the new folder
+
+`~/runs/cosmos_eval_doc_isolate/&lt;category&gt;/&lt;model&gt;/`:
+
+| File | Content |
+|---|---|
+| `summary.md` | For people: every metric in one table, one pair of loss / bpb columns per window |
+| `summary.json` | The same numbers: `windows.&lt;window&gt;.metrics.&lt;metric key&gt;.{loss, ppl, bpb}`, and per window `eval_job`, `evaluated_at`, `what` (full or pooled result) |
+| `identity.json` | What was evaluated: `checkpoint`, `iteration`, `train`, `protocol`; `evals.&lt;window&gt;` records the result file's name, the job id, the raw eval directory and where the result file was copied from |
+| `breakdowns/&lt;window&gt;.json` | The complete result file of that window, an unchanged copy of the JSON of 3.1 or 3.2. Window names are `8k`, `16k`, `32k` |
+| `runs/&lt;directory name&gt;` | Links to the raw eval directories |
+
+The window name is taken from the result file's `train.seq_length`, so a model evaluated at 16K shows `16k`.
+
+### 3.4 The files of a raw eval directory
+
+Since 2026-11-13 in `~/runs/cosmos_eval_doc_isolate/_runs/`, earlier ones in `~/runs/ladder_doc_eval/`. Directory names:
+
+- New method: three directories per job, `&lt;ID&gt;__PKS-&lt;rung&gt;-&lt;job id&gt;`, `&lt;ID&gt;__PKL32-…`, `&lt;ID&gt;__PKL8-…` (no `__PKL32` for a checkpoint trained shorter than 32K).
+- Old method: `&lt;ID&gt;[_W32K][__P&lt;i&gt;of3]-&lt;rung&gt;-&lt;job id&gt;`.
+
+
+| File | Content |
+|---|---|
+| `argv_doc.txt` | Every argument this eval passed to Megatron, one per line |
+| `logs/doc.log` | The eval log |
+| `doc_eval_stats.json` | Per split: documents, chunked documents, samples, predicted tokens, fill ratio |
+| `eval/val_splits_iter&lt;N&gt;_doc_isolated.json` | The raw result: `iteration`, `time`, `protocol`, `suites.&lt;suite&gt;.{labels, loss, tokens}` (three lists of equal length, one entry per split) |
+| `RESULTS.md` | A summary table written when the eval ends |
+| `data_cache/`, `tensorboard/` | The per-split JSON and index cache of this eval; tensorboard output |
+| `PACKED.json` | In every directory of the new method: which pass it is (S / L32 / L8), the segment length, which passes the job ran. Logs and `RESULTS.md` are only in the `__PKS` directory |
+| `DUALWIN.md` | Old method, only in the directory of the second window (8K): names the 32K directory it shares a model load with. Logs and `RESULTS.md` are only in the 32K directory |
+
+## 4. Where things are stored
+
+### 4.1 The home of the results
+
+`~/runs/cosmos_eval_doc_isolate/` (`~/runs/cosmos_eval_doc_isolated` is a link to it). Next to it is the downstream eval's `~/runs/cosmos_eval_downstream/`.
+
+```
+baseline/&lt;model&gt;/                  external reference models, 21
+ours_ladder/&lt;Change ID&gt;_&lt;rung&gt;/    ladder checkpoints, 599
+ours_prod/&lt;run&gt;_iter&lt;iteration&gt;/   production-run checkpoints
+    summary.md  summary.json  identity.json  breakdowns/  runs/
+&lt;category&gt;/index.md                one line per model: overall_tsqw and val_v2
+_runs/                             raw directories of every eval job since 2026-11-13
+_slurm/                            the Slurm logs of those jobs
+README.md
+```
+
+- Model directory names match the downstream side, for example `QWEN3_30B_A3B_BASE`, `PROD1_DPSK_LATENT2_E2X_QBK3_q3`, `ULTRA59B_MUONH_KD_QBK3_iter0024000`.
+- A model directory is rebuilt from the result files; deleting it loses nothing.
+- `ours_ladder/` holds every existing result, old experiments included.
+
+### 4.2 Other locations
+
+| Content | Path | Notes |
+|---|---|---|
+| Old raw eval directories and support files | `~/runs/ladder_doc_eval/` | About 1,170 raw directories from before 2026-11-13, not moved for now. Also `stage/` (staged production-run checkpoints), `code_snapshots/` (the code copy each batch of jobs ran from), `packed_trees/` and `dualwin_trees/` (code link trees), `data_cache/corpus_v2/` (the shared dataset index cache), `sbatch/` (old job logs, `finish_*.log`), `lustre_stuck_nodes.txt` (nodes every submission avoids) |
+| Test output | `~/runs/ladder_doc_eval_speedtest/` | Validation and speed-test jobs write here. The collectors do not read it, so it never reaches the results home |
+| Result JSONs, originals | `~/Project/trichord/dense_pretrain_result/` | The collector writes here first. It is in trichord's git: do not move, delete or replace with links |
+| Result JSONs, group-readable copy | `/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/dense_pretrain_result/` | For others to read |
+| Result JSONs, the report's copy | `~/Project/cosmos_llm_scaling_ladder/results_xx/` | The report generator reads here; `results_xx/prod_isodoc/` holds the production run's pooled results |
+| Raw directories of the production run's pooled evals | `~/runs/cosmos_eval_downstream/_doc_eval59/` and `/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmos_ultra_pre/runs/eval59/doc_eval/` | The first was submitted from our account, the second is Boxiang's |
+| Report | `~/Project/cosmos_llm_scaling_ladder/reports_xx/qwen3_scaling_ladder_eval.html`, `_en.html`, `.md` | Tabs in order: doc-isolated, prod iso-doc, prod downstream, External references, Older experiments, LR fitting, packed (names and order since 2026-11-14). URL `http://oci-jhb-slurm-2-vscode-02:8765/qwen3_scaling_ladder_eval.html` |
+
+Permissions: `~/Project/` and trichord are readable by the owner only and must stay that way; copy what others need to another place.
+
+### 4.3 Code
+
+The code lives in `scripts/doc_isolated/` of the lm-evaluation-harness repo (`~/Project/lm-evaluation-harness`). It was copied from the ladder repo on 2026-11-13; the files there were left in place and are no longer used. It is committed on branch `xingqianx/eval` (2026-11-14, commit 9edbbea7, not pushed yet). Paths below are relative to that directory:
+
+| File | Role |
+|---|---|
+| `core/doc_eval.py` | Scoring core: how documents are cut, which tokens are scored (also the old method's datasets) |
+| `core/packed/` | **The new method**: `doc_eval_packed.py` (packing, row format), `pretrain_doceval.py` (passes S, L32, L8 in one model load), `test_doc_eval_packed_cpu.py` (CPU test against the old method, chunk by chunk) |
+| `core/pretrain_doceval.py` | Eval entry point, wraps Megatron's `pretrain_gpt.py` |
+| `core/val_metrics.py` | Per-split validation and the metric definitions |
+| `core/sh/eval_ckpt.sh`, `core/tools/eval_argv.py` | The body of an eval job; turns training arguments into eval arguments |
+| `core/dualwin/` | Old method: two windows from one model load |
+| `run_doc_eval.sh` | **Submit evals** |
+| `stage_prod_ckpt.py` | Stages one checkpoint of a production run in the ladder's directory format |
+| `mimo_doc_eval.py`, `mimo_doc_eval.sbatch` | Eval of an external model (vLLM) |
+| `collect_doc_eval.py` | **Collect** into result JSONs |
+| `collect_prod_isodoc.py` | Collect the production run's pooled results |
+| `organize_doc_isolated.py` | **Organise** into `~/runs/cosmos_eval_doc_isolate/` |
+| `compare_packed_padded.py` | New vs old method on the same checkpoint, split by split (read-only) |
+| `finish_when_done.sh` | Waits for jobs, then collects, organises and publishes the prod iso-doc tab (runs in tmux) |
+| `README.md` | Notes in English |
+
+- The report code stays in the ladder repo's `reports_xx/`: `gen_eval_html.py`, `prod_isodoc_section.py` (the prod iso-doc tab), `render_doc.py` (the HTML of this guide). The eval scripts of the same names in `reports_xx/` are old copies; do not use them.
+- `core/doc_eval.py` and `core/val_metrics.py` are byte-identical to the ladder repo's `code/scaling_ladder/` and to Boxiang's snapshot for the 59B, `cosmos_ultra_pre/ladder-prod-a38190d8`.
+
+## 5. How to run it
+
+### 5.0 Common to all
+
+- Cluster oci-jhb-slurm-2, account `cosmos_base_training`. Every eval job uses 1 node with 4 GPUs.
+- **Submit from a frozen copy of the code**, so that editing the repo cannot change the code under a running job:
+
+```bash
+S=~/runs/ladder_doc_eval/code_snapshots/doc_isolated_$(date +%Y%m%d_%H%M)
+rsync -a --exclude __pycache__ ~/Project/lm-evaluation-harness/scripts/doc_isolated/ $S/ &amp;&amp; cd $S
+```
+
+- **Run with `--dry` first** to see what would be submitted, then without it.
+- The new method is the default: one job per checkpoint, giving all the windows due.
+- `EVAL_QOS=normal` is rewritten to `normal_quota` on slurm-2. The script uses wckey p0 by default (the user's rule of 2026-11-13); p0 preempts p1 jobs of the same QOS, for example the tc_full teacher-cache tasks (they requeue by themselves). This is the state of 2026-11-13; cluster rules change often, check before submitting.
+
+### 5.1 A ladder checkpoint
+
+```bash
+EVAL_QOS=normal EVAL_EXTRA_ARGS= bash run_doc_eval.sh --dry &lt;ID&gt;/q3=run:&lt;absolute path of the run directory&gt;
+```
+
+- The Change ID has no `_W32K`. A checkpoint trained at 32K (or longer) gets an 8K and a 32K result, the 32K one written as `&lt;ID&gt;_W32K`; one trained shorter gets 8K only.
+- How to name the checkpoint: `=run:&lt;run directory&gt;` (the run's last checkpoint); `=p:&lt;ID&gt;` (a promoted Change ID); no `=` takes the promoted directory of the same name.
+- Job name `xxdoc-&lt;ID&gt;__PK-&lt;rung&gt;`.
+- Checkpoints with sliding-window attention (`SWA_FIT_SINK_*`) have not been run with the new method yet: compare one against the old method first (`compare_packed_padded.py`).
+
+Environment variables:
+
+| Variable | Effect |
+|---|---|
+| `EVAL_QOS=normal` | The QOS. Unset means hero-res, which slurm-2 does not have |
+| `SBATCH_WCKEY` | Priority, p0 by default |
+| `EVAL_LADDER_CODE=&lt;dir&gt;` | The ladder code tree; must be the one the run was trained with (the PROD1 overlay trees) |
+| `EVAL_EXTRA_ARGS="--flag value"` | Rewrites eval arguments, for example `--distributed-timeout-minutes 240` |
+| `EVAL_TIME=HH:MM:SS` | The time limit as given. Unset: per rung as below; 3 hours for a production run's `it&lt;N&gt;` |
+| `EVAL_CACHE_PER_JOB=1` | Each job uses its own dataset index cache instead of the shared one |
+| `EVAL_RUN_ROOT=&lt;dir&gt;` | Writes the eval directories elsewhere (for tests, under `~/runs/ladder_doc_eval_speedtest/`; the collectors do not read it) |
+| `EVAL_PACKED=0` | Use the old method. Setting any of the old method's `EVAL_DUALWIN_SEQ=8192` (an 8K window from the same load; the Change ID then needs `_W32K`), `EVAL_SPLIT3=1` (three parallel jobs), `EVAL_ONLY_PARTS=2` selects it as well |
+
+Time limits without `EVAL_TIME` (set for the old method; the new one needs far less): q0 2:30; q1, q2 3:30; q3 4:30; q4 5:30; q5 8:00; q6 12:00. Measured with the new method: ladder q1 13–17 minutes, the 59B 1:01.
+
+### 5.2 A checkpoint of a production run
+
+A production run has no checkpoint directory like the ladder's. Stage one first, then use the same submit script:
+
+```bash
+BX=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmos_ultra_pre   # Boxiang's production directory, read-only
+
+# 1. stage: writes argv.txt, run.json and a link to the checkpoint under OUR directory, prints the directory
+python3 stage_prod_ckpt.py --view $BX/runs/eval59/view/ultra59b_muonh_kd_qbk3 --iter 30000 --change ULTRA59B_MUONH_KD_QBK3
+
+# 2. submit: the rung is it&lt;iteration&gt;
+EVAL_QOS=normal EVAL_EXTRA_ARGS= EVAL_CACHE_PER_JOB=1 \
+bash run_doc_eval.sh --dry ULTRA59B_MUONH_KD_QBK3/it30000=ckpt:$HOME/runs/ladder_doc_eval/stage/ULTRA59B_MUONH_KD_QBK3/ckpts/it30000
+```
+
+- One call per checkpoint. Several checkpoints in one call form a chain: each waits for the previous one to end.
+- The staging script drops the training-only arguments (pack plan, wandb, ...) and has **no training dataset**, so the eval never builds a training-set index.
+- The model arguments are identical to those of Boxiang's 59B eval (checked one by one on 2026-11-13).
+- Measured: steps 10,000 / 20,000 / 24,000 took 1:00–1:01 each on one node; both windows agreed with the old method split by split.
+
+### 5.3 An external model
+
+Scored offline with vLLM, one document per sequence, by the same rules; every split's token count is checked against the ladder's records. The new method is for Megatron checkpoints only.
+
+```bash
+sbatch -N 1 -t 08:00:00 --export=ALL,NAME=&lt;name&gt;,MODEL=&lt;HF model directory&gt;,PP=1 mimo_doc_eval.sbatch
+```
+
+- 32K window: add `SEQ=32760` and name it `&lt;name&gt;_W32K`.
+- A model with its own tokenizer: add `HFO='{}' EXTRA="--text-dir ~/data/eval_ppl_decon"`, plus `--bos` if it needs a BOS token. Such a model's loss is per its own tokens; compare bpb only.
+- Large models use 2 nodes (`-N 2`, `PP=2`). The exact arguments used for each model are in the comments at the top of `mimo_doc_eval.sbatch`.
+- Output directory `~/runs/cosmos_eval_doc_isolate/_runs/&lt;name&gt;-ref-&lt;job id&gt;/`.
+
+### 5.4 Boxiang's pooled eval (not part of this pipeline)
+
+Boxiang's `cosmos_ultra_pre/launch/eval59/doc_eval_59b.sbatch`: one checkpoint, 1 node, about 1 hour, only the pooled collections he configured (val_v2 and v3small for now), window 8K by default. It is the loss-parity reference checked before the downstream eval starts and is used by the downstream session. `collect_prod_isodoc.py` collects its results; the report does not show them.
+
+### 5.5 Collect, organise, publish
+
+The easiest way is a waiting script in tmux, started after submitting: whenever a job ends or a new result appears it collects, organises and publishes the prod iso-doc tab:
+
+```bash
+tmux new -d -s iso_finish "bash finish_when_done.sh &lt;job id&gt; [&lt;job id&gt; ...]"   # log ~/runs/ladder_doc_eval/sbatch/finish_&lt;first job id&gt;.log
+```
+
+By hand (in `scripts/doc_isolated/` or its frozen copy):
+
+```bash
+python3 collect_doc_eval.py        # raw directories -&gt; result JSONs (trichord first, then the two copies)
+python3 collect_prod_isodoc.py     # the production run's pooled results -&gt; results_xx/prod_isodoc/
+python3 organize_doc_isolated.py   # result JSONs -&gt; ~/runs/cosmos_eval_doc_isolate/
+cd ~/Project/cosmos_llm_scaling_ladder/reports_xx
+python3 gen_eval_html.py --only prod                                       # republish only the report's prod iso-doc tab
+rsync -a --exclude __pycache__ ./ ../../trichord/reports/dense_pretrain/   # the report's mirror
+```
+
+- `collect_doc_eval.py` takes, per (Change ID, rung, window), the eval with the newest job id: for the new method a window is collected as soon as pass S and that window's pass (L32 or L8) have their results, so the 32K result reaches the report about 17 minutes before the 8K one; for the old method all 3 parts must be done at the same iteration. Every split's scored-token count is checked against the suite yaml.
+- New vs old method: `python3 compare_packed_padded.py &lt;ID&gt; &lt;rung&gt; [&lt;rung&gt; ...]`; exit status 0 means everything agrees.
+- Several sessions build the report together: **publish only your own tab with `--only &lt;tab&gt;`**, never rebuild the whole report.
+
+### 5.6 What to check first when something goes wrong
+
+| Symptom | Check first |
+|---|---|
+| The job exits at once with `LUSTRE CHECK FAILED` in its log | The node's Lustre is stuck. Add the node name to `~/runs/ladder_doc_eval/lustre_stuck_nodes.txt` and resubmit; submissions avoid it from then on |
+| The job hangs at its first file read | Same as above (nvl72d007-t01 on 2026-11-13, OST0157/0158) |
+| No output for a long time, then an NCCL timeout | Zero-byte files in the dataset index cache: `find ~/runs/ladder_doc_eval/data_cache/corpus_v2 -name '*.npy' -size -128c` |
+| The job stays PENDING with reason requeued held | `scontrol release &lt;job id&gt;` |
+| Some jobs of one batch get preempted and requeued | The batch has mixed wckeys; p0 preempts non-p0 jobs in the same QOS |
+| `sacct` does not show whether a job was cancelled | Use `sacct -o State%30`; the default width cuts `CANCELLED by &lt;uid&gt;` |
+| The job shows PREEMPTED | slurm-2 requeues it and it still finishes; it has not ended |
+| The eval starts by building thousands of index files | The run carries its training dataset. Runs trained on pre-packed data do this; for a production run the staging of 5.2 avoids it |
+| A checkpoint has no result JSON | New method: whether `__PKS`, `__PKL8` (and `__PKL32`) all have `eval/val_splits_*.json`; old method: whether all 3 parts have one, at the same iteration |
+| A new-method job stops because `--dataloader-inter-document-masking` is missing | It was not submitted with `run_doc_eval.sh`, which adds that switch for every checkpoint |
+
+## 6. Current state (2026-11-13 23:30)
+
+- **The new method is the default** (since 23:26): every new iso-doc eval uses it, and its result files have the same structure and content as the old ones. Existing old results need no re-run.
+- **59B** (`ULTRA59B_MUONH_KD_QBK3`): steps 10,000 / 20,000 / 24,000 have full 8K and 32K results (measured once with each method, identical split by split; the result files hold the new method's run); step 30,000 is done as well (new method). Steps 4,000 / 18,000 have only Boxiang's pooled results, which the report does not show.
+- **Step 30,000** is done (job 65045, in the report since 2026-11-14 00:07).
+- **Not decided yet**: whether the raw directories from before 2026-11-13 in `~/runs/ladder_doc_eval/` move into `_runs/`.
+</script></body></html>

@@ -1,10 +1,10 @@
 # Qwen3-MoE scaling ladder 评测报告 —— Markdown 镜像（给 agent 读）
 
-_由 `reports_xx/gen_eval_md.py` 生成于 2026-11-05 21:40：正文 = `qwen3_scaling_ladder_eval.html`（中文版，HTML 生成于 2026-11-05 21:40）经 `reports_xx/html_to_md.py` 逐段转换，
+_由 `reports_xx/gen_eval_md.py` 生成于 2026-11-14 09:00：正文 = `qwen3_scaling_ladder_eval.html`（中文版，HTML 生成于 2026-11-14 09:00）经 `reports_xx/html_to_md.py` 逐段转换，
 附录 = `trichord/dense_pretrain_result/*.json` 的原始数。不要手改：改 `gen_eval_html.py` 后重跑它（它会自动重写本文件）。_
 
 读法：
-- 内容和 HTML 一一对应、顺序相同。HTML 的每个页签 = 下面一个 `## 页签：…` 大节（doc-isolated = 主评测（逐项叠加的架构变化 + 数据 derisk）；doc-isolated老实验 = 其余单项实验（优化器、KD 对 CE、尾部估算方式、KD teacher、文档 mask、SWA、router、负熵均衡、第 0 层 dense、Latent MoE、位置编码），同一套评测；外部参考；LR 拟合实验；packed = Boxiang 训练时自带的验证，绝对值比 doc-isolated 高约 0.013–0.016，两者的绝对值不能互比）。
+- 内容和 HTML 一一对应、顺序相同。HTML 的每个页签 = 下面一个 `## 页签：…` 大节（doc-isolated = 主评测（逐项叠加的架构变化 + 数据 derisk）；prod downstream = 我们自己的 checkpoint 的全量测评（统一 harness 的 cosmos_ultra_ladder：36 个任务、66 个指标，重点 19 个任务；分数 ×100）；外部参考 = 外部模型的 doc-isolated 测试 + 同一套全量测评；老实验 = doc-isolated 的其余单项实验（优化器、KD 对 CE、尾部估算方式、KD teacher、文档 mask、SWA、router、负熵均衡、第 0 层 dense、Latent MoE、位置编码），和主评测同一套评测；LR 拟合实验；packed = Boxiang 训练时自带的验证，绝对值比 doc-isolated 高约 0.013–0.016，两者的绝对值不能互比）。
 - 每张图都换成了数据表，数取自图上的悬停提示：表头是 rung（或横轴上的点），每行是图里的一条线；横轴点多时（LR 扫描、训练步数）行列互换，router 健康曲线均匀抽 12 个点（含首尾）。`·` = 该点没有数据。
 - HTML 里靠按钮切换的内容全部展开，每块前面标明是哪个按钮：〔指标：…〕（overall_tsqw / overall_tw / overall_macro / 单个验证集）、〔视图：…〕（窗口、统计量等）、〔窗口：…〕。
 - 单位 nats/token（另注 bpb、ppl 的除外）；图里的数大多是“该线 − 0 线”的 Δloss，负数 = 比 0 线好；各节的 0 线写在该节说明里，不同节的 0 线常常不同。
@@ -12,7 +12,7 @@ _由 `reports_xx/gen_eval_md.py` 生成于 2026-11-05 21:40：正文 = `qwen3_sc
 
 # Qwen3-MoE scaling ladder
 
-doc-isolated 评测（9 个 decon suite，含 private_internal），dpl 指标定义；数据生成于 2026-11-05 21:40
+doc-isolated 评测（9 个 decon suite，含 private_internal），dpl 指标定义；数据生成于 2026-11-14 09:00
 
 ## 页签：doc-isolated
 
@@ -47,7 +47,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | `MUONH_FIT_DSV3_SWS_SHARED_RS2P5` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 2048（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | MoE（同其他层） | 8K；文档之间不 mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0356 | -0.0465 | -0.0496 | -0.0490 |
 | `PROD1_DPSK` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0375 | -0.0527 | -0.0567 | -0.0560 |
 | `PROD1_DPSK_LATENT2` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 256 选 16（expert 在 d 维上，每个半大）+ 1 shared；routed scaling 2.5；总参数同上一行 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0466 | -0.0667 | -0.0759 | -0.0747 |
-| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0832 | -0.1022 | -0.1024 | · |
+| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0832 | -0.1022 | -0.1024 | -0.0990 |
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
@@ -57,7 +57,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | MUONH_FIT_DSV3_SWS_SHARED_RS2P5 | -0.0356 | -0.0465 | -0.0496 | -0.0490 |
 | PROD1_DPSK | -0.0375 | -0.0527 | -0.0567 | -0.0560 |
 | PROD1_DPSK_LATENT2 | -0.0466 | -0.0667 | -0.0759 | -0.0747 |
-| PROD1_DPSK_LATENT2_E2X | -0.0832 | -0.1022 | -0.1024 | · |
+| PROD1_DPSK_LATENT2_E2X | -0.0832 | -0.1022 | -0.1024 | -0.0990 |
 
 **〔指标：overall_tw〕**
 
@@ -70,7 +70,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | `MUONH_FIT_DSV3_SWS_SHARED_RS2P5` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 2048（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | MoE（同其他层） | 8K；文档之间不 mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0349 | -0.0468 | -0.0506 | -0.0507 |
 | `PROD1_DPSK` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0367 | -0.0537 | -0.0580 | -0.0577 |
 | `PROD1_DPSK_LATENT2` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 256 选 16（expert 在 d 维上，每个半大）+ 1 shared；routed scaling 2.5；总参数同上一行 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0463 | -0.0676 | -0.0779 | -0.0771 |
-| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0829 | -0.1039 | -0.1044 | · |
+| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0829 | -0.1039 | -0.1044 | -0.1017 |
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
@@ -80,7 +80,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | MUONH_FIT_DSV3_SWS_SHARED_RS2P5 | -0.0349 | -0.0468 | -0.0506 | -0.0507 |
 | PROD1_DPSK | -0.0367 | -0.0537 | -0.0580 | -0.0577 |
 | PROD1_DPSK_LATENT2 | -0.0463 | -0.0676 | -0.0779 | -0.0771 |
-| PROD1_DPSK_LATENT2_E2X | -0.0829 | -0.1039 | -0.1044 | · |
+| PROD1_DPSK_LATENT2_E2X | -0.0829 | -0.1039 | -0.1044 | -0.1017 |
 
 **〔指标：overall_macro〕**
 
@@ -93,7 +93,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | `MUONH_FIT_DSV3_SWS_SHARED_RS2P5` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 2048（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | MoE（同其他层） | 8K；文档之间不 mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0367 | -0.0463 | -0.0490 | -0.0481 |
 | `PROD1_DPSK` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0381 | -0.0517 | -0.0558 | -0.0552 |
 | `PROD1_DPSK_LATENT2` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 256 选 16（expert 在 d 维上，每个半大）+ 1 shared；routed scaling 2.5；总参数同上一行 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0475 | -0.0658 | -0.0742 | -0.0733 |
-| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0833 | -0.0995 | -0.0998 | · |
+| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0833 | -0.0995 | -0.0998 | -0.0966 |
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
@@ -103,7 +103,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | MUONH_FIT_DSV3_SWS_SHARED_RS2P5 | -0.0367 | -0.0463 | -0.0490 | -0.0481 |
 | PROD1_DPSK | -0.0381 | -0.0517 | -0.0558 | -0.0552 |
 | PROD1_DPSK_LATENT2 | -0.0475 | -0.0658 | -0.0742 | -0.0733 |
-| PROD1_DPSK_LATENT2_E2X | -0.0833 | -0.0995 | -0.0998 | · |
+| PROD1_DPSK_LATENT2_E2X | -0.0833 | -0.0995 | -0.0998 | -0.0966 |
 
 **〔指标：val_v2〕**
 
@@ -116,7 +116,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | `MUONH_FIT_DSV3_SWS_SHARED_RS2P5` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 2048（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | MoE（同其他层） | 8K；文档之间不 mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0279 | -0.0345 | -0.0352 | -0.0339 |
 | `PROD1_DPSK` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0300 | -0.0394 | -0.0396 | -0.0376 |
 | `PROD1_DPSK_LATENT2` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 256 选 16（expert 在 d 维上，每个半大）+ 1 shared；routed scaling 2.5；总参数同上一行 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0367 | -0.0496 | -0.0527 | -0.0515 |
-| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0685 | -0.0777 | -0.0751 | · |
+| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0685 | -0.0777 | -0.0751 | -0.0713 |
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
@@ -126,7 +126,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | MUONH_FIT_DSV3_SWS_SHARED_RS2P5 | -0.0279 | -0.0345 | -0.0352 | -0.0339 |
 | PROD1_DPSK | -0.0300 | -0.0394 | -0.0396 | -0.0376 |
 | PROD1_DPSK_LATENT2 | -0.0367 | -0.0496 | -0.0527 | -0.0515 |
-| PROD1_DPSK_LATENT2_E2X | -0.0685 | -0.0777 | -0.0751 | · |
+| PROD1_DPSK_LATENT2_E2X | -0.0685 | -0.0777 | -0.0751 | -0.0713 |
 
 **〔指标：uncheatable〕**
 
@@ -139,7 +139,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | `MUONH_FIT_DSV3_SWS_SHARED_RS2P5` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 2048（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | MoE（同其他层） | 8K；文档之间不 mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0331 | -0.0490 | -0.0554 | -0.0566 |
 | `PROD1_DPSK` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0352 | -0.0580 | -0.0630 | -0.0642 |
 | `PROD1_DPSK_LATENT2` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 256 选 16（expert 在 d 维上，每个半大）+ 1 shared；routed scaling 2.5；总参数同上一行 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0467 | -0.0722 | -0.0849 | -0.0859 |
-| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0835 | -0.1103 | -0.1112 | · |
+| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0835 | -0.1103 | -0.1112 | -0.1105 |
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
@@ -149,7 +149,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | MUONH_FIT_DSV3_SWS_SHARED_RS2P5 | -0.0331 | -0.0490 | -0.0554 | -0.0566 |
 | PROD1_DPSK | -0.0352 | -0.0580 | -0.0630 | -0.0642 |
 | PROD1_DPSK_LATENT2 | -0.0467 | -0.0722 | -0.0849 | -0.0859 |
-| PROD1_DPSK_LATENT2_E2X | -0.0835 | -0.1103 | -0.1112 | · |
+| PROD1_DPSK_LATENT2_E2X | -0.0835 | -0.1103 | -0.1112 | -0.1105 |
 
 **〔指标：codefresh〕**
 
@@ -162,7 +162,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | `MUONH_FIT_DSV3_SWS_SHARED_RS2P5` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 2048（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | MoE（同其他层） | 8K；文档之间不 mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0468 | -0.0552 | -0.0550 | -0.0510 |
 | `PROD1_DPSK` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0464 | -0.0584 | -0.0629 | -0.0631 |
 | `PROD1_DPSK_LATENT2` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 256 选 16（expert 在 d 维上，每个半大）+ 1 shared；routed scaling 2.5；总参数同上一行 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0565 | -0.0769 | -0.0838 | -0.0805 |
-| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0985 | -0.1157 | -0.1133 | · |
+| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0985 | -0.1157 | -0.1133 | -0.1062 |
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
@@ -172,7 +172,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | PROD1_DPSK | -0.0464 | -0.0584 | -0.0629 | -0.0631 |
 | MUONH_FIT_DSV3_SWS_SHARED_RS2P5 | -0.0468 | -0.0552 | -0.0550 | -0.0510 |
 | PROD1_DPSK_LATENT2 | -0.0565 | -0.0769 | -0.0838 | -0.0805 |
-| PROD1_DPSK_LATENT2_E2X | -0.0985 | -0.1157 | -0.1133 | · |
+| PROD1_DPSK_LATENT2_E2X | -0.0985 | -0.1157 | -0.1133 | -0.1062 |
 
 **〔指标：private_internal〕**
 
@@ -185,7 +185,7 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | `MUONH_FIT_DSV3_SWS_SHARED_RS2P5` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 2048（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | MoE（同其他层） | 8K；文档之间不 mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0315 | -0.0427 | -0.0478 | -0.0463 |
 | `PROD1_DPSK` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 128 选 8 + 1 shared（3h/8）；routed scaling 2.5 | 无 | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0347 | -0.0480 | -0.0530 | -0.0534 |
 | `PROD1_DPSK_LATENT2` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 256 选 16（expert 在 d 维上，每个半大）+ 1 shared；routed scaling 2.5；总参数同上一行 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0429 | -0.0598 | -0.0698 | -0.0704 |
-| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0724 | -0.0865 | -0.0874 | · |
+| `PROD1_DPSK_LATENT2_E2X` | 拟合 fit v2：0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259 | DSV3：sigmoid 打分；expert bias（γ 1e-3）+ seq aux 1e-4 | 5:1：5 层 SWA 窗口 512（RoPE）+ 1 层全注意力（NoPE）；可学习 sink | 512 选 16 + 1 shared；routed scaling 2.5；routed 参数 ×2 | 有：d = h/2（h → d 投影，expert 在 d 上算，RMSNorm 后投回 h；router 和 shared expert 仍在 h 上） | dense SwiGLU（宽 9 × 3h/8），注意力 SWA | 32K（每步仍 2^21 token）；文档间 attention mask | TPP 200 按新的激活参数算（q0 4,915 步，+7.4%） | -0.0724 | -0.0865 | -0.0874 | -0.0876 |
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
@@ -195,340 +195,2569 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 | MUONH_FIT_DSV3_SWS_SHARED_RS2P5 | -0.0315 | -0.0427 | -0.0478 | -0.0463 |
 | PROD1_DPSK | -0.0347 | -0.0480 | -0.0530 | -0.0534 |
 | PROD1_DPSK_LATENT2 | -0.0429 | -0.0598 | -0.0698 | -0.0704 |
-| PROD1_DPSK_LATENT2_E2X | -0.0724 | -0.0865 | -0.0874 | · |
+| PROD1_DPSK_LATENT2_E2X | -0.0724 | -0.0865 | -0.0874 | -0.0876 |
 
 - 顺序跟着现有的单变量实验走：shared expert 只在 SWA + sink 底座上测过，所以 MUONH_FIT_DSV3_SWS_SHARED_RS2P5 排在 MUONH_FIT_DSV3_SWS 后面；NoPE 没有单独的实验（DSV3 底座上的 RoPE 对照没跑）。
 - MUONH_FIT_DSV3_SWS 一次加了 SWA 2048、NoPE、sink 三项（只有 q0 的 SWA 无 sink 实验没有放进来）；PROD1_DPSK 一次加了四项（窗口 2048 → 512、第 0 层 dense、32K 训练、文档 mask），没有逐项拆开的实验。
 - 从 MUONH_FIT_DSV3_SWS_SHARED_RS2P5 起训练 token 多 7.4%（加了 shared expert 后激活参数变大，TPP 200 按激活参数算），LR 也随之略低；PROD1_DPSK_LATENT2_E2X 总参数 ×2（激活参数不变）。
 - 最后三行（PROD1_DPSK、PROD1_DPSK_LATENT2、PROD1_DPSK_LATENT2_E2X）是 32K 训练，这里用 8K 窗口评测，32K 带来的好处测不到。单 seed，单格噪声约 ±0.008。
 
-### 数据 derisk 和 2.5 vs 2.6
+### E2X 上的 router / 负载均衡（Runlong 的实验）
 
-**数据**：80B 的 KD 语料预先打包成 32K 的行（pack plan e9r500：一行由若干文档块拼成，块之间互不 attend），teacher cache = tc_80b，seed 1（plan 固定了数据顺序）。
-**实验**：MUONH_FIT 底座在同一份 plan 上训 CE / KD 2.6 / KD 2.5，检查新数据管线、KD 在新数据上的增益，以及 teacher 2.5 对 2.6。KD 都是 α 0.8（KD 0.8 + CE 0.2）、tail = S64Y。
-**每个 checkpoint 评两份**：8K 窗口（长文档按 8192 切块，和之前所有实验一样，可直接比较）和 32K 窗口（按 32768 切块，和训练长度一致）。
+#### QB 是什么：Quantile Balancing（分位数均衡）
 
-| 线 | 数据 | 架构 | loss | Change ID（8K 窗口） |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | 80B pack plan，32K | MUONH_FIT：softmax router、全注意力、文档 mask | CE | `MUONH_FIT_PP32K` |
-| KD 2.6 · MUONH_FIT · 新数据 | 80B pack plan，32K | 同上 | KD，teacher MiMo-2.6-Pro-RL | `KD_MUONH_A0P8_S64Y_FIT_PP32K` |
-| KD 2.5 · MUONH_FIT · 新数据 | 80B pack plan，32K | 同上 | KD，teacher MiMo-2.5-Pro-Base | `KD_MUONH_A0P8_S64Y_FIT_MIMO25_PP32K` |
-| KD 2.5 · PROD1_DPSK · 新数据 | 80B pack plan，32K | PROD1_DPSK（PROD v1：SWA 512 局部:全局 5:1 + sink、DSV3 router、第 0 层 dense、8 + 1 shared expert、文档 mask） | KD，teacher MiMo-2.5-Pro-Base | `PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K` |
-| KD 2.6 · MUONH_FIT · 650B 数据（参照） | 650B 数据，8K | MUONH_FIT + 文档 mask | KD，teacher MiMo-2.6-Pro-RL | `KD_MUONH_A0P8_S64Y_FIT_DOCMASK` |
-| KD 2.5 · MUONH_FIT · 45B 语料（参照） | 45B KD 语料，8K | MUONH_FIT（无文档 mask） | KD，teacher MiMo-2.5-Pro-Base | `KD_MUONH_FIT_A0P8_S64Y_TCS_MIMO25` |
-| CE · PROD1_DPSK · 650B 数据（参照） | 650B 数据，32K | PROD1_DPSK，和「KD 2.5 · PROD1_DPSK · 新数据」同一架构；激活参数比 MUONH_FIT 多约 8%，训练 token 也多约 8%（TPP 200 按自己的激活参数算） | CE | `PROD1_DPSK` |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 650B 数据，32K | PROD1_DPSK + latent MoE（d = h/2），routed expert 512 个选 16 个：每个 token 的计算量和 PROD1_DPSK 基本相同，routed 参数 ×2（不是等参数）；文档 mask | CE | `PROD1_DPSK_LATENT2_E2X` |
+**一句话：**每个 expert 有一个门槛 β_e，token 按「router 打分 − 门槛」排序选 top-k。门槛不是按固定步长慢慢调，而是每个 global batch 直接算出“恰好让每个 expert 收到平均份额 token”的值（一个分位数）。负载均衡全靠这个门槛：不用 aux loss，也不用 DSV3 的 expert bias。Megatron 自带，开关是 `--moe-router-load-balancing-type quantile_balancing`。
 
-所有 KD 组都是 α 0.8（KD 0.8 + CE 0.2），tail = S64Y（top-64 + 采样 tail 4 draws，y 精确），MuonH + 拟合 LR。32K 窗口的评测 Change ID 在后面加 _W32K。虚线 = 之前的同类 run（8K 训练）作参照：KD 2.6 用 650B 数据上的；KD 2.5 在 650B 数据上没有 run，用 45B KD 语料上的（它的 q3 是 TPP 100，不画；只有 8K 窗口）。PROD1_DPSK 和 latent MoE expert ×2 两条参照都是 650B 数据上 32K 训练（加文档 mask）的 CE，所以三个窗口 tab 都画；expert ×2 的 q3 还没有评测。
+##### 和 0 线（E2X：DSV3 expert bias + seq aux）的区别
+
+|   | DSV3 expert bias（0 线） | QB |
+|---|---|---|
+| 怎么调 | 每个 global batch 数一遍每个 expert 收到的 token：偏多的 bias −γ，偏少的 +γ（γ = 1e-3，固定步长，只看多还是少） | 直接解出“让每个 expert 正好收 T·k/E 个 token”的门槛，一步到位，没有步长 |
+| 加在哪 | 加在 sigmoid 之后的分数上 | 从 router 原始 logit 上减（sigmoid 之前） |
+| gate 权重 | 两者相同：bias / 门槛只决定“选哪些 expert”，gate 权重仍是被选 expert 的 sigmoid 分数（归一化后 × routed scaling 2.5） | 两者相同：bias / 门槛只决定“选哪些 expert”，gate 权重仍是被选 expert 的 sigmoid 分数（归一化后 × routed scaling 2.5） |
+| aux loss | seq aux 1e-4 | 必须关掉 |
+| 超参数 | γ、seq aux 系数 | 基本没有（可选 EMA 系数，默认 0 = 不用，我们也没用） |
+| 评测 / 推理 | bias 固定 | 门槛存在 checkpoint 里，评测时固定不更新（只用过去 batch 算出的值，不会用到同一 batch 后面的 token） |
+
+##### 算法（每层各自做）
+
+记号：s_te = token t 对 expert e 的 router logit；k = 每个 token 选几个 expert；E = expert 数；T = 一个 micro-batch 的 token 数；C = T·k/E = 每个 expert 的目标 token 数。
+
+- **路由：**每个 token 选 s_te − β_e 最大的 k 个 expert（β 用上一个 global batch 算好的值）。
+- **token 的门槛 α_t：**同一排序里第 k+1 名的值，也就是没选上的 expert 里最好的那个。
+- **expert 的新门槛：**对每个 expert，在这个 micro-batch 的 T 个 token 上取 s_te − α_t 的第 C+1 大值，作为新的 β_e。按这个门槛，这批 token 里恰好有 C 个会选它。它是一个分位数，所以叫 quantile balancing。
+- **每个 global batch 更新一次：**各 micro-batch 算出的 β 先取平均，再在所有 DP rank 之间取平均；减去 E 个 expert 的均值（居中：只有 expert 之间的差影响路由），写回 β。
+
+这是“每个 token 选 k 个、每个 expert 收 C 个”这个分配问题的**对偶坐标下降**（dual coordinate descent）：α 是 token 侧的对偶变量，β 是 expert 侧的对偶变量，每个 global batch 交替更新一次。
+
+##### 放到我们的配置里
+
+E2X：E = 512，k = 16。一个 micro-batch = 1 条 32K 序列（TP / CP = 1，所以 T = 32,768），每个 expert 在这条序列里的目标 C = 32,768 × 16 / 512 = **1,024** 个 token。一个 global batch = 64 条序列（约 2.1M token），β 每个训练 step 更新一次。
+
+##### QBX：全局精确分位数（Kimi K3 的做法）
+
+QB 的 β 是“每条序列各自的分位数”的平均，而平均值不等于整个 batch 的分位数。QBX 把所有 micro-batch、所有 DP rank 的 margin（s − α）按 expert 做直方图并相加，在合并后的直方图上直接读整个 global batch 的第 C+1 大（这里 C = 整个 batch 的 token 数 × k / E）。选 expert 的方法、α、margin 都和 QB 完全相同，只有这一步聚合不同。代码是打了补丁的 Megatron；落在直方图窗口外的 expert 用平均值，并截到窗口边界。
+
+**QBX 的具体设置（现在在跑的 run）：**Megatron 用 `users/xingqianx/share/megatron-lm-80781ab0ab-qbx2`（80781ab0ab + 3 个文件的补丁：router.py、moe_utils.py、finalize_model_grads.py），由环境变量打开：`MOE_QB_EXACT=1`，窗口半宽 `MOE_QB_EXACT_WINDOW=2.0`（logit），`MOE_QB_EXACT_BINS=255`（每格 4/255 ≈ 0.016 logit），`MOE_QB_EXACT_LOG=100`。命令行参数和 QB 完全一样（quantile_balancing，aux loss 0，无 expert bias）。bins 取奇数：每个 token 都有一个 margin 正好等于中心值，偶数 bins 时它落在格子边界上，读数系统性偏高约 0.3 格；11-06 下午把 256 bins 的 run 删掉，按 255 bins 从头重跑。要求 TP = CP = 1；用 full activation recompute 时 router 会算两次（计数翻倍，分位数基本不变）。
+
+##### QBK3：完全按 Kimi K3 原文（11-07 开跑）
+
+QBX 仍是 QB 的形式：门槛从 sigmoid 之前的 logit 上减，直方图窗口 ±2 logit、255 格。QBK3 换成 K3 原文的形式：门槛就是 DSV3 的 expert bias，加在 sigmoid 之后的分数上（routing = top-k(sigmoid(s) + b)，gate 权重不含 b，没有 aux loss）。bias 不再按 ±1e-3 的符号步长更新，而是每个 step 用整个 global batch 的分位数直接算出：直方图范围 [b_min − 1, b_max + 1]，1000 格，TP × DP × CP 上一次 all-reduce，取第 ⌈mk/E⌉ 位并线性插值，居中，下一个 step 生效。补丁 Megatron：`users/xingqianx/share/megatron-lm-80781ab0ab-qbk3`（每个 job 启动时都核对补丁文件的 sha256；BINS = 1000、EMA = 0 写死在 exp 里）。Runlong 让 22 个 agent 做了 review，结论是没有严重问题（`share/megatron_qbk3_tests/REVIEW_REPORT.md`）。已知现象：没有 LR warmup 时，开头几十步 MaxVio 约 11–15（router 漂移，不是估计方法的问题）。所以另开了一条 **QBK3_WU**：同样的 QBK3，加 1% LR warmup。QBK3 跑 q1–q4，QBK3_WU 跑 q1–q2。
+
+##### 这一组实验要回答什么
+
+- **QB / QBX：**能不能把 512 个 expert 的不均衡压下来（0 线训练前中期 MaxVio 约 1.5–2.5，有少量 dead expert；后期 LR 降下来后自己降到 0.4–0.6），同时 loss 不变差甚至更好。干净对照是 **BIASONLY**：同样没有 aux loss，只用 DSV3 bias。
+- **其余几条从别的方向处理同一个问题：**bias 步长减小（×0.5、×0.25），以及 router 的优化器（AdamW、每行单独 hyperball）。
+- **看哪里：**结论看下面的评测（各线 − 0 线，8K / 32K）。router health 曲线是训练中的早期参考，每小时更新。
+
+##### 限制
+
+- 必须关掉 aux loss；不支持 router fusion，也不支持 group-limited routing；每个 micro-batch 的 token 数 × k 必须能被 E 整除。
+
+0 线 = **PROD1_DPSK_LATENT2_E2X**（latent d = h/2，512 个 routed expert 选 16 + 1 shared；sigmoid router + expert bias（更新率 1e-3）+ seq aux 1e-4；router 用 AdamH）。每条线只改 router 的一处，其余（步数、LR、数据、seed 1）都和 0 线相同。
+数值 = 该线 − 0 线（我们的 115 split doc-isolated 评测；每个 checkpoint 加载一次，出 8K / 32K 两个窗口）。这些 run 11-05 / 11-06 才开始训练，没有 q0；每个 checkpoint 训完后自动评测、自动画上。
+
+|   | 名称 | 改动 | 有数据的 rung |
+|---|---|---|---|
+|   | QB：Quantile Balancing（分位数均衡） | Megatron 自带（`--moe-router-load-balancing-type quantile_balancing`），代替 bias + seq aux：每个 expert 有一个 bias（qb_beta），用对偶坐标下降（dual coordinate descent）更新。每个 micro-batch 里按该 expert 的 routing margin 取分位数，使它正好收 T·k/E 个 token；各 micro-batch、各 DP rank 取平均并居中，每个 global batch 更新一次，用来路由下一个 batch（评测时不更新，只用存下的 bias）。aux loss 和 expert bias 都关掉 | q1 8K, q1 32K, q2 8K, q2 32K, q3 8K, q3 32K |
+|   | QBX：全局精确 quantile（Kimi K3 的做法） | 同 QB，只是分位数在整个 global batch 上精确算（各 micro-batch、各 DP rank 的 margin 直方图相加后取第 C+1 大），不是取平均；用打了补丁的 Megatron | q1 8K, q1 32K, q2 8K, q2 32K, q3 8K, q3 32K |
+|   | 只用 expert bias（去掉 seq aux） | 去掉 seq aux 1e-4，只靠 expert bias 均衡；是 QB 的干净对照（两者都没有 aux loss） | q1 8K, q1 32K, q2 8K, q2 32K |
+|   | bias 更新率 ×0.5 | expert bias 更新率 1e-3 → 5e-4（看 512 个 expert 下 bias 步长是否太大、来回过冲） | q1 8K, q1 32K, q2 8K, q2 32K |
+|   | bias 更新率 ×0.25 | expert bias 更新率 1e-3 → 2.5e-4 | q1 8K, q1 32K, q2 8K, q2 32K |
+|   | router 用 AdamW（LR ×0.19） | router 从 AdamH（Adam + 每个 router 矩阵一个 hyperball 球面）改成普通 AdamW，router LR ×0.19；看去掉整矩阵的 norm 约束后冷 expert 是否变少 | q1 8K, q1 32K, q2 8K, q2 32K |
+|   | router 每行单独 hyperball（pin） | router 权重的每一行（每个 expert）单独做 hyperball：每行投回自己的初始 norm，行与行之间不会互相拿走 norm；针对冷 expert（router 行变短、方向趋同） | q1 8K, q1 32K, q2 8K, q2 32K |
+|   | QBK3：完全按 Kimi K3 原文的 quantile balancing | 按 K3 技术报告（2.3.3 节公式 13–14、附录 C / D）和官方 HF gate 实现。路由 = top-k(sigmoid(logit) + expert bias)，gate 权重不含 bias，走的是 Megatron 原本的 expert-bias 路径（和 BIASONLY 一样，没有 seq aux）。不同的是 bias 的更新：不再按 ±1e-3 的固定步长，而是每个 step 用整个 global batch 的分位数直接算出（1000 格直方图，TP × DP × CP 上一次 all-reduce，线性插值，居中，下一个 step 生效）。补丁 Megatron：`megatron-lm-80781ab0ab-qbk3`。 | q1 8K, q1 32K, q2 8K, q2 32K, q3 8K, q3 32K |
+|   | QBK3 + 1% LR warmup | QBK3 加 1% 线性 LR warmup（prod 配方本来没有 warmup；K3 / DSV3 都有）。看 warmup 能否去掉 QBK3 开头的瞬态和多出来的冷 expert。注意 warmup 改了所有参数的 LR，所以它和 QBK3 的 loss 差里混有 warmup 本身的效果；负载均衡 / 冷 expert 的读数是干净的。 | q1 8K, q1 32K |
+
+**各线 − PROD1_DPSK_LATENT2_E2X（越负越好；鼠标移到某个 rung 看数值）**
 
 **〔指标：overall_tsqw〕**
 
 **〔视图：8K 窗口〕**
 
-**8K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0041 | -0.0033 | 0.0005 | 0.0027 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0325 | -0.0417 | -0.0395 | -0.0397 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0483 | -0.0528 | -0.0517 | -0.0539 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0505 | -0.0556 | -0.0520 | -0.0561 |
-| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0506 | -0.0529 | -0.0498 | · |
-| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0575 | -0.0620 | -0.0591 | -0.0617 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0775 | -0.0870 | -0.0882 | -0.0897 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0782 | -0.0912 | -0.0851 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0055 | 0.0060 | · |
+| bias 更新率 ×0.25 | 0.0019 | -0.0007 | · |
+| router 每行单独 hyperball（pin） | 0.0013 | -0.0011 | · |
+| bias 更新率 ×0.5 | 0.0007 | -0.0006 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0007 | -0.0029 | -0.0002 |
+| QBK3 + 1% LR warmup | 0.0002 | · | · |
+| QB：Quantile Balancing（分位数均衡） | 0.0002 | -0.0035 | 0.0003 |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0008 | -0.0035 | -0.0004 |
+| 只用 expert bias（去掉 seq aux） | -0.0012 | -0.0035 | · |
 
 **〔视图：32K 窗口〕**
 
-**32K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0280 | -0.0290 | -0.0253 | -0.0229 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0655 | -0.0729 | -0.0695 | -0.0686 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0717 | -0.0781 | -0.0772 | -0.0790 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0737 | -0.0810 | -0.0774 | -0.0810 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.1105 | -0.1179 | -0.1180 | -0.1182 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1108 | -0.1216 | -0.1143 | · |
-
-**〔视图：32K 窗口 · 0 线 = 新 CE〕**
-
-**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
-
-0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0409 | -0.0439 | -0.0441 | -0.0458 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0437 | -0.0491 | -0.0519 | -0.0561 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0457 | -0.0520 | -0.0520 | -0.0581 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0825 | -0.0889 | -0.0926 | -0.0953 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0862 | -0.0926 | -0.0889 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0054 | 0.0058 | · |
+| bias 更新率 ×0.25 | 0.0019 | -0.0007 | · |
+| router 每行单独 hyperball（pin） | 0.0013 | -0.0011 | · |
+| bias 更新率 ×0.5 | 0.0007 | -0.0007 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0006 | -0.0031 | -0.0002 |
+| QBK3 + 1% LR warmup | 0.0002 | · | · |
+| QB：Quantile Balancing（分位数均衡） | 0.0002 | -0.0035 | 0.0003 |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0008 | -0.0036 | -0.0004 |
+| 只用 expert bias（去掉 seq aux） | -0.0011 | -0.0036 | · |
 
 **〔指标：overall_tw〕**
 
 **〔视图：8K 窗口〕**
 
-**8K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0028 | -0.0024 | 0.0008 | 0.0031 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0320 | -0.0427 | -0.0404 | -0.0406 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0490 | -0.0547 | -0.0541 | -0.0565 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0508 | -0.0569 | -0.0537 | -0.0578 |
-| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0513 | -0.0548 | -0.0518 | · |
-| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0591 | -0.0643 | -0.0616 | -0.0643 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0782 | -0.0930 | -0.0868 | · |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0784 | -0.0897 | -0.0915 | -0.0930 |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0057 | 0.0060 | · |
+| bias 更新率 ×0.25 | 0.0023 | -0.0007 | · |
+| router 每行单独 hyperball（pin） | 0.0016 | -0.0012 | · |
+| bias 更新率 ×0.5 | 0.0012 | -0.0007 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0008 | -0.0030 | -0.0002 |
+| QB：Quantile Balancing（分位数均衡） | 0.0006 | -0.0035 | 0.0003 |
+| QBK3 + 1% LR warmup | 0.0005 | · | · |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0005 | -0.0037 | -0.0004 |
+| 只用 expert bias（去掉 seq aux） | -0.0010 | -0.0035 | · |
 
 **〔视图：32K 窗口〕**
 
-**32K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0267 | -0.0279 | -0.0248 | -0.0222 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0640 | -0.0729 | -0.0694 | -0.0686 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0726 | -0.0797 | -0.0794 | -0.0813 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0742 | -0.0821 | -0.0789 | -0.0824 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1097 | -0.1224 | -0.1149 | · |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.1104 | -0.1195 | -0.1201 | -0.1205 |
-
-**〔视图：32K 窗口 · 0 线 = 新 CE〕**
-
-**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
-
-0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0401 | -0.0450 | -0.0446 | -0.0464 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0459 | -0.0518 | -0.0546 | -0.0591 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0474 | -0.0542 | -0.0541 | -0.0602 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0837 | -0.0916 | -0.0954 | -0.0983 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0858 | -0.0945 | -0.0902 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0056 | 0.0058 | · |
+| bias 更新率 ×0.25 | 0.0023 | -0.0007 | · |
+| router 每行单独 hyperball（pin） | 0.0016 | -0.0012 | · |
+| bias 更新率 ×0.5 | 0.0011 | -0.0008 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0008 | -0.0032 | -0.0002 |
+| QB：Quantile Balancing（分位数均衡） | 0.0006 | -0.0035 | 0.0003 |
+| QBK3 + 1% LR warmup | 0.0005 | · | · |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0005 | -0.0038 | -0.0004 |
+| 只用 expert bias（去掉 seq aux） | -0.0010 | -0.0036 | · |
 
 **〔指标：overall_macro〕**
 
 **〔视图：8K 窗口〕**
 
-**8K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0049 | -0.0050 | -0.0003 | 0.0022 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0321 | -0.0408 | -0.0384 | -0.0389 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0480 | -0.0522 | -0.0497 | -0.0516 |
-| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0495 | -0.0509 | -0.0476 | · |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0503 | -0.0553 | -0.0505 | -0.0546 |
-| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0566 | -0.0609 | -0.0570 | -0.0596 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0762 | -0.0848 | -0.0849 | -0.0864 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0773 | -0.0886 | -0.0824 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0050 | 0.0059 | · |
+| bias 更新率 ×0.25 | 0.0015 | -0.0009 | · |
+| router 每行单独 hyperball（pin） | 0.0009 | -0.0012 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0004 | -0.0029 | 0.0001 |
+| bias 更新率 ×0.5 | 0.0003 | -0.0004 | · |
+| QB：Quantile Balancing（分位数均衡） | -0.0004 | -0.0036 | 0.0003 |
+| QBK3 + 1% LR warmup | -0.0005 | · | · |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0009 | -0.0033 | -0.0004 |
+| 只用 expert bias（去掉 seq aux） | -0.0013 | -0.0038 | · |
 
 **〔视图：32K 窗口〕**
 
-**32K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0218 | -0.0232 | -0.0185 | -0.0159 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0554 | -0.0628 | -0.0595 | -0.0591 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0641 | -0.0699 | -0.0677 | -0.0692 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0663 | -0.0733 | -0.0684 | -0.0721 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0995 | -0.1066 | -0.1057 | -0.1063 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1003 | -0.1100 | -0.1028 | · |
-
-**〔视图：32K 窗口 · 0 线 = 新 CE〕**
-
-**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
-
-0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0389 | -0.0396 | -0.0409 | -0.0432 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0423 | -0.0468 | -0.0491 | -0.0534 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0445 | -0.0501 | -0.0498 | -0.0562 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0778 | -0.0834 | -0.0871 | -0.0904 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0838 | -0.0869 | -0.0843 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0050 | 0.0057 | · |
+| bias 更新率 ×0.25 | 0.0015 | -0.0009 | · |
+| router 每行单独 hyperball（pin） | 0.0009 | -0.0012 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0003 | -0.0031 | 0.0000 |
+| bias 更新率 ×0.5 | 0.0002 | -0.0005 | · |
+| QBK3 + 1% LR warmup | -0.0004 | · | · |
+| QB：Quantile Balancing（分位数均衡） | -0.0004 | -0.0037 | 0.0003 |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0010 | -0.0033 | -0.0004 |
+| 只用 expert bias（去掉 seq aux） | -0.0013 | -0.0038 | · |
 
 **〔指标：val_v2〕**
 
 **〔视图：8K 窗口〕**
 
-**8K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0041 | -0.0026 | 0.0004 | 0.0030 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0270 | -0.0316 | -0.0280 | -0.0276 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0362 | -0.0373 | -0.0347 | -0.0366 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0387 | -0.0406 | -0.0379 | -0.0398 |
-| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0389 | -0.0403 | -0.0366 | · |
-| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0414 | -0.0432 | -0.0399 | -0.0424 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0622 | -0.0651 | -0.0643 | -0.0648 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0654 | -0.0699 | -0.0636 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0037 | 0.0044 | · |
+| bias 更新率 ×0.25 | 0.0011 | -0.0004 | · |
+| router 每行单独 hyperball（pin） | 0.0009 | -0.0007 | · |
+| bias 更新率 ×0.5 | 0.0002 | -0.0001 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | -0.0001 | -0.0018 | -0.0003 |
+| QB：Quantile Balancing（分位数均衡） | -0.0002 | -0.0024 | -0.0001 |
+| QBK3 + 1% LR warmup | -0.0002 | · | · |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0010 | -0.0026 | -0.0005 |
+| 只用 expert bias（去掉 seq aux） | -0.0010 | -0.0026 | · |
 
 **〔视图：32K 窗口〕**
 
-**32K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0460 | -0.0467 | -0.0433 | -0.0412 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0776 | -0.0808 | -0.0782 | -0.0797 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0796 | -0.0843 | -0.0807 | -0.0827 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0844 | -0.0858 | -0.0797 | -0.0775 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.1197 | -0.1187 | -0.1158 | -0.1144 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1220 | -0.1225 | -0.1138 | · |
-
-**〔视图：32K 窗口 · 0 线 = 新 CE〕**
-
-**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
-
-0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0316 | -0.0341 | -0.0349 | -0.0385 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0336 | -0.0376 | -0.0374 | -0.0415 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0401 | -0.0391 | -0.0364 | -0.0363 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0737 | -0.0721 | -0.0724 | -0.0732 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0777 | -0.0758 | -0.0705 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0037 | 0.0043 | · |
+| bias 更新率 ×0.25 | 0.0012 | -0.0003 | · |
+| router 每行单独 hyperball（pin） | 0.0009 | -0.0004 | · |
+| bias 更新率 ×0.5 | 0.0002 | -0.0001 | · |
+| QBK3 + 1% LR warmup | -0.0000 | · | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | -0.0001 | -0.0021 | -0.0005 |
+| QB：Quantile Balancing（分位数均衡） | -0.0004 | -0.0023 | -0.0003 |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0008 | -0.0025 | -0.0006 |
+| 只用 expert bias（去掉 seq aux） | -0.0010 | -0.0025 | · |
 
 **〔指标：uncheatable〕**
 
 **〔视图：8K 窗口〕**
 
-**8K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | 0.0006 | -0.0009 | 0.0018 | 0.0045 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0302 | -0.0466 | -0.0435 | -0.0442 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0517 | -0.0613 | -0.0606 | -0.0633 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0524 | -0.0617 | -0.0583 | -0.0625 |
-| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0538 | -0.0604 | -0.0570 | · |
-| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0627 | -0.0708 | -0.0682 | -0.0708 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0785 | -0.0990 | -0.0918 | · |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0817 | -0.0985 | -0.1008 | -0.1027 |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0056 | 0.0063 | · |
+| bias 更新率 ×0.25 | 0.0026 | -0.0007 | · |
+| router 每行单独 hyperball（pin） | 0.0021 | -0.0017 | · |
+| bias 更新率 ×0.5 | 0.0017 | -0.0010 | · |
+| QB：Quantile Balancing（分位数均衡） | 0.0009 | -0.0036 | 0.0006 |
+| QBK3 + 1% LR warmup | 0.0006 | · | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0004 | -0.0032 | -0.0001 |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0002 | -0.0040 | -0.0004 |
+| 只用 expert bias（去掉 seq aux） | -0.0006 | -0.0041 | · |
 
 **〔视图：32K 窗口〕**
 
-**32K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0229 | -0.0245 | -0.0217 | -0.0192 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0564 | -0.0719 | -0.0687 | -0.0691 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0749 | -0.0844 | -0.0836 | -0.0863 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0755 | -0.0850 | -0.0814 | -0.0854 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1043 | -0.1238 | -0.1165 | · |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.1080 | -0.1240 | -0.1261 | -0.1276 |
-
-**〔视图：32K 窗口 · 0 线 = 新 CE〕**
-
-**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
-
-0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0368 | -0.0474 | -0.0471 | -0.0499 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0520 | -0.0598 | -0.0619 | -0.0671 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0526 | -0.0605 | -0.0598 | -0.0662 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0848 | -0.0993 | -0.0948 | · |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0851 | -0.0994 | -0.1044 | -0.1084 |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0055 | 0.0061 | · |
+| bias 更新率 ×0.25 | 0.0025 | -0.0007 | · |
+| router 每行单独 hyperball（pin） | 0.0022 | -0.0017 | · |
+| bias 更新率 ×0.5 | 0.0016 | -0.0010 | · |
+| QB：Quantile Balancing（分位数均衡） | 0.0009 | -0.0036 | 0.0007 |
+| QBK3 + 1% LR warmup | 0.0006 | · | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0005 | -0.0034 | -0.0001 |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0002 | -0.0041 | -0.0003 |
+| 只用 expert bias（去掉 seq aux） | -0.0006 | -0.0043 | · |
 
 **〔指标：codefresh〕**
 
 **〔视图：8K 窗口〕**
 
-**8K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0119 | -0.0087 | 0.0041 | 0.0074 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0386 | -0.0429 | -0.0416 | -0.0431 |
-| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0567 | -0.0497 | -0.0477 | · |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0613 | -0.0642 | -0.0541 | -0.0598 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0618 | -0.0611 | -0.0591 | -0.0599 |
-| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0756 | -0.0764 | -0.0725 | -0.0740 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0853 | -0.0890 | -0.0872 | -0.0894 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0907 | -0.1002 | -0.0920 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0083 | 0.0080 | · |
+| QB：Quantile Balancing（分位数均衡） | 0.0018 | -0.0049 | -0.0005 |
+| bias 更新率 ×0.25 | 0.0018 | 0.0001 | · |
+| router 每行单独 hyperball（pin） | 0.0013 | -0.0012 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0009 | -0.0045 | -0.0020 |
+| QBK3 + 1% LR warmup | 0.0000 | · | · |
+| bias 更新率 ×0.5 | -0.0012 | -0.0005 | · |
+| 只用 expert bias（去掉 seq aux） | -0.0016 | -0.0055 | · |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0025 | -0.0051 | -0.0003 |
 
 **〔视图：32K 窗口〕**
 
-**32K 窗口：各线 − MUONH_FIT**
-
-0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0119 | -0.0087 | 0.0041 | 0.0074 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0386 | -0.0429 | -0.0416 | -0.0431 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0613 | -0.0642 | -0.0541 | -0.0598 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0618 | -0.0611 | -0.0591 | -0.0599 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0853 | -0.0890 | -0.0872 | -0.0894 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0907 | -0.1002 | -0.0920 | · |
-
-**〔视图：32K 窗口 · 0 线 = 新 CE〕**
-
-**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
-
-0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
-
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0348 | -0.0343 | -0.0457 | -0.0505 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0494 | -0.0555 | -0.0582 | -0.0672 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0499 | -0.0525 | -0.0632 | -0.0673 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0734 | -0.0803 | -0.0912 | -0.0968 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0869 | -0.0916 | -0.0961 | · |
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0083 | 0.0080 | · |
+| QB：Quantile Balancing（分位数均衡） | 0.0018 | -0.0049 | -0.0005 |
+| bias 更新率 ×0.25 | 0.0018 | 0.0001 | · |
+| router 每行单独 hyperball（pin） | 0.0013 | -0.0012 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0009 | -0.0045 | -0.0020 |
+| QBK3 + 1% LR warmup | 0.0000 | · | · |
+| bias 更新率 ×0.5 | -0.0012 | -0.0005 | · |
+| 只用 expert bias（去掉 seq aux） | -0.0016 | -0.0055 | · |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | -0.0025 | -0.0051 | -0.0003 |
 
 **〔指标：private_internal〕**
 
 **〔视图：8K 窗口〕**
 
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0044 | 0.0053 | · |
+| bias 更新率 ×0.25 | 0.0021 | -0.0020 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0008 | -0.0036 | 0.0019 |
+| bias 更新率 ×0.5 | 0.0005 | -0.0020 | · |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | 0.0004 | -0.0040 | 0.0004 |
+| QB：Quantile Balancing（分位数均衡） | -0.0000 | -0.0037 | 0.0013 |
+| router 每行单独 hyperball（pin） | -0.0000 | -0.0019 | · |
+| 只用 expert bias（去掉 seq aux） | -0.0005 | -0.0044 | · |
+| QBK3 + 1% LR warmup | -0.0008 | · | · |
+
+**〔视图：32K 窗口〕**
+
+| 线 | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|
+| router 用 AdamW（LR ×0.19） | 0.0044 | 0.0053 | · |
+| bias 更新率 ×0.25 | 0.0021 | -0.0020 | · |
+| QBX：全局精确 quantile（Kimi K3 的做法） | 0.0007 | -0.0036 | 0.0019 |
+| bias 更新率 ×0.5 | 0.0005 | -0.0019 | · |
+| QBK3：完全按 Kimi K3 原文的 quantile balancing | 0.0004 | -0.0040 | 0.0004 |
+| router 每行单独 hyperball（pin） | -0.0000 | -0.0019 | · |
+| QB：Quantile Balancing（分位数均衡） | -0.0000 | -0.0037 | 0.0014 |
+| 只用 expert bias（去掉 seq aux） | -0.0005 | -0.0044 | · |
+| QBK3 + 1% LR warmup | -0.0008 | · | · |
+
+#### 训练中的负载均衡（router health，训练日志）
+
+来自训练日志的 router health（每 100 步一行，所有层汇总），训练中的 run 会随报告更新。线的颜色和上面评测图的颜色一一对应，灰色虚线 = 0 线 E2X；鼠标移到图上看名字和数值。dead expert 的百分比按（层数 × 512）算。MaxVio 0 = 完全均衡。
+
+**〔指标：MaxVio（层平均）〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 3.16 | 2.89 | 2.11 | 1.6 | 1.38 | 1.28 | 1.26 | 1.24 | 1.13 | 1.06 |
+| q1 · step ~3,375 | 2.85 | 2.94 | 2.31 | 1.84 | 1.43 | 1.68 | 1.53 | 1.25 | 1.4 | 1.31 |
+| q1 · step ~4,558 | 2.81 | 2.27 | 1.75 | 1.59 | 1.54 | 1.93 | 1.5 | 1.24 | 1.17 | 1.04 |
+| q1 · step ~5,741 | 2.27 | 2.28 | 1.85 | 1.44 | 1.38 | 1.8 | 1.37 | 0.96 | 0.994 | 0.924 |
+| q1 · step ~6,925 | 2.26 | 1.96 | 1.73 | 1.5 | 1.41 | 2.42 | 1.38 | 1.11 | 1.01 | 1.02 |
+| q1 · step ~8,108 | 2.05 | 1.82 | 1.28 | 1.24 | 1.02 | 2.69 | 0.976 | 0.739 | 0.704 | 0.711 |
+| q1 · step ~9,883 | 1.92 | 1.53 | 1.23 | 1.15 | 1.9 | 2.18 | 1 | 1.22 | 1.24 | 1.21 |
+| q1 · step ~11,066 | 1.67 | 1.62 | 1.34 | 1.16 | 1.21 | 2.77 | 1.03 | 0.852 | 0.839 | 0.96 |
+| q1 · step ~12,250 | 1.61 | 1.47 | 1.16 | 1.12 | 1.32 | 2.3 | 0.894 | 1.03 | 1.16 | 1.09 |
+| q1 · step ~13,433 | 1.11 | 0.983 | 0.713 | 0.762 | 1.43 | 1.56 | 0.661 | 0.838 | 0.96 | 0.881 |
+| q1 · step ~14,616 | 0.976 | 0.775 | 0.734 | 0.918 | 1.14 | 2.35 | 0.728 | 0.789 | 0.706 | 0.8 |
+| q1 · step ~15,800 | 0.5 | 0.504 | 0.599 | 0.652 | 1.46 | 2.08 | 0.488 | 0.772 | 0.729 | 0.718 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 |
+| q1 · step ~125 | 5.89 | 1.53 | 1.38 | 11.5 | 6.23 | 7.49 | 6.58 | 5.29 | 1.36 | 1.5 |
+| q1 · step ~312 | 2.43 | 1.3 | 1.08 | 2.51 | 2.29 | 3.03 | 3.46 | 2.18 | 0.91 | 0.905 |
+| q1 · step ~437 | 2.86 | 1.58 | 0.978 | 2.81 | 2.46 | 2.1 | 2.26 | 1.93 | 0.993 | 0.81 |
+| q1 · step ~562 | 2.2 | 1.48 | 1.35 | 2.39 | 2.66 | 2.41 | 2.24 | 2.04 | 1.52 | 1.41 |
+| q1 · step ~750 | 1.98 | 1.2 | 0.722 | 2.24 | 2.77 | 3.24 | 1.95 | 1.49 | 0.755 | 0.785 |
+| q1 · step ~812 | 2.13 | 1.21 | 0.888 | 1.54 | 3 | 2.58 | 1.78 | 1.3 | 0.807 | 0.805 |
+| q1 · step ~1,062 | 2.27 | 1.29 | 0.897 | 1.99 | 2.81 | 3.3 | 1.56 | 1.83 | 0.773 | 0.797 |
+| q1 · step ~1,125 | 2.78 | 1.35 | 0.902 | 1.62 | 2.93 | 3.07 | 1.47 | 1.55 | 0.979 | 0.899 |
+| q1 · step ~1,250 | 2.58 | 1.48 | 1.08 | 2.28 | 3.03 | 2.9 | 2.03 | 1.63 | 1.05 | 1.06 |
+| q1 · step ~1,437 | 1.97 | 1.01 | 0.665 | 1.82 | 2.42 | 2.6 | 1.46 | 1.36 | 0.83 | 0.823 |
+| q1 · step ~1,500 | 1.91 | 1.1 | 0.742 | 1.92 | 2.39 | 3.23 | 1.48 | 1.43 | 0.852 | 0.822 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | bias 更新率 ×0.5 | bias 更新率 ×0.25 | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | 0 线：PROD1_DPSK_LATENT2_E2X | router 用 AdamW（LR ×0.19） | QBK3 + 1% LR warmup | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 2.76 | 2.57 | 2.02 | 1.8 | 1.65 | 1.6 | 1.26 | 1.22 | 1.2 | 1.18 |
+| q1 · step ~1,975 | 2.54 | 3.22 | 1.8 | 1.59 | 2.53 | 1.45 | 1.04 | 1.31 | 1.04 | 1.08 |
+| q1 · step ~3,291 | 2.48 | 2.96 | 1.54 | 1.45 | 2.45 | 1.54 | 0.923 | 1.26 | 0.775 | 0.823 |
+| q1 · step ~4,608 | 2.59 | 2.58 | 1.63 | 1.33 | 1.66 | 2.08 | 0.722 | 1.34 | 0.75 | 0.666 |
+| q1 · step ~5,925 | 2.08 | 2.49 | 1.4 | 1.36 | 1.79 | 3.03 | 0.767 | 1.39 | 0.809 | 0.754 |
+| q1 · step ~7,241 | 1.82 | 2.51 | 1.23 | 1.25 | 1.45 | 3.53 | 0.842 | 1.25 | 0.789 | 0.721 |
+| q1 · step ~9,216 | 1.61 | 1.98 | 1.14 | 0.958 | 1.44 | 2.29 | 0.772 | 1.13 | 0.856 | 0.903 |
+| q1 · step ~10,533 | 1.38 | 1.88 | 1.04 | 0.743 | 0.954 | 2.57 | 0.637 | 1.01 | 0.657 | 0.657 |
+| q1 · step ~11,850 | 1.41 | 1.99 | 1.18 | 0.914 | 0.99 | 2.43 | 1.21 | 1.8 | 1.34 | 1.33 |
+| q1 · step ~13,166 | 1.19 | 1.51 | 1.04 | 0.843 | 0.861 | 1.93 | 0.969 | 1.54 | 0.956 | 0.986 |
+| q1 · step ~14,483 | 0.817 | 0.958 | 0.85 | 0.703 | 0.765 | 1.66 | 0.985 | 1.5 | 0.918 | 0.961 |
+| q1 · step ~15,800 | 0.504 | 0.5 | 0.652 | 0.488 | 0.599 | 2.08 | 0.718 | 1.46 | 0.772 | 0.729 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | bias 更新率 ×0.5 | bias 更新率 ×0.25 | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup | QBX：全局精确 quantile（Kimi K3 的做法） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 2.36 | 2.22 | 2.04 | 1.82 | 1.67 | 1.55 | 1.25 | 0.779 | 0.742 | 0.739 |
+| q2 · step ~7,812 | 2.23 | 2.53 | 1.97 | 1.51 | 2.48 | 1.68 | 1.34 | 0.885 | 0.87 | 0.923 |
+| q2 · step ~10,554 | 1.99 | 2.22 | 1.77 | 1.4 | 3.12 | 1.18 | 1 | 0.629 | 0.718 | 0.729 |
+| q2 · step ~13,295 | 2.32 | 2.04 | 1.54 | 1.11 | 3.2 | 1.12 | 1.29 | 0.642 | 0.657 | 0.742 |
+| q2 · step ~16,037 | 2 | 1.99 | 2.05 | 1.33 | 2.56 | 1.28 | 1.68 | 1.06 | 1.05 | 1.07 |
+| q2 · step ~18,779 | 1.81 | 1.77 | 1.58 | 1.04 | 3.29 | 1.05 | 1.4 | 0.874 | 0.935 | 0.961 |
+| q2 · step ~22,891 | 1.61 | 1.68 | 1.3 | 0.978 | 3.11 | 0.974 | 1.47 | 0.938 | 0.882 | 0.877 |
+| q2 · step ~25,633 | 1.22 | 1.57 | 1.17 | 0.711 | 2.63 | 0.814 | 1 | 0.639 | 0.646 | 0.708 |
+| q2 · step ~28,375 | 1.29 | 1.37 | 1.04 | 0.862 | 2.2 | 0.876 | 2.03 | 1.25 | 1.23 | 1.3 |
+| q2 · step ~31,116 | 0.824 | 0.982 | 0.638 | 0.633 | 2.42 | 0.805 | 1.74 | 0.977 | 1.01 | 1.01 |
+| q2 · step ~33,858 | 0.591 | 0.871 | 0.531 | 0.554 | 1.82 | 0.625 | 1.83 | 0.97 | 0.747 | 0.989 |
+| q2 · step ~36,600 | 0.438 | 0.467 | 0.438 | 0.437 | 2.49 | 0.574 | 1.43 | 0.72 | · | 0.852 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.25 | bias 更新率 ×0.5 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 13.6 | 8.47 | 7.7 | 7.67 | 6.12 | 5.57 | 1.61 | 1.38 | 1.36 | 0.875 |
+| q2 · step ~450 | 2.47 | 2.24 | 2.5 | 3 | 2.21 | 2.07 | 1.47 | 0.965 | 0.813 | 0.968 |
+| q2 · step ~750 | 1.77 | 3.35 | 2.57 | 1.89 | 1.89 | 1.36 | 1.15 | 0.579 | 0.779 | 0.573 |
+| q2 · step ~1,050 | 1.78 | 2.51 | 2.47 | 2.01 | 2 | 1.58 | 1.22 | 0.797 | 0.776 | 0.872 |
+| q2 · step ~1,350 | 1.65 | 2.72 | 2.24 | 1.56 | 1.78 | 1.4 | 1.07 | 0.585 | 0.549 | 0.644 |
+| q2 · step ~1,650 | 1.59 | 2.72 | 2.46 | 1.62 | 2 | 1.32 | 1.22 | 0.825 | 0.802 | 0.711 |
+| q2 · step ~2,100 | 1.45 | 2.43 | 2.24 | 1.36 | 2.19 | 1.43 | 1.41 | 0.923 | 0.786 | 0.964 |
+| q2 · step ~2,400 | 1.55 | 2.84 | 2.42 | 1.56 | 1.77 | 1.5 | 1.55 | 1.03 | 1.02 | 0.878 |
+| q2 · step ~2,700 | 1.73 | 2.26 | 2.46 | 1.53 | 2.25 | 1.49 | 1.22 | 1.04 | 0.959 | 0.937 |
+| q2 · step ~3,000 | 1.48 | 2.47 | 2.5 | 1.54 | 1.89 | 1.45 | 1.13 | 0.9 | 0.765 | 0.859 |
+| q2 · step ~3,300 | 1.45 | 2.62 | 2.16 | 1.39 | 2.06 | 1.56 | 1.49 | 0.824 | 0.755 | 0.699 |
+| q2 · step ~3,600 | 1.46 | 2.2 | 2.33 | 1.72 | 1.87 | 1.34 | 1.01 | 0.703 | 0.684 | 0.625 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup | QBX：全局精确 quantile（Kimi K3 的做法） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 2.84 | 2.03 | 1.76 | 1.71 | 1.68 | 1.48 | 1.01 | 0.798 | 0.708 | 0.699 |
+| q2 · step ~4,575 | 1.94 | 2.33 | 1.56 | 1.76 | 2.07 | 1.34 | 1.55 | 0.994 | 1.04 | 1.06 |
+| q2 · step ~7,625 | 2.57 | 2.22 | 1.38 | 2.36 | 1.78 | 1.53 | 1.53 | 0.748 | 0.735 | 0.721 |
+| q2 · step ~10,675 | 2.33 | 2.47 | 1.48 | 2.6 | 2.09 | 1.57 | 1.12 | 0.909 | 0.835 | 0.851 |
+| q2 · step ~13,725 | 1.97 | 1.96 | 1.19 | 3.24 | 1.9 | 1.36 | 1.09 | 0.769 | 0.691 | 0.673 |
+| q2 · step ~16,775 | 1.73 | 1.88 | 0.97 | 3.05 | 1.75 | 1.13 | 1.84 | 1.04 | 0.981 | 1.08 |
+| q2 · step ~21,350 | 1.94 | 1.65 | 0.805 | 2.65 | 1.35 | 0.997 | 1.24 | 0.675 | 0.73 | 0.623 |
+| q2 · step ~24,400 | 1.86 | 1.58 | 0.949 | 2.73 | 1.43 | 0.912 | 1.69 | 1.14 | 1.14 | 1.06 |
+| q2 · step ~27,450 | 1.63 | 1.56 | 1.03 | 2.24 | 1.05 | 0.857 | 2.25 | 1.55 | 1.52 | 1.52 |
+| q2 · step ~30,500 | 1.31 | 0.927 | 0.673 | 1.88 | 0.721 | 0.678 | 1.55 | 1.02 | 1.04 | 1 |
+| q2 · step ~33,550 | 0.843 | 0.555 | 0.65 | 2.1 | 0.517 | 0.518 | 1.68 | 0.684 | 0.747 | 0.671 |
+| q2 · step ~36,600 | 0.467 | 0.438 | 0.574 | 2.49 | 0.438 | 0.437 | 1.43 | 0.72 | · | 0.852 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~9,737 | 2.32 | 1.94 | 1.55 | 1.21 | 0.999 | 0.69 | 0.662 |
+| q3 · step ~15,012 | 3.32 | 1.84 | 1.34 | 1.13 | 1.22 | 0.916 | 0.969 |
+| q3 · step ~20,287 | 3.92 | 2 | 1.52 | 1.15 | 1.32 | 0.749 | 0.77 |
+| q3 · step ~25,562 | 3.95 | 1.73 | 1.41 | 1.09 | 1.38 | 0.955 | 1.05 |
+| q3 · step ~30,837 | 4.56 | 1.73 | 1.29 | 1.04 | 1.43 | 0.911 | 0.971 |
+| q3 · step ~36,112 | 4.35 | 1.44 | 1.18 | 0.963 | 1.24 | 0.927 | 0.85 |
+| q3 · step ~44,025 | 3.29 | 1.22 | 0.977 | 0.939 | 1.73 | 0.909 | 0.936 |
+| q3 · step ~49,300 | 3.28 | 0.922 | 0.896 | · | 2.07 | 0.985 | 1.03 |
+| q3 · step ~54,575 | · | 0.912 | · | · | 1.41 | 0.885 | 0.864 |
+| q3 · step ~59,850 | · | 0.632 | · | · | 1.39 | 0.787 | 0.84 |
+| q3 · step ~65,125 | · | 0.652 | · | · | 1.5 | 0.728 | 0.751 |
+| q3 · step ~70,400 | · | 0.627 | · | · | 1.39 | 0.725 | 0.704 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~291 | 5.37 | 3.56 | 2.2 | 1.96 | 1.36 | 1.26 | 1.23 |
+| q3 · step ~875 | 1.42 | 2.04 | 1.78 | 1.3 | 1.09 | 0.798 | 0.765 |
+| q3 · step ~1,458 | 1.27 | 1.46 | 1.84 | 1.35 | 0.979 | 0.662 | 0.606 |
+| q3 · step ~2,041 | 1.46 | 1.34 | 1.88 | 1.34 | 1.38 | 0.851 | 0.755 |
+| q3 · step ~2,625 | 1.73 | 1.47 | 1.75 | 1.52 | 1.3 | 1.16 | 1.1 |
+| q3 · step ~3,208 | 1.28 | 1.53 | 1.72 | 1.43 | 1.24 | 0.896 | 0.755 |
+| q3 · step ~4,083 | 1.33 | 1.39 | 1.72 | 1.42 | 1.29 | 0.776 | 0.832 |
+| q3 · step ~4,666 | 1.31 | 1.44 | 1.79 | 1.48 | 1.07 | 0.717 | 0.639 |
+| q3 · step ~5,250 | 1.36 | 1.44 | 1.95 | 1.54 | 1.29 | 0.884 | 0.891 |
+| q3 · step ~5,833 | 1.36 | 1.47 | 2.05 | 1.55 | 1.22 | 0.72 | 0.735 |
+| q3 · step ~6,416 | 1.33 | 1.68 | 2.11 | 1.51 | 1.08 | 0.901 | 0.867 |
+| q3 · step ~7,000 | 1.37 | 1.46 | 1.95 | 1.42 | 1.38 | 1.24 | 1.18 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~2,933 | 1.79 | 1.38 | 1.32 | 1.28 | 1.13 | 0.836 | 0.797 |
+| q3 · step ~8,800 | 2.04 | 1.8 | 1.72 | 1.7 | 2.2 | 1.5 | 1.57 |
+| q3 · step ~14,666 | 2.06 | 3.17 | 1.45 | 1.49 | 1.13 | 0.688 | 0.723 |
+| q3 · step ~20,533 | 1.85 | 3.35 | 1.4 | 1.16 | 1.13 | 0.875 | 0.819 |
+| q3 · step ~26,400 | 1.76 | 3.89 | 1.39 | 1.18 | 1.8 | 1.27 | 1.17 |
+| q3 · step ~32,266 | 1.65 | 4.24 | 1.41 | 1.26 | 1.29 | 1.43 | 1.25 |
+| q3 · step ~41,066 | 1.3 | 4.28 | 0.907 | 0.953 | 1.71 | 0.957 | 0.958 |
+| q3 · step ~46,933 | 1.11 | 3.73 | 0.787 | · | 1.57 | 0.853 | 0.926 |
+| q3 · step ~52,800 | 0.937 | 3.29 | · | · | 1.9 | 1.03 | 1.05 |
+| q3 · step ~58,666 | 0.62 | · | · | · | 1.34 | 0.726 | 0.765 |
+| q3 · step ~64,533 | 0.512 | · | · | · | 1.91 | 0.856 | 0.834 |
+| q3 · step ~70,400 | 0.627 | · | · | · | 1.39 | 0.725 | 0.704 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+每层：一整个训练 step（所有 micro-batch、所有 rank）里分到 token 最多的 expert ÷ 平均值 − 1（DeepSeek-V3 的 MaxVio，0 = 完全均衡）；这里是所有层的平均。
+
+**〔指标：MaxVio（最差层）〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 只用 expert bias（去掉 seq aux） | 0 线：PROD1_DPSK_LATENT2_E2X | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 8.32 | 7.37 | 5.07 | 4.54 | 2.85 | 2.71 | 1.89 | 1.75 | 1.57 | 1.23 |
+| q1 · step ~3,375 | 10.3 | 7.62 | 5.18 | 5.86 | 3.19 | 3 | 1.95 | 1.92 | 1.98 | 1.93 |
+| q1 · step ~4,558 | 8.81 | 6.2 | 6.91 | 3.03 | 4.25 | 3.52 | 2 | 1.95 | 1.71 | 1.47 |
+| q1 · step ~5,741 | 4.62 | 5.41 | 4.97 | 5.28 | 3.01 | 2.65 | 1.68 | 1.39 | 1.29 | 1.67 |
+| q1 · step ~6,925 | 4.61 | 4.57 | 6.65 | 5.28 | 4.52 | 2.89 | 1.72 | 1.9 | 1.8 | 1.43 |
+| q1 · step ~8,108 | 4.91 | 3.45 | 7.19 | 3.08 | 5.09 | 1.97 | 1.56 | 0.988 | 0.962 | 0.927 |
+| q1 · step ~9,883 | 4.82 | 3.15 | 3.39 | 2.44 | 4.56 | 1.83 | 2.46 | 1.65 | 1.6 | 1.79 |
+| q1 · step ~11,066 | 3.59 | 4.01 | 4.28 | 2.54 | 5.82 | 1.81 | 2.03 | 1.44 | 1.27 | 1.31 |
+| q1 · step ~12,250 | 3.98 | 4.3 | 3.63 | 3.26 | 5.32 | 1.19 | 1.88 | 1.35 | 1.45 | 1.51 |
+| q1 · step ~13,433 | 3.71 | 2.58 | 2.51 | 1.1 | 4.25 | 0.892 | 2.04 | 1.09 | 1.28 | 1.17 |
+| q1 · step ~14,616 | 1.31 | 1.21 | 1.83 | 1.14 | 5.31 | 1.14 | 1.78 | 1.2 | 1.05 | 1.05 |
+| q1 · step ~15,800 | 0.763 | 0.682 | 1.31 | 0.879 | 4.64 | 0.856 | 3.1 | 1.47 | 1.14 | 1.11 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 |
+| q1 · step ~125 | 13.1 | 1.95 | 2.16 | 22.7 | 12.9 | 12.5 | 17.2 | 10.3 | 1.99 | 2.11 |
+| q1 · step ~312 | 3.73 | 1.82 | 1.45 | 4.32 | 3.77 | 8.19 | 5.82 | 4.07 | 1.17 | 1.3 |
+| q1 · step ~437 | 4.02 | 2.05 | 1.19 | 4.64 | 3.87 | 4.44 | 2.99 | 3.96 | 1.4 | 1.15 |
+| q1 · step ~562 | 3.61 | 1.95 | 2.08 | 6.51 | 5.9 | 4.79 | 4.83 | 3.24 | 1.98 | 1.82 |
+| q1 · step ~750 | 4.02 | 1.54 | 0.856 | 4.88 | 7.96 | 5.51 | 7.45 | 4.48 | 1 | 1.26 |
+| q1 · step ~812 | 5.69 | 1.55 | 1.36 | 4.22 | 7.81 | 7 | 3.93 | 2.59 | 1.31 | 1.1 |
+| q1 · step ~1,062 | 3.63 | 1.66 | 1.1 | 4.56 | 5.93 | 7.44 | 2.2 | 3.27 | 1.34 | 0.979 |
+| q1 · step ~1,125 | 13.7 | 2.08 | 1.44 | 4.69 | 9.22 | 10.1 | 3.37 | 3.53 | 1.54 | 1.1 |
+| q1 · step ~1,250 | 7.79 | 1.99 | 1.88 | 4.77 | 6.95 | 6.93 | 7.61 | 3.89 | 1.28 | 1.45 |
+| q1 · step ~1,437 | 3.84 | 1.37 | 0.99 | 5.09 | 9.26 | 7.73 | 2.89 | 3.48 | 1.29 | 1.35 |
+| q1 · step ~1,500 | 3.63 | 1.63 | 1.01 | 6.56 | 5.89 | 8.96 | 5.67 | 3.2 | 1.47 | 1.3 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | bias 更新率 ×0.5 | bias 更新率 ×0.25 | 只用 expert bias（去掉 seq aux） | 0 线：PROD1_DPSK_LATENT2_E2X | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3 + 1% LR warmup | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 7.89 | 6.05 | 3.61 | 2.94 | 2.93 | 2.68 | 1.71 | 1.57 | 1.52 | 1.5 |
+| q1 · step ~1,975 | 8.49 | 7.67 | 7.38 | 7.42 | 3.46 | 3 | 1.24 | 1.79 | 1.46 | 1.57 |
+| q1 · step ~3,291 | 6.68 | 7.8 | 5.13 | 4.97 | 2.89 | 3.46 | 1.61 | 2.22 | 1.15 | 1.07 |
+| q1 · step ~4,608 | 5.62 | 4.98 | 7.04 | 3.24 | 3.98 | 2.63 | 1.15 | 2.94 | 0.924 | 1.9 |
+| q1 · step ~5,925 | 5.75 | 5.94 | 5.76 | 2.91 | 4.93 | 2.96 | 0.93 | 2.29 | 0.972 | 1.05 |
+| q1 · step ~7,241 | 4.62 | 5.85 | 5.86 | 3.06 | 6.75 | 2.86 | 1.49 | 1.84 | 1.39 | 1.27 |
+| q1 · step ~9,216 | 3.52 | 3.42 | 4.67 | 3.01 | 6.35 | 2.66 | 0.935 | 1.74 | 1.24 | 1.19 |
+| q1 · step ~10,533 | 4.03 | 4.46 | 5.97 | 3.17 | 5.59 | 1.17 | 0.807 | 1.94 | 0.877 | 0.883 |
+| q1 · step ~11,850 | 3.76 | 6.14 | 2.85 | 2.15 | 4.59 | 1.34 | 1.62 | 2.61 | 2.14 | 2.22 |
+| q1 · step ~13,166 | 2.26 | 2.81 | 3.22 | 1.35 | 3.46 | 1.05 | 1.25 | 2.24 | 1.34 | 1.12 |
+| q1 · step ~14,483 | 1.36 | 1.46 | 2.14 | 1.04 | 2.89 | 1.08 | 1.35 | 1.82 | 1.44 | 1.42 |
+| q1 · step ~15,800 | 0.682 | 0.763 | 1.31 | 0.879 | 4.64 | 0.856 | 1.11 | 3.1 | 1.14 | 1.47 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | bias 更新率 ×0.5 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup | QBX：全局精确 quantile（Kimi K3 的做法） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 6.43 | 5.33 | 5.24 | 5.09 | 4.09 | 3.62 | 1.75 | 1.31 | 1.12 | 1.09 |
+| q2 · step ~7,812 | 3.96 | 5.58 | 3.4 | 4.55 | 4.5 | 4.93 | 2.91 | 1.25 | 1.42 | 1.41 |
+| q2 · step ~10,554 | 4.32 | 4.81 | 3.4 | 5.75 | 9.6 | 2.77 | 1.64 | 0.982 | 1.04 | 1.09 |
+| q2 · step ~13,295 | 3.03 | 4.34 | 2.25 | 5.96 | 9.66 | 2.74 | 2.42 | 1.1 | 0.954 | 1.75 |
+| q2 · step ~16,037 | 8.34 | 6.37 | 2.59 | 5.31 | 5.98 | 2.15 | 2.31 | 1.43 | 1.42 | 1.52 |
+| q2 · step ~18,779 | 5.11 | 4.28 | 1.73 | 4.99 | 9.2 | 2.04 | 1.79 | 1.19 | 1.36 | 1.39 |
+| q2 · step ~22,891 | 3.15 | 3.51 | 2.06 | 4.49 | 6.9 | 1.47 | 3.42 | 1.91 | 1.89 | 1.52 |
+| q2 · step ~25,633 | 3.49 | 3.84 | 1.42 | 2.51 | 6.94 | 1.31 | 1.87 | 1.24 | 1.02 | 1.31 |
+| q2 · step ~28,375 | 1.6 | 3.22 | 1.31 | 1.98 | 6.96 | 1.43 | 3.1 | 1.91 | 1.75 | 1.99 |
+| q2 · step ~31,116 | 0.85 | 3 | 1.07 | 1.51 | 8.4 | 1.46 | 2.44 | 1.19 | 1.45 | 1.26 |
+| q2 · step ~33,858 | 0.769 | 2.09 | 0.726 | 1 | 5.96 | 0.961 | 2.96 | 1.33 | 1.19 | 1.24 |
+| q2 · step ~36,600 | 0.807 | 1.11 | 1.09 | 0.827 | 8.37 | 1.22 | 2.53 | 1.08 | · | 2.35 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 27.7 | 24.7 | 21.9 | 19.5 | 17.4 | 16.9 | 2.48 | 2.26 | 1.99 | 1.31 |
+| q2 · step ~450 | 5.43 | 3.93 | 3.94 | 6.35 | 3.59 | 4.66 | 2.33 | 1.03 | 1.26 | 1.39 |
+| q2 · step ~750 | 4.49 | 4.71 | 6.14 | 6.52 | 5.55 | 3.09 | 1.93 | 1.26 | 0.937 | 0.708 |
+| q2 · step ~1,050 | 4.8 | 2.97 | 7.53 | 7.6 | 4.9 | 3 | 1.67 | 1.12 | 0.962 | 1.19 |
+| q2 · step ~1,350 | 3.97 | 5.2 | 10.9 | 6.34 | 4.08 | 4.41 | 1.78 | 0.711 | 0.811 | 0.829 |
+| q2 · step ~1,650 | 3.95 | 4.39 | 7.64 | 7.39 | 5.81 | 3.12 | 1.78 | 1.17 | 1.16 | 0.922 |
+| q2 · step ~2,100 | 3.22 | 3.4 | 5.09 | 5.38 | 6.2 | 2.88 | 3.57 | 1.04 | 1.89 | 1.36 |
+| q2 · step ~2,400 | 3.4 | 3.6 | 9.78 | 4.92 | 3.8 | 3.79 | 2.76 | 1.49 | 1.55 | 1.17 |
+| q2 · step ~2,700 | 3.35 | 4.57 | 4.33 | 6.5 | 6.32 | 4.04 | 2.04 | 1.39 | 1.5 | 1.33 |
+| q2 · step ~3,000 | 3.83 | 4.43 | 6.51 | 9.05 | 4.27 | 4.71 | 1.88 | 1.34 | 1.51 | 1.22 |
+| q2 · step ~3,300 | 3.27 | 4.27 | 6.18 | 4.85 | 6.42 | 4.84 | 2.36 | 1.04 | 1.35 | 0.976 |
+| q2 · step ~3,600 | 5.03 | 5.08 | 4.04 | 7.45 | 5.66 | 3.67 | 1.7 | 1.28 | 1.22 | 0.883 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | bias 更新率 ×0.25 | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.5 | router 每行单独 hyperball（pin） | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 7.92 | 7.02 | 5.84 | 5.52 | 4.03 | 3.56 | 1.64 | 1.36 | 1.1 | 0.874 |
+| q2 · step ~4,575 | 5.78 | 5.86 | 7.21 | 8.9 | 4.04 | 4.41 | 2.32 | 1.55 | 1.55 | 1.72 |
+| q2 · step ~7,625 | 7.58 | 6.19 | 3.98 | 6.33 | 3.76 | 4.45 | 2.82 | 1.02 | 1.09 | 1.13 |
+| q2 · step ~10,675 | 5.93 | 5.75 | 5.7 | 5.7 | 3.33 | 2.71 | 2.26 | 1.51 | 1.15 | 1.11 |
+| q2 · step ~13,725 | 9.22 | 5.16 | 4.74 | 4.72 | 2.59 | 2.34 | 2.13 | 1.36 | 0.958 | 1.21 |
+| q2 · step ~16,775 | 6.49 | 4.05 | 7.56 | 3.59 | 2 | 1.65 | 2.73 | 1.52 | 1.79 | 1.33 |
+| q2 · step ~21,350 | 9.9 | 3.92 | 3.61 | 5.18 | 2.11 | 1.17 | 1.85 | 1.05 | 0.978 | 1.26 |
+| q2 · step ~24,400 | 6.07 | 4.67 | 5.28 | 3.65 | 1.49 | 1.28 | 2.31 | 1.54 | 1.43 | 1.47 |
+| q2 · step ~27,450 | 6.85 | 5.28 | 2.21 | 3.93 | 1.24 | 1.39 | 4.03 | 1.95 | 2.07 | 2.24 |
+| q2 · step ~30,500 | 5.21 | 3.88 | 1.27 | 1.45 | 0.924 | 1.36 | 2.21 | 1.63 | 1.26 | 1.32 |
+| q2 · step ~33,550 | 5.99 | 2.93 | 0.736 | 0.975 | 0.685 | 0.878 | 2.82 | 0.916 | 0.875 | 1.19 |
+| q2 · step ~36,600 | 8.37 | 1.11 | 0.807 | 0.827 | 1.09 | 1.22 | 2.53 | 1.08 | 2.35 | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 每行单独 hyperball（pin） | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~9,737 | 5.63 | 5.31 | 5.16 | 4.45 | 1.55 | 1.09 | 0.907 |
+| q3 · step ~15,012 | 1.99 | 6.37 | 3.44 | 2.07 | 1.93 | 1.12 | 1.68 |
+| q3 · step ~20,287 | 3.72 | 9.57 | 5 | 2.5 | 2.3 | 1.26 | 1.15 |
+| q3 · step ~25,562 | 4.42 | 10.1 | 3.71 | 1.83 | 2.78 | 1.92 | 2.12 |
+| q3 · step ~30,837 | 2.45 | 10.3 | 3.83 | 1.94 | 2.91 | 1.25 | 1.5 |
+| q3 · step ~36,112 | 2.08 | 12.1 | 2.86 | 1.8 | 2.09 | 1.35 | 1.16 |
+| q3 · step ~44,025 | 2.18 | 8.57 | 3.77 | 1.69 | 2.57 | 1.58 | 1.54 |
+| q3 · step ~49,300 | 1.75 | 10.5 | 1.84 | · | 3.05 | 1.44 | 1.52 |
+| q3 · step ~54,575 | · | · | 1.87 | · | 2.1 | 1.4 | 1.38 |
+| q3 · step ~59,850 | · | · | 0.897 | · | 2.23 | 1.87 | 1.92 |
+| q3 · step ~65,125 | · | · | 0.929 | · | 2.51 | 1.41 | 1.36 |
+| q3 · step ~70,400 | · | · | 1.16 | · | 3.2 | 1.26 | 1.22 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~291 | 24.8 | 15.1 | 8.73 | 6.51 | 1.99 | 1.83 | 1.56 |
+| q3 · step ~875 | 6.01 | 3.2 | 2.89 | 3.97 | 2.28 | 1.06 | 1.09 |
+| q3 · step ~1,458 | 3.72 | 3.13 | 3.21 | 5.23 | 1.58 | 0.991 | 0.771 |
+| q3 · step ~2,041 | 2.61 | 3.25 | 3.31 | 5.39 | 2.58 | 1.37 | 1.11 |
+| q3 · step ~2,625 | 4.2 | 4.19 | 3.36 | 3.58 | 1.96 | 1.63 | 1.45 |
+| q3 · step ~3,208 | 4.42 | 2.64 | 3.87 | 4.32 | 1.76 | 1.25 | 1.17 |
+| q3 · step ~4,083 | 2.68 | 3.21 | 3.65 | 4.29 | 1.96 | 1.08 | 1.34 |
+| q3 · step ~4,666 | 3.45 | 3.7 | 3.27 | 3.39 | 1.58 | 2.15 | 0.929 |
+| q3 · step ~5,250 | 2.87 | 4.31 | 4.2 | 5.42 | 1.86 | 1.17 | 1.1 |
+| q3 · step ~5,833 | 3.12 | 3.06 | 4.39 | 6.22 | 1.6 | 1.17 | 1.17 |
+| q3 · step ~6,416 | 4.65 | 2.93 | 3.58 | 6.28 | 1.87 | 1.76 | 1.69 |
+| q3 · step ~7,000 | 3.12 | 2.63 | 3.13 | 4.88 | 1.98 | 1.52 | 1.5 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~2,933 | 5.01 | 2.89 | 2.71 | 2.71 | 2.2 | 1.84 | 1.28 |
+| q3 · step ~8,800 | 3.5 | 2.95 | 3.64 | 4.3 | 2.75 | 1.96 | 1.89 |
+| q3 · step ~14,666 | 5.56 | 3.81 | 9.68 | 2.58 | 1.67 | 0.972 | 1.07 |
+| q3 · step ~20,533 | 3.43 | 2.08 | 6.87 | 3.39 | 2.37 | 1.6 | 1.62 |
+| q3 · step ~26,400 | 3.35 | 1.81 | 10.7 | 3.35 | 2.54 | 1.81 | 1.77 |
+| q3 · step ~32,266 | 4.04 | 2.3 | 11.2 | 2.46 | 1.69 | 2.08 | 1.94 |
+| q3 · step ~41,066 | 2.96 | 1.76 | 12.6 | 1.7 | 3.58 | 3 | 2.52 |
+| q3 · step ~46,933 | 2.68 | · | 13.3 | 1.38 | 2.93 | 1.71 | 1.87 |
+| q3 · step ~52,800 | 2.53 | · | 8.39 | · | 2.91 | 1.72 | 1.61 |
+| q3 · step ~58,666 | 1.28 | · | · | · | 2.55 | 1.24 | 1.35 |
+| q3 · step ~64,533 | 0.719 | · | · | · | 2.63 | 1.47 | 1.22 |
+| q3 · step ~70,400 | 1.16 | · | · | · | 3.2 | 1.26 | 1.22 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+同上，取最不均衡的那一层。
+
+**〔指标：dead expert (%)〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 只用 expert bias（去掉 seq aux） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | QBX：全局精确 quantile（Kimi K3 的做法） | router 每行单独 hyperball（pin） | QBK3 + 1% LR warmup | router 用 AdamW（LR ×0.19） | QB：Quantile Balancing（分位数均衡） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 0.287% | 0.264% | 0.218% | 0.149% | 0.0804% | 0.0804% | 0.046% | 0.046% | 0.0115% | 0% |
+| q1 · step ~3,375 | 0.241% | 0.0919% | 0.184% | 0.115% | 0.0689% | 0.0689% | 0.0804% | 0.0574% | 0.0345% | 0% |
+| q1 · step ~4,558 | 0.23% | 0.126% | 0.23% | 0.138% | 0.046% | 0.126% | 0.0345% | 0.161% | 0.046% | 0% |
+| q1 · step ~5,741 | 0.184% | 0.138% | 0.172% | 0.0345% | 0.0574% | 0% | 0.023% | 0.0115% | 0% | 0% |
+| q1 · step ~6,925 | 0.184% | 0.0574% | 0.126% | 0% | 0.023% | 0% | 0.0115% | 0% | 0.0345% | 0% |
+| q1 · step ~8,108 | 0.218% | 0.149% | 0.126% | 0% | 0.0345% | 0% | 0% | 0% | 0.0115% | 0% |
+| q1 · step ~9,883 | 0.0804% | 0.0115% | 0.0689% | 0.103% | 0% | 0.126% | 0% | 0.138% | 0.0115% | 0% |
+| q1 · step ~11,066 | 0.0345% | 0.0345% | 0.046% | 0% | 0% | 0% | 0% | 0% | 0.0115% | 0% |
+| q1 · step ~12,250 | 0.023% | 0% | 0.0345% | 0.103% | 0% | 0.0689% | 0% | 0.126% | 0.0115% | 0% |
+| q1 · step ~13,433 | 0.0115% | 0% | 0.023% | 0% | 0% | 0% | 0% | 0% | 0.023% | 0% |
+| q1 · step ~14,616 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~15,800 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% |
+| q1 · step ~125 | 3.33% | 0% | 0.264% | 17.8% | 4.49% | 5.4% | 5.77% | 2.52% | 0.218% | 0.368% |
+| q1 · step ~312 | 0.954% | 0% | 0.046% | 1.82% | 0.942% | 1.67% | 1.21% | 0.758% | 0% | 0.023% |
+| q1 · step ~437 | 0.793% | 0% | 0% | 3.01% | 0.712% | 0.85% | 0.689% | 0.793% | 0% | 0% |
+| q1 · step ~562 | 0.54% | 0% | 0% | 2.47% | 0.747% | 0.701% | 0.31% | 0.586% | 0% | 0% |
+| q1 · step ~750 | 0.31% | 0% | 0.103% | 1.14% | 0.597% | 0.896% | 0.0689% | 0.184% | 0.0115% | 0.0115% |
+| q1 · step ~812 | 0.172% | 0% | 0.0115% | 0.609% | 0.448% | 0.793% | 0.0919% | 0.0804% | 0% | 0.023% |
+| q1 · step ~1,062 | 0.0574% | 0% | 0% | 0.207% | 0.264% | 0.471% | 0.0689% | 0.023% | 0% | 0% |
+| q1 · step ~1,125 | 0.138% | 0% | 0.138% | 0.253% | 0.391% | 0.655% | 0.0574% | 0% | 0.161% | 0.115% |
+| q1 · step ~1,250 | 0.0804% | 0% | 0% | 0.23% | 0.241% | 0.563% | 0.0919% | 0.0689% | 0.0115% | 0% |
+| q1 · step ~1,437 | 0.0919% | 0% | 0% | 0.276% | 0.345% | 0.425% | 0.0574% | 0.0574% | 0.0574% | 0% |
+| q1 · step ~1,500 | 0.172% | 0% | 0.023% | 0.195% | 0.322% | 0.517% | 0.0689% | 0.0574% | 0.103% | 0.023% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.25 | bias 更新率 ×0.5 | router 每行单独 hyperball（pin） | 0 线：PROD1_DPSK_LATENT2_E2X | router 用 AdamW（LR ×0.19） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 1.76% | 0.816% | 0.724% | 0.31% | 0.287% | 0.126% | 0.0115% | 0% | 0% | 0% |
+| q1 · step ~1,975 | 0.264% | 0.276% | 0.253% | 0.0689% | 0.161% | 0.0345% | 0.0345% | 0% | 0% | 0% |
+| q1 · step ~3,291 | 0.126% | 0.264% | 0.195% | 0.0345% | 0.0689% | 0.0115% | 0.0689% | 0% | 0% | 0% |
+| q1 · step ~4,608 | 0.184% | 0.149% | 0.046% | 0.0574% | 0.0919% | 0.023% | 0.0115% | 0% | 0% | 0% |
+| q1 · step ~5,925 | 0.103% | 0.195% | 0.138% | 0.0345% | 0.0804% | 0.0345% | 0.023% | 0% | 0.023% | 0.023% |
+| q1 · step ~7,241 | 0.103% | 0.103% | 0.103% | 0% | 0.0345% | 0.023% | 0% | 0% | 0% | 0% |
+| q1 · step ~9,216 | 0.0804% | 0.0689% | 0.0689% | 0% | 0.023% | 0.023% | 0% | 0% | 0% | 0% |
+| q1 · step ~10,533 | 0.023% | 0.023% | 0.0115% | 0% | 0.0115% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~11,850 | 0.023% | 0.0115% | 0.023% | 0% | 0% | 0.0574% | 0% | 0% | 0% | 0% |
+| q1 · step ~13,166 | 0% | 0.0115% | 0% | 0% | 0% | 0.0115% | 0% | 0% | 0% | 0% |
+| q1 · step ~14,483 | 0.0115% | 0% | 0% | 0% | 0% | 0.0115% | 0.023% | 0% | 0.0115% | 0.046% |
+| q1 · step ~15,800 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | 0 线：PROD1_DPSK_LATENT2_E2X | router 用 AdamW（LR ×0.19） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 0.178% | 0.0849% | 0.0679% | 0.051% | 0.0255% | 0.0255% | 0% | 0% | 0% | 0% |
+| q2 · step ~7,812 | 0.127% | 0.102% | 0.0934% | 0.017% | 0.0934% | 0.0425% | 0% | 0.0255% | 0.0679% | 0.017% |
+| q2 · step ~10,554 | 0.127% | 0.161% | 0.0255% | 0.0255% | 0.051% | 0.0255% | 0% | 0% | 0% | 0% |
+| q2 · step ~13,295 | 0.11% | 0.119% | 0.00849% | 0.00849% | 0.034% | 0.00849% | 0% | 0.051% | 0.0425% | 0.051% |
+| q2 · step ~16,037 | 0.0764% | 0.0679% | 0% | 0% | 0.0255% | 0.0425% | 0% | 0% | 0% | 0% |
+| q2 · step ~18,779 | 0.0255% | 0.0425% | 0% | 0% | 0.017% | 0.017% | 0% | 0.034% | 0.034% | 0.0594% |
+| q2 · step ~22,891 | 0.051% | 0% | 0% | 0% | 0% | 0.0255% | 0% | 0.017% | 0.00849% | 0.017% |
+| q2 · step ~25,633 | 0.00849% | 0.00849% | 0% | 0% | 0% | 0.0679% | 0% | 0.051% | 0.051% | 0.0425% |
+| q2 · step ~28,375 | 0% | 0% | 0% | 0% | 0% | 0.11% | 0% | 0.034% | 0.0255% | 0.0255% |
+| q2 · step ~31,116 | 0% | 0% | 0% | 0% | 0% | 0.051% | 0% | 0.00849% | 0.00849% | 0% |
+| q2 · step ~33,858 | 0% | 0% | 0% | 0% | 0% | 0.0594% | 0% | 0.11% | 0.0849% | 0.0764% |
+| q2 · step ~36,600 | 0% | 0% | 0% | 0% | 0% | 0.102% | 0% | 0.17% | 0.17% | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3 + 1% LR warmup | QB：Quantile Balancing（分位数均衡） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 21.1% | 4.67% | 4.39% | 3.75% | 2.67% | 2% | 0.238% | 0.161% | 0.144% | 0% |
+| q2 · step ~450 | 2.67% | 0.654% | 0.493% | 0.484% | 0.73% | 0.662% | 0% | 0% | 0% | 0% |
+| q2 · step ~750 | 1.28% | 0.289% | 0.535% | 0.331% | 0.187% | 0.127% | 0.034% | 0.034% | 0.051% | 0% |
+| q2 · step ~1,050 | 0.221% | 0.17% | 0.459% | 0.212% | 0.102% | 0.0425% | 0% | 0% | 0% | 0% |
+| q2 · step ~1,350 | 0.11% | 0.0934% | 0.382% | 0.229% | 0.153% | 0.034% | 0.017% | 0.00849% | 0.0594% | 0% |
+| q2 · step ~1,650 | 0.0849% | 0.051% | 0.229% | 0.17% | 0.0679% | 0.034% | 0% | 0% | 0% | 0% |
+| q2 · step ~2,100 | 0.161% | 0.0849% | 0.238% | 0.246% | 0.136% | 0.0425% | 0.0764% | 0.0255% | 0.051% | 0% |
+| q2 · step ~2,400 | 0.0594% | 0.195% | 0.255% | 0.11% | 0.0679% | 0.0425% | 0% | 0% | 0% | 0% |
+| q2 · step ~2,700 | 0.119% | 0.0679% | 0.161% | 0.178% | 0.0594% | 0.00849% | 0.00849% | 0.017% | 0% | 0% |
+| q2 · step ~3,000 | 0.127% | 0.0594% | 0.195% | 0.136% | 0.17% | 0.017% | 0% | 0% | 0% | 0% |
+| q2 · step ~3,300 | 0.0849% | 0.0255% | 0.204% | 0.11% | 0.0679% | 0.0679% | 0% | 0% | 0% | 0% |
+| q2 · step ~3,600 | 0.0934% | 0.017% | 0.161% | 0.127% | 0.0849% | 0.051% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 0.289% | 0.187% | 0.11% | 0.0934% | 0.0849% | 0.0425% | 0.0425% | 0.0255% | 0.017% | 0% |
+| q2 · step ~4,575 | 0.136% | 0.0934% | 0.0679% | 0.0679% | 0.0255% | 0.051% | 0.136% | 0.0849% | 0.102% | 0% |
+| q2 · step ~7,625 | 0.17% | 0.0764% | 0.127% | 0.0934% | 0.0425% | 0.034% | 0.051% | 0.034% | 0.00849% | 0% |
+| q2 · step ~10,675 | 0.161% | 0.0849% | 0.0764% | 0.034% | 0.017% | 0.034% | 0.0255% | 0.051% | 0.017% | 0% |
+| q2 · step ~13,725 | 0.0679% | 0.0764% | 0.0425% | 0.017% | 0.0594% | 0.0255% | 0.017% | 0.0255% | 0.017% | 0% |
+| q2 · step ~16,775 | 0.119% | 0.0594% | 0.017% | 0% | 0.017% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~21,350 | 0.051% | 0.017% | 0.00849% | 0% | 0.0425% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~24,400 | 0.017% | 0.0255% | 0% | 0% | 0.017% | 0% | 0.00849% | 0.00849% | 0% | 0% |
+| q2 · step ~27,450 | 0.017% | 0% | 0% | 0% | 0.017% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~30,500 | 0% | 0% | 0% | 0% | 0.0764% | 0% | 0% | 0.017% | 0.00849% | 0% |
+| q2 · step ~33,550 | 0% | 0% | 0% | 0% | 0.034% | 0% | 0% | 0.0764% | 0% | 0% |
+| q2 · step ~36,600 | 0% | 0% | 0% | 0% | 0.102% | 0% | 0.17% | · | 0.17% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | QBX：全局精确 quantile（Kimi K3 的做法） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 用 AdamW（LR ×0.19） | QB：Quantile Balancing（分位数均衡） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~9,737 | 0.0337% | 0.0337% | 0.0202% | 0.0202% | 0.0202% | 0.00673% | 0% |
+| q3 · step ~15,012 | 0.0943% | 0.0202% | 0.0741% | 0.0202% | 0.0876% | 0.0202% | 0% |
+| q3 · step ~20,287 | 0.0337% | 0% | 0% | 0.00673% | 0% | 0.0135% | 0% |
+| q3 · step ~25,562 | 0.0404% | 0.00673% | 0.0471% | 0% | 0.0673% | 0.0808% | 0% |
+| q3 · step ~30,837 | 0.0404% | 0.0135% | 0.0876% | 0% | 0.0673% | 0.0404% | 0% |
+| q3 · step ~36,112 | 0% | 0% | 0.0135% | 0% | 0.00673% | 0.0404% | 0% |
+| q3 · step ~44,025 | 0% | 0% | 0.00673% | 0% | 0.00673% | 0.0539% | 0% |
+| q3 · step ~49,300 | 0% | · | 0% | 0% | 0% | 0.0202% | 0% |
+| q3 · step ~54,575 | 0% | · | 0.337% | · | 0.323% | · | 0.00673% |
+| q3 · step ~59,850 | 0% | · | 0.0202% | · | 0.0202% | · | 0% |
+| q3 · step ~65,125 | 0% | · | 0.0943% | · | 0.101% | · | 0% |
+| q3 · step ~70,400 | 0% | · | 0.0876% | · | 0.0808% | · | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | 0 线：PROD1_DPSK_LATENT2_E2X | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~291 | 4.98% | 1.04% | 0.162% | 0.0876% | 0.0135% | 0% | 0% |
+| q3 · step ~875 | 0.99% | 0.0741% | 0.0471% | 0.0337% | 0.0337% | 0% | 0.0673% |
+| q3 · step ~1,458 | 0.0808% | 0.0539% | 0.00673% | 0.0606% | 0% | 0% | 0% |
+| q3 · step ~2,041 | 0.0404% | 0.0337% | 0.0404% | 0.121% | 0.0808% | 0% | 0.0471% |
+| q3 · step ~2,625 | 0.0404% | 0.0135% | 0.0202% | 0.0404% | 0.00673% | 0% | 0% |
+| q3 · step ~3,208 | 0.0606% | 0.0337% | 0.0404% | 0.0404% | 0% | 0% | 0% |
+| q3 · step ~4,083 | 0.0673% | 0.0269% | 0.0202% | 0.0471% | 0.141% | 0% | 0.195% |
+| q3 · step ~4,666 | 0.0606% | 0.0337% | 0.0202% | 0.0471% | 0% | 0% | 0% |
+| q3 · step ~5,250 | 0.0471% | 0.0135% | 0.0202% | 0.0741% | 0.0202% | 0% | 0.0202% |
+| q3 · step ~5,833 | 0.0471% | 0.0202% | 0.0202% | 0.0673% | 0.108% | 0% | 0.121% |
+| q3 · step ~6,416 | 0.0337% | 0.00673% | 0.0202% | 0.0539% | 0.00673% | 0% | 0.0269% |
+| q3 · step ~7,000 | 0.0808% | 0.00673% | 0.0135% | 0.0404% | 0% | 0% | 0.00673% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | 只用 expert bias（去掉 seq aux） | 0 线：PROD1_DPSK_LATENT2_E2X | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~2,933 | 0.0741% | 0.0606% | 0.0269% | 0.0202% | 0.00673% | 0% | 0% |
+| q3 · step ~8,800 | 0.0471% | 0.0539% | 0.0135% | 0.0202% | 0% | 0% | 0.00673% |
+| q3 · step ~14,666 | 0.0269% | 0.0471% | 0.00673% | 0.00673% | 0% | 0% | 0% |
+| q3 · step ~20,533 | 0.00673% | 0.0673% | 0.0202% | 0.00673% | 0% | 0% | 0% |
+| q3 · step ~26,400 | 0.0135% | 0.0269% | 0.0471% | 0% | 0.0269% | 0% | 0.0404% |
+| q3 · step ~32,266 | 0% | 0.0337% | 0.0337% | 0% | 0% | 0% | 0% |
+| q3 · step ~41,066 | 0.00673% | 0% | 0.121% | 0% | 0% | 0% | 0% |
+| q3 · step ~46,933 | · | 0% | 0.0337% | 0% | 0% | 0% | 0.0202% |
+| q3 · step ~52,800 | · | 0% | 0.0539% | · | 0.0202% | 0% | 0% |
+| q3 · step ~58,666 | · | 0% | · | · | 0.101% | 0% | 0.0404% |
+| q3 · step ~64,533 | · | 0% | · | · | 0% | 0% | 0% |
+| q3 · step ~70,400 | · | 0% | · | · | 0.0808% | 0% | 0.0876% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+分到的 token 不到平均值 10% 的 expert 数，占（层数 × 128）的百分比。
+
+**〔指标：|bias| 最大〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | 只用 expert bias（去掉 seq aux） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | router 用 AdamW（LR ×0.19） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 0.482 | 0.41 | 0.356 | 0.322 | 0.309 | 0.185 | 0.075 | 0.0725 |
+| q1 · step ~3,375 | 0.766 | 0.598 | 0.512 | 0.44 | 0.457 | 0.261 | 0.0747 | 0.075 |
+| q1 · step ~4,558 | 1.04 | 0.782 | 0.67 | 0.576 | 0.591 | 0.337 | 0.0771 | 0.0778 |
+| q1 · step ~5,741 | 1.31 | 0.95 | 0.818 | 0.722 | 0.726 | 0.41 | 0.0801 | 0.0812 |
+| q1 · step ~6,925 | 1.56 | 1.11 | 0.956 | 0.882 | 0.851 | 0.479 | 0.08 | 0.0817 |
+| q1 · step ~8,108 | 1.8 | 1.25 | 1.07 | 1.08 | 0.973 | 0.547 | 0.0802 | 0.0817 |
+| q1 · step ~9,883 | 2.09 | 1.42 | 1.2 | 1.35 | 1.12 | 0.64 | 0.0804 | 0.0834 |
+| q1 · step ~11,066 | 2.27 | 1.52 | 1.26 | 1.54 | 1.22 | 0.693 | 0.0792 | 0.0858 |
+| q1 · step ~12,250 | 2.42 | 1.58 | 1.3 | 1.72 | 1.29 | 0.744 | 0.0781 | 0.0823 |
+| q1 · step ~13,433 | 2.56 | 1.63 | 1.33 | 1.89 | 1.34 | 0.79 | 0.0781 | 0.0862 |
+| q1 · step ~14,616 | 2.68 | 1.68 | 1.38 | 2.05 | 1.37 | 0.822 | 0.0711 | 0.0807 |
+| q1 · step ~15,800 | 2.79 | 1.73 | 1.42 | 2.21 | 1.4 | 0.836 | 0.0729 | 0.0798 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | bias 更新率 ×0.5 | bias 更新率 ×0.25 |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0.0952 | 0.0952 | 0.001 | 0.001 | 0.001 | 0.001 | 0.0005 | 0.0003 |
+| q1 · step ~125 | 0.509 | 0.492 | 0.1 | 0.1 | 0.1 | 0.1 | 0.05 | 0.025 |
+| q1 · step ~312 | 0.217 | 0.34 | 0.266 | 0.298 | 0.246 | 0.256 | 0.149 | 0.075 |
+| q1 · step ~437 | 0.147 | 0.201 | 0.22 | 0.29 | 0.224 | 0.206 | 0.178 | 0.0995 |
+| q1 · step ~562 | 0.127 | 0.149 | 0.192 | 0.252 | 0.206 | 0.186 | 0.168 | 0.123 |
+| q1 · step ~750 | 0.104 | 0.108 | 0.194 | 0.206 | 0.204 | 0.196 | 0.155 | 0.127 |
+| q1 · step ~812 | 0.0938 | 0.0978 | 0.206 | 0.21 | 0.212 | 0.202 | 0.155 | 0.123 |
+| q1 · step ~1,062 | 0.0846 | 0.0874 | 0.23 | 0.238 | 0.226 | 0.22 | 0.176 | 0.118 |
+| q1 · step ~1,125 | 0.083 | 0.0817 | 0.25 | 0.256 | 0.236 | 0.234 | 0.185 | 0.121 |
+| q1 · step ~1,250 | 0.0855 | 0.0786 | 0.264 | 0.276 | 0.246 | 0.244 | 0.198 | 0.124 |
+| q1 · step ~1,437 | 0.073 | 0.0768 | 0.296 | 0.32 | 0.26 | 0.27 | 0.221 | 0.138 |
+| q1 · step ~1,500 | 0.0763 | 0.0726 | 0.31 | 0.342 | 0.268 | 0.284 | 0.233 | 0.148 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.5 | bias 更新率 ×0.25 | QBK3 + 1% LR warmup | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 0.22 | 0.204 | 0.188 | 0.182 | 0.154 | 0.131 | 0.126 | 0.106 |
+| q1 · step ~1,975 | 0.434 | 0.302 | 0.334 | 0.376 | 0.283 | 0.173 | 0.0722 | 0.074 |
+| q1 · step ~3,291 | 0.742 | 0.428 | 0.498 | 0.582 | 0.443 | 0.258 | 0.075 | 0.0732 |
+| q1 · step ~4,608 | 1.07 | 0.586 | 0.684 | 0.796 | 0.606 | 0.341 | 0.0772 | 0.0764 |
+| q1 · step ~5,925 | 1.35 | 0.747 | 0.843 | 0.978 | 0.748 | 0.422 | 0.0818 | 0.0802 |
+| q1 · step ~7,241 | 1.62 | 0.932 | 0.986 | 1.15 | 0.884 | 0.496 | 0.0834 | 0.0782 |
+| q1 · step ~9,216 | 1.99 | 1.26 | 1.16 | 1.37 | 1.07 | 0.605 | 0.0846 | 0.0792 |
+| q1 · step ~10,533 | 2.2 | 1.46 | 1.24 | 1.48 | 1.18 | 0.669 | 0.0879 | 0.0818 |
+| q1 · step ~11,850 | 2.38 | 1.66 | 1.29 | 1.56 | 1.27 | 0.73 | 0.0888 | 0.0793 |
+| q1 · step ~13,166 | 2.53 | 1.85 | 1.33 | 1.62 | 1.33 | 0.781 | 0.0827 | 0.0763 |
+| q1 · step ~14,483 | 2.67 | 2.02 | 1.37 | 1.67 | 1.37 | 0.82 | 0.0818 | 0.0765 |
+| q1 · step ~15,800 | 2.79 | 2.21 | 1.42 | 1.73 | 1.4 | 0.836 | 0.0798 | 0.0729 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 0.964 | 0.836 | 0.796 | 0.772 | 0.588 | 0.344 | 0.0876 | 0.0804 |
+| q2 · step ~7,812 | 1.48 | 1.28 | 1.12 | 1.17 | 0.885 | 0.507 | 0.0937 | 0.0858 |
+| q2 · step ~10,554 | 1.95 | 1.63 | 1.75 | 1.53 | 1.16 | 0.667 | 0.0933 | 0.0919 |
+| q2 · step ~13,295 | 2.38 | 1.92 | 2.43 | 1.85 | 1.41 | 0.817 | 0.092 | 0.0915 |
+| q2 · step ~16,037 | 2.78 | 2.19 | 3.18 | 2.15 | 1.67 | 0.968 | 0.092 | 0.0953 |
+| q2 · step ~18,779 | 3.12 | 2.41 | 3.92 | 2.39 | 1.88 | 1.1 | 0.0926 | 0.101 |
+| q2 · step ~22,891 | 3.56 | 2.7 | 5 | 2.67 | 2.18 | 1.3 | 0.0977 | 0.102 |
+| q2 · step ~25,633 | 3.77 | 2.87 | 5.71 | 2.79 | 2.35 | 1.41 | 0.0951 | 0.0979 |
+| q2 · step ~28,375 | 3.91 | 3 | 6.37 | 2.86 | 2.49 | 1.51 | 0.095 | 0.0991 |
+| q2 · step ~31,116 | 3.99 | 3.14 | 7.02 | 2.9 | 2.58 | 1.6 | 0.0925 | 0.0983 |
+| q2 · step ~33,858 | 4.07 | 3.27 | 7.63 | 2.97 | 2.63 | 1.65 | 0.09 | 0.101 |
+| q2 · step ~36,600 | 4.19 | 3.41 | 8.24 | 3.07 | 2.67 | 1.67 | 0.0959 | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | bias 更新率 ×0.5 | bias 更新率 ×0.25 |
+|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 0.569 | 0.403 | 0.1 | 0.1 | 0.1 | 0.1 | 0.05 | 0.025 |
+| q2 · step ~450 | 0.173 | 0.258 | 0.234 | 0.334 | 0.242 | 0.22 | 0.188 | 0.0995 |
+| q2 · step ~750 | 0.115 | 0.131 | 0.208 | 0.246 | 0.264 | 0.204 | 0.16 | 0.14 |
+| q2 · step ~1,050 | 0.0984 | 0.0991 | 0.24 | 0.24 | 0.308 | 0.23 | 0.173 | 0.131 |
+| q2 · step ~1,350 | 0.0936 | 0.0917 | 0.282 | 0.262 | 0.356 | 0.262 | 0.196 | 0.132 |
+| q2 · step ~1,650 | 0.0855 | 0.0868 | 0.334 | 0.296 | 0.396 | 0.284 | 0.225 | 0.137 |
+| q2 · step ~2,100 | 0.0838 | 0.0753 | 0.408 | 0.354 | 0.448 | 0.338 | 0.27 | 0.17 |
+| q2 · step ~2,400 | 0.0836 | 0.0787 | 0.466 | 0.398 | 0.486 | 0.382 | 0.303 | 0.19 |
+| q2 · step ~2,700 | 0.0843 | 0.0748 | 0.522 | 0.444 | 0.524 | 0.425 | 0.336 | 0.208 |
+| q2 · step ~3,000 | 0.0842 | 0.077 | 0.584 | 0.492 | 0.558 | 0.466 | 0.368 | 0.225 |
+| q2 · step ~3,300 | 0.0852 | 0.0766 | 0.64 | 0.538 | 0.594 | 0.51 | 0.396 | 0.241 |
+| q2 · step ~3,600 | 0.0856 | 0.0797 | 0.709 | 0.604 | 0.64 | 0.566 | 0.441 | 0.262 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 0.382 | 0.318 | 0.282 | 0.28 | 0.213 | 0.133 | 0.0882 | 0.0832 |
+| q2 · step ~4,575 | 0.74 | 0.874 | 0.752 | 0.702 | 0.538 | 0.317 | 0.0903 | 0.0803 |
+| q2 · step ~7,625 | 1.08 | 1.45 | 1.25 | 1.14 | 0.864 | 0.496 | 0.0897 | 0.0856 |
+| q2 · step ~10,675 | 1.77 | 1.97 | 1.64 | 1.54 | 1.17 | 0.675 | 0.0935 | 0.089 |
+| q2 · step ~13,725 | 2.56 | 2.45 | 1.97 | 1.91 | 1.46 | 0.846 | 0.0922 | 0.0927 |
+| q2 · step ~16,775 | 3.37 | 2.88 | 2.25 | 2.21 | 1.72 | 1.01 | 0.0967 | 0.0946 |
+| q2 · step ~21,350 | 4.61 | 3.42 | 2.61 | 2.58 | 2.08 | 1.23 | 0.0932 | 0.0993 |
+| q2 · step ~24,400 | 5.38 | 3.68 | 2.79 | 2.75 | 2.28 | 1.36 | 0.0914 | 0.101 |
+| q2 · step ~27,450 | 6.15 | 3.87 | 2.96 | 2.84 | 2.45 | 1.48 | 0.0921 | 0.0999 |
+| q2 · step ~30,500 | 6.86 | 3.97 | 3.1 | 2.89 | 2.56 | 1.58 | 0.0941 | 0.101 |
+| q2 · step ~33,550 | 7.56 | 4.06 | 3.26 | 2.96 | 2.62 | 1.64 | 0.0953 | 0.101 |
+| q2 · step ~36,600 | 8.24 | 4.19 | 3.41 | 3.07 | 2.67 | 1.67 | 0.0959 | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|
+| q3 · step ~9,737 | 1.6 | 1.36 | 1.3 | 1.24 | 0.111 |
+| q3 · step ~15,012 | 2.4 | 2 | 1.89 | 2.57 | 0.103 |
+| q3 · step ~20,287 | 3.11 | 2.56 | 2.4 | 4.12 | 0.104 |
+| q3 · step ~25,562 | 3.74 | 3.05 | 2.9 | 5.85 | 0.102 |
+| q3 · step ~30,837 | 4.29 | 3.55 | 3.4 | 7.59 | 0.104 |
+| q3 · step ~36,112 | 4.85 | 4.04 | 3.88 | 9.34 | 0.103 |
+| q3 · step ~44,025 | 5.62 | 4.62 | 4.46 | 11.9 | 0.11 |
+| q3 · step ~49,300 | 6.01 | 4.82 | · | 13.4 | 0.107 |
+| q3 · step ~54,575 | 6.34 | · | · | · | 0.104 |
+| q3 · step ~59,850 | 6.57 | · | · | · | 0.104 |
+| q3 · step ~65,125 | 6.77 | · | · | · | 0.102 |
+| q3 · step ~70,400 | 7.03 | · | · | · | 0.102 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|
+| q3 · step ~291 | 0.495 | 0.2 | 0.2 | 0.2 | 0.2 |
+| q3 · step ~875 | 0.123 | 0.238 | 0.256 | 0.248 | 0.216 |
+| q3 · step ~1,458 | 0.103 | 0.306 | 0.282 | 0.318 | 0.264 |
+| q3 · step ~2,041 | 0.0944 | 0.384 | 0.346 | 0.39 | 0.322 |
+| q3 · step ~2,625 | 0.0954 | 0.46 | 0.416 | 0.46 | 0.388 |
+| q3 · step ~3,208 | 0.099 | 0.56 | 0.494 | 0.528 | 0.466 |
+| q3 · step ~4,083 | 0.104 | 0.684 | 0.602 | 0.606 | 0.576 |
+| q3 · step ~4,666 | 0.102 | 0.78 | 0.68 | 0.662 | 0.658 |
+| q3 · step ~5,250 | 0.106 | 0.884 | 0.756 | 0.72 | 0.738 |
+| q3 · step ~5,833 | 0.105 | 0.98 | 0.83 | 0.776 | 0.828 |
+| q3 · step ~6,416 | 0.106 | 1.08 | 0.906 | 0.832 | 0.906 |
+| q3 · step ~7,000 | 0.104 | 1.17 | 0.976 | 0.89 | 0.992 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|
+| q3 · step ~2,933 | 0.506 | 0.492 | 0.456 | 0.424 | 0.0953 |
+| q3 · step ~8,800 | 1.45 | 1.09 | 1.18 | 1.22 | 0.102 |
+| q3 · step ~14,666 | 2.34 | 2.46 | 1.85 | 1.95 | 0.109 |
+| q3 · step ~20,533 | 3.15 | 4.21 | 2.42 | 2.59 | 0.101 |
+| q3 · step ~26,400 | 3.83 | 6.11 | 2.98 | 3.12 | 0.107 |
+| q3 · step ~32,266 | 4.42 | 8.05 | 3.53 | 3.69 | 0.102 |
+| q3 · step ~41,066 | 5.34 | 10.9 | 4.3 | 4.42 | 0.107 |
+| q3 · step ~46,933 | 5.86 | 12.7 | · | 4.79 | 0.101 |
+| q3 · step ~52,800 | 6.24 | 14 | · | · | 0.106 |
+| q3 · step ~58,666 | 6.52 | · | · | · | 0.106 |
+| q3 · step ~64,533 | 6.75 | · | · | · | 0.104 |
+| q3 · step ~70,400 | 7.03 | · | · | · | 0.102 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+DSV3 每个 expert 的 bias 在所有层里的最大绝对值；红色虚线 = Boxiang 预设的健康上限 1。注意 top-8 选择只看同一层 bias 之间的差，所有 expert 一起抬高并不改变路由（例如 A 的 q3 第 0 层 bias 在 +11.2 到 +11.7 之间）。softmax 没有 bias。
+
+**〔指标：logit 饱和 (%)〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | QBK3 + 1% LR warmup | bias 更新率 ×0.5 | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 84.4% | 52.5% | 46.8% | 46.6% | 45.6% | 42.8% | 41.4% | 41.3% | 40.7% | 39.4% |
+| q1 · step ~3,375 | 86.6% | 60.3% | 56.4% | 57.2% | 54.8% | 55.2% | 48.8% | 50.7% | 48.4% | 48.8% |
+| q1 · step ~4,558 | 85.4% | 59.7% | 56.8% | 55.9% | 57.2% | 54.8% | 46.6% | 47.2% | 47.9% | 48.7% |
+| q1 · step ~5,741 | 90.9% | 70.2% | 68.1% | 67.3% | 67.7% | 67.5% | 61.4% | 61.7% | 62.6% | 61.6% |
+| q1 · step ~6,925 | 90.9% | 72.3% | 69.9% | 69.1% | 69.5% | 69.7% | 63.2% | 63.2% | 64.5% | 63.4% |
+| q1 · step ~8,108 | 86.6% | 73.4% | 70.8% | 70.5% | 69.8% | 70.3% | 56.4% | 57.1% | 58% | 57.6% |
+| q1 · step ~9,883 | 89.5% | 71.6% | 69.9% | 70% | 69.8% | 70.4% | 61.2% | 61.1% | 61.5% | 61.4% |
+| q1 · step ~11,066 | 84.9% | 70.6% | 69% | 68.9% | 68.7% | 69.4% | 55.1% | 55.5% | 55.8% | 56.9% |
+| q1 · step ~12,250 | 87.5% | 71.9% | 70.9% | 70.1% | 70.3% | 71.2% | 59.5% | 59.6% | 60.4% | 59.8% |
+| q1 · step ~13,433 | 82% | 74.7% | 74.1% | 74.2% | 73.5% | 73.8% | 54.4% | 54.5% | 55.4% | 55% |
+| q1 · step ~14,616 | 81.8% | 73% | 72.7% | 72.3% | 72.1% | 72.6% | 54.4% | 54.8% | 55% | 55% |
+| q1 · step ~15,800 | 82.7% | 74.8% | 74.2% | 74.4% | 74.2% | 74.6% | 57.8% | 58% | 57.9% | 58.9% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~125 | 0.04% | 0.34% | 0.33% | 0.02% | 0.04% | 0.04% | 1.44% | 0.03% | 0.19% | 0.05% |
+| q1 · step ~312 | 2.01% | 5.55% | 4.62% | 7.3% | 1.28% | 1.02% | 48.6% | 1.97% | 4.26% | 0.8% |
+| q1 · step ~437 | 3.51% | 6.18% | 5.06% | 8.41% | 2.85% | 2.4% | 50% | 3.54% | 5% | 2.41% |
+| q1 · step ~562 | 4.41% | 4.27% | 3.99% | 7.47% | 3.37% | 3.53% | 51.2% | 4.18% | 4.43% | 1.93% |
+| q1 · step ~750 | 26.5% | 26.6% | 28.1% | 34.9% | 24.6% | 21.7% | 75.9% | 23.1% | 25.4% | 22.1% |
+| q1 · step ~812 | 30% | 30.3% | 31.3% | 38.7% | 28.2% | 28.1% | 79.4% | 27.9% | 29.7% | 25.9% |
+| q1 · step ~1,062 | 30.1% | 24.2% | 26.8% | 34.3% | 28.4% | 27.1% | 78.7% | 25.6% | 26.5% | 21.7% |
+| q1 · step ~1,125 | 40.2% | 39.4% | 35.9% | 46% | 37.5% | 36.9% | 83.4% | 37.1% | 39.6% | 34.8% |
+| q1 · step ~1,250 | 33.6% | 32.4% | 32.7% | 45.5% | 33.3% | 32.3% | 80% | 30.2% | 34.1% | 31.6% |
+| q1 · step ~1,437 | 46.9% | 45% | 46.6% | 54.1% | 42.8% | 44% | 87.2% | 41.1% | 47.3% | 46% |
+| q1 · step ~1,500 | 33% | 32.9% | 33.3% | 44.9% | 34% | 34% | 81.7% | 31.4% | 33.3% | 31.3% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | QBK3 + 1% LR warmup | bias 更新率 ×0.5 | bias 更新率 ×0.25 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 75.5% | 30.5% | 25.2% | 24.8% | 23% | 22.4% | 21.4% | 19.1% | 18.5% | 16.9% |
+| q1 · step ~1,975 | 88.2% | 57.5% | 51.2% | 49.9% | 47.1% | 52% | 48.1% | 47.8% | 47.7% | 49.4% |
+| q1 · step ~3,291 | 86.4% | 57% | 51.8% | 48.5% | 46.7% | 53% | 45.7% | 50% | 46% | 44.2% |
+| q1 · step ~4,608 | 89.8% | 65.5% | 63.1% | 62% | 55.6% | 63.5% | 55.2% | 61.9% | 56.2% | 56.8% |
+| q1 · step ~5,925 | 91.5% | 71.8% | 69.7% | 68.7% | 62.8% | 69.4% | 63.3% | 69.7% | 63.5% | 63% |
+| q1 · step ~7,241 | 90.1% | 69.2% | 66.6% | 67.7% | 60.6% | 68.4% | 59.8% | 67.5% | 61% | 62.3% |
+| q1 · step ~9,216 | 88.9% | 69.8% | 67.6% | 67.6% | 60.5% | 68.7% | 59.7% | 69% | 59.7% | 61% |
+| q1 · step ~10,533 | 88.3% | 70.8% | 69% | 68.7% | 60.2% | 69.2% | 59.5% | 70% | 59.8% | 60.8% |
+| q1 · step ~11,850 | 87.4% | 70.5% | 69.1% | 69.1% | 59.3% | 69.5% | 57.9% | 70% | 58.6% | 59.3% |
+| q1 · step ~13,166 | 80.4% | 74.9% | 72.8% | 73.3% | 51.8% | 73.3% | 51.2% | 73.9% | 51.3% | 52.1% |
+| q1 · step ~14,483 | 76.2% | 73.8% | 73% | 72.3% | 51% | 73.3% | 49.5% | 72.9% | 50% | 50.7% |
+| q1 · step ~15,800 | 82.7% | 74.8% | 74.4% | 74.2% | 58.9% | 74.2% | 58% | 74.6% | 57.8% | 57.9% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QBK3 + 1% LR warmup | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | router 每行单独 hyperball（pin） | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.5 | bias 更新率 ×0.25 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 88.3% | 69.9% | 65.7% | 65.1% | 64.4% | 64.2% | 57.5% | 57.3% | 57% | 56.5% |
+| q2 · step ~7,812 | 88.4% | 69.2% | 67.6% | 65.5% | 65.1% | 63.5% | 57.6% | 56.6% | 56.4% | 58% |
+| q2 · step ~10,554 | 91% | 73.5% | 73.4% | 71.3% | 70.8% | 70.4% | 61.5% | 60.9% | 61.2% | 61.9% |
+| q2 · step ~13,295 | 91% | 75% | 75.4% | 72.8% | 72.6% | 72.3% | 61.4% | 62.2% | 62.5% | 62.4% |
+| q2 · step ~16,037 | 84.9% | 72% | 72.4% | 69.8% | 69.7% | 69.1% | 53.7% | 52.8% | 53.5% | 52.9% |
+| q2 · step ~18,779 | 88.9% | 73.1% | 74.3% | 71.7% | 71.7% | 70.8% | 58.9% | 59% | 59.5% | 59.2% |
+| q2 · step ~22,891 | 86.8% | 71.8% | 73.5% | 70.9% | 70.6% | 70% | 56.9% | 56.7% | 57.2% | 56.5% |
+| q2 · step ~25,633 | 68.6% | 71.8% | 73% | 70.8% | 71% | 71.3% | 42% | 41.4% | 42.6% | 42% |
+| q2 · step ~28,375 | 59.2% | 66% | 69.5% | 65.2% | 62.9% | 64.1% | 33.2% | 33.4% | 34.5% | 34.5% |
+| q2 · step ~31,116 | 82.6% | 72.3% | 73.9% | 72% | 72.2% | 71.5% | 54.6% | 54.5% | 55% | 54.9% |
+| q2 · step ~33,858 | 75.8% | 68.7% | 73.5% | 69% | 68.7% | 68% | 51.2% | 51.3% | 51.1% | 51.3% |
+| q2 · step ~36,600 | 78.6% | 69.8% | · | 70.1% | 70.1% | 69.2% | 51% | 51.2% | 51.5% | 51.1% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.5 | bias 更新率 ×0.25 | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 2.15% | 0.88% | 0.66% | 0.63% | 0.1% | 0.1% | 0.1% | 0.07% | 0.07% | 0% |
+| q2 · step ~450 | 46.8% | 11.2% | 10.7% | 10.2% | 9.26% | 6.49% | 5.83% | 16.4% | 7.44% | 2.34% |
+| q2 · step ~750 | 72.6% | 35% | 32.4% | 34% | 32.6% | 27.4% | 26.1% | 42.2% | 30.2% | 26.4% |
+| q2 · step ~1,050 | 73.4% | 32.2% | 30.8% | 33.5% | 30.5% | 31.5% | 29.1% | 42.7% | 30.5% | 26.9% |
+| q2 · step ~1,350 | 70.9% | 30.6% | 27.2% | 29.7% | 25.2% | 25.2% | 24.4% | 41.1% | 24.5% | 24.9% |
+| q2 · step ~1,650 | 77.2% | 44.8% | 44.2% | 47.5% | 37.6% | 36.2% | 36.2% | 55.1% | 37.8% | 39.4% |
+| q2 · step ~2,100 | 85.5% | 57.3% | 55.7% | 56.9% | 51.7% | 52% | 53.2% | 64.4% | 51.3% | 55.4% |
+| q2 · step ~2,400 | 86.5% | 57% | 56.1% | 58.5% | 52% | 53.1% | 51.5% | 63.8% | 51.4% | 55.5% |
+| q2 · step ~2,700 | 81.2% | 45.2% | 45.7% | 48.4% | 39.8% | 40.7% | 40% | 55.2% | 40.4% | 44.1% |
+| q2 · step ~3,000 | 87.4% | 60.6% | 58.9% | 60.7% | 54% | 53.4% | 53.9% | 65.6% | 53.1% | 59.5% |
+| q2 · step ~3,300 | 83.5% | 51.7% | 51.1% | 53.7% | 44.7% | 44.8% | 43.4% | 58.3% | 44.1% | 49.5% |
+| q2 · step ~3,600 | 89.5% | 65.5% | 64.8% | 67% | 59.5% | 59.2% | 59.3% | 68.8% | 58.8% | 65% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | bias 更新率 ×0.5 | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 75% | 49.7% | 38.5% | 38.2% | 37.6% | 33% | 32.9% | 32.8% | 31.8% | 31.7% |
+| q2 · step ~4,575 | 82.1% | 63.3% | 58.9% | 58.2% | 58.1% | 44.6% | 44% | 44.9% | 45.2% | 57% |
+| q2 · step ~7,625 | 91.5% | 73.4% | 70.6% | 69.7% | 70.8% | 60.6% | 61.8% | 60.6% | 61.5% | 73.4% |
+| q2 · step ~10,675 | 91.4% | 75.6% | 73% | 72.7% | 72.5% | 63.6% | 63.5% | 62.6% | 62.9% | 75.6% |
+| q2 · step ~13,725 | 90.2% | 71.9% | 70.3% | 70.2% | 69.6% | 60.5% | 60.6% | 60.6% | 61% | 73.7% |
+| q2 · step ~16,775 | 82.8% | 74.1% | 72.7% | 72.2% | 70.8% | 52.1% | 52.1% | 52.2% | 52.7% | 75.4% |
+| q2 · step ~21,350 | 87.2% | 71.5% | 70.2% | 69.6% | 69.2% | 57.2% | 57.7% | 57.5% | 57.6% | 72.9% |
+| q2 · step ~24,400 | 77.9% | 71.2% | 70.6% | 70.1% | 70.2% | 45.3% | 46% | 45.6% | 46.2% | 73% |
+| q2 · step ~27,450 | 84.6% | 71.3% | 71% | 70.8% | 69.9% | 56.4% | 56.5% | 56% | 56.4% | 73.3% |
+| q2 · step ~30,500 | 63.3% | 76.4% | 75.7% | 75.1% | 75.4% | 36.5% | 36.6% | 36.6% | 37% | 78.1% |
+| q2 · step ~33,550 | 75.1% | 70.8% | 70.7% | 70.6% | 70% | 50.8% | 51.3% | 51% | 50.5% | 73.5% |
+| q2 · step ~36,600 | 78.6% | 69.8% | 70.1% | 70.1% | 69.2% | 51.2% | 51.1% | 51% | 51.5% | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~9,737 | 88.8% | 73.5% | 71.8% | 71.3% | 71.2% | 58.8% | 58.6% |
+| q3 · step ~15,012 | 92.1% | 75.7% | 74% | 74.2% | 73.7% | 62% | 61.7% |
+| q3 · step ~20,287 | 91.1% | 74.3% | 72.6% | 72.7% | 72.8% | 60.2% | 59.8% |
+| q3 · step ~25,562 | 91% | 75.4% | 73.5% | 73.6% | 73.5% | 61.1% | 60.5% |
+| q3 · step ~30,837 | 89.5% | 72.6% | 71.1% | 71.4% | 71.6% | 58.1% | 57.5% |
+| q3 · step ~36,112 | 86.8% | 75.5% | 74.5% | 74.8% | 74.9% | 57% | 56.4% |
+| q3 · step ~44,025 | 69% | 76.9% | 76.5% | 76% | 77.3% | 36.8% | 36.4% |
+| q3 · step ~49,300 | 63.6% | · | 77.6% | 76.7% | 78.2% | 33.4% | 27.9% |
+| q3 · step ~54,575 | · | · | 73% | 73% | 73.3% | 54.2% | · |
+| q3 · step ~59,850 | · | · | 71.9% | 72.2% | 72.3% | 50.8% | · |
+| q3 · step ~65,125 | · | · | 73.8% | 73.7% | 73.8% | 36.1% | · |
+| q3 · step ~70,400 | · | · | 72.1% | 72.5% | 72% | 46.8% | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 只用 expert bias（去掉 seq aux） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~291 | 9.93% | 2.47% | 2.35% | 1.81% | 1.2% | 1.01% | 0.93% |
+| q3 · step ~875 | 71.8% | 41% | 42.5% | 42.4% | 50.5% | 38% | 37.1% |
+| q3 · step ~1,458 | 80% | 54.3% | 55.1% | 55.7% | 61.1% | 47.7% | 48.6% |
+| q3 · step ~2,041 | 83% | 58.7% | 59.2% | 59.1% | 65.1% | 51.5% | 52% |
+| q3 · step ~2,625 | 74.6% | 49.5% | 49.9% | 49.5% | 56.9% | 37.6% | 38.6% |
+| q3 · step ~3,208 | 78.8% | 54.4% | 53.8% | 53.8% | 59.4% | 41.4% | 41.4% |
+| q3 · step ~4,083 | 87.6% | 67.1% | 67.5% | 68.5% | 71.2% | 57.5% | 57.8% |
+| q3 · step ~4,666 | 86.9% | 65.4% | 66.3% | 65.9% | 69.1% | 54% | 53.9% |
+| q3 · step ~5,250 | 85.3% | 73.1% | 74% | 73.9% | 77.1% | 57.5% | 57% |
+| q3 · step ~5,833 | 86.7% | 71.5% | 72% | 72.7% | 75.2% | 55.7% | 56.9% |
+| q3 · step ~6,416 | 81% | 68.1% | 68.9% | 69.3% | 72% | 47.2% | 47.3% |
+| q3 · step ~7,000 | 89.8% | 71.7% | 72% | 71.9% | 74.2% | 59.2% | 59.1% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~2,933 | 84% | 66.2% | 62.4% | 61.5% | 61% | 51.1% | 50.9% |
+| q3 · step ~8,800 | 80.9% | 78.5% | 77.3% | 76.1% | 76.2% | 49% | 49.1% |
+| q3 · step ~14,666 | 88.2% | 77.8% | 76.3% | 75.3% | 75.8% | 57.9% | 57.4% |
+| q3 · step ~20,533 | 87.8% | 72.2% | 70.5% | 70.5% | 70.4% | 54.2% | 53.6% |
+| q3 · step ~26,400 | 81% | 77% | 76.1% | 76.1% | 75.5% | 48.7% | 48.5% |
+| q3 · step ~32,266 | 86.8% | 71.8% | 71.4% | 71% | 71.3% | 56.8% | 56.3% |
+| q3 · step ~41,066 | 81.3% | 74% | 73.8% | 74% | 73.4% | 49.8% | 48.6% |
+| q3 · step ~46,933 | 68% | · | 76% | 76.8% | 75.5% | 33.6% | 33.7% |
+| q3 · step ~52,800 | 82.8% | · | 72.3% | 72.8% | 72.6% | 55.2% | · |
+| q3 · step ~58,666 | · | · | 70.9% | 70.6% | 71.3% | 49.4% | · |
+| q3 · step ~64,533 | · | · | 75.5% | 75.6% | 76% | 54.8% | · |
+| q3 · step ~70,400 | · | · | 72.1% | 72% | 72.5% | 46.8% | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+router logit |z| > 4 的比例（各层平均；只看 rank 0 的第一个 micro-batch）。包括 z < −4（明确拒绝某个 expert，正常）。
+
+**〔指标：z > +4 (%)〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~3,375 | 0.12% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~4,558 | 0.15% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~5,741 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~6,925 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~8,108 | 0.14% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~9,883 | 0.09% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~11,066 | 0.11% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~12,250 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~13,433 | 0.09% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~14,616 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~15,800 | 0.06% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~125 | 0.04% | 0.19% | 0.18% | 0.02% | 0.04% | 0.04% | 1.22% | 0.03% | 0.11% | 0.05% |
+| q1 · step ~312 | 0% | 0% | 0% | 0% | 0% | 0% | 0.01% | 0% | 0% | 0% |
+| q1 · step ~437 | 0% | 0% | 0% | 0% | 0% | 0% | 0.02% | 0% | 0% | 0% |
+| q1 · step ~562 | 0% | 0% | 0% | 0% | 0% | 0% | 0.04% | 0% | 0% | 0% |
+| q1 · step ~750 | 0% | 0% | 0% | 0% | 0% | 0% | 0.02% | 0% | 0% | 0% |
+| q1 · step ~812 | 0% | 0% | 0% | 0% | 0% | 0% | 0.02% | 0% | 0% | 0% |
+| q1 · step ~1,062 | 0% | 0% | 0% | 0% | 0% | 0% | 0.03% | 0% | 0% | 0% |
+| q1 · step ~1,125 | 0% | 0% | 0% | 0% | 0% | 0% | 0.03% | 0% | 0% | 0% |
+| q1 · step ~1,250 | 0% | 0% | 0% | 0% | 0% | 0% | 0.05% | 0% | 0% | 0% |
+| q1 · step ~1,437 | 0% | 0% | 0% | 0% | 0% | 0% | 0.04% | 0% | 0% | 0% |
+| q1 · step ~1,500 | 0% | 0% | 0% | 0% | 0% | 0% | 0.06% | 0% | 0% | 0% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 0.02% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~1,975 | 0.05% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~3,291 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~4,608 | 0.11% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~5,925 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~7,241 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~9,216 | 0.09% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~10,533 | 0.09% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~11,850 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~13,166 | 0.11% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~14,483 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~15,800 | 0.06% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~7,812 | 0.16% | 0% | 0% | 0.01% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~10,554 | 0.16% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~13,295 | 0.16% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~16,037 | 0.18% | 0.01% | 0.01% | 0.01% | 0.01% | 0% | 0% | 0% | 0.01% | 0.01% |
+| q2 · step ~18,779 | 0.14% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~22,891 | 0.12% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~25,633 | 0.23% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q2 · step ~28,375 | 0.15% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q2 · step ~31,116 | 0.08% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~33,858 | 0.14% | 0.01% | 0.02% | 0.02% | 0.02% | 0.01% | 0.01% | 0.01% | 0.02% | 0% |
+| q2 · step ~36,600 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.5 | bias 更新率 ×0.25 | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 1.75% | 0.36% | 0.34% | 0.24% | 0.1% | 0.1% | 0.1% | 0.07% | 0.06% | 0% |
+| q2 · step ~450 | 0.04% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~750 | 0.03% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~1,050 | 0.04% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~1,350 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~1,650 | 0.08% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~2,100 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~2,400 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~2,700 | 0.12% | 0% | 0.01% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~3,000 | 0.08% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~3,300 | 0.11% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~3,600 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 0.06% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~4,575 | 0.16% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~7,625 | 0.17% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~10,675 | 0.16% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~13,725 | 0.16% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~16,775 | 0.18% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0% | 0.01% | 0.01% |
+| q2 · step ~21,350 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~24,400 | 0.15% | 0% | 0.01% | 0.01% | 0% | 0% | 0% | 0% | 0.01% | 0.01% |
+| q2 · step ~27,450 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q2 · step ~30,500 | 0.18% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0% | 0.01% | 0.01% |
+| q2 · step ~33,550 | 0.13% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0% |
+| q2 · step ~36,600 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~9,737 | 0.26% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~15,012 | 0.24% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~20,287 | 0.25% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~25,562 | 0.25% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~30,837 | 0.24% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~36,112 | 0.27% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~44,025 | 0.91% | 0.01% | 0.02% | 0.03% | 0.02% | 0.01% | 0.03% |
+| q3 · step ~49,300 | 1.01% | 0.01% | 0.03% | 0.03% | · | 0.01% | 0.03% |
+| q3 · step ~54,575 | · | 0.01% | 0.01% | 0.01% | · | · | 0.01% |
+| q3 · step ~59,850 | · | 0.01% | 0.01% | 0.01% | · | · | 0.01% |
+| q3 · step ~65,125 | · | 0.02% | 0.03% | 0.02% | · | · | 0.03% |
+| q3 · step ~70,400 | · | 0.01% | 0.01% | 0.01% | · | · | 0.01% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | 只用 expert bias（去掉 seq aux） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~291 | 0.11% | 0.08% | 0.06% | 0.04% | 0.03% | 0.02% | 0.01% |
+| q3 · step ~875 | 0.04% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~1,458 | 0.06% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~2,041 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~2,625 | 0.12% | 0.01% | 0.01% | 0.01% | 0.01% | 0% | 0% |
+| q3 · step ~3,208 | 0.11% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~4,083 | 0.11% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~4,666 | 0.14% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~5,250 | 0.15% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~5,833 | 0.15% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~6,416 | 0.19% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~7,000 | 0.17% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~2,933 | 0.09% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q3 · step ~8,800 | 0.28% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~14,666 | 0.25% | 0.01% | 0.01% | 0.01% | 0.01% | 0% | 0.01% |
+| q3 · step ~20,533 | 0.29% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% |
+| q3 · step ~26,400 | 0.32% | 0.01% | 0.02% | 0.02% | 0.02% | 0.01% | 0.02% |
+| q3 · step ~32,266 | 0.22% | 0.01% | 0.01% | 0.01% | 0.02% | 0.01% | 0.01% |
+| q3 · step ~41,066 | 0.32% | 0.01% | 0.02% | 0.02% | 0.02% | 0.01% | 0.02% |
+| q3 · step ~46,933 | 0.49% | 0.01% | 0.02% | 0.02% | · | 0.01% | 0.02% |
+| q3 · step ~52,800 | 0.17% | 0.01% | 0.01% | 0.01% | · | · | 0.01% |
+| q3 · step ~58,666 | · | 0.01% | 0.01% | 0.01% | · | · | 0.01% |
+| q3 · step ~64,533 | · | 0.01% | 0.01% | 0.01% | · | · | 0.01% |
+| q3 · step ~70,400 | · | 0.01% | 0.01% | 0.01% | · | · | 0.01% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+z > +4 的比例：分数被钉在 1，选中的 expert 之间失去区分度（坏）；红色虚线 = 预设上限 5%。只有后期日志才有。
+
+**〔指标：top-8 pinned (%)〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | bias 更新率 ×0.25 | QBK3 + 1% LR warmup | bias 更新率 ×0.5 | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 6.44% | 0.03% | 0.03% | 0.03% | 0.03% | 0.02% | 0.02% | 0.01% | 0.01% | 0% |
+| q1 · step ~3,375 | 7.99% | 0.03% | 0.03% | 0.03% | 0.03% | 0.03% | 0.05% | 0.03% | 0.02% | 0.01% |
+| q1 · step ~4,558 | 9.37% | 0.07% | 0.09% | 0.07% | 0.13% | 0.07% | 0.07% | 0.06% | 0.08% | 0.01% |
+| q1 · step ~5,741 | 6.63% | 0.04% | 0.03% | 0.04% | 0.03% | 0.03% | 0.03% | 0.02% | 0.03% | 0.01% |
+| q1 · step ~6,925 | 6.68% | 0.03% | 0.03% | 0.03% | 0.03% | 0.03% | 0.02% | 0.02% | 0.03% | 0.02% |
+| q1 · step ~8,108 | 8.82% | 0.21% | 0.16% | 0.1% | 0.21% | 0.12% | 0.14% | 0.14% | 0.12% | 0.05% |
+| q1 · step ~9,883 | 5.85% | 0.05% | 0.04% | 0.05% | 0.05% | 0.05% | 0.04% | 0.03% | 0.04% | 0.03% |
+| q1 · step ~11,066 | 6.94% | 0.11% | 0.1% | 0.09% | 0.13% | 0.08% | 0.11% | 0.07% | 0.1% | 0.03% |
+| q1 · step ~12,250 | 4.22% | 0.04% | 0.04% | 0.04% | 0.04% | 0.03% | 0.03% | 0.02% | 0.03% | 0.02% |
+| q1 · step ~13,433 | 5.98% | 0.15% | 0.13% | 0.11% | 0.17% | 0.09% | 0.15% | 0.12% | 0.1% | 0.04% |
+| q1 · step ~14,616 | 4.58% | 0.06% | 0.05% | 0.05% | 0.09% | 0.05% | 0.06% | 0.04% | 0.06% | 0.03% |
+| q1 · step ~15,800 | 3.85% | 0.04% | 0.03% | 0.04% | 0.05% | 0.02% | 0.04% | 0.05% | 0.03% | 0.02% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~125 | 2.56% | 11.9% | 11.6% | 1.12% | 2.77% | 2.39% | 45.3% | 1.75% | 7.31% | 3.16% |
+| q1 · step ~312 | 0.02% | 0% | 0.02% | 0% | 0.02% | 0.01% | 0.83% | 0.01% | 0.04% | 0.15% |
+| q1 · step ~437 | 0% | 0% | 0% | 0% | 0% | 0% | 1.09% | 0% | 0% | 0.02% |
+| q1 · step ~562 | 0.02% | 0.02% | 0.02% | 0.04% | 0.02% | 0.02% | 2.37% | 0.01% | 0.03% | 0.05% |
+| q1 · step ~750 | 0% | 0% | 0% | 0% | 0% | 0% | 1.46% | 0% | 0% | 0% |
+| q1 · step ~812 | 0% | 0% | 0% | 0% | 0% | 0% | 1.46% | 0% | 0% | 0% |
+| q1 · step ~1,062 | 0% | 0.01% | 0.01% | 0.01% | 0.01% | 0.01% | 2.07% | 0% | 0.01% | 0.01% |
+| q1 · step ~1,125 | 0% | 0% | 0% | 0% | 0% | 0% | 1.87% | 0% | 0% | 0% |
+| q1 · step ~1,250 | 0% | 0.01% | 0.01% | 0.01% | 0% | 0.01% | 3.36% | 0% | 0.01% | 0% |
+| q1 · step ~1,437 | 0% | 0% | 0% | 0% | 0% | 0% | 2.42% | 0% | 0% | 0% |
+| q1 · step ~1,500 | 0.01% | 0.01% | 0.02% | 0.01% | 0.01% | 0% | 3.63% | 0% | 0.01% | 0.01% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | bias 更新率 ×0.5 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 1.07% | 0.01% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~1,975 | 3.33% | 0% | 0.01% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~3,291 | 6.4% | 0.03% | 0.02% | 0.05% | 0.02% | 0.03% | 0.02% | 0.01% | 0.04% | 0.02% |
+| q1 · step ~4,608 | 7.18% | 0.04% | 0.02% | 0.05% | 0.03% | 0.03% | 0.04% | 0.01% | 0.03% | 0.02% |
+| q1 · step ~5,925 | 6.35% | 0.02% | 0.02% | 0.04% | 0.02% | 0.02% | 0.02% | 0.02% | 0.02% | 0.02% |
+| q1 · step ~7,241 | 6.6% | 0.06% | 0.07% | 0.08% | 0.06% | 0.1% | 0.08% | 0.03% | 0.08% | 0.06% |
+| q1 · step ~9,216 | 6.02% | 0.05% | 0.04% | 0.07% | 0.04% | 0.05% | 0.04% | 0.02% | 0.04% | 0.06% |
+| q1 · step ~10,533 | 5.64% | 0.05% | 0.04% | 0.06% | 0.05% | 0.05% | 0.06% | 0.03% | 0.04% | 0.05% |
+| q1 · step ~11,850 | 4.7% | 0.04% | 0.03% | 0.05% | 0.03% | 0.04% | 0.05% | 0.02% | 0.04% | 0.05% |
+| q1 · step ~13,166 | 6.75% | 0.09% | 0.06% | 0.15% | 0.1% | 0.07% | 0.08% | 0.04% | 0.13% | 0.1% |
+| q1 · step ~14,483 | 6.47% | 0.19% | 0.09% | 0.17% | 0.16% | 0.13% | 0.11% | 0.05% | 0.17% | 0.19% |
+| q1 · step ~15,800 | 3.85% | 0.02% | 0.05% | 0.04% | 0.03% | 0.03% | 0.04% | 0.02% | 0.04% | 0.05% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QB：Quantile Balancing（分位数均衡） | bias 更新率 ×0.25 | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | QBK3：完全按 Kimi K3 原文的 quantile balancing | bias 更新率 ×0.5 | QBK3 + 1% LR warmup | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 8.43% | 0.15% | 0.13% | 0.11% | 0.11% | 0.11% | 0.1% | 0.1% | 0.09% | 0.07% |
+| q2 · step ~7,812 | 10.2% | 0.29% | 0.19% | 0.36% | 0.12% | 0.2% | 0.11% | 0.17% | 0.21% | 0.07% |
+| q2 · step ~10,554 | 10.5% | 0.16% | 0.15% | 0.18% | 0.15% | 0.15% | 0.15% | 0.2% | 0.15% | 0.11% |
+| q2 · step ~13,295 | 10.5% | 0.16% | 0.15% | 0.13% | 0.12% | 0.13% | 0.14% | 0.21% | 0.15% | 0.12% |
+| q2 · step ~16,037 | 11.5% | 0.41% | 0.29% | 0.38% | 0.39% | 0.37% | 0.31% | 0.48% | 0.32% | 0.22% |
+| q2 · step ~18,779 | 9% | 0.17% | 0.17% | 0.16% | 0.17% | 0.18% | 0.14% | 0.22% | 0.16% | 0.14% |
+| q2 · step ~22,891 | 7.75% | 0.19% | 0.17% | 0.18% | 0.19% | 0.19% | 0.17% | 0.22% | 0.17% | 0.13% |
+| q2 · step ~25,633 | 11.5% | 0.61% | 0.44% | 0.68% | 0.58% | 0.56% | 0.46% | 0.68% | 0.47% | 0.36% |
+| q2 · step ~28,375 | 9.35% | 0.91% | 0.46% | 0.71% | 0.6% | 0.71% | 0.49% | 0.89% | 0.45% | 0.39% |
+| q2 · step ~31,116 | 5.21% | 0.19% | 0.16% | 0.17% | 0.19% | 0.18% | 0.15% | 0.22% | 0.17% | 0.13% |
+| q2 · step ~33,858 | 9.23% | 0.97% | 0.78% | 1.13% | 1.05% | 1.13% | 0.78% | 0.24% | 0.7% | 0.68% |
+| q2 · step ~36,600 | 4.26% | 0.2% | 0.17% | 0.19% | 0.19% | 0.2% | 0.16% | · | 0.17% | 0.12% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | bias 更新率 ×0.25 | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.5 | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 47.5% | 22.7% | 21.7% | 15.6% | 6.49% | 6.48% | 6.42% | 4.19% | 4.08% | 0.08% |
+| q2 · step ~450 | 2.29% | 0.03% | 0.03% | 0.04% | 0.04% | 0.07% | 0.03% | 0.02% | 0.12% | 0.1% |
+| q2 · step ~750 | 1.68% | 0% | 0.01% | 0.01% | 0.01% | 0% | 0.01% | 0.01% | 0% | 0.01% |
+| q2 · step ~1,050 | 2.5% | 0.02% | 0.04% | 0.02% | 0.04% | 0.03% | 0.02% | 0.04% | 0.01% | 0.03% |
+| q2 · step ~1,350 | 4.35% | 0.05% | 0.06% | 0.03% | 0.04% | 0.04% | 0.03% | 0.04% | 0.01% | 0.04% |
+| q2 · step ~1,650 | 4.83% | 0.03% | 0.04% | 0.02% | 0.03% | 0.03% | 0.03% | 0.02% | 0.01% | 0.02% |
+| q2 · step ~2,100 | 4.22% | 0.01% | 0.02% | 0.01% | 0.03% | 0.01% | 0.02% | 0.02% | 0.01% | 0.01% |
+| q2 · step ~2,400 | 4.54% | 0.01% | 0.03% | 0.02% | 0.05% | 0.02% | 0.02% | 0.02% | 0.01% | 0.01% |
+| q2 · step ~2,700 | 7.75% | 0.23% | 0.35% | 0.27% | 0.2% | 0.22% | 0.16% | 0.2% | 0.07% | 0.2% |
+| q2 · step ~3,000 | 5.39% | 0.03% | 0.06% | 0.05% | 0.06% | 0.04% | 0.05% | 0.04% | 0.02% | 0.02% |
+| q2 · step ~3,300 | 6.97% | 0.07% | 0.09% | 0.07% | 0.08% | 0.06% | 0.05% | 0.07% | 0.03% | 0.06% |
+| q2 · step ~3,600 | 6.47% | 0.03% | 0.06% | 0.03% | 0.07% | 0.04% | 0.04% | 0.04% | 0.02% | 0.03% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QB：Quantile Balancing（分位数均衡） | bias 更新率 ×0.25 | QBK3 + 1% LR warmup | 只用 expert bias（去掉 seq aux） | 0 线：PROD1_DPSK_LATENT2_E2X | QBX：全局精确 quantile（Kimi K3 的做法） | bias 更新率 ×0.5 | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 3.84% | 0.05% | 0.05% | 0.05% | 0.04% | 0.03% | 0.03% | 0.03% | 0.03% | 0.02% |
+| q2 · step ~4,575 | 10.3% | 0.21% | 0.19% | 0.29% | 0.23% | 0.17% | 0.22% | 0.16% | 0.19% | 0.08% |
+| q2 · step ~7,625 | 10.9% | 0.14% | 0.13% | 0.12% | 0.13% | 0.11% | 0.12% | 0.11% | 0.13% | 0.1% |
+| q2 · step ~10,675 | 10.5% | 0.13% | 0.12% | 0.15% | 0.12% | 0.11% | 0.11% | 0.12% | 0.11% | 0.09% |
+| q2 · step ~13,725 | 10.1% | 0.2% | 0.18% | 0.23% | 0.21% | 0.18% | 0.19% | 0.17% | 0.18% | 0.12% |
+| q2 · step ~16,775 | 11.6% | 0.63% | 0.4% | 0.62% | 0.52% | 0.39% | 0.58% | 0.4% | 0.53% | 0.28% |
+| q2 · step ~21,350 | 8.5% | 0.25% | 0.22% | 0.31% | 0.26% | 0.24% | 0.23% | 0.21% | 0.24% | 0.15% |
+| q2 · step ~24,400 | 9.48% | 0.33% | 0.25% | 0.38% | 0.29% | 0.22% | 0.38% | 0.23% | 0.33% | 0.17% |
+| q2 · step ~27,450 | 6.31% | 0.2% | 0.17% | 0.23% | 0.19% | 0.17% | 0.2% | 0.17% | 0.21% | 0.14% |
+| q2 · step ~30,500 | 8.69% | 0.75% | 0.44% | 0.78% | 0.71% | 0.45% | 0.9% | 0.44% | 0.74% | 0.3% |
+| q2 · step ~33,550 | 8.44% | 0.57% | 0.4% | 0.24% | 0.62% | 0.38% | 0.61% | 0.46% | 0.78% | 0.33% |
+| q2 · step ~36,600 | 4.26% | 0.2% | 0.17% | · | 0.19% | 0.17% | 0.19% | 0.16% | 0.2% | 0.12% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | router 每行单独 hyperball（pin） | 0 线：PROD1_DPSK_LATENT2_E2X |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~9,737 | 16.7% | 0.9% | 0.83% | 0.8% | 0.7% | 0.67% | 0.62% |
+| q3 · step ~15,012 | 15% | 0.51% | 0.48% | 0.47% | 0.52% | 0.36% | 0.4% |
+| q3 · step ~20,287 | 15.8% | 0.6% | 0.55% | 0.6% | 0.58% | 0.4% | 0.46% |
+| q3 · step ~25,562 | 16.1% | 0.96% | 0.89% | 0.8% | 0.88% | 0.59% | 0.75% |
+| q3 · step ~30,837 | 15.2% | 0.66% | 0.64% | 0.66% | 0.69% | 0.46% | 0.54% |
+| q3 · step ~36,112 | 15.3% | 0.72% | 0.8% | 0.8% | 0.87% | 0.49% | 0.59% |
+| q3 · step ~44,025 | 17.6% | 1.09% | 1.65% | 1.65% | 1.53% | 0.7% | 0.87% |
+| q3 · step ~49,300 | 17.4% | · | 1.77% | 1.89% | 1.62% | 0.63% | 0.9% |
+| q3 · step ~54,575 | · | · | 0.62% | 0.65% | 0.65% | · | 0.5% |
+| q3 · step ~59,850 | · | · | 0.68% | 0.71% | 0.75% | · | 0.56% |
+| q3 · step ~65,125 | · | · | 1.7% | 1.58% | 1.87% | · | 1.15% |
+| q3 · step ~70,400 | · | · | 0.77% | 0.78% | 0.83% | · | 0.54% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） | 只用 expert bias（去掉 seq aux） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~291 | 6.5% | 4.84% | 3.99% | 2.45% | 2.11% | 1.56% | 0.89% |
+| q3 · step ~875 | 2.25% | 0.01% | 0.03% | 0.02% | 0.03% | 0.03% | 0.03% |
+| q3 · step ~1,458 | 3.54% | 0.02% | 0.04% | 0.02% | 0.03% | 0.02% | 0.03% |
+| q3 · step ~2,041 | 4.41% | 0.03% | 0.07% | 0.03% | 0.04% | 0.02% | 0.05% |
+| q3 · step ~2,625 | 7.66% | 0.49% | 0.39% | 0.35% | 0.38% | 0.14% | 0.29% |
+| q3 · step ~3,208 | 6.98% | 0.1% | 0.11% | 0.09% | 0.11% | 0.07% | 0.14% |
+| q3 · step ~4,083 | 7.36% | 0.12% | 0.14% | 0.11% | 0.1% | 0.06% | 0.14% |
+| q3 · step ~4,666 | 9.26% | 0.15% | 0.21% | 0.19% | 0.16% | 0.12% | 0.22% |
+| q3 · step ~5,250 | 9.46% | 0.3% | 0.32% | 0.25% | 0.21% | 0.15% | 0.24% |
+| q3 · step ~5,833 | 9.85% | 0.18% | 0.26% | 0.19% | 0.18% | 0.12% | 0.24% |
+| q3 · step ~6,416 | 12.2% | 0.49% | 0.56% | 0.49% | 0.4% | 0.33% | 0.49% |
+| q3 · step ~7,000 | 11.1% | 0.23% | 0.28% | 0.24% | 0.2% | 0.15% | 0.26% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~2,933 | 5.74% | 0.09% | 0.08% | 0.08% | 0.07% | 0.07% | 0.05% |
+| q3 · step ~8,800 | 16.4% | 0.56% | 0.4% | 0.63% | 0.54% | 0.57% | 0.34% |
+| q3 · step ~14,666 | 15.5% | 0.52% | 0.4% | 0.56% | 0.46% | 0.49% | 0.31% |
+| q3 · step ~20,533 | 16.9% | 0.64% | 0.49% | 0.67% | 0.64% | 0.62% | 0.42% |
+| q3 · step ~26,400 | 17.9% | 1.09% | 0.79% | 1.14% | 1.01% | 1.17% | 0.67% |
+| q3 · step ~32,266 | 13.8% | 1.01% | 0.61% | 0.71% | 0.84% | 0.87% | 0.53% |
+| q3 · step ~41,066 | 15.6% | 1.05% | 0.76% | 1.12% | 1.09% | 1.13% | 0.66% |
+| q3 · step ~46,933 | 16.6% | · | 0.88% | 1.57% | 1.45% | 1.56% | 0.66% |
+| q3 · step ~52,800 | 10.6% | · | 0.52% | 0.68% | 0.66% | 0.65% | · |
+| q3 · step ~58,666 | · | · | 0.58% | 0.9% | 0.81% | 0.83% | · |
+| q3 · step ~64,533 | · | · | 0.49% | 0.74% | 0.68% | 0.67% | · |
+| q3 · step ~70,400 | · | · | 0.54% | 0.83% | 0.78% | 0.77% | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+选中的 8 个 expert 里分数卡在 1 附近的比例；红色虚线 = 预设上限 5%。只有后期日志才有。
+
+**〔指标：最大 |logit|〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.25 | bias 更新率 ×0.5 | QBX：全局精确 quantile（Kimi K3 的做法） | QB：Quantile Balancing（分位数均衡） | QBK3 + 1% LR warmup | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 28.3 | 12.2 | 11.6 | 11.5 | 11.1 | 10.7 | 10.5 | 10.3 | 10.3 | 10 |
+| q1 · step ~3,375 | 33.7 | 13.2 | 11.9 | 11.9 | 11.7 | 11.4 | 11.2 | 11.8 | 11.3 | 10.3 |
+| q1 · step ~4,558 | 36.4 | 12.6 | 11.2 | 12.4 | 11.7 | 12.4 | 12.4 | 12 | 11.7 | 10.7 |
+| q1 · step ~5,741 | 40.3 | 13.5 | 12.8 | 12.7 | 13.1 | 12.2 | 12.7 | 12.7 | 12.2 | 11.2 |
+| q1 · step ~6,925 | 41.2 | 12.7 | 12.1 | 12.7 | 12 | 12.5 | 13.1 | 12.6 | 12.2 | 11 |
+| q1 · step ~8,108 | 42.5 | 13.9 | 12.4 | 12.9 | 12.3 | 13.6 | 13 | 12.9 | 12.5 | 11.1 |
+| q1 · step ~9,883 | 43.5 | 13.4 | 13.4 | 12.9 | 12.6 | 12.8 | 12.6 | 13.1 | 12.3 | 12.1 |
+| q1 · step ~11,066 | 39.9 | 13.7 | 12.3 | 13.9 | 13 | 13.5 | 13.8 | 13.8 | 12.8 | 11.6 |
+| q1 · step ~12,250 | 40.9 | 13.5 | 13.6 | 13 | 12.7 | 13.5 | 14.1 | 14.1 | 13 | 11.3 |
+| q1 · step ~13,433 | 39.1 | 13.2 | 12.5 | 13.2 | 13.2 | 14.4 | 13.7 | 13.4 | 12.9 | 12.6 |
+| q1 · step ~14,616 | 37.9 | 13.5 | 12.9 | 13.5 | 12.8 | 12.9 | 13.3 | 13 | 12.5 | 12.1 |
+| q1 · step ~15,800 | 37.5 | 13 | 13.9 | 13.4 | 12.4 | 13.1 | 13.7 | 13.4 | 12.9 | 11.3 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 用 AdamW（LR ×0.19） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 |
+| q1 · step ~125 | 7.26 | 8.22 | 8.21 | 6.75 | 7.12 | 7.11 | 11.8 | 6.12 | 8.06 | 5.78 |
+| q1 · step ~312 | 7.44 | 7.35 | 7.38 | 7.24 | 7.01 | 7.6 | 15.7 | 7.44 | 7.26 | 6.51 |
+| q1 · step ~437 | 7.29 | 8.09 | 7.44 | 7.76 | 6.92 | 6.78 | 15.2 | 7.43 | 7.28 | 7.16 |
+| q1 · step ~562 | 7.6 | 7.81 | 7.59 | 8.42 | 7.31 | 7.49 | 16.4 | 7.96 | 7.4 | 7.59 |
+| q1 · step ~750 | 8.05 | 8.27 | 8.35 | 10.6 | 8.2 | 8.08 | 18 | 7.96 | 8.86 | 8.67 |
+| q1 · step ~812 | 8.15 | 9.26 | 9.01 | 11.1 | 8.31 | 8.35 | 17.9 | 7.91 | 8.52 | 9.33 |
+| q1 · step ~1,062 | 8.7 | 9.55 | 9.22 | 12.2 | 9.26 | 9.51 | 19.5 | 8.47 | 9.34 | 9.32 |
+| q1 · step ~1,125 | 9.65 | 9.41 | 9.9 | 10.9 | 9.21 | 9.29 | 19.8 | 8.56 | 9.45 | 9.26 |
+| q1 · step ~1,250 | 9.43 | 9.42 | 9.77 | 11.6 | 9.63 | 9.88 | 19.9 | 8.49 | 10.4 | 9.47 |
+| q1 · step ~1,437 | 9.69 | 10.6 | 10.1 | 12.4 | 10.3 | 10.1 | 23.6 | 8.99 | 10 | 10.1 |
+| q1 · step ~1,500 | 9.82 | 10.5 | 9.73 | 11.9 | 10.2 | 10.3 | 23.9 | 9.15 | 10.1 | 9.87 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QBK3 + 1% LR warmup | QB：Quantile Balancing（分位数均衡） | bias 更新率 ×0.5 | QBX：全局精确 quantile（Kimi K3 的做法） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.25 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 16.7 | 9.88 | 8.51 | 8.2 | 8 | 7.92 | 7.91 | 7.76 | 7.67 | 7.47 |
+| q1 · step ~1,975 | 27 | 12.5 | 10.3 | 10.4 | 10.1 | 10.7 | 9.38 | 10.9 | 11 | 11.2 |
+| q1 · step ~3,291 | 35.8 | 12.8 | 12 | 12 | 11.8 | 12.3 | 10 | 11.7 | 11.6 | 12.1 |
+| q1 · step ~4,608 | 36.3 | 13 | 11.8 | 11.9 | 11.8 | 12.4 | 10.8 | 12 | 11.8 | 12.1 |
+| q1 · step ~5,925 | 39.9 | 13 | 12.7 | 12 | 12.6 | 12.8 | 11.5 | 12 | 12.5 | 12.1 |
+| q1 · step ~7,241 | 41.1 | 12.9 | 13.4 | 12.8 | 12.4 | 12.5 | 11.1 | 12.7 | 12.6 | 12.5 |
+| q1 · step ~9,216 | 42 | 13.6 | 13.4 | 13.7 | 13.5 | 14.1 | 11.6 | 13.3 | 12.4 | 13.8 |
+| q1 · step ~10,533 | 42.3 | 13.2 | 13.4 | 13 | 13.7 | 14.7 | 11.3 | 12.3 | 13.2 | 13.4 |
+| q1 · step ~11,850 | 41.7 | 13.3 | 13.4 | 14.7 | 12.6 | 13.5 | 11.7 | 12.5 | 13.7 | 13.4 |
+| q1 · step ~13,166 | 38.7 | 12.6 | 13.1 | 12.5 | 12.5 | 12.6 | 11.4 | 12.6 | 12.3 | 13.6 |
+| q1 · step ~14,483 | 36.6 | 13 | 13.2 | 13.3 | 13.6 | 13 | 11.7 | 12.8 | 14.4 | 13.5 |
+| q1 · step ~15,800 | 37.5 | 13 | 13.4 | 13.7 | 12.4 | 13.1 | 11.3 | 12.9 | 13.9 | 13.4 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.25 | bias 更新率 ×0.5 | 0 线：PROD1_DPSK_LATENT2_E2X | QBK3 + 1% LR warmup | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 每行单独 hyperball（pin） | QB：Quantile Balancing（分位数均衡） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 39.3 | 14.9 | 14.1 | 13.5 | 13.2 | 12.9 | 12.9 | 12.7 | 12.1 | 12 |
+| q2 · step ~7,812 | 46 | 15.1 | 14.6 | 13.8 | 14.3 | 12.7 | 13.7 | 13.8 | 12.6 | 13.7 |
+| q2 · step ~10,554 | 48.2 | 15.2 | 14.7 | 14.1 | 14.4 | 14.9 | 14.5 | 14.3 | 13.5 | 14.1 |
+| q2 · step ~13,295 | 54.5 | 15.6 | 16.2 | 16 | 14.3 | 13.7 | 14 | 16.6 | 12.9 | 14.8 |
+| q2 · step ~16,037 | 54.2 | 17 | 16.1 | 14.5 | 16.9 | 16.2 | 14.9 | 15.7 | 13.4 | 14.9 |
+| q2 · step ~18,779 | 56.1 | 17.1 | 14.7 | 15.7 | 15.6 | 15.6 | 18.6 | 16.3 | 15.1 | 15.6 |
+| q2 · step ~22,891 | 58.5 | 17.5 | 15.6 | 16.1 | 17.1 | 14.6 | 15.8 | 16.7 | 14.4 | 15.3 |
+| q2 · step ~25,633 | 52.2 | 16.9 | 16.9 | 15.8 | 15.8 | 14.5 | 16.3 | 17.6 | 14.2 | 15.2 |
+| q2 · step ~28,375 | 49.1 | 15.4 | 14.7 | 15.9 | 15.8 | 14.4 | 15.2 | 17 | 14.2 | 15.3 |
+| q2 · step ~31,116 | 59.5 | 17.1 | 16.6 | 16.6 | 16.4 | 15.1 | 15.8 | 18.2 | 14.9 | 15.9 |
+| q2 · step ~33,858 | 51.4 | 17.5 | 16.2 | 16.3 | 17.4 | 15.2 | 18.8 | 18.2 | 15.3 | 17.9 |
+| q2 · step ~36,600 | 65.2 | 17.6 | 17.1 | 16.6 | 17.1 | · | 15.8 | 16.8 | 16.1 | 16.3 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.25 | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 0 线：PROD1_DPSK_LATENT2_E2X | bias 更新率 ×0.5 | router 每行单独 hyperball（pin） | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 14 | 8.27 | 8.19 | 8.08 | 7.92 | 7.78 | 7.67 | 7.41 | 7.09 | 4.83 |
+| q2 · step ~450 | 15.1 | 8.6 | 8.41 | 8.06 | 8.67 | 8.34 | 8.54 | 8.18 | 8.32 | 7.33 |
+| q2 · step ~750 | 17.6 | 11.7 | 9.19 | 8.66 | 9.69 | 8.99 | 9.67 | 9.3 | 9.49 | 8.58 |
+| q2 · step ~1,050 | 18.9 | 12.1 | 9.66 | 9.13 | 9.72 | 8.91 | 9.96 | 9.39 | 9.49 | 8.97 |
+| q2 · step ~1,350 | 20.2 | 12.2 | 9.58 | 9.5 | 9.4 | 9.17 | 9.57 | 9.38 | 9.84 | 9.61 |
+| q2 · step ~1,650 | 23.7 | 13.2 | 10.6 | 9.92 | 9.67 | 9.96 | 10.2 | 9.94 | 9.46 | 10.2 |
+| q2 · step ~2,100 | 23.9 | 13.8 | 10.3 | 10.4 | 10.1 | 10.3 | 11 | 10.7 | 10 | 10.4 |
+| q2 · step ~2,400 | 25.5 | 12.5 | 11 | 10 | 11 | 10.5 | 11.6 | 11.4 | 10.5 | 11.1 |
+| q2 · step ~2,700 | 29.1 | 13.7 | 11.8 | 11.5 | 11.2 | 11.4 | 11.4 | 11.5 | 10.3 | 11.1 |
+| q2 · step ~3,000 | 31.8 | 14.5 | 12 | 10.8 | 11.4 | 11.6 | 11.5 | 12 | 11.2 | 11.1 |
+| q2 · step ~3,300 | 32.8 | 13.4 | 12.8 | 10.9 | 11.8 | 12.7 | 12.5 | 12.4 | 11.1 | 11.5 |
+| q2 · step ~3,600 | 36.8 | 12.9 | 13.5 | 11.6 | 11.6 | 12.2 | 12.9 | 13 | 11.4 | 11.5 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.25 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | QBK3 + 1% LR warmup | bias 更新率 ×0.5 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 23.4 | 13.3 | 10.1 | 10.1 | 10.1 | 9.98 | 9.95 | 9.59 | 9.52 | 9.39 |
+| q2 · step ~4,575 | 39 | 14 | 13.3 | 12.9 | 12.6 | 12 | 11.5 | 12.9 | 12.1 | 12.3 |
+| q2 · step ~7,625 | 44.1 | 14 | 15.9 | 14.2 | 12.9 | 13.7 | 12.3 | 13.8 | 12.8 | 14.2 |
+| q2 · step ~10,675 | 49.7 | 16 | 15.1 | 15.4 | 14.2 | 14 | 13.8 | 14.2 | 12.9 | 14.7 |
+| q2 · step ~13,725 | 54.7 | 16.9 | 15.1 | 15.9 | 14.9 | 14.5 | 14.2 | 14.4 | 14.2 | 14.9 |
+| q2 · step ~16,775 | 54.3 | 18.1 | 16 | 16.3 | 16 | 15 | 15.6 | 15.3 | 13.3 | 15.5 |
+| q2 · step ~21,350 | 59.3 | 16.8 | 15 | 16.4 | 15.6 | 16 | 15.6 | 15.3 | 14.8 | 16.8 |
+| q2 · step ~24,400 | 57.6 | 15.5 | 15.3 | 15.1 | 15.7 | 18 | 16.1 | 15.2 | 14.3 | 17 |
+| q2 · step ~27,450 | 59.1 | 16.9 | 16.2 | 17.2 | 15.6 | 16.7 | 16.3 | 17.2 | 14.7 | 17.6 |
+| q2 · step ~30,500 | 52.6 | 16.5 | 17 | 16.5 | 18.1 | 18.1 | 14.7 | 19.1 | 14.7 | 18.4 |
+| q2 · step ~33,550 | 48.8 | 16.8 | 17.2 | 17.4 | 17.9 | 17 | 15.2 | 16.8 | 15.2 | 17.3 |
+| q2 · step ~36,600 | 65.2 | 17.6 | 17.1 | 17.1 | 16.3 | 15.8 | · | 16.6 | 16.1 | 16.8 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 0 线：PROD1_DPSK_LATENT2_E2X | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~9,737 | 41.3 | 16.6 | 15.9 | 15.2 | 15 | 14.7 | 14 |
+| q3 · step ~15,012 | 53.1 | 15.8 | 17 | 15.3 | 20 | 16.7 | 15.7 |
+| q3 · step ~20,287 | 55.9 | 19.6 | 18.4 | 16.4 | 18.8 | 18.3 | 18.7 |
+| q3 · step ~25,562 | 64.2 | 20 | 19.1 | 18.3 | 22.8 | 19.7 | 18.9 |
+| q3 · step ~30,837 | 68.9 | 18.6 | 20.6 | 19.3 | 22.5 | 20.4 | 20.7 |
+| q3 · step ~36,112 | 69.3 | 18.9 | 23.3 | 19.7 | 23.3 | 21.7 | 18.7 |
+| q3 · step ~44,025 | 70.9 | 21 | 22.8 | 18.5 | 25.4 | 23.6 | 18.1 |
+| q3 · step ~49,300 | 75.1 | 22.1 | · | 20.5 | 25.2 | 23.5 | 17.7 |
+| q3 · step ~54,575 | · | 19.3 | · | 20.8 | 21.9 | 24 | · |
+| q3 · step ~59,850 | · | 20.2 | · | 19.3 | 21.7 | 25.7 | · |
+| q3 · step ~65,125 | · | 27.9 | · | 20.3 | 23.2 | 26.7 | · |
+| q3 · step ~70,400 | · | 21.6 | · | 19.1 | 28 | 25.5 | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | 只用 expert bias（去掉 seq aux） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~291 | 14.6 | 9.27 | 9.26 | 8.87 | 8.47 | 8.28 | 8.02 |
+| q3 · step ~875 | 18 | 11 | 10.3 | 10.5 | 10.6 | 10.8 | 12.5 |
+| q3 · step ~1,458 | 20.8 | 11.4 | 10.5 | 10.2 | 10.5 | 11.5 | 14.2 |
+| q3 · step ~2,041 | 22.2 | 11.6 | 10.7 | 10.9 | 10.4 | 11.6 | 14.1 |
+| q3 · step ~2,625 | 24 | 12 | 11.5 | 11.3 | 11.3 | 10.8 | 14.2 |
+| q3 · step ~3,208 | 30 | 12.3 | 11.6 | 11.6 | 11.3 | 11.6 | 12.9 |
+| q3 · step ~4,083 | 31.4 | 12.9 | 12.9 | 12 | 11.4 | 12.9 | 13.9 |
+| q3 · step ~4,666 | 32 | 12.9 | 13.5 | 12.1 | 11.6 | 13.2 | 13.3 |
+| q3 · step ~5,250 | 33.8 | 14.2 | 13.2 | 13 | 12.4 | 13.4 | 15 |
+| q3 · step ~5,833 | 36.7 | 13.4 | 12.7 | 13.6 | 13.8 | 13.4 | 13.6 |
+| q3 · step ~6,416 | 37.1 | 13.4 | 14 | 15.2 | 12.5 | 13.9 | 15.1 |
+| q3 · step ~7,000 | 39.3 | 13.6 | 14.2 | 14.9 | 13.1 | 15 | 15.2 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 只用 expert bias（去掉 seq aux） | QB：Quantile Balancing（分位数均衡） | 0 线：PROD1_DPSK_LATENT2_E2X | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBX：全局精确 quantile（Kimi K3 的做法） | router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~2,933 | 24.1 | 13.8 | 12.4 | 11.9 | 11.8 | 11.7 | 10.6 |
+| q3 · step ~8,800 | 49.1 | 14.5 | 15.9 | 14.5 | 15.1 | 16.9 | 13.2 |
+| q3 · step ~14,666 | 51.8 | 16.3 | 17 | 17 | 15.1 | 18.8 | 16 |
+| q3 · step ~20,533 | 55 | 19.3 | 16.9 | 16.9 | 17 | 20.7 | 16.9 |
+| q3 · step ~26,400 | 64 | 20 | 18.7 | 18.6 | 20.9 | 22.5 | 18.8 |
+| q3 · step ~32,266 | 68.9 | 23.9 | 22.1 | 20.8 | 20.2 | 18.9 | 18.4 |
+| q3 · step ~41,066 | 71.6 | 21.7 | 20.4 | 22.5 | 19.7 | 25.2 | 17.9 |
+| q3 · step ~46,933 | 72.5 | · | 19.6 | 23.3 | 20.6 | 25.6 | 16.9 |
+| q3 · step ~52,800 | 76.9 | · | 21.5 | 23.6 | 20.5 | 23 | · |
+| q3 · step ~58,666 | · | · | 19.1 | 24.2 | 19.5 | 23.6 | · |
+| q3 · step ~64,533 | · | · | 20.8 | 27.9 | 20.4 | 27.1 | · |
+| q3 · step ~70,400 | · | · | 19.1 | 25.5 | 21.6 | 28 | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+所有层里最大的 |logit|（rank 0 的第一个 micro-batch）。
+
+**〔指标：gate 更新幅度〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | QBK3 + 1% LR warmup | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 用 AdamW（LR ×0.19） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 0.0099 | 0.0098 | 0.0098 | 0.0098 | 0.0098 | 0.0098 | 0.0098 | 0.0098 | 0.0098 | 0.0058 |
+| q1 · step ~3,375 | 0.0091 | 0.009 | 0.009 | 0.009 | 0.009 | 0.009 | 0.009 | 0.009 | 0.009 | 0.005 |
+| q1 · step ~4,558 | 0.0083 | 0.0083 | 0.0082 | 0.0082 | 0.0082 | 0.0083 | 0.0082 | 0.0082 | 0.0082 | 0.0045 |
+| q1 · step ~5,741 | 0.0075 | 0.0075 | 0.0075 | 0.0075 | 0.0075 | 0.0075 | 0.0075 | 0.0075 | 0.0075 | 0.0041 |
+| q1 · step ~6,925 | 0.0068 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0038 |
+| q1 · step ~8,108 | 0.006 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0035 |
+| q1 · step ~9,883 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.003 |
+| q1 · step ~11,066 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0027 |
+| q1 · step ~12,250 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0023 |
+| q1 · step ~13,433 | 0.0027 | 0.0027 | 0.0027 | 0.0027 | 0.0027 | 0.0027 | 0.0027 | 0.0027 | 0.0027 | 0.0019 |
+| q1 · step ~14,616 | 0.0019 | 0.0019 | 0.0019 | 0.0019 | 0.0019 | 0.0019 | 0.0019 | 0.0019 | 0.0019 | 0.0014 |
+| q1 · step ~15,800 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0005 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0.0745 | 0.0111 | 0.0111 | 0.0111 | 0.0111 | 0.0111 | 0.0111 | 0.0111 | 0.0111 | 0 |
+| q1 · step ~125 | 0.0164 | 0.0112 | 0.0112 | 0.0112 | 0.0112 | 0.0112 | 0.0112 | 0.0111 | 0.0112 | 0.0073 |
+| q1 · step ~312 | 0.0115 | 0.0109 | 0.0109 | 0.0109 | 0.0109 | 0.0109 | 0.0109 | 0.0109 | 0.0109 | 0.0111 |
+| q1 · step ~437 | 0.0103 | 0.0109 | 0.0109 | 0.0109 | 0.0108 | 0.0109 | 0.0109 | 0.0108 | 0.0109 | 0.011 |
+| q1 · step ~562 | 0.0093 | 0.0108 | 0.0108 | 0.0108 | 0.0108 | 0.0108 | 0.0108 | 0.0108 | 0.0108 | 0.0109 |
+| q1 · step ~750 | 0.0083 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0106 | 0.0107 | 0.0108 |
+| q1 · step ~812 | 0.0079 | 0.0106 | 0.0106 | 0.0106 | 0.0106 | 0.0106 | 0.0106 | 0.0106 | 0.0106 | 0.0107 |
+| q1 · step ~1,062 | 0.0074 | 0.0105 | 0.0105 | 0.0105 | 0.0105 | 0.0105 | 0.0105 | 0.0104 | 0.0105 | 0.0106 |
+| q1 · step ~1,125 | 0.0072 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0105 |
+| q1 · step ~1,250 | 0.0069 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0103 | 0.0104 | 0.0105 |
+| q1 · step ~1,437 | 0.0066 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0103 |
+| q1 · step ~1,500 | 0.0064 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0101 | 0.0102 | 0.0103 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | QBK3 + 1% LR warmup | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 用 AdamW（LR ×0.19） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 0.0108 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0088 |
+| q1 · step ~1,975 | 0.01 | 0.0099 | 0.0099 | 0.0099 | 0.0099 | 0.0099 | 0.0099 | 0.0099 | 0.0099 | 0.0059 |
+| q1 · step ~3,291 | 0.0092 | 0.0091 | 0.0091 | 0.0091 | 0.0091 | 0.0091 | 0.0091 | 0.0091 | 0.0091 | 0.0051 |
+| q1 · step ~4,608 | 0.0083 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0044 |
+| q1 · step ~5,925 | 0.0074 | 0.0073 | 0.0073 | 0.0073 | 0.0073 | 0.0073 | 0.0073 | 0.0073 | 0.0073 | 0.0041 |
+| q1 · step ~7,241 | 0.0066 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0037 |
+| q1 · step ~9,216 | 0.0053 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0032 |
+| q1 · step ~10,533 | 0.0045 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0028 |
+| q1 · step ~11,850 | 0.0037 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0024 |
+| q1 · step ~13,166 | 0.0029 | 0.0029 | 0.0029 | 0.0029 | 0.0029 | 0.0029 | 0.0029 | 0.0029 | 0.0029 | 0.002 |
+| q1 · step ~14,483 | 0.002 | 0.002 | 0.002 | 0.002 | 0.002 | 0.002 | 0.002 | 0.002 | 0.002 | 0.0015 |
+| q1 · step ~15,800 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0005 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup | router 用 AdamW（LR ×0.19） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~5,070 | 0.0077 | 0.0077 | 0.0077 | 0.0077 | 0.0077 | 0.0077 | 0.0077 | 0.0077 | 0.0077 | 0.0047 |
+| q2 · step ~7,812 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0041 |
+| q2 · step ~10,554 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0037 |
+| q2 · step ~13,295 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.006 | 0.0035 |
+| q2 · step ~16,037 | 0.0053 | 0.0053 | 0.0053 | 0.0053 | 0.0053 | 0.0053 | 0.0053 | 0.0053 | 0.0054 | 0.0032 |
+| q2 · step ~18,779 | 0.0048 | 0.0048 | 0.0048 | 0.0048 | 0.0048 | 0.0048 | 0.0048 | 0.0048 | 0.0048 | 0.0029 |
+| q2 · step ~22,891 | 0.0039 | 0.0039 | 0.0039 | 0.0039 | 0.0039 | 0.0039 | 0.0039 | 0.0039 | 0.004 | 0.0026 |
+| q2 · step ~25,633 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0023 |
+| q2 · step ~28,375 | 0.0028 | 0.0028 | 0.0028 | 0.0028 | 0.0028 | 0.0028 | 0.0029 | 0.0028 | 0.0029 | 0.002 |
+| q2 · step ~31,116 | 0.0023 | 0.0023 | 0.0023 | 0.0023 | 0.0023 | 0.0023 | 0.0023 | 0.0023 | 0.0023 | 0.0016 |
+| q2 · step ~33,858 | 0.0016 | 0.0016 | 0.0016 | 0.0016 | 0.0016 | 0.0016 | 0.0016 | 0.0016 | 0.002 | 0.0012 |
+| q2 · step ~36,600 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | · | 0.0004 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | QBK3 + 1% LR warmup |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~150 | 0.0142 | 0.0087 | 0.0087 | 0.0087 | 0.0087 | 0.0087 | 0.0087 | 0.0087 | 0.0087 | 0.0031 |
+| q2 · step ~450 | 0.0099 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0087 |
+| q2 · step ~750 | 0.0082 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0086 | 0.0087 |
+| q2 · step ~1,050 | 0.0074 | 0.0085 | 0.0085 | 0.0085 | 0.0085 | 0.0085 | 0.0085 | 0.0085 | 0.0085 | 0.0086 |
+| q2 · step ~1,350 | 0.0067 | 0.0085 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0085 |
+| q2 · step ~1,650 | 0.0063 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0085 |
+| q2 · step ~2,100 | 0.0059 | 0.0083 | 0.0083 | 0.0083 | 0.0083 | 0.0083 | 0.0083 | 0.0083 | 0.0083 | 0.0084 |
+| q2 · step ~2,400 | 0.0057 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0083 |
+| q2 · step ~2,700 | 0.0055 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 |
+| q2 · step ~3,000 | 0.0053 | 0.0081 | 0.0081 | 0.0081 | 0.0081 | 0.0081 | 0.0081 | 0.0081 | 0.0081 | 0.0082 |
+| q2 · step ~3,300 | 0.0053 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 | 0.0081 |
+| q2 · step ~3,600 | 0.005 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 | 0.008 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | QBK3 + 1% LR warmup | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | bias 更新率 ×0.5 | bias 更新率 ×0.25 | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 用 AdamW（LR ×0.19） |
+|---|---|---|---|---|---|---|---|---|---|---|
+| q2 · step ~1,525 | 0.0085 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0084 | 0.0065 |
+| q2 · step ~4,575 | 0.0078 | 0.0078 | 0.0078 | 0.0078 | 0.0078 | 0.0078 | 0.0078 | 0.0078 | 0.0078 | 0.0047 |
+| q2 · step ~7,625 | 0.0072 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0042 |
+| q2 · step ~10,675 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0038 |
+| q2 · step ~13,725 | 0.0059 | 0.0058 | 0.0058 | 0.0058 | 0.0058 | 0.0058 | 0.0058 | 0.0058 | 0.0058 | 0.0034 |
+| q2 · step ~16,775 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0031 |
+| q2 · step ~21,350 | 0.0043 | 0.0042 | 0.0042 | 0.0042 | 0.0042 | 0.0042 | 0.0042 | 0.0042 | 0.0042 | 0.0027 |
+| q2 · step ~24,400 | 0.0037 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0024 |
+| q2 · step ~27,450 | 0.003 | 0.003 | 0.003 | 0.003 | 0.003 | 0.003 | 0.003 | 0.003 | 0.003 | 0.0021 |
+| q2 · step ~30,500 | 0.0024 | 0.0024 | 0.0024 | 0.0024 | 0.0024 | 0.0024 | 0.0024 | 0.0024 | 0.0024 | 0.0017 |
+| q2 · step ~33,550 | 0.002 | 0.0017 | 0.0017 | 0.0017 | 0.0017 | 0.0017 | 0.0017 | 0.0017 | 0.0017 | 0.0013 |
+| q2 · step ~36,600 | · | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0006 | 0.0004 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 用 AdamW（LR ×0.19） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~9,737 | 0.0064 | 0.0064 | 0.0064 | 0.0064 | 0.0064 | 0.0064 | 0.0039 |
+| q3 · step ~15,012 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0035 |
+| q3 · step ~20,287 | 0.0054 | 0.0054 | 0.0054 | 0.0054 | 0.0054 | 0.0054 | 0.0032 |
+| q3 · step ~25,562 | 0.005 | 0.005 | 0.005 | 0.005 | 0.005 | 0.005 | 0.003 |
+| q3 · step ~30,837 | 0.0045 | 0.0045 | 0.0045 | 0.0045 | 0.0045 | 0.0045 | 0.0028 |
+| q3 · step ~36,112 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0026 |
+| q3 · step ~44,025 | 0.0034 | 0.0034 | 0.0034 | 0.0035 | 0.0034 | 0.0034 | 0.0023 |
+| q3 · step ~49,300 | 0.003 | 0.003 | 0.003 | · | 0.0031 | 0.003 | 0.0021 |
+| q3 · step ~54,575 | 0.0025 | 0.0025 | 0.0025 | · | · | 0.0025 | · |
+| q3 · step ~59,850 | 0.002 | 0.002 | 0.002 | · | · | 0.002 | · |
+| q3 · step ~65,125 | 0.0014 | 0.0014 | 0.0015 | · | · | 0.0014 | · |
+| q3 · step ~70,400 | 0.0005 | 0.0005 | 0.0005 | · | · | 0.0005 | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | router 用 AdamW（LR ×0.19） | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~291 | 0.0125 | 0.0072 | 0.0072 | 0.0072 | 0.0072 | 0.0072 | 0.0072 |
+| q3 · step ~875 | 0.0077 | 0.0072 | 0.0072 | 0.0072 | 0.0072 | 0.0072 | 0.0072 |
+| q3 · step ~1,458 | 0.0065 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.0071 |
+| q3 · step ~2,041 | 0.0059 | 0.0071 | 0.0071 | 0.0071 | 0.0071 | 0.007 | 0.0071 |
+| q3 · step ~2,625 | 0.0055 | 0.007 | 0.007 | 0.007 | 0.007 | 0.007 | 0.007 |
+| q3 · step ~3,208 | 0.0053 | 0.0069 | 0.0069 | 0.0069 | 0.0069 | 0.0069 | 0.0069 |
+| q3 · step ~4,083 | 0.0048 | 0.0069 | 0.0069 | 0.0069 | 0.0069 | 0.0069 | 0.0069 |
+| q3 · step ~4,666 | 0.0047 | 0.0068 | 0.0068 | 0.0068 | 0.0068 | 0.0068 | 0.0068 |
+| q3 · step ~5,250 | 0.0045 | 0.0068 | 0.0068 | 0.0068 | 0.0068 | 0.0068 | 0.0068 |
+| q3 · step ~5,833 | 0.0044 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 |
+| q3 · step ~6,416 | 0.0043 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 |
+| q3 · step ~7,000 | 0.0042 | 0.0066 | 0.0066 | 0.0066 | 0.0066 | 0.0066 | 0.0066 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | 0 线：PROD1_DPSK_LATENT2_E2X | QB：Quantile Balancing（分位数均衡） | QBX：全局精确 quantile（Kimi K3 的做法） | 只用 expert bias（去掉 seq aux） | router 每行单独 hyperball（pin） | QBK3：完全按 Kimi K3 原文的 quantile balancing | router 用 AdamW（LR ×0.19） |
+|---|---|---|---|---|---|---|---|
+| q3 · step ~2,933 | 0.007 | 0.007 | 0.007 | 0.007 | 0.007 | 0.007 | 0.0053 |
+| q3 · step ~8,800 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.004 |
+| q3 · step ~14,666 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0035 |
+| q3 · step ~20,533 | 0.0054 | 0.0054 | 0.0054 | 0.0054 | 0.0054 | 0.0054 | 0.0032 |
+| q3 · step ~26,400 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.0049 | 0.003 |
+| q3 · step ~32,266 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0028 |
+| q3 · step ~41,066 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0024 |
+| q3 · step ~46,933 | 0.0031 | 0.0031 | 0.0031 | · | 0.0032 | 0.0031 | 0.0022 |
+| q3 · step ~52,800 | 0.0027 | 0.0027 | 0.0027 | · | · | 0.0027 | 0.002 |
+| q3 · step ~58,666 | 0.0021 | 0.0021 | 0.0021 | · | · | 0.0021 | · |
+| q3 · step ~64,533 | 0.0015 | 0.0015 | 0.0015 | · | · | 0.0015 | · |
+| q3 · step ~70,400 | 0.0005 | 0.0005 | 0.0005 | · | · | 0.0005 | · |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+router 权重这一步的变化量 ÷ 权重大小，各层平均（Boxiang 只作参考，不作判据）。
+
+### QBX 变体
+
+Runlong 在 PROD1_DPSK_LATENT2_E2X_QBX（E2X + QBX）上每次只改一处 router 设置的 6 个变体，都只跑了 q1、seed 1（154M 激活参数，15,824 步）。0 线 = QBX q1：router 用 AdamH、LR ×1，β 每个 global batch 直接换成最新的分位数（EMA 0）。QBX 本身是什么见上一章开头的介绍。
+
+#### 评测结果（q1，各行 − QBX，bpb）
+
+Runlong 在 QBX 上只改一处的 6 个变体，都只有 q1、seed 1。每格 = 该行 − QBX q1，单位 bpb，越小越好；大字是 8K 窗口，下面小字是 32K 窗口。最后一行是 E2X 本身（DSV3 bias + seq aux），用来对照 QBX 和 E2X 的差距。
+
+|   | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | private_internal |
+|---|---|---|---|---|---|---|---|
+| EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换）<br>PROD1_DPSK_LATENT2_E2X_QBX_EMA5 | +0.0001<br>+0.0001 | +0.0002<br>+0.0002 | +0.0000<br>+0.0001 | +0.0000<br>+0.0001 | +0.0005<br>+0.0004 | -0.0003<br>-0.0003 | +0.0002<br>+0.0002 |
+| RLR0P5 · router LR ×0.5<br>PROD1_DPSK_LATENT2_E2X_QBX_RLR0P5 | +0.0003<br>+0.0003 | +0.0004<br>+0.0004 | +0.0002<br>+0.0002 | +0.0003<br>+0.0003 | +0.0007<br>+0.0006 | +0.0005<br>+0.0005 | +0.0001<br>+0.0001 |
+| RLR2 · router LR ×2<br>PROD1_DPSK_LATENT2_E2X_QBX_RLR2 | -0.0002<br>-0.0001 | -0.0001<br>-0.0001 | -0.0002<br>-0.0002 | +0.0000<br>-0.0000 | +0.0002<br>+0.0002 | -0.0010<br>-0.0010 | -0.0001<br>-0.0001 |
+| RTADAMW · router 改用 AdamW，LR ×0.19<br>PROD1_DPSK_LATENT2_E2X_QBX_RTADAMW | +0.0025<br>+0.0025 | +0.0026<br>+0.0025 | +0.0024<br>+0.0024 | +0.0020<br>+0.0020 | +0.0029<br>+0.0029 | +0.0025<br>+0.0025 | +0.0019<br>+0.0019 |
+| RTMUONH · router 改用 MuonH<br>PROD1_DPSK_LATENT2_E2X_QBX_RTMUONH | +0.0005<br>+0.0005 | +0.0006<br>+0.0005 | +0.0005<br>+0.0005 | +0.0004<br>+0.0005 | +0.0008<br>+0.0007 | +0.0007<br>+0.0007 | +0.0006<br>+0.0006 |
+| RTPIN · router 每行单独 hyperball（pin）<br>PROD1_DPSK_LATENT2_E2X_QBX_RTPIN | +0.0001<br>+0.0001 | +0.0001<br>+0.0002 | +0.0001<br>+0.0001 | +0.0001<br>+0.0001 | +0.0004<br>+0.0004 | -0.0002<br>-0.0002 | +0.0005<br>+0.0005 |
+| E2X（不用 QBX，参照）<br>PROD1_DPSK_LATENT2_E2X | -0.0003<br>-0.0003 | -0.0003<br>-0.0003 | -0.0002<br>-0.0001 | +0.0000<br>+0.0000 | -0.0002<br>-0.0002 | -0.0003<br>-0.0003 | -0.0003<br>-0.0002 |
+| QBX q1 绝对值<br>QBX（AdamH，router LR ×1，β 每步直接换成最新分位数） | 0.7039<br>0.6918 | 0.7045<br>0.6929 | 0.7021<br>0.6935 | 0.5952<br>0.5738 | 0.6976<br>0.6880 | 0.4746<br>0.4746 | 0.6804<br>0.6798 |
+
+#### 训练中的负载均衡（router health，训练日志）
+
+来自训练日志的 router health（每 100 步一行，所有层汇总）。线的颜色和上面评测表每行前的色块一致：灰色虚线 = 0 线 QBX，粉色虚线 = E2X（不用 QBX）参照；鼠标移到图上看各线的名字和数值。dead expert 的百分比按（层数 × 512）算。MaxVio 0 = 完全均衡。
+
+**〔指标：MaxVio（层平均）〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | E2X（不用 QBX，参照） | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTMUONH · router 改用 MuonH | 0 线：QBX | RTPIN · router 每行单独 hyperball（pin） | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 2.11 | 1.42 | 1.24 | 1.22 | 1.14 | 1.13 | 1.11 | 0.882 |
+| q1 · step ~3,375 | 2.31 | 1.23 | 1.35 | 1.4 | 1.32 | 1.4 | 1.32 | 1.23 |
+| q1 · step ~4,558 | 1.75 | 1.08 | 1.06 | 1.14 | 1.06 | 1.17 | 1.1 | 0.919 |
+| q1 · step ~5,741 | 1.85 | 1.02 | 0.927 | 1.09 | 0.901 | 0.994 | 0.996 | 0.923 |
+| q1 · step ~6,925 | 1.73 | 1.27 | 1.03 | 1.07 | 1.07 | 1.01 | 0.989 | 0.985 |
+| q1 · step ~8,108 | 1.28 | 0.798 | 0.677 | 0.875 | 0.735 | 0.704 | 0.794 | 0.673 |
+| q1 · step ~9,883 | 1.23 | 2.06 | 1.25 | 1.16 | 1.27 | 1.24 | 1.22 | 0.956 |
+| q1 · step ~11,066 | 1.34 | 0.887 | 0.885 | 0.844 | 0.844 | 0.839 | 0.877 | 0.961 |
+| q1 · step ~12,250 | 1.16 | 1.66 | 1.09 | 1.08 | 1.08 | 1.16 | 1.19 | 1.05 |
+| q1 · step ~13,433 | 0.713 | 1.04 | 0.989 | 0.925 | 0.984 | 0.96 | 0.948 | 0.689 |
+| q1 · step ~14,616 | 0.734 | 0.715 | 0.718 | 0.775 | 0.706 | 0.706 | 0.746 | 0.752 |
+| q1 · step ~15,800 | 0.599 | 0.75 | 0.697 | 0.709 | 0.766 | 0.729 | 0.794 | 0.641 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 | 1.05 |
+| q1 · step ~125 | 1.38 | 1.12 | 1.21 | 1.34 | 1.2 | 0.888 | 1.1 | 5.89 |
+| q1 · step ~312 | 1.08 | 0.92 | 0.889 | 1.3 | 1.09 | 0.835 | 0.884 | 2.43 |
+| q1 · step ~437 | 0.978 | 1.02 | 0.802 | 1.08 | 0.86 | 0.913 | 0.959 | 2.86 |
+| q1 · step ~562 | 1.35 | 1.28 | 1.35 | 1.54 | 1.43 | 1.3 | 1.62 | 2.2 |
+| q1 · step ~750 | 0.722 | 0.7 | 0.631 | 0.879 | 0.608 | 0.698 | 0.604 | 1.98 |
+| q1 · step ~812 | 0.888 | 0.739 | 0.781 | 1.07 | 0.886 | 0.869 | 0.826 | 2.13 |
+| q1 · step ~1,062 | 0.897 | 1.08 | 0.761 | 1.02 | 0.762 | 0.769 | 0.901 | 2.27 |
+| q1 · step ~1,125 | 0.902 | 0.768 | 0.794 | 1.08 | 0.991 | 0.939 | 0.875 | 2.78 |
+| q1 · step ~1,250 | 1.08 | 1.15 | 0.939 | 1.29 | 0.922 | 0.991 | 1.07 | 2.58 |
+| q1 · step ~1,437 | 0.665 | 0.781 | 0.602 | 0.88 | 0.627 | 0.794 | 0.591 | 1.97 |
+| q1 · step ~1,500 | 0.742 | 0.992 | 0.543 | 0.868 | 0.624 | 0.771 | 0.777 | 1.91 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | E2X（不用 QBX，参照） | RLR2 · router LR ×2 | RTMUONH · router 改用 MuonH | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | 0 线：QBX | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR0P5 · router LR ×0.5 | RTPIN · router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 1.65 | 1.29 | 1.25 | 1.18 | 1.18 | 1.15 | 1.15 | 1.01 |
+| q1 · step ~1,975 | 2.53 | 1.28 | 0.916 | 0.977 | 1.08 | 1.1 | 0.98 | 1 |
+| q1 · step ~3,291 | 2.45 | 1.05 | 0.778 | 0.797 | 0.823 | 0.985 | 0.786 | 0.732 |
+| q1 · step ~4,608 | 1.66 | 0.933 | 0.715 | 0.699 | 0.666 | 1.06 | 0.625 | 0.713 |
+| q1 · step ~5,925 | 1.79 | 0.809 | 0.808 | 0.667 | 0.754 | 0.857 | 0.827 | 0.763 |
+| q1 · step ~7,241 | 1.45 | 0.826 | 0.813 | 0.683 | 0.721 | 0.928 | 0.722 | 0.774 |
+| q1 · step ~9,216 | 1.44 | 0.824 | 0.908 | 0.756 | 0.903 | 0.792 | 0.774 | 0.835 |
+| q1 · step ~10,533 | 0.954 | 0.746 | 0.663 | 0.591 | 0.657 | 0.694 | 0.706 | 0.669 |
+| q1 · step ~11,850 | 0.99 | 1.28 | 1.37 | 1.14 | 1.33 | 1.39 | 1.27 | 1.24 |
+| q1 · step ~13,166 | 0.861 | 0.952 | 1.03 | 0.81 | 0.986 | 0.922 | 0.94 | 0.933 |
+| q1 · step ~14,483 | 0.765 | 1 | 0.996 | 0.768 | 0.961 | 0.96 | 0.954 | 0.938 |
+| q1 · step ~15,800 | 0.599 | 0.709 | 0.766 | 0.641 | 0.729 | 0.75 | 0.697 | 0.794 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+每层：一整个训练 step（所有 micro-batch、所有 rank）里分到 token 最多的 expert ÷ 平均值 − 1（DeepSeek-V3 的 MaxVio，0 = 完全均衡）；这里是所有层的平均。
+
+**〔指标：MaxVio（最差层）〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | E2X（不用 QBX，参照） | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR2 · router LR ×2 | RLR0P5 · router LR ×0.5 | 0 线：QBX | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 4.54 | 2.81 | 1.88 | 1.74 | 1.57 | 1.48 | 1.45 | 1.22 |
+| q1 · step ~3,375 | 5.86 | 1.92 | 2.04 | 1.98 | 1.98 | 1.68 | 1.63 | 1.75 |
+| q1 · step ~4,558 | 3.03 | 1.85 | 1.84 | 1.31 | 1.71 | 1.52 | 1.68 | 1.28 |
+| q1 · step ~5,741 | 5.28 | 1.74 | 1.66 | 1.46 | 1.29 | 1.4 | 1.48 | 1.4 |
+| q1 · step ~6,925 | 5.28 | 2.64 | 1.41 | 1.78 | 1.8 | 1.69 | 1.49 | 1.62 |
+| q1 · step ~8,108 | 3.08 | 1.58 | 1.19 | 0.846 | 0.962 | 0.965 | 1.06 | 0.965 |
+| q1 · step ~9,883 | 2.44 | 3.43 | 1.51 | 2.04 | 1.6 | 1.59 | 1.52 | 1.35 |
+| q1 · step ~11,066 | 2.54 | 1.34 | 1.21 | 1.21 | 1.27 | 1.18 | 1.36 | 1.38 |
+| q1 · step ~12,250 | 3.26 | 2.55 | 1.29 | 1.59 | 1.45 | 1.58 | 1.78 | 1.33 |
+| q1 · step ~13,433 | 1.1 | 1.47 | 1.4 | 1.31 | 1.28 | 1.26 | 1.24 | 1.03 |
+| q1 · step ~14,616 | 1.14 | 1.3 | 1.44 | 1.32 | 1.05 | 1 | 1 | 1.27 |
+| q1 · step ~15,800 | 0.879 | 1.29 | 1.21 | 1.32 | 1.14 | 1.67 | 1.62 | 1.03 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 | 4.54 |
+| q1 · step ~125 | 2.16 | 1.82 | 1.96 | 2.03 | 1.54 | 1.29 | 1.59 | 13.1 |
+| q1 · step ~312 | 1.45 | 1.2 | 1.3 | 1.91 | 1.56 | 1.25 | 1.19 | 3.73 |
+| q1 · step ~437 | 1.19 | 1.32 | 1.08 | 1.38 | 1.23 | 1.13 | 1.32 | 4.02 |
+| q1 · step ~562 | 2.08 | 1.71 | 1.95 | 2.17 | 1.88 | 2.26 | 2.56 | 3.61 |
+| q1 · step ~750 | 0.856 | 1.34 | 0.957 | 1.22 | 0.885 | 1.16 | 0.857 | 4.02 |
+| q1 · step ~812 | 1.36 | 1.71 | 1.12 | 1.66 | 1.25 | 1.14 | 1.16 | 5.69 |
+| q1 · step ~1,062 | 1.1 | 2.06 | 1.06 | 1.85 | 0.985 | 0.982 | 1.1 | 3.63 |
+| q1 · step ~1,125 | 1.44 | 1.41 | 1.07 | 1.7 | 1.58 | 1.27 | 1.11 | 13.7 |
+| q1 · step ~1,250 | 1.88 | 1.58 | 1.32 | 1.67 | 1.57 | 1.55 | 1.46 | 7.79 |
+| q1 · step ~1,437 | 0.99 | 1.36 | 0.827 | 1.3 | 1.04 | 1.08 | 1.03 | 3.84 |
+| q1 · step ~1,500 | 1.01 | 1.73 | 0.781 | 1.1 | 0.889 | 1.38 | 1.06 | 3.63 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | E2X（不用 QBX，参照） | RTMUONH · router 改用 MuonH | RLR2 · router LR ×2 | RLR0P5 · router LR ×0.5 | RTADAMW · router 改用 AdamW，LR ×0.19 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RTPIN · router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 2.94 | 1.9 | 1.75 | 1.66 | 1.65 | 1.52 | 1.48 | 1.27 |
+| q1 · step ~1,975 | 7.42 | 1.84 | 1.68 | 1.34 | 1.48 | 1.46 | 1.33 | 1.42 |
+| q1 · step ~3,291 | 4.97 | 1.11 | 2.52 | 1.1 | 1.45 | 1.15 | 1.13 | 1.15 |
+| q1 · step ~4,608 | 3.24 | 1.13 | 1.99 | 0.98 | 2.06 | 0.924 | 0.953 | 0.904 |
+| q1 · step ~5,925 | 2.91 | 1.03 | 1.03 | 1.2 | 1.14 | 0.972 | 0.808 | 1.02 |
+| q1 · step ~7,241 | 3.06 | 1.68 | 1.56 | 1.7 | 2.82 | 1.39 | 1.04 | 1.49 |
+| q1 · step ~9,216 | 3.01 | 1.31 | 1.12 | 1.06 | 1.18 | 1.24 | 0.963 | 1.15 |
+| q1 · step ~10,533 | 3.17 | 0.893 | 1.03 | 0.892 | 1.18 | 0.877 | 0.886 | 0.902 |
+| q1 · step ~11,850 | 2.15 | 2.05 | 1.79 | 1.87 | 2.06 | 2.14 | 1.93 | 1.9 |
+| q1 · step ~13,166 | 1.35 | 1.42 | 1.25 | 1.29 | 1.17 | 1.34 | 0.945 | 1.13 |
+| q1 · step ~14,483 | 1.04 | 1.84 | 1.46 | 1.31 | 1.62 | 1.44 | 1.05 | 1.42 |
+| q1 · step ~15,800 | 0.879 | 1.67 | 1.21 | 1.32 | 1.29 | 1.14 | 1.03 | 1.62 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+同上，取最不均衡的那一层。
+
+**〔指标：dead expert (%)〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | RLR2 · router LR ×2 | 0 线：QBX | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） | RTMUONH · router 改用 MuonH | RLR0P5 · router LR ×0.5 | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RTADAMW · router 改用 AdamW，LR ×0.19 |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 0.138% | 0.0804% | 0.0804% | 0.0804% | 0.046% | 0.023% | 0.0115% | 0.0115% |
+| q1 · step ~3,375 | 0.103% | 0.0689% | 0.103% | 0.0689% | 0.0689% | 0.046% | 0.0345% | 0.046% |
+| q1 · step ~4,558 | 0.184% | 0.126% | 0.138% | 0.046% | 0.207% | 0.0919% | 0.0345% | 0.0345% |
+| q1 · step ~5,741 | 0.0115% | 0% | 0% | 0.0574% | 0.0345% | 0% | 0.0115% | 0% |
+| q1 · step ~6,925 | 0% | 0% | 0% | 0.023% | 0% | 0% | 0% | 0% |
+| q1 · step ~8,108 | 0% | 0% | 0% | 0.0345% | 0% | 0% | 0% | 0% |
+| q1 · step ~9,883 | 0.126% | 0.126% | 0.149% | 0% | 0.115% | 0.103% | 0.023% | 0.0115% |
+| q1 · step ~11,066 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~12,250 | 0.0804% | 0.0689% | 0.126% | 0% | 0.115% | 0.0574% | 0.046% | 0% |
+| q1 · step ~13,433 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~14,616 | 0.0115% | 0% | 0.0115% | 0% | 0% | 0.0115% | 0% | 0% |
+| q1 · step ~15,800 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% | 0.0345% |
+| q1 · step ~125 | 0.264% | 0.0574% | 0.023% | 0.425% | 0.0804% | 0.0919% | 0.218% | 3.33% |
+| q1 · step ~312 | 0.046% | 0.0115% | 0% | 0.149% | 0% | 0.0345% | 0.0804% | 0.954% |
+| q1 · step ~437 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0.793% |
+| q1 · step ~562 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0.54% |
+| q1 · step ~750 | 0.103% | 0% | 0.0115% | 0.023% | 0.023% | 0.0345% | 0.0345% | 0.31% |
+| q1 · step ~812 | 0.0115% | 0% | 0% | 0.0115% | 0% | 0.0345% | 0% | 0.172% |
+| q1 · step ~1,062 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0.0574% |
+| q1 · step ~1,125 | 0.138% | 0.023% | 0.115% | 0.0804% | 0.0919% | 0.172% | 0.161% | 0.138% |
+| q1 · step ~1,250 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0.0804% |
+| q1 · step ~1,437 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0.0919% |
+| q1 · step ~1,500 | 0.023% | 0.023% | 0.023% | 0.0115% | 0.0115% | 0.0574% | 0.0574% | 0.172% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | E2X（不用 QBX，参照） | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 0.287% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~1,975 | 0.161% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~3,291 | 0.0689% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~4,608 | 0.0919% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~5,925 | 0.0804% | 0.023% | 0% | 0.0115% | 0.0345% | 0.023% | 0.0689% | 0.0115% |
+| q1 · step ~7,241 | 0.0345% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~9,216 | 0.023% | 0% | 0% | 0% | 0% | 0% | 0% | 0.0115% |
+| q1 · step ~10,533 | 0.0115% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~11,850 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~13,166 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~14,483 | 0% | 0.0115% | 0% | 0.0345% | 0.0345% | 0% | 0.0574% | 0.0574% |
+| q1 · step ~15,800 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+分到的 token 不到平均值 10% 的 expert 数，占（层数 × 128）的百分比。
+
+**〔指标：|bias| 最大〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | E2X（不用 QBX，参照） |
+|---|---|
+| q1 · step ~2,191 | 0.41 |
+| q1 · step ~3,375 | 0.598 |
+| q1 · step ~4,558 | 0.782 |
+| q1 · step ~5,741 | 0.95 |
+| q1 · step ~6,925 | 1.11 |
+| q1 · step ~8,108 | 1.25 |
+| q1 · step ~9,883 | 1.42 |
+| q1 · step ~11,066 | 1.52 |
+| q1 · step ~12,250 | 1.58 |
+| q1 · step ~13,433 | 1.63 |
+| q1 · step ~14,616 | 1.68 |
+| q1 · step ~15,800 | 1.73 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | E2X（不用 QBX，参照） |
+|---|---|
+| q1 · step ~62 | 0.001 |
+| q1 · step ~125 | 0.1 |
+| q1 · step ~312 | 0.266 |
+| q1 · step ~437 | 0.22 |
+| q1 · step ~562 | 0.192 |
+| q1 · step ~750 | 0.194 |
+| q1 · step ~812 | 0.206 |
+| q1 · step ~1,062 | 0.23 |
+| q1 · step ~1,125 | 0.25 |
+| q1 · step ~1,250 | 0.264 |
+| q1 · step ~1,437 | 0.296 |
+| q1 · step ~1,500 | 0.31 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | E2X（不用 QBX，参照） |
+|---|---|
+| q1 · step ~658 | 0.182 |
+| q1 · step ~1,975 | 0.376 |
+| q1 · step ~3,291 | 0.582 |
+| q1 · step ~4,608 | 0.796 |
+| q1 · step ~5,925 | 0.978 |
+| q1 · step ~7,241 | 1.15 |
+| q1 · step ~9,216 | 1.37 |
+| q1 · step ~10,533 | 1.48 |
+| q1 · step ~11,850 | 1.56 |
+| q1 · step ~13,166 | 1.62 |
+| q1 · step ~14,483 | 1.67 |
+| q1 · step ~15,800 | 1.73 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+DSV3 每个 expert 的 bias 在所有层里的最大绝对值；红色虚线 = Boxiang 预设的健康上限 1。注意 top-8 选择只看同一层 bias 之间的差，所有 expert 一起抬高并不改变路由（例如 A 的 q3 第 0 层 bias 在 +11.2 到 +11.7 之间）。softmax 没有 bias。
+
+**〔指标：logit 饱和 (%)〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR0P5 · router LR ×0.5 | RTPIN · router 每行单独 hyperball（pin） | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | E2X（不用 QBX，参照） | RLR2 · router LR ×2 | RTMUONH · router 改用 MuonH |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 90.7% | 53.2% | 47.6% | 46.6% | 44.7% | 41.3% | 37.9% | 2.23% |
+| q1 · step ~3,375 | 92.1% | 62% | 57.6% | 57.2% | 55.7% | 50.7% | 49% | 12% |
+| q1 · step ~4,558 | 93.1% | 63.8% | 57.7% | 55.9% | 55.9% | 47.2% | 49.5% | 20.3% |
+| q1 · step ~5,741 | 92.6% | 72.1% | 68.2% | 67.3% | 66.9% | 61.7% | 61.6% | 30.9% |
+| q1 · step ~6,925 | 92.7% | 74.1% | 70.3% | 69.1% | 70.5% | 63.2% | 65.2% | 38% |
+| q1 · step ~8,108 | 93.5% | 76% | 71.4% | 70.5% | 70.8% | 57.1% | 64.3% | 43.2% |
+| q1 · step ~9,883 | 91.7% | 73.3% | 70.8% | 70% | 70.6% | 61.1% | 65.8% | 44.2% |
+| q1 · step ~11,066 | 92.1% | 73.8% | 70.7% | 68.9% | 69.7% | 55.5% | 63.6% | 46.8% |
+| q1 · step ~12,250 | 90.5% | 73.5% | 71.1% | 70.1% | 70.6% | 59.6% | 66.9% | 47.5% |
+| q1 · step ~13,433 | 92.2% | 77.7% | 75.2% | 74.2% | 73.8% | 54.5% | 70% | 54.1% |
+| q1 · step ~14,616 | 91.1% | 76% | 73.7% | 72.3% | 72.5% | 54.8% | 68.6% | 53.8% |
+| q1 · step ~15,800 | 91.3% | 77.9% | 75.5% | 74.4% | 74.2% | 58% | 71% | 55% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~125 | 0.33% | 0.3% | 0.02% | 8.23% | 14.8% | 0.01% | 0.42% | 0.04% |
+| q1 · step ~312 | 4.62% | 6.14% | 0.19% | 13.4% | 56.7% | 0.05% | 3.66% | 2.01% |
+| q1 · step ~437 | 5.06% | 5.07% | 0.48% | 7.76% | 58% | 0.01% | 4.43% | 3.51% |
+| q1 · step ~562 | 3.99% | 4.01% | 0.93% | 4.87% | 53.4% | 0.01% | 3.53% | 4.41% |
+| q1 · step ~750 | 28.1% | 27.6% | 17.6% | 26.5% | 79.8% | 0% | 25.4% | 26.5% |
+| q1 · step ~812 | 31.3% | 32.9% | 22.9% | 27.3% | 82.9% | 0% | 30.5% | 30% |
+| q1 · step ~1,062 | 26.8% | 26.7% | 24.7% | 23.5% | 82.1% | 0.03% | 28.4% | 30.1% |
+| q1 · step ~1,125 | 35.9% | 41% | 37.7% | 32.6% | 85.8% | 0.06% | 38.8% | 40.2% |
+| q1 · step ~1,250 | 32.7% | 34.7% | 35.8% | 29.7% | 87% | 0.12% | 35% | 33.6% |
+| q1 · step ~1,437 | 46.6% | 46.8% | 47.3% | 42.3% | 89.1% | 0.39% | 46.2% | 46.9% |
+| q1 · step ~1,500 | 33.3% | 35.5% | 36% | 31.2% | 88.8% | 0.6% | 34.9% | 33% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR2 · router LR ×2 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） | RLR0P5 · router LR ×0.5 | RTMUONH · router 改用 MuonH |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 79.7% | 26% | 25.2% | 24.2% | 22% | 21.4% | 11.1% | 0% |
+| q1 · step ~1,975 | 90.7% | 45.5% | 51.2% | 51.8% | 51.1% | 48.1% | 56.9% | 2.35% |
+| q1 · step ~3,291 | 91% | 41.8% | 51.8% | 51.7% | 50.2% | 45.7% | 55.2% | 9.73% |
+| q1 · step ~4,608 | 91.8% | 58.1% | 63.1% | 63.3% | 62.2% | 55.2% | 66.9% | 21.5% |
+| q1 · step ~5,925 | 92.7% | 64.5% | 69.7% | 69.8% | 69.5% | 63.3% | 73.6% | 34% |
+| q1 · step ~7,241 | 91.9% | 61.3% | 66.6% | 68.5% | 68.8% | 59.8% | 71.9% | 37% |
+| q1 · step ~9,216 | 91.1% | 63.6% | 67.6% | 68.3% | 69% | 59.7% | 71.9% | 41.9% |
+| q1 · step ~10,533 | 91.2% | 64.6% | 69% | 69.3% | 70.2% | 59.5% | 72.8% | 44.4% |
+| q1 · step ~11,850 | 90.4% | 65.4% | 69.1% | 69.2% | 69.7% | 57.9% | 72.7% | 46.5% |
+| q1 · step ~13,166 | 92.3% | 69.1% | 72.8% | 73.2% | 74.8% | 51.2% | 76.6% | 52.9% |
+| q1 · step ~14,483 | 92% | 68.3% | 73% | 72.9% | 74.9% | 49.5% | 76.3% | 53.5% |
+| q1 · step ~15,800 | 91.3% | 71% | 74.4% | 74.2% | 75.5% | 58% | 77.9% | 55% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+router logit |z| > 4 的比例（各层平均；只看 rank 0 的第一个 micro-batch）。包括 z < −4（明确拒绝某个 expert，正常）。
+
+**〔指标：z > +4 (%)〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~3,375 | 0.15% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~4,558 | 0.19% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~5,741 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~6,925 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~8,108 | 0.18% | 0% | 0% | 0% | 0.01% | 0% | 0% | 0% |
+| q1 · step ~9,883 | 0.12% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~11,066 | 0.14% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~12,250 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~13,433 | 0.13% | 0% | 0% | 0% | 0.01% | 0% | 0% | 0% |
+| q1 · step ~14,616 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~15,800 | 0.08% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~125 | 0.18% | 0.12% | 0.02% | 0.43% | 1.78% | 0.01% | 0.4% | 0.04% |
+| q1 · step ~312 | 0% | 0% | 0% | 0% | 0.01% | 0.05% | 0% | 0% |
+| q1 · step ~437 | 0% | 0% | 0% | 0% | 0.02% | 0.01% | 0% | 0% |
+| q1 · step ~562 | 0% | 0% | 0% | 0% | 0.05% | 0.01% | 0% | 0% |
+| q1 · step ~750 | 0% | 0% | 0% | 0% | 0.02% | 0% | 0% | 0% |
+| q1 · step ~812 | 0% | 0% | 0% | 0% | 0.03% | 0% | 0% | 0% |
+| q1 · step ~1,062 | 0% | 0% | 0% | 0% | 0.04% | 0% | 0% | 0% |
+| q1 · step ~1,125 | 0% | 0% | 0% | 0% | 0.04% | 0% | 0% | 0% |
+| q1 · step ~1,250 | 0% | 0% | 0% | 0% | 0.06% | 0% | 0% | 0% |
+| q1 · step ~1,437 | 0% | 0% | 0% | 0% | 0.05% | 0% | 0% | 0% |
+| q1 · step ~1,500 | 0% | 0% | 0% | 0% | 0.07% | 0% | 0% | 0% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 0.02% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~1,975 | 0.07% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~3,291 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~4,608 | 0.14% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~5,925 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~7,241 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~9,216 | 0.12% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~10,533 | 0.11% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~11,850 | 0.1% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~13,166 | 0.15% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~14,483 | 0.13% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~15,800 | 0.08% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+z > +4 的比例：分数被钉在 1，选中的 expert 之间失去区分度（坏）；红色虚线 = 预设上限 5%。只有后期日志才有。
+
+**〔指标：top-8 pinned (%)〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RLR2 · router LR ×2 | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | 0 线：QBX | E2X（不用 QBX，参照） | RLR0P5 · router LR ×0.5 | RTPIN · router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 8.27% | 0.25% | 0.07% | 0.05% | 0.03% | 0.01% | 0% | 0% |
+| q1 · step ~3,375 | 9.9% | 0.1% | 0.13% | 0.04% | 0.03% | 0.03% | 0% | 0.01% |
+| q1 · step ~4,558 | 12% | 0.24% | 0.18% | 0.12% | 0.09% | 0.06% | 0.03% | 0.02% |
+| q1 · step ~5,741 | 8.34% | 0.08% | 0.17% | 0.04% | 0.03% | 0.02% | 0.01% | 0.02% |
+| q1 · step ~6,925 | 8.5% | 0.06% | 0.18% | 0.03% | 0.03% | 0.02% | 0.01% | 0.02% |
+| q1 · step ~8,108 | 11.4% | 0.18% | 0.45% | 0.16% | 0.16% | 0.14% | 0.06% | 0.07% |
+| q1 · step ~9,883 | 7.74% | 0.09% | 0.18% | 0.04% | 0.04% | 0.03% | 0.01% | 0.03% |
+| q1 · step ~11,066 | 8.72% | 0.18% | 0.26% | 0.11% | 0.1% | 0.07% | 0.04% | 0.04% |
+| q1 · step ~12,250 | 6.25% | 0.07% | 0.13% | 0.04% | 0.04% | 0.02% | 0.01% | 0.03% |
+| q1 · step ~13,433 | 8.64% | 0.17% | 0.37% | 0.17% | 0.13% | 0.12% | 0.05% | 0.05% |
+| q1 · step ~14,616 | 6.4% | 0.12% | 0.16% | 0.07% | 0.05% | 0.04% | 0.03% | 0.04% |
+| q1 · step ~15,800 | 5.3% | 0.09% | 0.13% | 0.06% | 0.03% | 0.05% | 0.02% | 0.02% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~125 | 11.6% | 7.72% | 1.29% | 26.5% | 70.5% | 0.43% | 24.9% | 2.56% |
+| q1 · step ~312 | 0.02% | 0.01% | 0.11% | 0.03% | 0.75% | 3.32% | 0.04% | 0.02% |
+| q1 · step ~437 | 0% | 0% | 0.01% | 0.01% | 1.37% | 0.58% | 0% | 0% |
+| q1 · step ~562 | 0.02% | 0.03% | 0.01% | 0.07% | 2.9% | 0.39% | 0.01% | 0.02% |
+| q1 · step ~750 | 0% | 0% | 0% | 0% | 1.47% | 0.08% | 0% | 0% |
+| q1 · step ~812 | 0% | 0% | 0% | 0% | 1.6% | 0.04% | 0% | 0% |
+| q1 · step ~1,062 | 0.01% | 0.01% | 0% | 0.02% | 2.55% | 0.05% | 0% | 0% |
+| q1 · step ~1,125 | 0% | 0% | 0% | 0.01% | 2.31% | 0.03% | 0% | 0% |
+| q1 · step ~1,250 | 0.01% | 0.01% | 0% | 0.02% | 3.63% | 0.04% | 0% | 0% |
+| q1 · step ~1,437 | 0% | 0% | 0% | 0% | 3.19% | 0.02% | 0% | 0% |
+| q1 · step ~1,500 | 0.02% | 0% | 0% | 0.02% | 4.42% | 0.04% | 0% | 0.01% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 1.05% | 0.3% | 0% | 0% | 0% | 0% | 0% | 0% |
+| q1 · step ~1,975 | 4.41% | 0.03% | 0% | 0% | 0% | 0.01% | 0% | 0.01% |
+| q1 · step ~3,291 | 8.02% | 0.09% | 0.02% | 0.04% | 0.01% | 0.14% | 0.01% | 0.02% |
+| q1 · step ~4,608 | 8.76% | 0.11% | 0.03% | 0.03% | 0.01% | 0.13% | 0.01% | 0.02% |
+| q1 · step ~5,925 | 8.55% | 0.06% | 0.02% | 0.02% | 0.01% | 0.19% | 0.02% | 0.02% |
+| q1 · step ~7,241 | 8.14% | 0.17% | 0.06% | 0.05% | 0.02% | 0.24% | 0.04% | 0.07% |
+| q1 · step ~9,216 | 7.68% | 0.1% | 0.04% | 0.05% | 0.01% | 0.21% | 0.02% | 0.04% |
+| q1 · step ~10,533 | 7.13% | 0.11% | 0.05% | 0.06% | 0.01% | 0.2% | 0.04% | 0.04% |
+| q1 · step ~11,850 | 6.51% | 0.09% | 0.03% | 0.05% | 0.01% | 0.18% | 0.02% | 0.03% |
+| q1 · step ~13,166 | 9.68% | 0.13% | 0.1% | 0.14% | 0.03% | 0.25% | 0.07% | 0.06% |
+| q1 · step ~14,483 | 8.53% | 0.29% | 0.16% | 0.16% | 0.07% | 0.24% | 0.07% | 0.09% |
+| q1 · step ~15,800 | 5.3% | 0.09% | 0.03% | 0.06% | 0.02% | 0.13% | 0.02% | 0.05% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+选中的 8 个 expert 里分数卡在 1 附近的比例；红色虚线 = 预设上限 5%。只有后期日志才有。
+
+**〔指标：最大 |logit|〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | E2X（不用 QBX，参照） | RLR0P5 · router LR ×0.5 | 0 线：QBX | RLR2 · router LR ×2 | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 25 | 11.6 | 11.1 | 10.7 | 10.6 | 10.3 | 9.44 | 9.33 |
+| q1 · step ~3,375 | 29.2 | 11.9 | 11.8 | 11.4 | 11.7 | 11.8 | 9.17 | 10.6 |
+| q1 · step ~4,558 | 31.5 | 11.2 | 12.4 | 12.4 | 11.6 | 10.9 | 9.84 | 11.3 |
+| q1 · step ~5,741 | 37.6 | 12.8 | 12.6 | 12.2 | 12.3 | 11.8 | 12.9 | 11.3 |
+| q1 · step ~6,925 | 39.1 | 12.1 | 12.7 | 12.5 | 13.7 | 12.7 | 11.4 | 11.7 |
+| q1 · step ~8,108 | 37.4 | 12.4 | 12.8 | 13.6 | 12.4 | 12.2 | 11.2 | 12.1 |
+| q1 · step ~9,883 | 38.4 | 13.4 | 13.4 | 12.8 | 13.8 | 12.6 | 11.8 | 11.7 |
+| q1 · step ~11,066 | 36.5 | 12.3 | 12.9 | 13.5 | 13.7 | 13.5 | 12.7 | 12.3 |
+| q1 · step ~12,250 | 35.7 | 13.6 | 13.3 | 13.5 | 13 | 13.7 | 11.3 | 11.8 |
+| q1 · step ~13,433 | 36.6 | 12.5 | 14.4 | 14.4 | 13.8 | 12.5 | 12.1 | 12.2 |
+| q1 · step ~14,616 | 34.3 | 12.9 | 13.9 | 12.9 | 13.4 | 13.1 | 12.5 | 12 |
+| q1 · step ~15,800 | 33.3 | 13.9 | 13.1 | 13.1 | 13.4 | 13.9 | 11.8 | 11.8 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RLR0P5 · router LR ×0.5 | RLR2 · router LR ×2 | RTADAMW · router 改用 AdamW，LR ×0.19 | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 | 3.39 |
+| q1 · step ~125 | 8.21 | 7.05 | 7.16 | 9.76 | 12.1 | 5.83 | 9.65 | 7.26 |
+| q1 · step ~312 | 7.38 | 8.35 | 6.78 | 9.76 | 13.7 | 7.49 | 6.69 | 7.44 |
+| q1 · step ~437 | 7.44 | 7.74 | 6.19 | 8.19 | 14 | 8.25 | 6.79 | 7.29 |
+| q1 · step ~562 | 7.59 | 7.74 | 6.54 | 8.09 | 15.6 | 8.33 | 6.91 | 7.6 |
+| q1 · step ~750 | 8.35 | 8.57 | 7.55 | 8.44 | 17 | 6.87 | 7.59 | 8.05 |
+| q1 · step ~812 | 9.01 | 8.51 | 7.74 | 8.8 | 17.7 | 6.8 | 7.99 | 8.15 |
+| q1 · step ~1,062 | 9.22 | 8.46 | 8.43 | 9.29 | 19.7 | 7.46 | 8.24 | 8.7 |
+| q1 · step ~1,125 | 9.9 | 10.2 | 8.47 | 9.39 | 20.6 | 7.25 | 8.86 | 9.65 |
+| q1 · step ~1,250 | 9.77 | 8.75 | 8.84 | 9.79 | 20.4 | 7.18 | 8.7 | 9.43 |
+| q1 · step ~1,437 | 10.1 | 9.16 | 9.23 | 9.83 | 21.6 | 7.88 | 9.4 | 9.69 |
+| q1 · step ~1,500 | 9.73 | 10 | 10.3 | 10.2 | 20.9 | 7.4 | 8.68 | 9.82 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR2 · router LR ×2 | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | 0 线：QBX | E2X（不用 QBX，参照） | RTPIN · router 每行单独 hyperball（pin） | RLR0P5 · router LR ×0.5 | RTMUONH · router 改用 MuonH |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 16.2 | 9.96 | 8.43 | 7.92 | 7.67 | 7.62 | 7.38 | 6.85 |
+| q1 · step ~1,975 | 24 | 10.8 | 9.52 | 10.7 | 11 | 9.36 | 10.1 | 8.01 |
+| q1 · step ~3,291 | 29.3 | 11.2 | 11.4 | 12.3 | 11.6 | 10.2 | 12.8 | 10.1 |
+| q1 · step ~4,608 | 38 | 13.2 | 12.2 | 12.4 | 11.8 | 11.6 | 12.3 | 11.4 |
+| q1 · step ~5,925 | 38.6 | 12.6 | 11.9 | 12.8 | 12.5 | 11.2 | 12.4 | 11.9 |
+| q1 · step ~7,241 | 37.5 | 12.4 | 12.5 | 12.5 | 12.6 | 12 | 12.5 | 14.8 |
+| q1 · step ~9,216 | 38.4 | 13.2 | 12.5 | 14.1 | 12.4 | 11.9 | 12.8 | 11.2 |
+| q1 · step ~10,533 | 38.3 | 12.9 | 12.6 | 14.7 | 13.2 | 12.3 | 13.2 | 13.8 |
+| q1 · step ~11,850 | 38 | 13.2 | 13.3 | 13.5 | 13.7 | 12.1 | 14.7 | 12.1 |
+| q1 · step ~13,166 | 35.4 | 12.2 | 12.7 | 12.6 | 12.3 | 12.4 | 12.5 | 10.9 |
+| q1 · step ~14,483 | 35.4 | 12.9 | 13.4 | 13 | 14.4 | 12.5 | 13 | 11.8 |
+| q1 · step ~15,800 | 33.3 | 13.4 | 13.9 | 13.1 | 13.9 | 11.8 | 13.1 | 11.8 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+所有层里最大的 |logit|（rank 0 的第一个 micro-batch）。
+
+**〔指标：gate 更新幅度〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | RLR2 · router LR ×2 | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RTMUONH · router 改用 MuonH | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR0P5 · router LR ×0.5 |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~2,191 | 0.0188 | 0.0098 | 0.0098 | 0.0098 | 0.0098 | 0.0098 | 0.0056 | 0.0053 |
+| q1 · step ~3,375 | 0.0173 | 0.009 | 0.009 | 0.009 | 0.009 | 0.009 | 0.0048 | 0.0049 |
+| q1 · step ~4,558 | 0.0158 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0083 | 0.0044 | 0.0046 |
+| q1 · step ~5,741 | 0.0142 | 0.0075 | 0.0075 | 0.0075 | 0.0075 | 0.0075 | 0.004 | 0.0042 |
+| q1 · step ~6,925 | 0.0127 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0067 | 0.0036 | 0.0038 |
+| q1 · step ~8,108 | 0.0111 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0059 | 0.0033 | 0.0035 |
+| q1 · step ~9,883 | 0.0088 | 0.0049 | 0.0049 | 0.0048 | 0.0049 | 0.0049 | 0.0029 | 0.003 |
+| q1 · step ~11,066 | 0.0073 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0041 | 0.0026 | 0.0026 |
+| q1 · step ~12,250 | 0.0057 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0034 | 0.0022 | 0.0022 |
+| q1 · step ~13,433 | 0.0042 | 0.0027 | 0.0027 | 0.0027 | 0.0027 | 0.0027 | 0.0018 | 0.0018 |
+| q1 · step ~14,616 | 0.0028 | 0.0019 | 0.0019 | 0.0019 | 0.0019 | 0.0019 | 0.0013 | 0.0013 |
+| q1 · step ~15,800 | 0.001 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0005 | 0.0005 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR2 · router LR ×2 | RTMUONH · router 改用 MuonH | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） | RLR0P5 · router LR ×0.5 |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~62 | 0.0745 | 0.0222 | 0.0112 | 0.0111 | 0.0111 | 0.0111 | 0.0111 | 0.0058 |
+| q1 · step ~125 | 0.013 | 0.0215 | 0.0112 | 0.0112 | 0.0111 | 0.0111 | 0.0112 | 0.006 |
+| q1 · step ~312 | 0.0108 | 0.021 | 0.0111 | 0.0109 | 0.0109 | 0.0109 | 0.0109 | 0.0059 |
+| q1 · step ~437 | 0.0096 | 0.0208 | 0.011 | 0.0109 | 0.0109 | 0.0108 | 0.0109 | 0.0058 |
+| q1 · step ~562 | 0.0088 | 0.0207 | 0.0109 | 0.0108 | 0.0108 | 0.0108 | 0.0108 | 0.0058 |
+| q1 · step ~750 | 0.008 | 0.0204 | 0.0107 | 0.0107 | 0.0107 | 0.0106 | 0.0107 | 0.0057 |
+| q1 · step ~812 | 0.0078 | 0.0203 | 0.0106 | 0.0106 | 0.0106 | 0.0106 | 0.0106 | 0.0057 |
+| q1 · step ~1,062 | 0.0072 | 0.0201 | 0.0105 | 0.0105 | 0.0105 | 0.0105 | 0.0105 | 0.0057 |
+| q1 · step ~1,125 | 0.0069 | 0.02 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0104 | 0.0056 |
+| q1 · step ~1,250 | 0.0067 | 0.0199 | 0.0104 | 0.0104 | 0.0104 | 0.0103 | 0.0104 | 0.0056 |
+| q1 · step ~1,437 | 0.0064 | 0.0196 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0102 | 0.0055 |
+| q1 · step ~1,500 | 0.0062 | 0.0195 | 0.0102 | 0.0102 | 0.0102 | 0.0101 | 0.0102 | 0.0055 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | RLR2 · router LR ×2 | RTMUONH · router 改用 MuonH | 0 线：QBX | EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | RTPIN · router 每行单独 hyperball（pin） | E2X（不用 QBX，参照） | RTADAMW · router 改用 AdamW，LR ×0.19 | RLR0P5 · router LR ×0.5 |
+|---|---|---|---|---|---|---|---|---|
+| q1 · step ~658 | 0.0206 | 0.0108 | 0.0107 | 0.0107 | 0.0107 | 0.0107 | 0.0084 | 0.0058 |
+| q1 · step ~1,975 | 0.0191 | 0.0099 | 0.0099 | 0.0099 | 0.0099 | 0.0099 | 0.0057 | 0.0054 |
+| q1 · step ~3,291 | 0.0175 | 0.0091 | 0.0091 | 0.0091 | 0.0091 | 0.0091 | 0.005 | 0.005 |
+| q1 · step ~4,608 | 0.0157 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0082 | 0.0042 | 0.0045 |
+| q1 · step ~5,925 | 0.014 | 0.0073 | 0.0073 | 0.0073 | 0.0073 | 0.0073 | 0.004 | 0.0042 |
+| q1 · step ~7,241 | 0.0123 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0065 | 0.0036 | 0.0038 |
+| q1 · step ~9,216 | 0.0096 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0052 | 0.0031 | 0.0032 |
+| q1 · step ~10,533 | 0.0079 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0044 | 0.0027 | 0.0028 |
+| q1 · step ~11,850 | 0.0062 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0036 | 0.0023 | 0.0024 |
+| q1 · step ~13,166 | 0.0046 | 0.0028 | 0.0029 | 0.0029 | 0.0029 | 0.0029 | 0.0019 | 0.0019 |
+| q1 · step ~14,483 | 0.003 | 0.002 | 0.002 | 0.002 | 0.002 | 0.002 | 0.0014 | 0.0014 |
+| q1 · step ~15,800 | 0.001 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0007 | 0.0005 | 0.0005 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+router 权重这一步的变化量 ÷ 权重大小，各层平均（Boxiang 只作参考，不作判据）。
+
+#### 训练最后一步的 router health（q1，step 15,800）
+
+|   | MaxVio（层平均） | MaxVio（最差层） | dead expert (%) | \|bias\| 最大 | logit 饱和 (%) | z > +4 (%) | top-8 pinned (%) | 最大 \|logit\| | gate 更新幅度 |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 线：QBX | 0.729 | 1.14 | 0% | · | 74.4% | 0% | 0.03% | 13.1 | 0.0007 |
+| EMA5 · β 用 EMA 0.5 平滑（默认 0 = 每步直接替换） | 0.641 | 1.03 | 0% | · | 74.2% | 0% | 0.06% | 13.9 | 0.0007 |
+| RLR0P5 · router LR ×0.5 | 0.697 | 1.32 | 0% | · | 77.9% | 0% | 0.02% | 13.1 | 0.0005 |
+| RLR2 · router LR ×2 | 0.709 | 1.21 | 0% | · | 71% | 0% | 0.13% | 13.4 | 0.001 |
+| RTADAMW · router 改用 AdamW，LR ×0.19 | 0.75 | 1.29 | 0% | · | 91.3% | 0.08% | 5.3% | 33.3 | 0.0005 |
+| RTMUONH · router 改用 MuonH | 0.766 | 1.67 | 0% | · | 55% | 0% | 0.09% | 11.8 | 0.0007 |
+| RTPIN · router 每行单独 hyperball（pin） | 0.794 | 1.62 | 0% | · | 75.5% | 0% | 0.02% | 11.8 | 0.0007 |
+| E2X（不用 QBX，参照） | 0.599 | 0.879 | 0% | 1.73 | 58% | 0% | 0.05% | 13.9 | 0.0007 |
+
+### 数据 derisk round 2
+
+两个 arm 都是 E2X 架构（latent d = h/2，512 个 routed expert 选 16 + 1 shared），在 11-06 的离线 prepack 数据上做 KD：pack plan `prepack_tcfull_snap1106_0731_q3e2x`（147.7B token，几乎不重复），teacher MiMo-V2.5-Pro-Base（tc_full cache），α 0.8、top-64、tail 采样 4 次（S64Y），doc mask。**A** = E2X 原版 router（DSV3 expert bias 1e-3 + seq aux 1e-4，也是 461B 生产默认）；**B** = E2X + QBX（quantile balancing，全局精确分位数；aux 0，无 expert bias；Megatron qbx2，255 bins）。两者命令行只差 router 的 4 个参数，数据和顺序、步数、LR、seed 1 都相同。
+0 线和老实验 tab 里“数据 derisk 和 2.5 vs 2.6”一节相同：8K 窗口 = 各线 − **MUONH_FIT**；32K 窗口 = 各线的 32K 窗口分数 − MUONH_FIT（8K 训练，用它的 8K 分数）。实线 = KD 的 A / B，两条实线的距离 = KD 下 QBX 的效果（B − A）；虚线 = 参照（650B 数据上的 CE：E2X 和 PROD1_DPSK）。只有 q1–q3（11-06 16:40 开始训练）；每个 checkpoint 训完后自动评测（同一次加载出 8K / 32K）、自动画上。
+
+| 线 | 数据 | 架构 | loss | Change ID（8K 窗口） |
+|---|---|---|---|---|
+| A：KD 2.5 · E2X · prepack 数据 | prepack 数据 147.7B token（tc_full 11-06 快照），32K；每个 rung 按顺序读前一段：q1 33.2B、q2 76.8B、q3 147.7B（整份） | PROD1_DPSK + latent MoE（d = h/2），routed expert 512 个选 16 个（= E2X）；router = DSV3 expert bias 1e-3 + seq aux 1e-4；文档 mask | KD，teacher MiMo-2.5-Pro-Base | `PROD1_DPSK_LATENT2_E2X_KD_A0P8_S64Y_MIMO25_PPFULL` |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | 同上 | 同上，只把 router 换成 QBX（quantile balancing，全局精确分位数；aux 0，无 expert bias） | KD，teacher MiMo-2.5-Pro-Base | `PROD1_DPSK_LATENT2_E2X_QBX_KD_A0P8_S64Y_MIMO25_PPFULL` |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | 同 A（同一个 pack plan、同顺序），只有 q1 | 同 A；代码换成生产的 megatron-lm（分支 xxdev，3B 生产脚本，原生 `--pack-plan`）：LayerWise + Megatron 的 hyperball，梯度归约 bf16 | 同 A | `ULTRA_XXDEV_3B_KD_A0P8_S64Y_MIMO25_PPFULL` |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 650B 数据，32K | PROD1_DPSK + latent MoE（d = h/2），routed expert 512 个选 16 个：每个 token 的计算量和 PROD1_DPSK 基本相同，routed 参数 ×2（不是等参数）；文档 mask | CE | `PROD1_DPSK_LATENT2_E2X` |
+| CE · PROD1_DPSK · 650B 数据（参照） | 650B 数据，32K | PROD1_DPSK（E2X 的基础架构：没有 latent MoE，expert 不加倍）；文档 mask | CE | `PROD1_DPSK` |
+| 0 线：MUONH_FIT · CE · 650B 数据<br>只在绝对值 tab | 650B 数据，8K | MUONH_FIT：128 选 8 MoE、softmax router、全注意力；MuonH、拟合 LR（前两个 tab 的 0 线） | CE | `MUONH_FIT` |
+
+A、B 都是 α 0.8（KD 0.8 + CE 0.2），tail = S64Y（top-64 + 采样 tail 4 draws，y 精确），MuonH + 拟合 LR，seed 1；数据 = pack plan `prepack_tcfull_snap1106_0731_q3e2x`（4,508,032 条 × 32K = 147.7B token，padding 0.03%；按 q3 的 70,438 步 × 64 条做的），A、B 读同一份、顺序相同；几乎不重复：各数据源被读到的比例中位数 2.8%，99% 分位 18.7%，最多 1.05 遍。32K 窗口的评测 Change ID 在后面加 _W32K。虚线 = 参照：650B 数据上 32K 训练（加文档 mask）的 CE，一条和 A 同架构、同 router（E2X），一条是 PROD1_DPSK 本身，所有 tab 都画（和「数据 derisk 和 2.5 vs 2.6」里同样的线）。
+
+**〔指标：overall_tsqw〕**
+
+**〔视图：8K 窗口 · 绝对值〕**
+
+**8K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据 | 2.1801 | 1.8971 | 1.7280 | 1.6151 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.1454 | 1.8567 | 1.6886 | 1.5754 | 1.4945 | 1.4315 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.0996 | 1.8072 | 1.6429 | 1.5324 | 1.4546 | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.7555 | 1.5858 | 1.4744 | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.7552 | 1.5871 | 1.4751 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.7545 | · | · | · | · |
+
+**〔视图：32K 窗口 · 绝对值〕**
+
+**32K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据（8K 窗口分数） | 2.1801 | 1.8971 | 1.7280 | 1.6151 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.1124 | 1.8255 | 1.6586 | 1.5465 | 1.4664 | 1.4040 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.0671 | 1.7768 | 1.6138 | 1.5042 | 1.4272 | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.7255 | 1.5570 | 1.4468 | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.7252 | 1.5584 | 1.4474 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.7245 | · | · | · | · |
+
+**〔视图：8K 窗口 · 差值〕**
+
 **8K 窗口：各线 − MUONH_FIT**
 
 0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0076 | -0.0074 | -0.0038 | -0.0015 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0262 | -0.0366 | -0.0355 | -0.0368 |
-| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0436 | -0.0426 | -0.0412 | · |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0438 | -0.0480 | -0.0442 | -0.0462 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0448 | -0.0489 | -0.0444 | -0.0485 |
-| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0477 | -0.0525 | -0.0480 | -0.0513 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0639 | -0.0752 | -0.0699 | · |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0663 | -0.0752 | -0.0752 | -0.0784 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0325 | -0.0417 | -0.0395 | -0.0397 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0782 | -0.0912 | -0.0851 | -0.0827 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1429 | -0.1422 | -0.1407 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1432 | -0.1409 | -0.1400 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1439 | · | · |
 
-**〔视图：32K 窗口〕**
+**〔视图：32K 窗口 · 差值〕**
 
 **32K 窗口：各线 − MUONH_FIT**
 
@@ -536,28 +2765,3190 @@ overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatabl
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
-| CE · MUONH_FIT · 新数据 | -0.0096 | -0.0093 | -0.0057 | -0.0033 |
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0280 | -0.0384 | -0.0373 | -0.0385 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0458 | -0.0498 | -0.0460 | -0.0479 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0467 | -0.0507 | -0.0461 | -0.0502 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0657 | -0.0769 | -0.0716 | · |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0682 | -0.0770 | -0.0770 | -0.0801 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0655 | -0.0729 | -0.0695 | -0.0686 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1108 | -0.1216 | -0.1143 | -0.1109 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1729 | -0.1711 | -0.1683 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1733 | -0.1696 | -0.1677 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1740 | · | · |
 
-**〔视图：32K 窗口 · 0 线 = 新 CE〕**
+**〔指标：overall_tw〕**
 
-**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
+**〔视图：8K 窗口 · 绝对值〕**
 
-0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
+**8K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据 | 2.1700 | 1.8835 | 1.7109 | 1.5949 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.1361 | 1.8423 | 1.6704 | 1.5542 | 1.4714 | 1.4067 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.0899 | 1.7921 | 1.6241 | 1.5103 | 1.4308 | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.7388 | 1.5645 | 1.4503 | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.7382 | 1.5659 | 1.4509 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.7377 | · | · | · | · |
+
+**〔视图：32K 窗口 · 绝对值〕**
+
+**32K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据（8K 窗口分数） | 2.1700 | 1.8835 | 1.7109 | 1.5949 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.1041 | 1.8122 | 1.6415 | 1.5263 | 1.4442 | 1.3801 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.0584 | 1.7627 | 1.5959 | 1.4831 | 1.4043 | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.7098 | 1.5366 | 1.4236 | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.7092 | 1.5381 | 1.4242 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.7087 | · | · | · | · |
+
+**〔视图：8K 窗口 · 差值〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
 
 | 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
 |---|---|---|---|---|
-| CE · PROD1_DPSK · 650B 数据（参照） | -0.0221 | -0.0291 | -0.0316 | -0.0352 |
-| KD 2.6 · MUONH_FIT · 新数据 | -0.0361 | -0.0405 | -0.0403 | -0.0446 |
-| KD 2.5 · MUONH_FIT · 新数据 | -0.0371 | -0.0414 | -0.0405 | -0.0469 |
-| KD 2.5 · PROD1_DPSK · 新数据 | -0.0586 | -0.0677 | -0.0713 | -0.0768 |
-| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0597 | -0.0676 | -0.0659 | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0320 | -0.0427 | -0.0404 | -0.0406 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0782 | -0.0930 | -0.0868 | -0.0846 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1462 | -0.1464 | -0.1445 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1468 | -0.1449 | -0.1440 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1474 | · | · |
 
-## 页签：doc-isolated老实验
+**〔视图：32K 窗口 · 差值〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0640 | -0.0729 | -0.0694 | -0.0686 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1097 | -0.1224 | -0.1149 | -0.1118 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1752 | -0.1742 | -0.1713 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1759 | -0.1727 | -0.1707 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1764 | · | · |
+
+**〔指标：overall_macro〕**
+
+**〔视图：8K 窗口 · 绝对值〕**
+
+**8K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据 | 2.2352 | 1.9572 | 1.7927 | 1.6839 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.2002 | 1.9176 | 1.7542 | 1.6450 | 1.5669 | 1.5062 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.1550 | 1.8697 | 1.7103 | 1.6036 | 1.5284 | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.8194 | 1.6555 | 1.5477 | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.8192 | 1.6568 | 1.5483 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.8183 | · | · | · | · |
+
+**〔视图：32K 窗口 · 绝对值〕**
+
+**32K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据（8K 窗口分数） | 2.2352 | 1.9572 | 1.7927 | 1.6839 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.1769 | 1.8956 | 1.7332 | 1.6248 | 1.5473 | 1.4871 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.1320 | 1.8483 | 1.6899 | 1.5839 | 1.5094 | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.7982 | 1.6353 | 1.5284 | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.7981 | 1.6367 | 1.5290 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.7973 | · | · | · | · |
+
+**〔视图：8K 窗口 · 差值〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0321 | -0.0408 | -0.0384 | -0.0389 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0773 | -0.0886 | -0.0824 | -0.0803 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1390 | -0.1372 | -0.1362 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1391 | -0.1358 | -0.1356 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1400 | · | · |
+
+**〔视图：32K 窗口 · 差值〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0554 | -0.0628 | -0.0595 | -0.0591 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1003 | -0.1100 | -0.1028 | -0.1000 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1601 | -0.1573 | -0.1555 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1602 | -0.1560 | -0.1549 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1611 | · | · |
+
+**〔指标：val_v2〕**
+
+**〔视图：8K 窗口 · 绝对值〕**
+
+**8K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据 | 1.7570 | 1.5329 | 1.4026 | 1.3166 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 1.7279 | 1.5025 | 1.3745 | 1.2890 | 1.2254 | 1.1762 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 1.6895 | 1.4642 | 1.3390 | 1.2553 | 1.1931 | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.4264 | 1.2990 | 1.2137 | · | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.4261 | 1.2978 | 1.2124 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.4256 | · | · | · | · |
+
+**〔视图：32K 窗口 · 绝对值〕**
+
+**32K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据（8K 窗口分数） | 1.7570 | 1.5329 | 1.4026 | 1.3166 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 1.6705 | 1.4483 | 1.3228 | 1.2390 | 1.1772 | 1.1291 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 1.6329 | 1.4116 | 1.2887 | 1.2068 | 1.1463 | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.3745 | 1.2494 | 1.1660 | · | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.3743 | 1.2483 | 1.1649 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.3737 | · | · | · | · |
+
+**〔视图：8K 窗口 · 差值〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0270 | -0.0316 | -0.0280 | -0.0276 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0654 | -0.0699 | -0.0636 | -0.0612 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1077 | -0.1036 | -0.1028 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1081 | -0.1048 | -0.1042 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1085 | · | · |
+
+**〔视图：32K 窗口 · 差值〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0844 | -0.0858 | -0.0797 | -0.0775 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1220 | -0.1225 | -0.1138 | -0.1097 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1596 | -0.1532 | -0.1506 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1599 | -0.1543 | -0.1517 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1604 | · | · |
+
+**〔指标：uncheatable〕**
+
+**〔视图：8K 窗口 · 绝对值〕**
+
+**8K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据 | 2.1934 | 1.8923 | 1.7075 | 1.5825 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.1609 | 1.8485 | 1.6640 | 1.5383 | 1.4504 | 1.3810 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.1126 | 1.7962 | 1.6157 | 1.4920 | 1.4082 | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.7384 | 1.5496 | 1.4270 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.7370 | · | · | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.7370 | 1.5514 | 1.4276 | · | · |
+
+**〔视图：32K 窗口 · 绝对值〕**
+
+**32K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据（8K 窗口分数） | 2.1934 | 1.8923 | 1.7075 | 1.5825 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.1348 | 1.8232 | 1.6387 | 1.5134 | 1.4256 | 1.3566 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.0868 | 1.7713 | 1.5910 | 1.4674 | 1.3840 | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.7135 | 1.5248 | 1.4027 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.7122 | · | · | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.7121 | 1.5267 | 1.4034 | · | · |
+
+**〔视图：8K 窗口 · 差值〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0302 | -0.0466 | -0.0435 | -0.0442 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0785 | -0.0990 | -0.0918 | -0.0905 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1568 | -0.1578 | -0.1555 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1581 | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1581 | -0.1560 | -0.1549 |
+
+**〔视图：32K 窗口 · 差值〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0564 | -0.0719 | -0.0687 | -0.0691 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1043 | -0.1238 | -0.1165 | -0.1150 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1816 | -0.1826 | -0.1798 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1830 | · | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1831 | -0.1807 | -0.1791 |
+
+**〔指标：codefresh〕**
+
+**〔视图：8K 窗口 · 绝对值〕**
+
+**8K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据 | 1.7151 | 1.3969 | 1.2219 | 1.1107 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 1.6721 | 1.3548 | 1.1803 | 1.0676 | 0.9919 | 0.9342 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 1.6200 | 1.2975 | 1.1298 | 1.0245 | 0.9525 | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.2433 | 1.0725 | 0.9633 | · | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.2423 | 1.0706 | 0.9614 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.2414 | · | · | · | · |
+
+**〔视图：32K 窗口 · 绝对值〕**
+
+**32K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据（8K 窗口分数） | 1.7151 | 1.3969 | 1.2219 | 1.1107 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 1.6721 | 1.3548 | 1.1803 | 1.0676 | 0.9919 | 0.9342 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 1.6200 | 1.2975 | 1.1298 | 1.0245 | 0.9525 | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.2433 | 1.0725 | 0.9633 | · | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.2423 | 1.0706 | 0.9614 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.2414 | · | · | · | · |
+
+**〔视图：8K 窗口 · 差值〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0386 | -0.0429 | -0.0416 | -0.0431 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0907 | -0.1002 | -0.0920 | -0.0861 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1545 | -0.1494 | -0.1473 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1554 | -0.1513 | -0.1493 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1563 | · | · |
+
+**〔视图：32K 窗口 · 差值〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0386 | -0.0429 | -0.0416 | -0.0431 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0907 | -0.1002 | -0.0920 | -0.0861 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1545 | -0.1494 | -0.1473 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1554 | -0.1513 | -0.1493 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1563 | · | · |
+
+**〔指标：private_internal〕**
+
+**〔视图：8K 窗口 · 绝对值〕**
+
+**8K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据 | 2.3515 | 2.1000 | 1.9543 | 1.8600 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.3209 | 2.0647 | 1.9188 | 1.8232 | 1.7554 | 1.7021 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.2833 | 2.0262 | 1.8844 | 1.7891 | 1.7239 | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.9843 | 1.8384 | 1.7431 | · | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.9841 | 1.8386 | 1.7432 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.9825 | · | · | · | · |
+
+**〔视图：32K 窗口 · 绝对值〕**
+
+**32K 窗口：val_loss 绝对值（log-log）**
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B | q5 · 1.84B |
+|---|---|---|---|---|---|---|
+| 0 线：MUONH_FIT · CE · 650B 数据（8K 窗口分数） | 2.3515 | 2.1000 | 1.9543 | 1.8600 | · | · |
+| CE · PROD1_DPSK · 650B 数据（参照） | 2.3191 | 2.0629 | 1.9170 | 1.8215 | 1.7537 | 1.7005 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 2.2814 | 2.0244 | 1.8827 | 1.7874 | 1.7223 | · |
+| A：KD 2.5 · E2X · prepack 数据 | · | 1.9826 | 1.8367 | 1.7414 | · | · |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | 1.9823 | 1.8368 | 1.7415 | · | · |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | 1.9807 | · | · | · | · |
+
+**〔视图：8K 窗口 · 差值〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0262 | -0.0366 | -0.0355 | -0.0368 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0639 | -0.0752 | -0.0699 | -0.0710 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1170 | -0.1159 | -0.1169 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1173 | -0.1158 | -0.1169 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1188 | · | · |
+
+**〔视图：32K 窗口 · 差值〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0280 | -0.0384 | -0.0373 | -0.0385 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0657 | -0.0769 | -0.0716 | -0.0727 |
+| A：KD 2.5 · E2X · prepack 数据 | · | -0.1188 | -0.1177 | -0.1186 |
+| B：KD 2.5 · E2X + QBX · prepack 数据 | · | -0.1190 | -0.1175 | -0.1186 |
+| C：A 的 q1 · 在 megatron-lm 上重跑 | · | -0.1206 | · | · |
+
+#### C：A 的 q1 在 megatron-lm 上重跑（pack plan 迁移的 derisk）
+
+把 A 的 q1（同一个 pack plan、同样的 KD 设定、seed 1）放到生产代码 megatron-lm 上重跑：分支 xxdev，原生 `--pack-plan` dataloader，3B 生产脚本，8 节点，job 56389 → 56500，15,824 步，11-10 03:49 跑完。和 A 的差别只是生产代码自己的选择：LayerWise + Megatron 的 hyperball、梯度归约 bf16（A 是 fp32）、没有 fast step、训练中只测 val v2。
+**数据完全一致**：两边都打印了的 1,583 个日志点里，1,552 个 teacher tail mass 每一位相同，其余 31 个只在第 7 位有效数字上不同（相对误差 ≤ 4.5e-7，fp32 求和顺序），所以每一步读的数据行和 teacher 行都和 A 相同。KD coverage 一直是 1，token mismatch 一直是 0。
+**训练 loss**：lm loss 全程平均比 A 低约 0.1%；最后 500 步平均 1.70087（A 1.70254）。训练中的 val v2 lm loss 第 15000 步 1.3700。
+**doc-isolated 评测**（和上图同样的 115 个 split，job 57306–57308）：下表 7 个指标的 C − A 在 −0.0019 到 +0.0001 之间；按 9 个 suite 看，最大 +0.0005（arxiv），平均 −0.0009（8K）/ −0.0008（32K），C 低的 6 个、高的 3 个。迁移后的 q1 和 ladder 原 run 一致，C 略低。
+
+| 指标 | 8K 窗口 / C | 8K 窗口 / A | 8K 窗口 / C − A | 32K 窗口 / C | 32K 窗口 / A | 32K 窗口 / C − A |
+|---|---|---|---|---|---|---|
+| overall_tsqw | 1.7545 | 1.7552 | -0.0008 | 1.7245 | 1.7252 | -0.0007 |
+| overall_tw | 1.7377 | 1.7382 | -0.0005 | 1.7087 | 1.7092 | -0.0005 |
+| overall_macro | 1.8183 | 1.8192 | -0.0009 | 1.7973 | 1.7981 | -0.0008 |
+| val_v2 | 1.4256 | 1.4264 | -0.0008 | 1.3737 | 1.3745 | -0.0007 |
+| uncheatable | 1.7370 | 1.7370 | +0.0000 | 1.7122 | 1.7121 | +0.0001 |
+| codefresh | 1.2414 | 1.2433 | -0.0019 | 1.2414 | 1.2433 | -0.0019 |
+| private_internal | 1.9825 | 1.9843 | -0.0019 | 1.9807 | 1.9826 | -0.0018 |
+
+#### Router health：A vs B（训练日志）
+
+来自训练日志的 router health（每 100 步一行，所有层汇总）。两条线 = KD 的 A / B，颜色和上面评测图一致；鼠标移到图上看名字和数值。dead expert 的百分比按（层数 × 512）算。MaxVio 0 = 完全均衡。
+
+**router health 各指标的说明**
+
+数据来自训练时挂的监测脚本 `router_health.py`，每 100 步记一次，覆盖所有 MoE 层。图上方的按钮就是下表的 9 个指标。
+
+| 指标 | 怎么算 | 怎么看 |
+|---|---|---|
+| MaxVio（层平均） | 每一层：在一整个训练 step（所有 micro-batch、所有 GPU）里数 512 个 expert 各收到多少 token，MaxVio = 最多的那个 ÷ 平均值 − 1（DeepSeek-V3 的定义）；再对所有 MoE 层取平均。 | 越小越均衡，0 = 完全均衡；1 表示最忙的 expert 收到平均值的 2 倍。 |
+| MaxVio（最差层） | 同上，取最不均衡的那一层。 | 越小越好；看有没有个别层特别不均衡。 |
+| dead expert (%) | 一个 step 里收到的 token 不到平均值 10% 的 expert 个数，占（层数 × 512）的百分比。 | 应为 0；大于 0 说明有 expert 几乎没被用到。 |
+| \|bias\| 最大 | A（E2X router）每个 expert 有一个 bias，只影响选哪些 expert；取所有层里绝对值最大的那个。 | 预设健康上限 1（红色虚线）。同一层的 bias 一起抬高不改变路由，起作用的是层内 bias 之间的差。B 没有这条线：QBX 不用 expert bias，它的门槛 β 监测脚本没有记录。 |
+| logit 饱和 (%) | router logit z（= 输入 × router 权重，fp32，不含 bias / β）中 \|z\| > 4 的比例，各层平均；只看 rank 0 的第一个 micro-batch。 | 同时包括 z < −4（明确不选某个 expert，正常，训练后期占大多数）和 z > +4（见下一行），所以单看这个数分不出好坏。 |
+| z > +4 (%) | 同上，只数 z > +4 的比例。 | sigmoid 分数被钉在 1 附近，被选中的 expert 之间失去区分度（坏）；预设上限 5%（红色虚线）。 |
+| top-8 pinned (%) | 每个 token 最大的 8 个 logit 里 z > +4 的比例（固定看前 8 个，虽然 E2X 每个 token 选 16 个 expert）。 | 越低越好；预设上限 5%（红色虚线）。 |
+| 最大 \|logit\| | 所有层里最大的 \|z\|（rank 0 的第一个 micro-batch）。 | 看 logit 有没有一直变大、失控；持续上升是坏信号。 |
+| gate 更新幅度 | router 权重这一步的变化量 ÷ 权重本身的大小（Frobenius 范数之比），各层平均。 | 只作参考，不作判据；突然变大或接近 0 时再细看。 |
+
+**〔指标：MaxVio（层平均）〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~2,191 | 1.84 | 0.521 |
+| q1 · step ~3,375 | 2.16 | 0.56 |
+| q1 · step ~4,558 | 1.34 | 0.606 |
+| q1 · step ~5,741 | 1.56 | 0.56 |
+| q1 · step ~6,925 | 1.31 | 0.474 |
+| q1 · step ~8,108 | 1.5 | 0.787 |
+| q1 · step ~9,883 | 1.22 | 0.543 |
+| q1 · step ~11,066 | 1.03 | 0.422 |
+| q1 · step ~12,250 | 0.92 | 0.847 |
+| q1 · step ~13,433 | 0.598 | 0.494 |
+| q1 · step ~14,616 | 0.498 | 0.465 |
+| q1 · step ~15,800 | 0.447 | 0.479 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~62 | 1.01 | 1.01 |
+| q1 · step ~125 | 4.57 | 1.06 |
+| q1 · step ~312 | 2.13 | 0.642 |
+| q1 · step ~437 | 1.98 | 0.552 |
+| q1 · step ~562 | 1.65 | 0.65 |
+| q1 · step ~750 | 1.9 | 0.552 |
+| q1 · step ~812 | 1.83 | 0.725 |
+| q1 · step ~1,062 | 2.08 | 0.529 |
+| q1 · step ~1,125 | 1.74 | 0.627 |
+| q1 · step ~1,250 | 2.62 | 0.588 |
+| q1 · step ~1,437 | 1.93 | 0.68 |
+| q1 · step ~1,500 | 1.78 | 0.58 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~658 | 1.81 | 0.607 |
+| q1 · step ~1,975 | 1.78 | 0.547 |
+| q1 · step ~3,291 | 1.78 | 0.573 |
+| q1 · step ~4,608 | 1.54 | 0.48 |
+| q1 · step ~5,925 | 1.42 | 0.638 |
+| q1 · step ~7,241 | 1.62 | 0.824 |
+| q1 · step ~9,216 | 1.38 | 0.438 |
+| q1 · step ~10,533 | 1.31 | 0.56 |
+| q1 · step ~11,850 | 0.787 | 0.474 |
+| q1 · step ~13,166 | 0.626 | 0.435 |
+| q1 · step ~14,483 | 0.539 | 0.475 |
+| q1 · step ~15,800 | 0.447 | 0.479 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~5,070 | 2.07 | 0.612 |
+| q2 · step ~7,812 | 1.98 | 0.517 |
+| q2 · step ~10,554 | 2.02 | 0.633 |
+| q2 · step ~13,295 | 1.93 | 0.434 |
+| q2 · step ~16,037 | 1.56 | 0.394 |
+| q2 · step ~18,779 | 1.4 | 0.442 |
+| q2 · step ~22,891 | 1.37 | 0.564 |
+| q2 · step ~25,633 | 0.932 | 0.531 |
+| q2 · step ~28,375 | 0.773 | 0.649 |
+| q2 · step ~31,116 | 0.539 | 0.384 |
+| q2 · step ~33,858 | 0.529 | 0.486 |
+| q2 · step ~36,600 | 0.758 | 0.885 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~150 | 5.23 | 0.894 |
+| q2 · step ~450 | 2.06 | 0.551 |
+| q2 · step ~750 | 2.48 | 0.556 |
+| q2 · step ~1,050 | 1.7 | 0.454 |
+| q2 · step ~1,350 | 2.05 | 0.572 |
+| q2 · step ~1,650 | 2.01 | 0.424 |
+| q2 · step ~2,100 | 2.08 | 0.566 |
+| q2 · step ~2,400 | 2.19 | 0.585 |
+| q2 · step ~2,700 | 1.76 | 0.555 |
+| q2 · step ~3,000 | 2.06 | 0.593 |
+| q2 · step ~3,300 | 2.19 | 0.552 |
+| q2 · step ~3,600 | 2.44 | 0.599 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~1,525 | 1.98 | 0.54 |
+| q2 · step ~4,575 | 2.18 | 0.477 |
+| q2 · step ~7,625 | 2.4 | 0.583 |
+| q2 · step ~10,675 | 2 | 0.742 |
+| q2 · step ~13,725 | 1.86 | 0.642 |
+| q2 · step ~16,775 | 1.59 | 0.533 |
+| q2 · step ~21,350 | 1.66 | 0.496 |
+| q2 · step ~24,400 | 0.953 | 0.462 |
+| q2 · step ~27,450 | 0.741 | 0.451 |
+| q2 · step ~30,500 | 0.527 | 0.361 |
+| q2 · step ~33,550 | 0.531 | 0.613 |
+| q2 · step ~36,600 | 0.758 | 0.885 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~9,737 | 1.96 | 0.499 |
+| q3 · step ~15,012 | 1.89 | 0.771 |
+| q3 · step ~20,287 | 1.94 | 0.49 |
+| q3 · step ~25,562 | 1.86 | 0.592 |
+| q3 · step ~30,837 | 1.76 | 0.549 |
+| q3 · step ~36,112 | 1.57 | 0.754 |
+| q3 · step ~44,025 | 1.34 | 0.475 |
+| q3 · step ~49,300 | 0.951 | 0.388 |
+| q3 · step ~54,575 | 1.02 | 0.679 |
+| q3 · step ~59,850 | 0.659 | 0.569 |
+| q3 · step ~65,125 | 0.555 | 0.569 |
+| q3 · step ~70,400 | 0.694 | 0.477 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~291 | 1.82 | 0.713 |
+| q3 · step ~875 | 1.43 | 0.518 |
+| q3 · step ~1,458 | 2.2 | 0.47 |
+| q3 · step ~2,041 | 1.83 | 0.533 |
+| q3 · step ~2,625 | 1.96 | 0.51 |
+| q3 · step ~3,208 | 1.98 | 0.506 |
+| q3 · step ~4,083 | 2.11 | 0.45 |
+| q3 · step ~4,666 | 2.15 | 0.467 |
+| q3 · step ~5,250 | 1.81 | 0.541 |
+| q3 · step ~5,833 | 2 | 0.511 |
+| q3 · step ~6,416 | 1.96 | 0.692 |
+| q3 · step ~7,000 | 1.91 | 0.423 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~2,933 | 1.87 | 0.623 |
+| q3 · step ~8,800 | 2.06 | 0.608 |
+| q3 · step ~14,666 | 1.86 | 0.543 |
+| q3 · step ~20,533 | 1.96 | 0.664 |
+| q3 · step ~26,400 | 1.61 | 0.637 |
+| q3 · step ~32,266 | 1.54 | 0.386 |
+| q3 · step ~41,066 | 1.31 | 0.418 |
+| q3 · step ~46,933 | 1.13 | 0.775 |
+| q3 · step ~52,800 | 0.753 | 0.476 |
+| q3 · step ~58,666 | 0.539 | 0.429 |
+| q3 · step ~64,533 | 0.518 | 0.557 |
+| q3 · step ~70,400 | 0.694 | 0.477 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔指标：MaxVio（最差层）〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~2,191 | 5.16 | 0.651 |
+| q1 · step ~3,375 | 10.2 | 0.9 |
+| q1 · step ~4,558 | 2.95 | 0.941 |
+| q1 · step ~5,741 | 4.83 | 0.728 |
+| q1 · step ~6,925 | 2.84 | 0.605 |
+| q1 · step ~8,108 | 5.57 | 1.34 |
+| q1 · step ~9,883 | 5.05 | 0.758 |
+| q1 · step ~11,066 | 3.41 | 0.664 |
+| q1 · step ~12,250 | 1.68 | 1.27 |
+| q1 · step ~13,433 | 0.802 | 0.627 |
+| q1 · step ~14,616 | 0.671 | 0.798 |
+| q1 · step ~15,800 | 0.531 | 0.662 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~62 | 5 | 5 |
+| q1 · step ~125 | 9.24 | 1.73 |
+| q1 · step ~312 | 3.39 | 1.02 |
+| q1 · step ~437 | 5.1 | 0.771 |
+| q1 · step ~562 | 3.1 | 1 |
+| q1 · step ~750 | 5.17 | 0.767 |
+| q1 · step ~812 | 5.95 | 0.949 |
+| q1 · step ~1,062 | 6.28 | 0.886 |
+| q1 · step ~1,125 | 3.88 | 0.837 |
+| q1 · step ~1,250 | 10.9 | 0.879 |
+| q1 · step ~1,437 | 4.66 | 0.913 |
+| q1 · step ~1,500 | 4.16 | 0.715 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~658 | 4.44 | 0.758 |
+| q1 · step ~1,975 | 4.91 | 0.631 |
+| q1 · step ~3,291 | 4.29 | 0.709 |
+| q1 · step ~4,608 | 3.91 | 0.669 |
+| q1 · step ~5,925 | 3.23 | 0.896 |
+| q1 · step ~7,241 | 6.26 | 1.53 |
+| q1 · step ~9,216 | 4.51 | 0.645 |
+| q1 · step ~10,533 | 3.58 | 0.797 |
+| q1 · step ~11,850 | 1.9 | 0.665 |
+| q1 · step ~13,166 | 1.42 | 0.606 |
+| q1 · step ~14,483 | 0.932 | 0.629 |
+| q1 · step ~15,800 | 0.531 | 0.662 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~5,070 | 6.18 | 1.08 |
+| q2 · step ~7,812 | 5.87 | 0.788 |
+| q2 · step ~10,554 | 5.47 | 0.88 |
+| q2 · step ~13,295 | 6.71 | 0.69 |
+| q2 · step ~16,037 | 3.6 | 0.533 |
+| q2 · step ~18,779 | 3.54 | 0.675 |
+| q2 · step ~22,891 | 4.33 | 0.781 |
+| q2 · step ~25,633 | 2.23 | 0.843 |
+| q2 · step ~28,375 | 1.81 | 0.971 |
+| q2 · step ~31,116 | 1.1 | 0.526 |
+| q2 · step ~33,858 | 0.984 | 0.682 |
+| q2 · step ~36,600 | 1.15 | 1.35 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~150 | 15.1 | 1.51 |
+| q2 · step ~450 | 5.01 | 0.735 |
+| q2 · step ~750 | 14.5 | 0.785 |
+| q2 · step ~1,050 | 5.88 | 0.627 |
+| q2 · step ~1,350 | 6.95 | 0.826 |
+| q2 · step ~1,650 | 6.52 | 0.65 |
+| q2 · step ~2,100 | 7.26 | 0.726 |
+| q2 · step ~2,400 | 6.62 | 0.833 |
+| q2 · step ~2,700 | 4.72 | 0.74 |
+| q2 · step ~3,000 | 7.43 | 0.803 |
+| q2 · step ~3,300 | 6.81 | 0.91 |
+| q2 · step ~3,600 | 8.69 | 0.939 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~1,525 | 5.97 | 1.24 |
+| q2 · step ~4,575 | 7.11 | 0.679 |
+| q2 · step ~7,625 | 5.74 | 0.967 |
+| q2 · step ~10,675 | 5.86 | 1.03 |
+| q2 · step ~13,725 | 4.7 | 0.874 |
+| q2 · step ~16,775 | 4.51 | 0.866 |
+| q2 · step ~21,350 | 5.14 | 0.76 |
+| q2 · step ~24,400 | 2.24 | 0.634 |
+| q2 · step ~27,450 | 1.51 | 0.692 |
+| q2 · step ~30,500 | 1.03 | 0.486 |
+| q2 · step ~33,550 | 1.12 | 0.791 |
+| q2 · step ~36,600 | 1.15 | 1.35 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~9,737 | 3.82 | 0.773 |
+| q3 · step ~15,012 | 4.03 | 1.14 |
+| q3 · step ~20,287 | 3.32 | 0.756 |
+| q3 · step ~25,562 | 4.69 | 0.841 |
+| q3 · step ~30,837 | 3.62 | 1.08 |
+| q3 · step ~36,112 | 4.2 | 1.14 |
+| q3 · step ~44,025 | 3.02 | 0.799 |
+| q3 · step ~49,300 | 2.55 | 0.744 |
+| q3 · step ~54,575 | 2.69 | 0.992 |
+| q3 · step ~59,850 | 1.05 | 0.822 |
+| q3 · step ~65,125 | 1.16 | 0.931 |
+| q3 · step ~70,400 | 3.7 | 0.792 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~291 | 3.77 | 1.43 |
+| q3 · step ~875 | 3.98 | 0.734 |
+| q3 · step ~1,458 | 12.4 | 0.832 |
+| q3 · step ~2,041 | 5.02 | 0.678 |
+| q3 · step ~2,625 | 8.67 | 0.809 |
+| q3 · step ~3,208 | 5.72 | 0.642 |
+| q3 · step ~4,083 | 5.64 | 0.642 |
+| q3 · step ~4,666 | 9.05 | 0.765 |
+| q3 · step ~5,250 | 4.1 | 1.19 |
+| q3 · step ~5,833 | 4.01 | 0.748 |
+| q3 · step ~6,416 | 4.79 | 0.949 |
+| q3 · step ~7,000 | 5.11 | 0.663 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~2,933 | 4.96 | 1.18 |
+| q3 · step ~8,800 | 5.82 | 0.981 |
+| q3 · step ~14,666 | 3.75 | 0.821 |
+| q3 · step ~20,533 | 4.23 | 1.06 |
+| q3 · step ~26,400 | 3.07 | 1.01 |
+| q3 · step ~32,266 | 4.59 | 0.615 |
+| q3 · step ~41,066 | 3.46 | 0.544 |
+| q3 · step ~46,933 | 1.95 | 1.27 |
+| q3 · step ~52,800 | 1.6 | 0.87 |
+| q3 · step ~58,666 | 1.31 | 0.692 |
+| q3 · step ~64,533 | 1.34 | 0.774 |
+| q3 · step ~70,400 | 3.7 | 0.792 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔指标：dead expert (%)〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~2,191 | 0.138% | 0% |
+| q1 · step ~3,375 | 0.161% | 0% |
+| q1 · step ~4,558 | 0.0919% | 0% |
+| q1 · step ~5,741 | 0.0345% | 0% |
+| q1 · step ~6,925 | 0.023% | 0% |
+| q1 · step ~8,108 | 0.0345% | 0% |
+| q1 · step ~9,883 | 0.023% | 0% |
+| q1 · step ~11,066 | 0% | 0% |
+| q1 · step ~12,250 | 0% | 0% |
+| q1 · step ~13,433 | 0% | 0% |
+| q1 · step ~14,616 | 0% | 0% |
+| q1 · step ~15,800 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~62 | 0.023% | 0.023% |
+| q1 · step ~125 | 1.76% | 0% |
+| q1 · step ~312 | 0.54% | 0% |
+| q1 · step ~437 | 0.528% | 0% |
+| q1 · step ~562 | 0.276% | 0% |
+| q1 · step ~750 | 0.172% | 0% |
+| q1 · step ~812 | 0.161% | 0% |
+| q1 · step ~1,062 | 0.115% | 0% |
+| q1 · step ~1,125 | 0.207% | 0% |
+| q1 · step ~1,250 | 0.207% | 0% |
+| q1 · step ~1,437 | 0.0919% | 0% |
+| q1 · step ~1,500 | 0.126% | 0% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~658 | 0.23% | 0% |
+| q1 · step ~1,975 | 0.126% | 0% |
+| q1 · step ~3,291 | 0.161% | 0% |
+| q1 · step ~4,608 | 0.0804% | 0% |
+| q1 · step ~5,925 | 0.126% | 0% |
+| q1 · step ~7,241 | 0.0345% | 0% |
+| q1 · step ~9,216 | 0.0115% | 0% |
+| q1 · step ~10,533 | 0.0115% | 0% |
+| q1 · step ~11,850 | 0% | 0% |
+| q1 · step ~13,166 | 0% | 0% |
+| q1 · step ~14,483 | 0% | 0% |
+| q1 · step ~15,800 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~5,070 | 0.0934% | 0% |
+| q2 · step ~7,812 | 0.11% | 0% |
+| q2 · step ~10,554 | 0.0764% | 0% |
+| q2 · step ~13,295 | 0.0764% | 0% |
+| q2 · step ~16,037 | 0.0934% | 0% |
+| q2 · step ~18,779 | 0% | 0% |
+| q2 · step ~22,891 | 0.00849% | 0% |
+| q2 · step ~25,633 | 0% | 0% |
+| q2 · step ~28,375 | 0% | 0% |
+| q2 · step ~31,116 | 0% | 0% |
+| q2 · step ~33,858 | 0% | 0% |
+| q2 · step ~36,600 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~150 | 1.26% | 0% |
+| q2 · step ~450 | 0.628% | 0% |
+| q2 · step ~750 | 0.289% | 0% |
+| q2 · step ~1,050 | 0.17% | 0% |
+| q2 · step ~1,350 | 0.187% | 0% |
+| q2 · step ~1,650 | 0.178% | 0% |
+| q2 · step ~2,100 | 0.0934% | 0% |
+| q2 · step ~2,400 | 0.212% | 0% |
+| q2 · step ~2,700 | 0.119% | 0% |
+| q2 · step ~3,000 | 0.0934% | 0% |
+| q2 · step ~3,300 | 0.0764% | 0% |
+| q2 · step ~3,600 | 0.178% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~1,525 | 0.136% | 0% |
+| q2 · step ~4,575 | 0.144% | 0% |
+| q2 · step ~7,625 | 0.0594% | 0% |
+| q2 · step ~10,675 | 0.0594% | 0% |
+| q2 · step ~13,725 | 0.0425% | 0% |
+| q2 · step ~16,775 | 0.0425% | 0% |
+| q2 · step ~21,350 | 0% | 0% |
+| q2 · step ~24,400 | 0% | 0% |
+| q2 · step ~27,450 | 0% | 0% |
+| q2 · step ~30,500 | 0% | 0% |
+| q2 · step ~33,550 | 0% | 0% |
+| q2 · step ~36,600 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~9,737 | 0.0539% | 0% |
+| q3 · step ~15,012 | 0.0673% | 0% |
+| q3 · step ~20,287 | 0.00673% | 0% |
+| q3 · step ~25,562 | 0.0404% | 0% |
+| q3 · step ~30,837 | 0.0202% | 0% |
+| q3 · step ~36,112 | 0% | 0% |
+| q3 · step ~44,025 | 0% | 0% |
+| q3 · step ~49,300 | 0% | 0% |
+| q3 · step ~54,575 | 0% | 0% |
+| q3 · step ~59,850 | 0% | 0.00673% |
+| q3 · step ~65,125 | 0% | 0% |
+| q3 · step ~70,400 | 0.00673% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~291 | 0.141% | 0% |
+| q3 · step ~875 | 0.0539% | 0% |
+| q3 · step ~1,458 | 0.108% | 0% |
+| q3 · step ~2,041 | 0.0943% | 0% |
+| q3 · step ~2,625 | 0.0876% | 0% |
+| q3 · step ~3,208 | 0.0539% | 0% |
+| q3 · step ~4,083 | 0.0539% | 0% |
+| q3 · step ~4,666 | 0.0741% | 0% |
+| q3 · step ~5,250 | 0.0741% | 0% |
+| q3 · step ~5,833 | 0.0606% | 0% |
+| q3 · step ~6,416 | 0.0808% | 0% |
+| q3 · step ~7,000 | 0.0741% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~2,933 | 0.0606% | 0% |
+| q3 · step ~8,800 | 0.108% | 0% |
+| q3 · step ~14,666 | 0.0943% | 0% |
+| q3 · step ~20,533 | 0.0202% | 0% |
+| q3 · step ~26,400 | 0.0337% | 0% |
+| q3 · step ~32,266 | 0.0135% | 0% |
+| q3 · step ~41,066 | 0% | 0% |
+| q3 · step ~46,933 | 0.00673% | 0% |
+| q3 · step ~52,800 | 0% | 0% |
+| q3 · step ~58,666 | 0% | 0% |
+| q3 · step ~64,533 | 0% | 0% |
+| q3 · step ~70,400 | 0.00673% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔指标：|bias| 最大〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q1 · step ~2,191 | 0.41 |
+| q1 · step ~3,375 | 0.594 |
+| q1 · step ~4,558 | 0.778 |
+| q1 · step ~5,741 | 0.954 |
+| q1 · step ~6,925 | 1.11 |
+| q1 · step ~8,108 | 1.25 |
+| q1 · step ~9,883 | 1.42 |
+| q1 · step ~11,066 | 1.51 |
+| q1 · step ~12,250 | 1.57 |
+| q1 · step ~13,433 | 1.61 |
+| q1 · step ~14,616 | 1.66 |
+| q1 · step ~15,800 | 1.71 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q1 · step ~62 | 0.001 |
+| q1 · step ~125 | 0.1 |
+| q1 · step ~312 | 0.236 |
+| q1 · step ~437 | 0.184 |
+| q1 · step ~562 | 0.174 |
+| q1 · step ~750 | 0.19 |
+| q1 · step ~812 | 0.202 |
+| q1 · step ~1,062 | 0.226 |
+| q1 · step ~1,125 | 0.245 |
+| q1 · step ~1,250 | 0.262 |
+| q1 · step ~1,437 | 0.296 |
+| q1 · step ~1,500 | 0.312 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q1 · step ~658 | 0.18 |
+| q1 · step ~1,975 | 0.376 |
+| q1 · step ~3,291 | 0.582 |
+| q1 · step ~4,608 | 0.796 |
+| q1 · step ~5,925 | 0.98 |
+| q1 · step ~7,241 | 1.15 |
+| q1 · step ~9,216 | 1.37 |
+| q1 · step ~10,533 | 1.48 |
+| q1 · step ~11,850 | 1.55 |
+| q1 · step ~13,166 | 1.6 |
+| q1 · step ~14,483 | 1.65 |
+| q1 · step ~15,800 | 1.71 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q2 · step ~5,070 | 1.05 |
+| q2 · step ~7,812 | 1.58 |
+| q2 · step ~10,554 | 2.05 |
+| q2 · step ~13,295 | 2.49 |
+| q2 · step ~16,037 | 2.9 |
+| q2 · step ~18,779 | 3.28 |
+| q2 · step ~22,891 | 3.78 |
+| q2 · step ~25,633 | 4.05 |
+| q2 · step ~28,375 | 4.25 |
+| q2 · step ~31,116 | 4.41 |
+| q2 · step ~33,858 | 4.56 |
+| q2 · step ~36,600 | 4.74 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q2 · step ~150 | 0.1 |
+| q2 · step ~450 | 0.2 |
+| q2 · step ~750 | 0.228 |
+| q2 · step ~1,050 | 0.274 |
+| q2 · step ~1,350 | 0.346 |
+| q2 · step ~1,650 | 0.394 |
+| q2 · step ~2,100 | 0.474 |
+| q2 · step ~2,400 | 0.538 |
+| q2 · step ~2,700 | 0.596 |
+| q2 · step ~3,000 | 0.656 |
+| q2 · step ~3,300 | 0.708 |
+| q2 · step ~3,600 | 0.788 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q2 · step ~1,525 | 0.372 |
+| q2 · step ~4,575 | 0.962 |
+| q2 · step ~7,625 | 1.54 |
+| q2 · step ~10,675 | 2.07 |
+| q2 · step ~13,725 | 2.57 |
+| q2 · step ~16,775 | 3.01 |
+| q2 · step ~21,350 | 3.62 |
+| q2 · step ~24,400 | 3.93 |
+| q2 · step ~27,450 | 4.2 |
+| q2 · step ~30,500 | 4.37 |
+| q2 · step ~33,550 | 4.54 |
+| q2 · step ~36,600 | 4.74 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q3 · step ~9,737 | 1.78 |
+| q3 · step ~15,012 | 2.62 |
+| q3 · step ~20,287 | 3.4 |
+| q3 · step ~25,562 | 4.15 |
+| q3 · step ~30,837 | 4.84 |
+| q3 · step ~36,112 | 5.47 |
+| q3 · step ~44,025 | 6.28 |
+| q3 · step ~49,300 | 6.7 |
+| q3 · step ~54,575 | 7.01 |
+| q3 · step ~59,850 | 7.19 |
+| q3 · step ~65,125 | 7.33 |
+| q3 · step ~70,400 | 7.54 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q3 · step ~291 | 0.2 |
+| q3 · step ~875 | 0.25 |
+| q3 · step ~1,458 | 0.344 |
+| q3 · step ~2,041 | 0.446 |
+| q3 · step ~2,625 | 0.554 |
+| q3 · step ~3,208 | 0.652 |
+| q3 · step ~4,083 | 0.794 |
+| q3 · step ~4,666 | 0.9 |
+| q3 · step ~5,250 | 1.01 |
+| q3 · step ~5,833 | 1.11 |
+| q3 · step ~6,416 | 1.22 |
+| q3 · step ~7,000 | 1.32 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD |
+|---|---|
+| q3 · step ~2,933 | 0.6 |
+| q3 · step ~8,800 | 1.62 |
+| q3 · step ~14,666 | 2.56 |
+| q3 · step ~20,533 | 3.45 |
+| q3 · step ~26,400 | 4.26 |
+| q3 · step ~32,266 | 5.02 |
+| q3 · step ~41,066 | 6 |
+| q3 · step ~46,933 | 6.52 |
+| q3 · step ~52,800 | 6.91 |
+| q3 · step ~58,666 | 7.16 |
+| q3 · step ~64,533 | 7.32 |
+| q3 · step ~70,400 | 7.54 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔指标：logit 饱和 (%)〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~2,191 | 49.3% | 46.9% |
+| q1 · step ~3,375 | 56.7% | 57.2% |
+| q1 · step ~4,558 | 62.4% | 61.7% |
+| q1 · step ~5,741 | 65% | 66.8% |
+| q1 · step ~6,925 | 66.9% | 67.4% |
+| q1 · step ~8,108 | 60.3% | 63% |
+| q1 · step ~9,883 | 62.3% | 65.9% |
+| q1 · step ~11,066 | 67.2% | 73.5% |
+| q1 · step ~12,250 | 63% | 69.6% |
+| q1 · step ~13,433 | 63% | 70.8% |
+| q1 · step ~14,616 | 62.1% | 71.8% |
+| q1 · step ~15,800 | 64.6% | 72.3% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~62 | 0% | 0% |
+| q1 · step ~125 | 0.03% | 0.33% |
+| q1 · step ~312 | 3.13% | 6.52% |
+| q1 · step ~437 | 14.3% | 15.4% |
+| q1 · step ~562 | 17% | 15.4% |
+| q1 · step ~750 | 27.6% | 27.9% |
+| q1 · step ~812 | 33.7% | 30.9% |
+| q1 · step ~1,062 | 39.3% | 37.2% |
+| q1 · step ~1,125 | 44.4% | 41.6% |
+| q1 · step ~1,250 | 43.3% | 42.1% |
+| q1 · step ~1,437 | 32.9% | 35.4% |
+| q1 · step ~1,500 | 44.6% | 44.1% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q1 · step ~658 | 27.5% | 26.1% |
+| q1 · step ~1,975 | 46.7% | 47.3% |
+| q1 · step ~3,291 | 55.1% | 53.9% |
+| q1 · step ~4,608 | 65.5% | 64.2% |
+| q1 · step ~5,925 | 67.3% | 66.8% |
+| q1 · step ~7,241 | 63.7% | 60% |
+| q1 · step ~9,216 | 67% | 63.4% |
+| q1 · step ~10,533 | 68% | 62.8% |
+| q1 · step ~11,850 | 70.5% | 65.3% |
+| q1 · step ~13,166 | 71% | 58% |
+| q1 · step ~14,483 | 71.1% | 63.2% |
+| q1 · step ~15,800 | 72.3% | 64.6% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q2 · step ~5,070 | 66.6% | 63% |
+| q2 · step ~7,812 | 68.9% | 62.1% |
+| q2 · step ~10,554 | 68.4% | 62.3% |
+| q2 · step ~13,295 | 69.8% | 59.7% |
+| q2 · step ~16,037 | 70.5% | 62.5% |
+| q2 · step ~18,779 | 69.2% | 60.3% |
+| q2 · step ~22,891 | 71% | 57.1% |
+| q2 · step ~25,633 | 69.6% | 57.2% |
+| q2 · step ~28,375 | 67% | 53.5% |
+| q2 · step ~31,116 | 71.3% | 59.5% |
+| q2 · step ~33,858 | 72% | 59.1% |
+| q2 · step ~36,600 | 71.6% | 57.1% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q2 · step ~150 | 0.84% | 0.07% |
+| q2 · step ~450 | 21.9% | 19.8% |
+| q2 · step ~750 | 32.1% | 31.9% |
+| q2 · step ~1,050 | 43.5% | 41.7% |
+| q2 · step ~1,350 | 47.2% | 47.3% |
+| q2 · step ~1,650 | 52.2% | 49% |
+| q2 · step ~2,100 | 53.9% | 54% |
+| q2 · step ~2,400 | 59.2% | 56.9% |
+| q2 · step ~2,700 | 59.8% | 59.1% |
+| q2 · step ~3,000 | 61.8% | 60.7% |
+| q2 · step ~3,300 | 57.1% | 55.2% |
+| q2 · step ~3,600 | 66.8% | 64.2% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q2 · step ~1,525 | 46% | 44.3% |
+| q2 · step ~4,575 | 64.1% | 59.4% |
+| q2 · step ~7,625 | 67.4% | 57.4% |
+| q2 · step ~10,675 | 69.7% | 63.1% |
+| q2 · step ~13,725 | 68.9% | 61.5% |
+| q2 · step ~16,775 | 69.9% | 61.6% |
+| q2 · step ~21,350 | 69.8% | 59.5% |
+| q2 · step ~24,400 | 70.9% | 61.3% |
+| q2 · step ~27,450 | 70.1% | 59% |
+| q2 · step ~30,500 | 71.3% | 57.7% |
+| q2 · step ~33,550 | 63.4% | 36.9% |
+| q2 · step ~36,600 | 71.6% | 57.1% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q3 · step ~9,737 | 71.9% | 64.9% |
+| q3 · step ~15,012 | 71.1% | 63.3% |
+| q3 · step ~20,287 | 71.4% | 62.6% |
+| q3 · step ~25,562 | 71.7% | 60.4% |
+| q3 · step ~30,837 | 70% | 59.9% |
+| q3 · step ~36,112 | 71% | 59.3% |
+| q3 · step ~44,025 | 69.4% | 55.8% |
+| q3 · step ~49,300 | 69.2% | 55.6% |
+| q3 · step ~54,575 | 71.7% | 57.8% |
+| q3 · step ~59,850 | 71.3% | 54.2% |
+| q3 · step ~65,125 | 70.7% | 52.7% |
+| q3 · step ~70,400 | 71.4% | 53.9% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q3 · step ~291 | 3.4% | 1.31% |
+| q3 · step ~875 | 42.8% | 41.9% |
+| q3 · step ~1,458 | 42.7% | 39.2% |
+| q3 · step ~2,041 | 54.6% | 54% |
+| q3 · step ~2,625 | 61.6% | 58.9% |
+| q3 · step ~3,208 | 57.8% | 55.1% |
+| q3 · step ~4,083 | 63.6% | 57.1% |
+| q3 · step ~4,666 | 68.1% | 62.7% |
+| q3 · step ~5,250 | 68.3% | 63.2% |
+| q3 · step ~5,833 | 68.5% | 62.5% |
+| q3 · step ~6,416 | 70.2% | 64% |
+| q3 · step ~7,000 | 67.4% | 61% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q3 · step ~2,933 | 62.8% | 59.5% |
+| q3 · step ~8,800 | 71.9% | 64.8% |
+| q3 · step ~14,666 | 70.2% | 59.2% |
+| q3 · step ~20,533 | 69.5% | 60.4% |
+| q3 · step ~26,400 | 69.8% | 52.3% |
+| q3 · step ~32,266 | 71% | 60.5% |
+| q3 · step ~41,066 | 68.7% | 53.5% |
+| q3 · step ~46,933 | 71.2% | 58.5% |
+| q3 · step ~52,800 | 68.5% | 46.6% |
+| q3 · step ~58,666 | 70.7% | 55.2% |
+| q3 · step ~64,533 | 72.1% | 53.3% |
+| q3 · step ~70,400 | 71.4% | 53.9% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔指标：z > +4 (%)〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~2,191 | 0% | 0% |
+| q1 · step ~3,375 | 0% | 0% |
+| q1 · step ~4,558 | 0% | 0% |
+| q1 · step ~5,741 | 0% | 0% |
+| q1 · step ~6,925 | 0% | 0% |
+| q1 · step ~8,108 | 0% | 0% |
+| q1 · step ~9,883 | 0% | 0% |
+| q1 · step ~11,066 | 0% | 0% |
+| q1 · step ~12,250 | 0% | 0% |
+| q1 · step ~13,433 | 0% | 0% |
+| q1 · step ~14,616 | 0% | 0% |
+| q1 · step ~15,800 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~62 | 0% | 0% |
+| q1 · step ~125 | 0.03% | 0.19% |
+| q1 · step ~312 | 0% | 0% |
+| q1 · step ~437 | 0% | 0% |
+| q1 · step ~562 | 0% | 0% |
+| q1 · step ~750 | 0% | 0% |
+| q1 · step ~812 | 0% | 0% |
+| q1 · step ~1,062 | 0% | 0% |
+| q1 · step ~1,125 | 0% | 0% |
+| q1 · step ~1,250 | 0% | 0% |
+| q1 · step ~1,437 | 0% | 0% |
+| q1 · step ~1,500 | 0% | 0% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~658 | 0% | 0% |
+| q1 · step ~1,975 | 0% | 0% |
+| q1 · step ~3,291 | 0% | 0% |
+| q1 · step ~4,608 | 0% | 0% |
+| q1 · step ~5,925 | 0% | 0% |
+| q1 · step ~7,241 | 0% | 0% |
+| q1 · step ~9,216 | 0% | 0% |
+| q1 · step ~10,533 | 0% | 0% |
+| q1 · step ~11,850 | 0% | 0% |
+| q1 · step ~13,166 | 0% | 0% |
+| q1 · step ~14,483 | 0% | 0% |
+| q1 · step ~15,800 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~5,070 | 0% | 0% |
+| q2 · step ~7,812 | 0% | 0% |
+| q2 · step ~10,554 | 0% | 0% |
+| q2 · step ~13,295 | 0% | 0% |
+| q2 · step ~16,037 | 0% | 0% |
+| q2 · step ~18,779 | 0% | 0% |
+| q2 · step ~22,891 | 0.01% | 0.01% |
+| q2 · step ~25,633 | 0% | 0.01% |
+| q2 · step ~28,375 | 0% | 0.01% |
+| q2 · step ~31,116 | 0% | 0% |
+| q2 · step ~33,858 | 0% | 0% |
+| q2 · step ~36,600 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q2 · step ~150 | 0.32% | 0.06% |
+| q2 · step ~450 | 0% | 0% |
+| q2 · step ~750 | 0% | 0% |
+| q2 · step ~1,050 | 0% | 0% |
+| q2 · step ~1,350 | 0% | 0% |
+| q2 · step ~1,650 | 0% | 0% |
+| q2 · step ~2,100 | 0% | 0% |
+| q2 · step ~2,400 | 0% | 0% |
+| q2 · step ~2,700 | 0% | 0% |
+| q2 · step ~3,000 | 0% | 0% |
+| q2 · step ~3,300 | 0% | 0% |
+| q2 · step ~3,600 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~1,525 | 0% | 0% |
+| q2 · step ~4,575 | 0% | 0% |
+| q2 · step ~7,625 | 0% | 0% |
+| q2 · step ~10,675 | 0% | 0% |
+| q2 · step ~13,725 | 0% | 0% |
+| q2 · step ~16,775 | 0% | 0% |
+| q2 · step ~21,350 | 0% | 0.01% |
+| q2 · step ~24,400 | 0% | 0% |
+| q2 · step ~27,450 | 0% | 0.01% |
+| q2 · step ~30,500 | 0% | 0% |
+| q2 · step ~33,550 | 0.01% | 0.01% |
+| q2 · step ~36,600 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~9,737 | 0% | 0% |
+| q3 · step ~15,012 | 0.01% | 0.01% |
+| q3 · step ~20,287 | 0.01% | 0.01% |
+| q3 · step ~25,562 | 0.01% | 0.01% |
+| q3 · step ~30,837 | 0.01% | 0.01% |
+| q3 · step ~36,112 | 0.01% | 0.01% |
+| q3 · step ~44,025 | 0.01% | 0.01% |
+| q3 · step ~49,300 | 0.01% | 0.01% |
+| q3 · step ~54,575 | 0.01% | 0.01% |
+| q3 · step ~59,850 | 0.01% | 0.01% |
+| q3 · step ~65,125 | 0.01% | 0.01% |
+| q3 · step ~70,400 | 0.01% | 0.01% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q3 · step ~291 | 0.05% | 0.02% |
+| q3 · step ~875 | 0% | 0% |
+| q3 · step ~1,458 | 0% | 0% |
+| q3 · step ~2,041 | 0% | 0% |
+| q3 · step ~2,625 | 0% | 0% |
+| q3 · step ~3,208 | 0% | 0% |
+| q3 · step ~4,083 | 0% | 0% |
+| q3 · step ~4,666 | 0% | 0% |
+| q3 · step ~5,250 | 0% | 0% |
+| q3 · step ~5,833 | 0% | 0% |
+| q3 · step ~6,416 | 0% | 0% |
+| q3 · step ~7,000 | 0% | 0% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~2,933 | 0% | 0% |
+| q3 · step ~8,800 | 0% | 0% |
+| q3 · step ~14,666 | 0.01% | 0.01% |
+| q3 · step ~20,533 | 0.01% | 0.01% |
+| q3 · step ~26,400 | 0.01% | 0.01% |
+| q3 · step ~32,266 | 0.01% | 0.01% |
+| q3 · step ~41,066 | 0.01% | 0.01% |
+| q3 · step ~46,933 | 0.01% | 0.01% |
+| q3 · step ~52,800 | 0.01% | 0.01% |
+| q3 · step ~58,666 | 0.01% | 0.01% |
+| q3 · step ~64,533 | 0.01% | 0.01% |
+| q3 · step ~70,400 | 0.01% | 0.01% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔指标：top-8 pinned (%)〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q1 · step ~2,191 | 0.03% | 0.02% |
+| q1 · step ~3,375 | 0.02% | 0.02% |
+| q1 · step ~4,558 | 0.02% | 0.02% |
+| q1 · step ~5,741 | 0.03% | 0.03% |
+| q1 · step ~6,925 | 0.04% | 0.05% |
+| q1 · step ~8,108 | 0.07% | 0.09% |
+| q1 · step ~9,883 | 0.1% | 0.07% |
+| q1 · step ~11,066 | 0.07% | 0.05% |
+| q1 · step ~12,250 | 0.07% | 0.07% |
+| q1 · step ~13,433 | 0.1% | 0.09% |
+| q1 · step ~14,616 | 0.07% | 0.05% |
+| q1 · step ~15,800 | 0.13% | 0.08% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~62 | 0% | 0% |
+| q1 · step ~125 | 1.72% | 11.9% |
+| q1 · step ~312 | 0.02% | 0.02% |
+| q1 · step ~437 | 0.01% | 0.01% |
+| q1 · step ~562 | 0.03% | 0.04% |
+| q1 · step ~750 | 0% | 0% |
+| q1 · step ~812 | 0% | 0% |
+| q1 · step ~1,062 | 0.01% | 0.01% |
+| q1 · step ~1,125 | 0% | 0% |
+| q1 · step ~1,250 | 0% | 0% |
+| q1 · step ~1,437 | 0% | 0.01% |
+| q1 · step ~1,500 | 0% | 0% |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q1 · step ~658 | 0.01% | 0% |
+| q1 · step ~1,975 | 0.01% | 0.01% |
+| q1 · step ~3,291 | 0.01% | 0.02% |
+| q1 · step ~4,608 | 0.03% | 0.03% |
+| q1 · step ~5,925 | 0.03% | 0.02% |
+| q1 · step ~7,241 | 0.08% | 0.05% |
+| q1 · step ~9,216 | 0.13% | 0.06% |
+| q1 · step ~10,533 | 0.05% | 0.04% |
+| q1 · step ~11,850 | 0.04% | 0.04% |
+| q1 · step ~13,166 | 0.07% | 0.09% |
+| q1 · step ~14,483 | 0.08% | 0.06% |
+| q1 · step ~15,800 | 0.13% | 0.08% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q2 · step ~5,070 | 0.13% | 0.11% |
+| q2 · step ~7,812 | 0.23% | 0.14% |
+| q2 · step ~10,554 | 0.16% | 0.16% |
+| q2 · step ~13,295 | 0.26% | 0.26% |
+| q2 · step ~16,037 | 0.21% | 0.2% |
+| q2 · step ~18,779 | 0.22% | 0.19% |
+| q2 · step ~22,891 | 0.48% | 0.35% |
+| q2 · step ~25,633 | 0.35% | 0.28% |
+| q2 · step ~28,375 | 0.39% | 0.32% |
+| q2 · step ~31,116 | 0.29% | 0.27% |
+| q2 · step ~33,858 | 0.31% | 0.26% |
+| q2 · step ~36,600 | 0.29% | 0.25% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q2 · step ~150 | 20.3% | 4.03% |
+| q2 · step ~450 | 0.05% | 0.04% |
+| q2 · step ~750 | 0.01% | 0.02% |
+| q2 · step ~1,050 | 0.02% | 0.03% |
+| q2 · step ~1,350 | 0.02% | 0.01% |
+| q2 · step ~1,650 | 0.02% | 0.02% |
+| q2 · step ~2,100 | 0.03% | 0.04% |
+| q2 · step ~2,400 | 0.03% | 0.03% |
+| q2 · step ~2,700 | 0.06% | 0.05% |
+| q2 · step ~3,000 | 0.06% | 0.06% |
+| q2 · step ~3,300 | 0.06% | 0.04% |
+| q2 · step ~3,600 | 0.06% | 0.04% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~1,525 | 0.02% | 0.01% |
+| q2 · step ~4,575 | 0.07% | 0.08% |
+| q2 · step ~7,625 | 0.2% | 0.22% |
+| q2 · step ~10,675 | 0.2% | 0.23% |
+| q2 · step ~13,725 | 0.21% | 0.25% |
+| q2 · step ~16,775 | 0.21% | 0.21% |
+| q2 · step ~21,350 | 0.28% | 0.33% |
+| q2 · step ~24,400 | 0.23% | 0.26% |
+| q2 · step ~27,450 | 0.29% | 0.34% |
+| q2 · step ~30,500 | 0.23% | 0.27% |
+| q2 · step ~33,550 | 0.39% | 0.62% |
+| q2 · step ~36,600 | 0.25% | 0.29% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q3 · step ~9,737 | 0.3% | 0.24% |
+| q3 · step ~15,012 | 0.35% | 0.33% |
+| q3 · step ~20,287 | 0.52% | 0.46% |
+| q3 · step ~25,562 | 0.74% | 0.6% |
+| q3 · step ~30,837 | 0.75% | 0.64% |
+| q3 · step ~36,112 | 0.65% | 0.55% |
+| q3 · step ~44,025 | 0.75% | 0.65% |
+| q3 · step ~49,300 | 0.9% | 0.73% |
+| q3 · step ~54,575 | 0.63% | 0.55% |
+| q3 · step ~59,850 | 0.72% | 0.57% |
+| q3 · step ~65,125 | 0.69% | 0.55% |
+| q3 · step ~70,400 | 0.79% | 0.63% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q3 · step ~291 | 3.21% | 1.22% |
+| q3 · step ~875 | 0.07% | 0.07% |
+| q3 · step ~1,458 | 0.07% | 0.05% |
+| q3 · step ~2,041 | 0.08% | 0.06% |
+| q3 · step ~2,625 | 0.13% | 0.11% |
+| q3 · step ~3,208 | 0.11% | 0.11% |
+| q3 · step ~4,083 | 0.16% | 0.15% |
+| q3 · step ~4,666 | 0.16% | 0.17% |
+| q3 · step ~5,250 | 0.22% | 0.18% |
+| q3 · step ~5,833 | 0.28% | 0.23% |
+| q3 · step ~6,416 | 0.23% | 0.21% |
+| q3 · step ~7,000 | 0.22% | 0.2% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~2,933 | 0.13% | 0.12% |
+| q3 · step ~8,800 | 0.24% | 0.25% |
+| q3 · step ~14,666 | 0.37% | 0.42% |
+| q3 · step ~20,533 | 0.51% | 0.54% |
+| q3 · step ~26,400 | 0.66% | 0.89% |
+| q3 · step ~32,266 | 0.53% | 0.65% |
+| q3 · step ~41,066 | 0.59% | 0.69% |
+| q3 · step ~46,933 | 0.6% | 0.74% |
+| q3 · step ~52,800 | 0.64% | 0.81% |
+| q3 · step ~58,666 | 0.69% | 0.89% |
+| q3 · step ~64,533 | 0.69% | 0.92% |
+| q3 · step ~70,400 | 0.63% | 0.79% |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔指标：最大 |logit|〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~2,191 | 11.3 | 9.96 |
+| q1 · step ~3,375 | 11.3 | 11.2 |
+| q1 · step ~4,558 | 11.8 | 11.4 |
+| q1 · step ~5,741 | 12.3 | 12.8 |
+| q1 · step ~6,925 | 12.8 | 12.2 |
+| q1 · step ~8,108 | 12.7 | 12.6 |
+| q1 · step ~9,883 | 13 | 13.5 |
+| q1 · step ~11,066 | 12.4 | 13.3 |
+| q1 · step ~12,250 | 13.1 | 12.8 |
+| q1 · step ~13,433 | 12.9 | 13.6 |
+| q1 · step ~14,616 | 12.9 | 12.4 |
+| q1 · step ~15,800 | 13.7 | 12.9 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~62 | 3.57 | 3.57 |
+| q1 · step ~125 | 7.4 | 7.24 |
+| q1 · step ~312 | 6.68 | 7.27 |
+| q1 · step ~437 | 7.81 | 8.04 |
+| q1 · step ~562 | 7.8 | 8.36 |
+| q1 · step ~750 | 8.49 | 8.02 |
+| q1 · step ~812 | 8.89 | 8.14 |
+| q1 · step ~1,062 | 9.78 | 8.53 |
+| q1 · step ~1,125 | 10.2 | 8.99 |
+| q1 · step ~1,250 | 10.8 | 8.92 |
+| q1 · step ~1,437 | 10.7 | 9.78 |
+| q1 · step ~1,500 | 11.1 | 10.4 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~658 | 8.14 | 8.12 |
+| q1 · step ~1,975 | 11.3 | 10.3 |
+| q1 · step ~3,291 | 11.1 | 11 |
+| q1 · step ~4,608 | 11.6 | 11.8 |
+| q1 · step ~5,925 | 11.9 | 11.9 |
+| q1 · step ~7,241 | 12.7 | 12 |
+| q1 · step ~9,216 | 12.4 | 13.3 |
+| q1 · step ~10,533 | 13 | 12.9 |
+| q1 · step ~11,850 | 13 | 13.1 |
+| q1 · step ~13,166 | 13.7 | 12.3 |
+| q1 · step ~14,483 | 13.1 | 12.9 |
+| q1 · step ~15,800 | 13.7 | 12.9 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~5,070 | 14.6 | 12.6 |
+| q2 · step ~7,812 | 12.6 | 13.6 |
+| q2 · step ~10,554 | 12.8 | 14.7 |
+| q2 · step ~13,295 | 14.3 | 15.2 |
+| q2 · step ~16,037 | 14.1 | 16.9 |
+| q2 · step ~18,779 | 15.9 | 15.3 |
+| q2 · step ~22,891 | 16.3 | 15.8 |
+| q2 · step ~25,633 | 17.9 | 16.2 |
+| q2 · step ~28,375 | 15.6 | 15.8 |
+| q2 · step ~31,116 | 19.8 | 16.1 |
+| q2 · step ~33,858 | 20.1 | 16.4 |
+| q2 · step ~36,600 | 20 | 18.1 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q2 · step ~150 | 8.45 | 7.19 |
+| q2 · step ~450 | 8.9 | 9.41 |
+| q2 · step ~750 | 9.39 | 9.53 |
+| q2 · step ~1,050 | 9.78 | 9.83 |
+| q2 · step ~1,350 | 9.78 | 11.6 |
+| q2 · step ~1,650 | 10.3 | 12.5 |
+| q2 · step ~2,100 | 11.4 | 12.7 |
+| q2 · step ~2,400 | 11.2 | 13.4 |
+| q2 · step ~2,700 | 10.6 | 13.7 |
+| q2 · step ~3,000 | 11.4 | 13.4 |
+| q2 · step ~3,300 | 13.7 | 13.4 |
+| q2 · step ~3,600 | 12.8 | 13.8 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~1,525 | 12.5 | 9.94 |
+| q2 · step ~4,575 | 13.6 | 13.8 |
+| q2 · step ~7,625 | 12.6 | 13.7 |
+| q2 · step ~10,675 | 13.5 | 15.2 |
+| q2 · step ~13,725 | 13.7 | 15.8 |
+| q2 · step ~16,775 | 15.5 | 14.8 |
+| q2 · step ~21,350 | 15.7 | 16.8 |
+| q2 · step ~24,400 | 17.4 | 15.1 |
+| q2 · step ~27,450 | 17.8 | 16.6 |
+| q2 · step ~30,500 | 19.1 | 16.7 |
+| q2 · step ~33,550 | 15.7 | 16.3 |
+| q2 · step ~36,600 | 20 | 18.1 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~9,737 | 15.7 | 15.5 |
+| q3 · step ~15,012 | 17.1 | 18.7 |
+| q3 · step ~20,287 | 18.7 | 17.9 |
+| q3 · step ~25,562 | 19 | 23.2 |
+| q3 · step ~30,837 | 21.9 | 20.9 |
+| q3 · step ~36,112 | 25.8 | 20.8 |
+| q3 · step ~44,025 | 24.2 | 23.4 |
+| q3 · step ~49,300 | 28.2 | 20.7 |
+| q3 · step ~54,575 | 28.7 | 23.5 |
+| q3 · step ~59,850 | 27.9 | 22.3 |
+| q3 · step ~65,125 | 29.9 | 20.1 |
+| q3 · step ~70,400 | 30.1 | 22.4 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | B：E2X + QBX + KD | A：E2X + KD |
+|---|---|---|
+| q3 · step ~291 | 10.2 | 10.1 |
+| q3 · step ~875 | 9.87 | 11.2 |
+| q3 · step ~1,458 | 10.7 | 11.2 |
+| q3 · step ~2,041 | 11.4 | 11.4 |
+| q3 · step ~2,625 | 11.2 | 12.3 |
+| q3 · step ~3,208 | 12.3 | 13.5 |
+| q3 · step ~4,083 | 12 | 13.7 |
+| q3 · step ~4,666 | 12.6 | 13.7 |
+| q3 · step ~5,250 | 13 | 14.5 |
+| q3 · step ~5,833 | 13 | 15 |
+| q3 · step ~6,416 | 13.9 | 17.1 |
+| q3 · step ~7,000 | 14.9 | 15.8 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~2,933 | 12.8 | 11.4 |
+| q3 · step ~8,800 | 15.9 | 14.7 |
+| q3 · step ~14,666 | 16.5 | 18.4 |
+| q3 · step ~20,533 | 18.4 | 17.7 |
+| q3 · step ~26,400 | 24.2 | 20.1 |
+| q3 · step ~32,266 | 22.5 | 19.2 |
+| q3 · step ~41,066 | 23.7 | 21.8 |
+| q3 · step ~46,933 | 29.2 | 20.8 |
+| q3 · step ~52,800 | 26.1 | 23.5 |
+| q3 · step ~58,666 | 27.3 | 22.5 |
+| q3 · step ~64,533 | 29.9 | 21.8 |
+| q3 · step ~70,400 | 30.1 | 22.4 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔指标：gate 更新幅度〕**
+
+**〔视图：q1〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~2,191 | 0.0098 | 0.0098 |
+| q1 · step ~3,375 | 0.009 | 0.009 |
+| q1 · step ~4,558 | 0.0083 | 0.0082 |
+| q1 · step ~5,741 | 0.0075 | 0.0075 |
+| q1 · step ~6,925 | 0.0067 | 0.0067 |
+| q1 · step ~8,108 | 0.0059 | 0.0059 |
+| q1 · step ~9,883 | 0.0049 | 0.0049 |
+| q1 · step ~11,066 | 0.0041 | 0.0041 |
+| q1 · step ~12,250 | 0.0034 | 0.0034 |
+| q1 · step ~13,433 | 0.0027 | 0.0027 |
+| q1 · step ~14,616 | 0.0019 | 0.0019 |
+| q1 · step ~15,800 | 0.0007 | 0.0007 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~62 | 0.0111 | 0.0111 |
+| q1 · step ~125 | 0.0112 | 0.0112 |
+| q1 · step ~312 | 0.0109 | 0.0109 |
+| q1 · step ~437 | 0.0108 | 0.0108 |
+| q1 · step ~562 | 0.0108 | 0.0108 |
+| q1 · step ~750 | 0.0107 | 0.0107 |
+| q1 · step ~812 | 0.0106 | 0.0106 |
+| q1 · step ~1,062 | 0.0105 | 0.0105 |
+| q1 · step ~1,125 | 0.0104 | 0.0104 |
+| q1 · step ~1,250 | 0.0103 | 0.0103 |
+| q1 · step ~1,437 | 0.0102 | 0.0102 |
+| q1 · step ~1,500 | 0.0102 | 0.0102 |
+
+（共 16 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q1 · step ~658 | 0.0107 | 0.0107 |
+| q1 · step ~1,975 | 0.0099 | 0.0099 |
+| q1 · step ~3,291 | 0.0091 | 0.0091 |
+| q1 · step ~4,608 | 0.0082 | 0.0082 |
+| q1 · step ~5,925 | 0.0073 | 0.0073 |
+| q1 · step ~7,241 | 0.0065 | 0.0065 |
+| q1 · step ~9,216 | 0.0052 | 0.0052 |
+| q1 · step ~10,533 | 0.0044 | 0.0044 |
+| q1 · step ~11,850 | 0.0036 | 0.0036 |
+| q1 · step ~13,166 | 0.0029 | 0.0029 |
+| q1 · step ~14,483 | 0.002 | 0.002 |
+| q1 · step ~15,800 | 0.0007 | 0.0007 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q2〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~5,070 | 0.0077 | 0.0077 |
+| q2 · step ~7,812 | 0.0071 | 0.0071 |
+| q2 · step ~10,554 | 0.0065 | 0.0065 |
+| q2 · step ~13,295 | 0.0059 | 0.0059 |
+| q2 · step ~16,037 | 0.0053 | 0.0053 |
+| q2 · step ~18,779 | 0.0048 | 0.0048 |
+| q2 · step ~22,891 | 0.0039 | 0.0039 |
+| q2 · step ~25,633 | 0.0034 | 0.0034 |
+| q2 · step ~28,375 | 0.0028 | 0.0028 |
+| q2 · step ~31,116 | 0.0023 | 0.0023 |
+| q2 · step ~33,858 | 0.0016 | 0.0016 |
+| q2 · step ~36,600 | 0.0006 | 0.0006 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~150 | 0.0087 | 0.0087 |
+| q2 · step ~450 | 0.0086 | 0.0086 |
+| q2 · step ~750 | 0.0086 | 0.0086 |
+| q2 · step ~1,050 | 0.0085 | 0.0085 |
+| q2 · step ~1,350 | 0.0084 | 0.0084 |
+| q2 · step ~1,650 | 0.0084 | 0.0084 |
+| q2 · step ~2,100 | 0.0083 | 0.0083 |
+| q2 · step ~2,400 | 0.0082 | 0.0082 |
+| q2 · step ~2,700 | 0.0082 | 0.0082 |
+| q2 · step ~3,000 | 0.0081 | 0.0081 |
+| q2 · step ~3,300 | 0.008 | 0.008 |
+| q2 · step ~3,600 | 0.008 | 0.008 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q2 · step ~1,525 | 0.0084 | 0.0084 |
+| q2 · step ~4,575 | 0.0078 | 0.0078 |
+| q2 · step ~7,625 | 0.0071 | 0.0071 |
+| q2 · step ~10,675 | 0.0065 | 0.0065 |
+| q2 · step ~13,725 | 0.0058 | 0.0058 |
+| q2 · step ~16,775 | 0.0052 | 0.0052 |
+| q2 · step ~21,350 | 0.0042 | 0.0042 |
+| q2 · step ~24,400 | 0.0036 | 0.0036 |
+| q2 · step ~27,450 | 0.003 | 0.003 |
+| q2 · step ~30,500 | 0.0024 | 0.0024 |
+| q2 · step ~33,550 | 0.0017 | 0.0017 |
+| q2 · step ~36,600 | 0.0006 | 0.0006 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔视图：q3〕**
+
+**〔窗口：后 90% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~9,737 | 0.0064 | 0.0064 |
+| q3 · step ~15,012 | 0.0059 | 0.0059 |
+| q3 · step ~20,287 | 0.0054 | 0.0054 |
+| q3 · step ~25,562 | 0.005 | 0.005 |
+| q3 · step ~30,837 | 0.0045 | 0.0045 |
+| q3 · step ~36,112 | 0.0041 | 0.0041 |
+| q3 · step ~44,025 | 0.0034 | 0.0034 |
+| q3 · step ~49,300 | 0.0029 | 0.003 |
+| q3 · step ~54,575 | 0.0025 | 0.0025 |
+| q3 · step ~59,850 | 0.002 | 0.002 |
+| q3 · step ~65,125 | 0.0014 | 0.0014 |
+| q3 · step ~70,400 | 0.0005 | 0.0005 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：前 10% step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~291 | 0.0072 | 0.0072 |
+| q3 · step ~875 | 0.0072 | 0.0072 |
+| q3 · step ~1,458 | 0.0071 | 0.0071 |
+| q3 · step ~2,041 | 0.0071 | 0.0071 |
+| q3 · step ~2,625 | 0.007 | 0.007 |
+| q3 · step ~3,208 | 0.0069 | 0.0069 |
+| q3 · step ~4,083 | 0.0069 | 0.0069 |
+| q3 · step ~4,666 | 0.0068 | 0.0068 |
+| q3 · step ~5,250 | 0.0068 | 0.0068 |
+| q3 · step ~5,833 | 0.0067 | 0.0067 |
+| q3 · step ~6,416 | 0.0067 | 0.0067 |
+| q3 · step ~7,000 | 0.0066 | 0.0066 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+**〔窗口：全 step〕**
+
+| 横轴 | A：E2X + KD | B：E2X + QBX + KD |
+|---|---|---|
+| q3 · step ~2,933 | 0.007 | 0.007 |
+| q3 · step ~8,800 | 0.0065 | 0.0065 |
+| q3 · step ~14,666 | 0.0059 | 0.0059 |
+| q3 · step ~20,533 | 0.0054 | 0.0054 |
+| q3 · step ~26,400 | 0.0049 | 0.0049 |
+| q3 · step ~32,266 | 0.0044 | 0.0044 |
+| q3 · step ~41,066 | 0.0036 | 0.0036 |
+| q3 · step ~46,933 | 0.0031 | 0.0031 |
+| q3 · step ~52,800 | 0.0026 | 0.0027 |
+| q3 · step ~58,666 | 0.0021 | 0.0021 |
+| q3 · step ~64,533 | 0.0015 | 0.0015 |
+| q3 · step ~70,400 | 0.0005 | 0.0005 |
+
+（共 24 个点，均匀取 12 个，含首尾）
+
+## 页签：prod iso-doc
+
+- 生产 run ULTRA59B_MUONH_KD_QBK3（58.8B-A3.8B；48 层，hidden 2048，512 个 expert 选 16；KD teacher MiMo-V2.5-Pro-Base，α 0.75；训练长度 32K，共 97,330 步）各 checkpoint 的 doc-isolated val loss。
+- 测法和 doc-isolated 页相同：每篇验证文档单独成一个样本，不带别的文档的上下文，打分代码是同一份。窗口分两种：8K 和所有旧结果可比；32K 和这个 run 的训练长度一致。
+- 结果只来自我们自己的全量评测：115 个子集、7 个集合，8K 和 32K 出自同一次模型加载。全量评测分三个部分并行跑，先跑完的集合先显示，还没跑完的显示 “-”。
+- 8K 窗口：全量 = step 10,000、20,000、24,000、30,000、40,000。
+- 32K 窗口：全量 = step 10,000、20,000、24,000、30,000、40,000。
+
+### val loss 随训练步数的变化
+
+用上面的按钮换指标，用卡片里的 8K / 32K 页签换窗口（图和下面的表一起切换）。横轴是训练步数，下面一行是占全程的比例。虚线是参考：PROD1_DPSK q5（ladder 上训练完成的 checkpoint）和外部基线 Qwen3-30B-A3B-Base，取同一窗口的数值。
+
+**〔窗口：8K〕**
+
+**〔指标：overall_tsqw〕**
+
+**overall_tsqw · 8K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.4847 | 1.4450 | 1.4276 | 1.4086 | 1.3808 |
+| PROD1_DPSK · q5 | 1.4315 | 1.4315 | 1.4315 | 1.4315 | 1.4315 |
+| Qwen3-30B-A3B-Base | 1.2788 | 1.2788 | 1.2788 | 1.2788 | 1.2788 |
+
+**〔指标：overall_tw〕**
+
+**overall_tw · 8K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.4602 | 1.4197 | 1.4021 | 1.3823 | 1.3545 |
+| PROD1_DPSK · q5 | 1.4067 | 1.4067 | 1.4067 | 1.4067 | 1.4067 |
+| Qwen3-30B-A3B-Base | 1.2537 | 1.2537 | 1.2537 | 1.2537 | 1.2537 |
+
+**〔指标：overall_macro〕**
+
+**overall_macro · 8K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.5584 | 1.5210 | 1.5034 | 1.4850 | 1.4577 |
+| PROD1_DPSK · q5 | 1.5062 | 1.5062 | 1.5062 | 1.5062 | 1.5062 |
+| Qwen3-30B-A3B-Base | 1.3716 | 1.3716 | 1.3716 | 1.3716 | 1.3716 |
+
+**〔指标：val_v2〕**
+
+**val_v2 · 8K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.2199 | 1.1880 | 1.1759 | 1.1611 | 1.1377 |
+| PROD1_DPSK · q5 | 1.1762 | 1.1762 | 1.1762 | 1.1762 | 1.1762 |
+| Qwen3-30B-A3B-Base | 1.0423 | 1.0423 | 1.0423 | 1.0423 | 1.0423 |
+
+**〔指标：uncheatable〕**
+
+**uncheatable · 8K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.4329 | 1.3920 | 1.3724 | 1.3516 | 1.3244 |
+| PROD1_DPSK · q5 | 1.3810 | 1.3810 | 1.3810 | 1.3810 | 1.3810 |
+| Qwen3-30B-A3B-Base | 1.2460 | 1.2460 | 1.2460 | 1.2460 | 1.2460 |
+
+**〔指标：codefresh〕**
+
+**codefresh · 8K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 0.9787 | 0.9408 | 0.9235 | 0.9079 | 0.8783 |
+| PROD1_DPSK · q5 | 0.9342 | 0.9342 | 0.9342 | 0.9342 | 0.9342 |
+| Qwen3-30B-A3B-Base | 0.7429 | 0.7429 | 0.7429 | 0.7429 | 0.7429 |
+
+**〔指标：private_internal〕**
+
+**private_internal · 8K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.7519 | 1.7201 | 1.7027 | 1.6884 | 1.6645 |
+| PROD1_DPSK · q5 | 1.7021 | 1.7021 | 1.7021 | 1.7021 | 1.7021 |
+| Qwen3-30B-A3B-Base | 1.6125 | 1.6125 | 1.6125 | 1.6125 | 1.6125 |
+
+**〔窗口：32K〕**
+
+**〔指标：overall_tsqw〕**
+
+**overall_tsqw · 32K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.4566 | 1.4171 | 1.4002 | 1.3815 | 1.3540 |
+| PROD1_DPSK · q5 | 1.4040 | 1.4040 | 1.4040 | 1.4040 | 1.4040 |
+| Qwen3-30B-A3B-Base | 1.2570 | 1.2570 | 1.2570 | 1.2570 | 1.2570 |
+
+**〔指标：overall_tw〕**
+
+**overall_tw · 32K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.4330 | 1.3927 | 1.3754 | 1.3561 | 1.3285 |
+| PROD1_DPSK · q5 | 1.3801 | 1.3801 | 1.3801 | 1.3801 | 1.3801 |
+| Qwen3-30B-A3B-Base | 1.2320 | 1.2320 | 1.2320 | 1.2320 | 1.2320 |
+
+**〔指标：overall_macro〕**
+
+**overall_macro · 32K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.5388 | 1.5016 | 1.4843 | 1.4661 | 1.4391 |
+| PROD1_DPSK · q5 | 1.4871 | 1.4871 | 1.4871 | 1.4871 | 1.4871 |
+| Qwen3-30B-A3B-Base | 1.3561 | 1.3561 | 1.3561 | 1.3561 | 1.3561 |
+
+**〔指标：val_v2〕**
+
+**val_v2 · 32K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.1718 | 1.1397 | 1.1285 | 1.1145 | 1.0916 |
+| PROD1_DPSK · q5 | 1.1291 | 1.1291 | 1.1291 | 1.1291 | 1.1291 |
+| Qwen3-30B-A3B-Base | 1.0065 | 1.0065 | 1.0065 | 1.0065 | 1.0065 |
+
+**〔指标：uncheatable〕**
+
+**uncheatable · 32K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.4080 | 1.3672 | 1.3477 | 1.3274 | 1.3002 |
+| PROD1_DPSK · q5 | 1.3566 | 1.3566 | 1.3566 | 1.3566 | 1.3566 |
+| Qwen3-30B-A3B-Base | 1.2244 | 1.2244 | 1.2244 | 1.2244 | 1.2244 |
+
+**〔指标：codefresh〕**
+
+**codefresh · 32K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 0.9787 | 0.9408 | 0.9235 | 0.9079 | 0.8783 |
+| PROD1_DPSK · q5 | 0.9342 | 0.9342 | 0.9342 | 0.9342 | 0.9342 |
+| Qwen3-30B-A3B-Base | 0.7429 | 0.7429 | 0.7429 | 0.7429 | 0.7429 |
+
+**〔指标：private_internal〕**
+
+**private_internal · 32K 窗口**
+
+| 线 | step 10,000 · 10.3% | step 20,000 · 20.5% | step 24,000 · 24.7% | step 30,000 · 30.8% | step 40,000 · 41.1% |
+|---|---|---|---|---|---|
+| 59B | 1.7502 | 1.7183 | 1.7009 | 1.6866 | 1.6628 |
+| PROD1_DPSK · q5 | 1.7005 | 1.7005 | 1.7005 | 1.7005 | 1.7005 |
+| Qwen3-30B-A3B-Base | 1.6110 | 1.6110 | 1.6110 | 1.6110 | 1.6110 |
+
+**〔窗口：8K〕**
+
+**〔视图：val_loss〕**
+
+| checkpoint | 训练进度 | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 59B · step 10,000 | 10.3% | 58.8B-A3.8B | 151,936 | 1.4847 | 1.4602 | 1.5584 | 1.2199 | 1.4329 | 0.9787 | 2.2488 | 1.7519 | 1.7179 | 1.6927 |
+| 59B · step 20,000 | 20.5% | 58.8B-A3.8B | 151,936 | 1.4450 | 1.4197 | 1.5210 | 1.1880 | 1.3920 | 0.9408 | 2.2120 | 1.7201 | 1.6731 | 1.6479 |
+| 59B · step 24,000 | 24.7% | 58.8B-A3.8B | 151,936 | 1.4276 | 1.4021 | 1.5034 | 1.1759 | 1.3724 | 0.9235 | 2.1893 | 1.7027 | 1.6569 | 1.6299 |
+| 59B · step 30,000 | 30.8% | 58.8B-A3.8B | 151,936 | 1.4086 | 1.3823 | 1.4850 | 1.1611 | 1.3516 | 0.9079 | 2.1655 | 1.6884 | 1.6355 | 1.6108 |
+| 59B · step 40,000 | 41.1% | 58.8B-A3.8B | 151,936 | 1.3808 | 1.3545 | 1.4577 | 1.1377 | 1.3244 | 0.8783 | 2.1364 | 1.6645 | 1.6052 | 1.5800 |
+| PROD1_DPSK · q5 | 参考 | 20.3B-A2.5B | 151,936 | 1.4315 | 1.4067 | 1.5062 | 1.1762 | 1.3810 | 0.9342 | 2.1892 | 1.7021 | 1.6543 | 1.6341 |
+| ladder E2X q4（CE） |   | 24.9B-A1.8B | 151,936 | 1.4546 | 1.4308 | 1.5284 | 1.1931 | 1.4082 | 0.9525 | 2.2152 | 1.7239 | 1.6776 | 1.6594 |
+| ladder E2X + KD q3（teacher MiMo-V2.5） |   | 14.4B-A1.2B | 151,936 | 1.4751 | 1.4509 | 1.5483 | 1.2137 | 1.4276 | 0.9633 | 2.2405 | 1.7431 | 1.7017 | 1.6864 |
+| Qwen3-30B-A3B-Base |   | 30B-A3B | 151,936 | 1.2788 | 1.2537 | 1.3716 | 1.0423 | 1.2460 | 0.7429 | 2.1220 | 1.6125 | 1.4637 | 1.4524 |
+| MiMo-V2.5-Pro-Base（KD teacher） |   | 1.02T-A42B | 152,576 | 1.0520 | 1.0374 | 1.1438 | 0.8251 | 1.0632 | 0.5086 | 1.8213 | 1.4541 | 1.1903 | 1.1795 |
+
+**〔视图：bpb〕**
+
+| checkpoint | 训练进度 | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 59B · step 10,000 | 10.3% | 58.8B-A3.8B | 151,936 | 0.5782 | 0.5737 | 0.5845 | 0.4959 | 0.5564 | 0.3577 | 0.8019 | 0.5881 | 0.7070 | 0.6626 |
+| 59B · step 20,000 | 20.5% | 58.8B-A3.8B | 151,936 | 0.5627 | 0.5578 | 0.5703 | 0.4829 | 0.5405 | 0.3439 | 0.7888 | 0.5774 | 0.6885 | 0.6451 |
+| 59B · step 24,000 | 24.7% | 58.8B-A3.8B | 151,936 | 0.5560 | 0.5509 | 0.5638 | 0.4780 | 0.5329 | 0.3376 | 0.7806 | 0.5715 | 0.6819 | 0.6380 |
+| 59B · step 30,000 | 30.8% | 58.8B-A3.8B | 151,936 | 0.5486 | 0.5431 | 0.5568 | 0.4720 | 0.5248 | 0.3319 | 0.7722 | 0.5667 | 0.6731 | 0.6306 |
+| 59B · step 40,000 | 41.1% | 58.8B-A3.8B | 151,936 | 0.5377 | 0.5322 | 0.5465 | 0.4625 | 0.5142 | 0.3211 | 0.7618 | 0.5587 | 0.6606 | 0.6185 |
+| PROD1_DPSK · q5 | 参考 | 20.3B-A2.5B | 151,936 | 0.5575 | 0.5527 | 0.5648 | 0.4782 | 0.5363 | 0.3415 | 0.7806 | 0.5713 | 0.6808 | 0.6397 |
+| ladder E2X q4（CE） |   | 24.9B-A1.8B | 151,936 | 0.5665 | 0.5622 | 0.5732 | 0.4850 | 0.5468 | 0.3482 | 0.7899 | 0.5787 | 0.6904 | 0.6496 |
+| ladder E2X + KD q3（teacher MiMo-V2.5） |   | 14.4B-A1.2B | 151,936 | 0.5745 | 0.5701 | 0.5807 | 0.4934 | 0.5543 | 0.3521 | 0.7989 | 0.5851 | 0.7003 | 0.6602 |
+| Qwen3-30B-A3B-Base |   | 30B-A3B | 151,936 | 0.4976 | 0.4926 | 0.5132 | 0.4237 | 0.4838 | 0.2716 | 0.7567 | 0.5413 | 0.6024 | 0.5685 |
+| MiMo-V2.5-Pro-Base（KD teacher） |   | 1.02T-A42B | 152,576 | 0.4090 | 0.4076 | 0.4269 | 0.3354 | 0.4128 | 0.1859 | 0.6494 | 0.4881 | 0.4899 | 0.4617 |
+
+**〔窗口：32K〕**
+
+**〔视图：val_loss〕**
+
+| checkpoint | 训练进度 | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 59B · step 10,000 | 10.3% | 58.8B-A3.8B | 151,936 | 1.4566 | 1.4330 | 1.5388 | 1.1718 | 1.4080 | 0.9787 | 2.2393 | 1.7502 | 1.6848 | 1.6311 |
+| 59B · step 20,000 | 20.5% | 58.8B-A3.8B | 151,936 | 1.4171 | 1.3927 | 1.5016 | 1.1397 | 1.3672 | 0.9408 | 2.2030 | 1.7183 | 1.6407 | 1.5869 |
+| 59B · step 24,000 | 24.7% | 58.8B-A3.8B | 151,936 | 1.4002 | 1.3754 | 1.4843 | 1.1285 | 1.3477 | 0.9235 | 2.1802 | 1.7009 | 1.6249 | 1.5697 |
+| 59B · step 30,000 | 30.8% | 58.8B-A3.8B | 151,936 | 1.3815 | 1.3561 | 1.4661 | 1.1145 | 1.3274 | 0.9079 | 2.1565 | 1.6866 | 1.6039 | 1.5509 |
+| 59B · step 40,000 | 41.1% | 58.8B-A3.8B | 151,936 | 1.3540 | 1.3285 | 1.4391 | 1.0916 | 1.3002 | 0.8783 | 2.1274 | 1.6628 | 1.5742 | 1.5206 |
+| PROD1_DPSK · q5 | 参考 | 20.3B-A2.5B | 151,936 | 1.4040 | 1.3801 | 1.4871 | 1.1291 | 1.3566 | 0.9342 | 2.1800 | 1.7005 | 1.6223 | 1.5727 |
+| ladder E2X q4（CE） |   | 24.9B-A1.8B | 151,936 | 1.4272 | 1.4043 | 1.5094 | 1.1463 | 1.3840 | 0.9525 | 2.2059 | 1.7223 | 1.6454 | 1.5983 |
+| ladder E2X + KD q3（teacher MiMo-V2.5） |   | 14.4B-A1.2B | 151,936 | 1.4474 | 1.4242 | 1.5290 | 1.1660 | 1.4034 | 0.9633 | 2.2312 | 1.7414 | 1.6688 | 1.6254 |
+| Qwen3-30B-A3B-Base |   | 30B-A3B | 151,936 | 1.2570 | 1.2320 | 1.3561 | 1.0065 | 1.2244 | 0.7429 | 2.1125 | 1.6110 | 1.4392 | 1.4083 |
+| MiMo-V2.5-Pro-Base（KD teacher） |   | 1.02T-A42B | 152,576 | 1.0317 | 1.0174 | 1.1293 | 0.7911 | 1.0433 | 0.5085 | 1.8116 | 1.4526 | 1.1686 | 1.1365 |
+
+**〔视图：bpb〕**
+
+| checkpoint | 训练进度 | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 59B · step 10,000 | 10.3% | 58.8B-A3.8B | 151,936 | 0.5670 | 0.5630 | 0.5767 | 0.4763 | 0.5467 | 0.3577 | 0.7985 | 0.5875 | 0.6934 | 0.6385 |
+| 59B · step 20,000 | 20.5% | 58.8B-A3.8B | 151,936 | 0.5516 | 0.5472 | 0.5626 | 0.4633 | 0.5309 | 0.3439 | 0.7855 | 0.5768 | 0.6752 | 0.6212 |
+| 59B · step 24,000 | 24.7% | 58.8B-A3.8B | 151,936 | 0.5450 | 0.5404 | 0.5561 | 0.4587 | 0.5233 | 0.3376 | 0.7774 | 0.5709 | 0.6687 | 0.6145 |
+| 59B · step 30,000 | 30.8% | 58.8B-A3.8B | 151,936 | 0.5378 | 0.5328 | 0.5493 | 0.4531 | 0.5154 | 0.3319 | 0.7690 | 0.5662 | 0.6601 | 0.6071 |
+| 59B · step 40,000 | 41.1% | 58.8B-A3.8B | 151,936 | 0.5270 | 0.5220 | 0.5390 | 0.4438 | 0.5049 | 0.3211 | 0.7586 | 0.5582 | 0.6478 | 0.5953 |
+| PROD1_DPSK · q5 | 参考 | 20.3B-A2.5B | 151,936 | 0.5465 | 0.5423 | 0.5572 | 0.4590 | 0.5268 | 0.3415 | 0.7773 | 0.5708 | 0.6676 | 0.6156 |
+| ladder E2X q4（CE） |   | 24.9B-A1.8B | 151,936 | 0.5555 | 0.5518 | 0.5656 | 0.4660 | 0.5374 | 0.3482 | 0.7866 | 0.5781 | 0.6772 | 0.6257 |
+| ladder E2X + KD q3（teacher MiMo-V2.5） |   | 14.4B-A1.2B | 151,936 | 0.5634 | 0.5596 | 0.5730 | 0.4740 | 0.5449 | 0.3521 | 0.7956 | 0.5845 | 0.6868 | 0.6363 |
+| Qwen3-30B-A3B-Base |   | 30B-A3B | 151,936 | 0.4890 | 0.4841 | 0.5071 | 0.4091 | 0.4754 | 0.2716 | 0.7533 | 0.5407 | 0.5923 | 0.5513 |
+| MiMo-V2.5-Pro-Base（KD teacher） |   | 1.02T-A42B | 152,576 | 0.4010 | 0.3998 | 0.4212 | 0.3216 | 0.4051 | 0.1859 | 0.6460 | 0.4876 | 0.4809 | 0.4449 |
+
+## 页签：prod downstream
+
+### 重点指标随训练步数的变化
+
+**〔视图：知识 / 推理〕**
+
+**〔视图：数学〕**
+
+**〔视图：代码〕**
+
+### 实验列表
+
+| 显示 | 颜色 | 模型 | 说明 | 大小 | 已出分 |
+|---|---|---|---|---|---|
+|   |   | Qwen3-30B-A3B-Base | 外部 baseline：Qwen 官方 base 模型 | 30B-A3B | 66 / 66 |
+|   |   | ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 生产 run 的 checkpoint：iter 10,000 / 97,330（10%）。评测：boxiangw (harness 6bf2cd1a) | 58.8B-A3.8B | 64 / 66 |
+|   |   | ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 生产 run 的 checkpoint：iter 18,000 / 97,330（18%）。评测：xingqianx (harness cfcd736a + 16f7620f) | 58.8B-A3.8B | 66 / 66 |
+|   |   | ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 生产 run 的 checkpoint：iter 20,000 / 97,330（21%）。评测：boxiangw (harness 66427095 + 6bf2cd1a) | 58.8B-A3.8B | 64 / 66 |
+|   |   | ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 生产 run 的 checkpoint：iter 24,000 / 97,330（25%）。评测：xingqianx (harness 6bf2cd1a)；评测还在跑 | 58.8B-A3.8B | 17 / 66 |
+|   |   | ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 生产 run 的 checkpoint：iter 30,000 / 97,330（31%）。评测：boxiangw (harness 6bf2cd1a) | 58.8B-A3.8B | 64 / 66 |
+|   |   | ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 生产 run 的 checkpoint：iter 36,000 / 97,330（37%）。评测：boxiangw (harness 6bf2cd1a)；评测还在跑 | 58.8B-A3.8B | 47 / 66 |
+|   |   | ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 生产 run 的 checkpoint：iter 38,000 / 97,330（39%）。评测：boxiangw (harness 6bf2cd1a)；评测还在跑 | 58.8B-A3.8B | 28 / 66 |
+|   |   | PROD1_DPSK_LATENT2_E2X · q3 | PROD v1 底座（SWA 512，局部:全局 5:1 + sink；DSV3 router：sigmoid + expert bias + seq aux 1e-4；第 0 层 dense；32K 训练 + 文档间 mask；MuonH，纯 CE，650B 数据）上的 latent MoE：d = h/2，512 个 routed expert 选 16 + 1 shared | 14.4B-A1.2B | 66 / 66 |
+|   |   | PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 同 PROD1_DPSK_LATENT2_E2X，router 换成 QBK3：按 Kimi K3 原文的 quantile balancing（expert bias 每个 step 由整个 global batch 的分位数直接算出，没有 seq aux） | 14.4B-A1.2B | 66 / 66 |
+
+只有旧协议（nemo6）分数的 24 个 checkpoint：按这份清单测过之后会自动出现在上面的列表里 — 点击展开
+
+PROD1_DPSK · q3；PROD1_DPSK · q4；PROD1_DPSK · q5；PROD1_DPSK_CLAMP20 · q3；PROD1_DPSK_CLAMP7 · q3；PROD1_DPSK_E2X · q3；PROD1_DPSK_GAUX · q3；PROD1_DPSK_GAUX_NOBIAS · q3；PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K · q3；PROD1_DPSK_LATENT2 · q3；PROD1_DPSK_LATENT2 · q4；PROD1_DPSK_LATENT2_E2X · q1；PROD1_DPSK_LATENT2_E2X · q2；PROD1_DPSK_LATENT2_E2X · q4；PROD1_DPSK_LATENT2_E2X_BIASONLY · q2；PROD1_DPSK_LATENT2_E2X_QB · q2；PROD1_DPSK_LATENT2_E2X_QB · q3；PROD1_DPSK_LATENT2_E2X_QBK3 · q1；PROD1_DPSK_LATENT2_E2X_QBK3 · q2；PROD1_DPSK_LATENT2_E2X_QBK3_WU · q1；PROD1_DPSK_LATENT2_E2X_QBX · q2；PROD1_DPSK_LATENT2_E2X_QBX · q3；PROD1_DPSK_LATENT2_E2X_QBX_KD_A0P8_S64Y_MIMO25_PPFULL · q3；PROD1_DPSK_RS1 · q3
+
+### 全量测评重点
+
+重点 = 全量测评 36 个任务里的 19 个，每个任务只取一个主分数，分 3 个标签页：知识 / 推理 8 个、数学 8 个、代码 3 个。其余 17 个任务，以及这 19 个任务的其它分数（共 47 个指标），只在“全量测评结果”里。模型行、颜色和曲线的画法两章相同。
+
+**〔视图：知识 / 推理〕**
+
+| 线 | MMLU · acc 总分 | MMLU-Pro · EM（官方） | AGIEval-en · EM 宏平均（官方） | HellaSwag · acc_norm | WinoG · acc | OBQA · acc_norm | TruthfulQA · acc | RACE-h · acc |
+|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 81.0 | 61.7 | 66.1 | 83.0 | 79.0 | 45.2 | 45.6 | 89.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 74.2 | 51.8 | 55.7 | · | 79.6 | · | 51.7 | 85.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 73.7 | 55.5 | 57.2 | · | 78.8 | · | 49.2 | 85.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 72.7 | 50.4 | 52.4 | 82.0 | 79.6 | 46.2 | 47.9 | 85.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 69.6 | 48.7 | 48.0 | 80.6 | 76.9 | 44.6 | 48.8 | 83.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 69.4 | 46.5 | 50.9 | 79.8 | 77.1 | 43.8 | 49.3 | 85.1 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 66.3 | 44.3 | 48.7 | 79.7 | 74.8 | 46.4 | 48.2 | 82.5 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 60.4 | 38.7 | 39.8 | 75.6 | 69.2 | 42.2 | 45.5 | 79.2 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 59.7 | 41.0 | 40.8 | 75.4 | 69.5 | 43.4 | 46.0 | 77.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | · | · | 52.0 | · | 77.4 | · | 48.6 | 84.4 |
+
+| 模型 | 大小 | MMLU<br>acc 总分 | MMLU-Pro<br>EM（官方） | AGIEval-en<br>EM 宏平均（官方） | HellaSwag<br>acc_norm | WinoGrande<br>acc | OpenBookQA<br>acc_norm | TruthfulQA<br>acc | RACE-high<br>acc |
+|---|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 81.0 | 61.7 | 66.1 | 83.0 | 79.0 | 45.2 | 45.6 | 89.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 66.3 | 44.3 | 48.7 | 79.7 | 74.8 | 46.4 | 48.2 | 82.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 69.6 | 48.7 | 48.0 | 80.6 | 76.9 | 44.6 | 48.8 | 83.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 69.4 | 46.5 | 50.9 | 79.8 | 77.1 | 43.8 | 49.3 | 85.1 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | - | - | 52.0 | - | 77.4 | - | 48.6 | 84.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 72.7 | 50.4 | 52.4 | 82.0 | 79.6 | 46.2 | 47.9 | 85.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | 74.2 | 51.8 | 55.7 | - | 79.6 | - | 51.7 | 85.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | 73.7 | 55.5 | 57.2 | - | 78.8 | - | 49.2 | 85.8 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 60.4 | 38.7 | 39.8 | 75.6 | 69.2 | 42.2 | 45.5 | 79.2 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 59.7 | 41.0 | 40.8 | 75.4 | 69.5 | 43.4 | 46.0 | 77.6 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：数学〕**
+
+| 线 | GSM8K NeMo 提示 · EM | GSM8K Wei 提示 · EM strict | MATH-500 · pass@1 | Minerva · EM | AIME 24 · pass@1 | AIME 25 · pass@1 | HMMT 25 · pass@1 | MGSM-zh · EM |
+|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 89.2 | 81.8 | 58.7 | 63.1 | 4.2 | 2.5 | 0.2 | 82.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 85.1 | 82.8 | 40.0 | 50.5 | 0.4 | 0.8 | 0.3 | 76.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 81.3 | 77.4 | 39.1 | 48.5 | 1.0 | 0.7 | 0.6 | 67.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 81.3 | 82.5 | 42.7 | · | 1.6 | 1.1 | 0.0 | 72.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 76.6 | 74.8 | 35.4 | 46.0 | 1.6 | 0.5 | 0.1 | 66.8 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 75.0 | 66.0 | 40.9 | 49.1 | 0.7 | 0.7 | 0.1 | 61.2 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 73.6 | 74.9 | 38.5 | 47.2 | 0.6 | 0.4 | 0.1 | 63.6 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 72.5 | 67.5 | 36.7 | 45.3 | 0.5 | 0.8 | 0.1 | 59.2 |
+
+| 模型 | 大小 | GSM8K NeMo 提示<br>EM | GSM8K Wei 提示<br>EM strict | MATH-500<br>pass@1 | Minerva MATH<br>EM | AIME 2024<br>pass@1 | AIME 2025<br>pass@1 | HMMT Feb 2025<br>pass@1 | MGSM-zh<br>EM |
+|---|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 89.2 | 81.8 | 58.7 | 63.1 | 4.2 | 2.5 | 0.2 | 82.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 76.6 | 74.8 | 35.4 | 46.0 | 1.6 | 0.5 | 0.1 | 66.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 81.3 | 77.4 | 39.1 | 48.5 | 1.0 | 0.7 | 0.6 | 67.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 73.6 | 74.9 | 38.5 | 47.2 | 0.6 | 0.4 | 0.1 | 63.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | - | - | - | - | - | - | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 85.1 | 82.8 | 40.0 | 50.5 | 0.4 | 0.8 | 0.3 | 76.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | 81.3 | 82.5 | 42.7 | - | 1.6 | 1.1 | 0.0 | 72.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | - | - | - | - | - | - | - | - |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 75.0 | 66.0 | 40.9 | 49.1 | 0.7 | 0.7 | 0.1 | 61.2 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 72.5 | 67.5 | 36.7 | 45.3 | 0.5 | 0.8 | 0.1 | 59.2 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：代码〕**
+
+| 线 | HumanEval · pass@1 | MBPP · pass@1 | LCB greedy · pass@1 |
+|---|---|---|---|
+| Qwen3-30B-A3B-Base | 69.6 | 78.2 | 36.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 78.8 | 72.8 | 28.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 71.2 | 69.1 | 22.7 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 71.1 | 69.0 | 24.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 66.5 | 70.0 | 23.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 65.1 | 65.5 | 18.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 63.1 | 64.3 | 18.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 61.4 | 67.7 | 23.3 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 57.3 | 62.0 | 16.3 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 55.0 | 58.8 | 14.6 |
+
+| 模型 | 大小 | HumanEval<br>pass@1 | MBPP<br>pass@1 | LiveCodeBench greedy<br>pass@1 |
+|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 69.6 | 78.2 | 36.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 63.1 | 64.3 | 18.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 61.4 | 67.7 | 23.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 65.1 | 65.5 | 18.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | 71.2 | 69.1 | 22.7 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 66.5 | 70.0 | 23.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | 71.1 | 69.0 | 24.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | 78.8 | 72.8 | 28.4 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 55.0 | 58.8 | 14.6 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 57.3 | 62.0 | 16.3 |
+
+### 全量测评结果
+
+**〔视图：常识推理 · 阅读理解〕**
+
+常识推理：英文多选题；阅读理解：读一篇文章，答多选题
+
+| 横轴 | Qwen3-30B-A3B-Base | ULTRA59B_MUONH_KD_QBK3 · iter 30000 | ULTRA59B_MUONH_KD_QBK3 · iter 20000 | ULTRA59B_MUONH_KD_QBK3 · iter 18000 | ULTRA59B_MUONH_KD_QBK3 · iter 10000 | PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | PROD1_DPSK_LATENT2_E2X · q3 | ULTRA59B_MUONH_KD_QBK3 · iter 36000 | ULTRA59B_MUONH_KD_QBK3 · iter 38000 | ULTRA59B_MUONH_KD_QBK3 · iter 24000 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| CSQA · acc | 86.5 | 78.5 | 76.2 | 74.9 | 73.5 | 70.2 | 69.8 | · | · | · |
+| ARC-C · acc_norm | 94.2 | 89.1 | 87.3 | 87.4 | 83.6 | 75.3 | 78.4 | · | · | · |
+| HellaSwag · acc_norm | 83.0 | 82.0 | 79.8 | 80.6 | 79.7 | 75.4 | 75.6 | · | · | · |
+| OBQA · acc_norm | 45.2 | 46.2 | 43.8 | 44.6 | 46.4 | 43.4 | 42.2 | · | · | · |
+| OBQA · acc | 33.4 | 33.6 | 34.4 | 35.4 | 35.2 | 32.6 | 31.8 | · | · | · |
+| PIQA · acc_norm | 81.0 | 82.4 | 82.8 | 82.5 | 82.2 | 79.5 | 79.2 | 83.0 | 82.9 | 81.3 |
+| PIQA · acc | 80.8 | 81.6 | 81.3 | 81.4 | 81.3 | 78.4 | 79.4 | 81.6 | 81.8 | 80.8 |
+| WinoG · acc | 79.0 | 79.6 | 77.1 | 76.9 | 74.8 | 69.5 | 69.2 | 79.6 | 78.8 | 77.4 |
+| SIQA · acc | 52.3 | 51.7 | 49.7 | 48.8 | 50.3 | 45.8 | 44.1 | 50.5 | 51.2 | 49.9 |
+| SIQA · acc_norm | 55.3 | 53.7 | 54.4 | 52.9 | 54.3 | 48.1 | 47.2 | 54.6 | 54.6 | 54.7 |
+| TruthfulQA · acc | 45.6 | 47.9 | 49.3 | 48.8 | 48.2 | 46.0 | 45.5 | 51.7 | 49.2 | 48.6 |
+| RACE-h · acc | 89.4 | 85.4 | 85.1 | 83.6 | 82.5 | 77.6 | 79.2 | 85.3 | 85.8 | 84.4 |
+
+| 模型 | 大小 | CommonsenseQA<br>acc | CommonsenseQA<br>acc（并列均分） | ARC-Challenge<br>acc_norm | ARC-Challenge<br>acc（并列均分） | HellaSwag<br>acc_norm | OpenBookQA<br>acc_norm | OpenBookQA<br>acc | PIQA<br>acc_norm | PIQA<br>acc | WinoGrande<br>acc | Social IQa<br>acc | Social IQa<br>acc_norm | TruthfulQA<br>acc | RACE-high<br>acc | RACE-high<br>acc（并列均分） |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 86.5 | 86.4 | 94.2 | 94.2 | 83.0 | 45.2 | 33.4 | 81.0 | 80.8 | 79.0 | 52.3 | 55.3 | 45.6 | 89.4 | 89.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 73.5 | 73.5 | 83.6 | 83.7 | 79.7 | 46.4 | 35.2 | 82.2 | 81.3 | 74.8 | 50.3 | 54.3 | 48.2 | 82.5 | 82.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 74.9 | 74.7 | 87.4 | 87.5 | 80.6 | 44.6 | 35.4 | 82.5 | 81.4 | 76.9 | 48.8 | 52.9 | 48.8 | 83.6 | 83.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 76.2 | 76.2 | 87.3 | 87.2 | 79.8 | 43.8 | 34.4 | 82.8 | 81.3 | 77.1 | 49.7 | 54.4 | 49.3 | 85.1 | 85.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | - | - | - | - | - | - | - | 81.3 | 80.8 | 77.4 | 49.9 | 54.7 | 48.6 | 84.4 | 84.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 78.5 | 78.4 | 89.1 | 89.1 | 82.0 | 46.2 | 33.6 | 82.4 | 81.6 | 79.6 | 51.7 | 53.7 | 47.9 | 85.4 | 85.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | - | - | - | - | - | - | - | 83.0 | 81.6 | 79.6 | 50.5 | 54.6 | 51.7 | 85.3 | 85.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | - | - | - | - | - | - | - | 82.9 | 81.8 | 78.8 | 51.2 | 54.6 | 49.2 | 85.8 | 85.8 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 69.8 | 69.4 | 78.4 | 78.6 | 75.6 | 42.2 | 31.8 | 79.2 | 79.4 | 69.2 | 44.1 | 47.2 | 45.5 | 79.2 | 79.1 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 70.2 | 70.4 | 75.3 | 75.5 | 75.4 | 43.4 | 32.6 | 79.5 | 78.4 | 69.5 | 45.8 | 48.1 | 46.0 | 77.6 | 77.9 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：知识考试〕**
+
+知识考试多选题，按选项字母的概率打分
+
+| 线 | MMLU · acc 总分 | MMLU · acc STEM | MMLU-Redux · acc | G-MMLU-zh · acc | INCLUDE-zh · acc |
+|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 81.0 | 83.9 | 85.4 | 78.2 | 87.2 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 74.2 | 73.2 | 77.9 | 68.0 | 59.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 73.7 | 72.6 | 78.1 | · | · |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 72.7 | 71.6 | 76.7 | 66.0 | 58.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 69.6 | 66.2 | 72.9 | 63.5 | 51.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 69.4 | 67.7 | 72.5 | 65.0 | 53.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 66.3 | 60.5 | 68.8 | 57.2 | 51.4 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 60.4 | 53.4 | 63.5 | 54.0 | 48.3 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 59.7 | 53.5 | 62.6 | 52.0 | 45.1 |
+
+| 模型 | 大小 | MMLU<br>acc 总分 | MMLU<br>acc 总分（并列均分） | MMLU<br>acc STEM | MMLU<br>acc STEM（并列均分） | MMLU-Redux<br>acc | MMLU-Redux<br>acc（并列均分） | Global-MMLU-zh<br>acc | Global-MMLU-zh<br>acc（并列均分） | INCLUDE-zh<br>acc | INCLUDE-zh<br>acc（并列均分） |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 81.0 | 81.0 | 83.9 | 83.9 | 85.4 | 85.4 | 78.2 | 78.2 | 87.2 | 87.2 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 66.3 | 66.4 | 60.5 | 60.7 | 68.8 | 68.9 | 57.2 | 57.1 | 51.4 | 50.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 69.6 | 69.7 | 66.2 | 66.3 | 72.9 | 73.0 | 63.5 | 63.2 | 51.6 | 51.7 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 69.4 | 69.5 | 67.7 | 67.7 | 72.5 | 72.7 | 65.0 | 65.1 | 53.8 | 53.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | - | - | - | - | - | - | - | - | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 72.7 | 72.7 | 71.6 | 71.6 | 76.7 | 76.7 | 66.0 | 65.8 | 58.0 | 57.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | 74.2 | 74.3 | 73.2 | 73.2 | 77.9 | 78.0 | 68.0 | 68.1 | 59.4 | 59.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | 73.7 | 73.7 | 72.6 | 72.7 | 78.1 | 78.0 | - | - | - | - |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 60.4 | 60.5 | 53.4 | 53.5 | 63.5 | 63.8 | 54.0 | 53.9 | 48.3 | 48.0 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 59.7 | 59.7 | 53.5 | 53.5 | 62.6 | 62.6 | 52.0 | 52.2 | 45.1 | 45.1 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：代码〕**
+
+生成代码并执行打分
+
+| 线 | MBPP · pass@1 | MBPP · pass@32 | HumanEval · pass@1 | HumanEval · pass@32 | LCB greedy · pass@1 | LCB 采样 · pass@1 | LCB 采样 · pass@32 |
+|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 78.2 | 94.9 | 69.6 | 87.2 | 36.3 | 35.8 | 51.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 72.8 | 91.8 | 78.8 | 90.9 | 28.4 | · | · |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 70.0 | 93.0 | 66.5 | 87.8 | 23.5 | 23.0 | 38.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 69.1 | 93.0 | 71.2 | 87.8 | 22.7 | · | · |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 69.0 | 91.4 | 71.1 | 87.2 | 24.4 | 24.8 | 39.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 67.7 | 93.0 | 61.4 | 85.4 | 23.3 | 22.9 | 35.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 65.5 | 90.7 | 65.1 | 82.9 | 18.5 | 18.2 | 30.9 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 64.3 | 87.9 | 63.1 | 81.1 | 18.8 | 19.1 | 32.7 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 62.0 | 86.4 | 57.3 | 83.5 | 16.3 | 15.9 | 26.2 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 58.8 | 86.4 | 55.0 | 80.5 | 14.6 | 14.2 | 24.8 |
+
+| 模型 | 大小 | MBPP<br>pass@1 | MBPP<br>pass@32 | HumanEval<br>pass@1 | HumanEval<br>pass@32 | LiveCodeBench greedy<br>pass@1 | LiveCodeBench 采样<br>pass@1 | LiveCodeBench 采样<br>pass@32 |
+|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 78.2 | 94.9 | 69.6 | 87.2 | 36.3 | 35.8 | 51.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 64.3 | 87.9 | 63.1 | 81.1 | 18.8 | 19.1 | 32.7 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 67.7 | 93.0 | 61.4 | 85.4 | 23.3 | 22.9 | 35.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 65.5 | 90.7 | 65.1 | 82.9 | 18.5 | 18.2 | 30.9 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | 69.1 | 93.0 | 71.2 | 87.8 | 22.7 | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 70.0 | 93.0 | 66.5 | 87.8 | 23.5 | 23.0 | 38.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | 69.0 | 91.4 | 71.1 | 87.2 | 24.4 | 24.8 | 39.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | 72.8 | 91.8 | 78.8 | 90.9 | 28.4 | - | - |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 58.8 | 86.4 | 55.0 | 80.5 | 14.6 | 14.2 | 24.8 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 62.0 | 86.4 | 57.3 | 83.5 | 16.3 | 15.9 | 26.2 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：综合考试〕**
+
+生成作答（CoT），抽取最终选项 / 答案比对
+
+**MMLU-Pro · AGIEval**
+
+| 线 | MMLU-Pro · EM（官方） | MMLU-Pro · EM（未作答算错） | AGIEval-en · EM 宏平均（官方） | AGIEval-en · EM 宏平均（无兜底） | AGIEval-en · EM（按题数加权） |
+|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 61.7 | 61.6 | 66.1 | 65.9 | 63.9 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 55.5 | 55.2 | 57.2 | 57.0 | 55.5 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 51.8 | 51.5 | 55.7 | 55.3 | 55.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 50.4 | 49.5 | 52.4 | 51.6 | 53.2 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 48.7 | 48.5 | 48.0 | 47.2 | 47.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 46.5 | 46.3 | 50.9 | 50.3 | 50.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 44.3 | 44.1 | 48.7 | 48.2 | 48.4 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 41.0 | 40.7 | 40.8 | 40.3 | 40.5 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 38.7 | 38.3 | 39.8 | 38.9 | 40.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | · | · | 52.0 | 51.5 | 51.8 |
+
+| 模型 | 大小 | MMLU-Pro<br>EM（官方） | MMLU-Pro<br>EM（未作答算错） | MMLU-Pro<br>未作答率 | AGIEval-en<br>EM 宏平均（官方） | AGIEval-en<br>EM 宏平均（无兜底） | AGIEval-en<br>EM（按题数加权） |
+|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 61.7 | 61.6 | 0.8 | 66.1 | 65.9 | 63.9 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 44.3 | 44.1 | 2.1 | 48.7 | 48.2 | 48.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 48.7 | 48.5 | 2.0 | 48.0 | 47.2 | 47.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 46.5 | 46.3 | 1.8 | 50.9 | 50.3 | 50.4 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | - | - | - | 52.0 | 51.5 | 51.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 50.4 | 49.5 | 7.5 | 52.4 | 51.6 | 53.2 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | 51.8 | 51.5 | 2.9 | 55.7 | 55.3 | 55.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | 55.5 | 55.2 | 3.0 | 57.2 | 57.0 | 55.5 |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 38.7 | 38.3 | 3.9 | 39.8 | 38.9 | 40.0 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 41.0 | 40.7 | 2.6 | 40.8 | 40.3 | 40.5 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**GPQA · SuperGPQA · MGSM**
+
+| 线 | GPQA-D greedy · EM | GPQA-D 采样 · pass@1 | GPQA-D 采样 · 多数票 | SuperGPQA · EM | MGSM-zh · EM |
+|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 34.2 | 33.7 | 40.1 | 35.4 | 82.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 32.7 | 29.0 | 34.4 | 22.9 | 67.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 28.6 | 31.0 | 34.4 | · | · |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 26.0 | 28.3 | 30.4 | 20.5 | 66.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 26.0 | 32.7 | 40.1 | 26.1 | 72.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 22.4 | 28.0 | 31.1 | 22.9 | 63.6 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 21.4 | 25.5 | 33.3 | 20.0 | 59.2 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 16.8 | · | · | · | · |
+| PROD1_DPSK_LATENT2_E2X · q3 | 16.3 | 24.1 | 27.3 | 17.5 | 61.2 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 15.3 | 24.5 | 34.0 | 24.7 | 76.8 |
+
+| 模型 | 大小 | GPQA-Diamond greedy<br>EM | GPQA-Diamond 采样<br>pass@1 | GPQA-Diamond 采样<br>多数票 | SuperGPQA<br>EM | MGSM-zh<br>EM |
+|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 34.2 | 33.7 | 40.1 | 35.4 | 82.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 26.0 | 28.3 | 30.4 | 20.5 | 66.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 32.7 | 29.0 | 34.4 | 22.9 | 67.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 22.4 | 28.0 | 31.1 | 22.9 | 63.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | 16.8 | - | - | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 15.3 | 24.5 | 34.0 | 24.7 | 76.8 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | 26.0 | 32.7 | 40.1 | 26.1 | 72.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | 28.6 | 31.0 | 34.4 | - | - |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 16.3 | 24.1 | 27.3 | 17.5 | 61.2 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 21.4 | 25.5 | 33.3 | 20.0 | 59.2 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：数学〕**
+
+生成解答，比对最终答案
+
+| 横轴 | Qwen3-30B-A3B-Base | ULTRA59B_MUONH_KD_QBK3 · iter 30000 | ULTRA59B_MUONH_KD_QBK3 · iter 18000 | ULTRA59B_MUONH_KD_QBK3 · iter 36000 | ULTRA59B_MUONH_KD_QBK3 · iter 10000 | PROD1_DPSK_LATENT2_E2X · q3 | ULTRA59B_MUONH_KD_QBK3 · iter 20000 | PROD1_DPSK_LATENT2_E2X_QBK3 · q3 |
+|---|---|---|---|---|---|---|---|---|
+| GSM8K NeMo 提示 · EM | 89.2 | 85.1 | 81.3 | 81.3 | 76.6 | 75.0 | 73.6 | 72.5 |
+| GSM8K Wei 提示 · EM strict | 81.8 | 82.8 | 77.4 | 82.5 | 74.8 | 66.0 | 74.9 | 67.5 |
+| GSM8K Wei 提示 · EM flexible | 88.5 | 83.4 | 77.8 | 82.6 | 75.3 | 68.3 | 75.3 | 69.7 |
+| Minerva · EM | 63.1 | 50.5 | 48.5 | · | 46.0 | 49.1 | 47.2 | 45.3 |
+| Minerva · EM（Hendrycks） | 57.8 | 47.2 | 44.7 | · | 41.9 | 46.3 | 44.5 | 42.2 |
+| MATH-500 · pass@1 | 58.7 | 40.0 | 39.1 | 42.7 | 35.4 | 40.9 | 38.5 | 36.7 |
+| MATH-500 · pass@32 | 93.4 | 88.8 | 88.0 | 89.0 | 85.6 | 87.4 | 85.2 | 84.0 |
+| AIME 24 · pass@1 | 4.2 | 0.4 | 1.0 | 1.6 | 1.6 | 0.7 | 0.6 | 0.5 |
+| AIME 24 · pass@32 | 30.0 | 6.7 | 20.0 | 23.3 | 23.3 | 16.7 | 6.7 | 16.7 |
+| AIME 25 · pass@1 | 2.5 | 0.8 | 0.7 | 1.1 | 0.5 | 0.7 | 0.4 | 0.8 |
+| AIME 25 · pass@32 | 30.0 | 16.7 | 10.0 | 16.7 | 13.3 | 13.3 | 13.3 | 13.3 |
+| HMMT 25 · pass@1 | 0.2 | 0.3 | 0.6 | 0.0 | 0.1 | 0.1 | 0.1 | 0.1 |
+| HMMT 25 · pass@32 | 6.7 | 10.0 | 16.7 | 0.0 | 3.3 | 3.3 | 3.3 | 3.3 |
+
+| 模型 | 大小 | GSM8K NeMo 提示<br>EM | GSM8K Wei 提示<br>EM strict | GSM8K Wei 提示<br>EM flexible | Minerva MATH<br>EM | Minerva MATH<br>EM（Hendrycks） | MATH-500<br>pass@1 | MATH-500<br>pass@32 | AIME 2024<br>pass@1 | AIME 2024<br>pass@32 | AIME 2025<br>pass@1 | AIME 2025<br>pass@32 | HMMT Feb 2025<br>pass@1 | HMMT Feb 2025<br>pass@32 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 89.2 | 81.8 | 88.5 | 63.1 | 57.8 | 58.7 | 93.4 | 4.2 | 30.0 | 2.5 | 30.0 | 0.2 | 6.7 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 76.6 | 74.8 | 75.3 | 46.0 | 41.9 | 35.4 | 85.6 | 1.6 | 23.3 | 0.5 | 13.3 | 0.1 | 3.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 81.3 | 77.4 | 77.8 | 48.5 | 44.7 | 39.1 | 88.0 | 1.0 | 20.0 | 0.7 | 10.0 | 0.6 | 16.7 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 73.6 | 74.9 | 75.3 | 47.2 | 44.5 | 38.5 | 85.2 | 0.6 | 6.7 | 0.4 | 13.3 | 0.1 | 3.3 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 85.1 | 82.8 | 83.4 | 50.5 | 47.2 | 40.0 | 88.8 | 0.4 | 6.7 | 0.8 | 16.7 | 0.3 | 10.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | 81.3 | 82.5 | 82.6 | - | - | 42.7 | 89.0 | 1.6 | 23.3 | 1.1 | 16.7 | 0.0 | 0.0 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 75.0 | 66.0 | 68.3 | 49.1 | 46.3 | 40.9 | 87.4 | 0.7 | 16.7 | 0.7 | 13.3 | 0.1 | 3.3 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 72.5 | 67.5 | 69.7 | 45.3 | 42.2 | 36.7 | 84.0 | 0.5 | 16.7 | 0.8 | 13.3 | 0.1 | 3.3 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：事实问答 · 知识〕**
+
+事实问答：短答案生成，取回答的第一行比对；知识：LLM 裁判判对错
+
+| 横轴 | Qwen3-30B-A3B-Base | ULTRA59B_MUONH_KD_QBK3 · iter 30000 | ULTRA59B_MUONH_KD_QBK3 · iter 20000 | ULTRA59B_MUONH_KD_QBK3 · iter 18000 | ULTRA59B_MUONH_KD_QBK3 · iter 10000 | PROD1_DPSK_LATENT2_E2X · q3 | PROD1_DPSK_LATENT2_E2X_QBK3 · q3 |
+|---|---|---|---|---|---|---|---|
+| TriviaQA · EM | 69.5 | 68.6 | 66.3 | 64.6 | 61.1 | 53.9 | 53.8 |
+| TriviaQA · EM（Wiki 子集） | 72.0 | 71.2 | 68.7 | 67.2 | 63.8 | 56.1 | 56.3 |
+| PopQA · acc（子串，官方） | 28.7 | 25.4 | 23.9 | 23.8 | 22.2 | 19.3 | 19.6 |
+| PopQA · EM | 28.3 | 24.9 | 23.4 | 23.2 | 21.6 | 18.9 | 19.3 |
+| NQ · EM | 33.1 | 27.9 | 25.3 | 24.8 | 24.9 | 18.9 | 20.0 |
+| SimpleQA · F1 | 6.0 | 4.8 | 4.6 | 4.4 | 3.9 | 3.6 | 3.7 |
+| SimpleQA · correct | 6.0 | 4.8 | 4.6 | 4.4 | 3.9 | 3.6 | 3.7 |
+| SimpleQA-V · 裁判准确率 | 7.1 | · | · | 4.9 | · | 4.0 | 3.3 |
+| FACTS · 裁判准确率 | 3.6 | · | · | 2.6 | · | 2.0 | 1.9 |
+
+| 模型 | 大小 | TriviaQA<br>EM | TriviaQA<br>EM（Wiki 子集） | PopQA<br>acc（子串，官方） | PopQA<br>EM | Natural Questions<br>EM | SimpleQA<br>F1 | SimpleQA<br>correct | SimpleQA<br>not_attempted | SimpleQA-Verified<br>裁判准确率 | FACTS-parametric<br>裁判准确率 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 30B-A3B | 69.5 | 72.0 | 28.7 | 28.3 | 33.1 | 6.0 | 6.0 | 0.1 | 7.1 | 3.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 10000 | 58.8B-A3.8B | 61.1 | 63.8 | 22.2 | 21.6 | 24.9 | 3.9 | 3.9 | 0.0 | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 18000 | 58.8B-A3.8B | 64.6 | 67.2 | 23.8 | 23.2 | 24.8 | 4.4 | 4.4 | 0.0 | 4.9 | 2.6 |
+| ULTRA59B_MUONH_KD_QBK3 · iter 20000 | 58.8B-A3.8B | 66.3 | 68.7 | 23.9 | 23.4 | 25.3 | 4.6 | 4.6 | 0.0 | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 24000 | 58.8B-A3.8B | - | - | - | - | - | - | - | - | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 30000 | 58.8B-A3.8B | 68.6 | 71.2 | 25.4 | 24.9 | 27.9 | 4.8 | 4.8 | 0.1 | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 36000 | 58.8B-A3.8B | - | - | - | - | - | - | - | - | - | - |
+| ULTRA59B_MUONH_KD_QBK3 · iter 38000 | 58.8B-A3.8B | - | - | - | - | - | - | - | - | - | - |
+| PROD1_DPSK_LATENT2_E2X · q3 | 14.4B-A1.2B | 53.9 | 56.1 | 19.3 | 18.9 | 18.9 | 3.6 | 3.6 | 0.1 | 4.0 | 2.0 |
+| PROD1_DPSK_LATENT2_E2X_QBK3 · q3 | 14.4B-A1.2B | 53.8 | 56.3 | 19.6 | 19.3 | 20.0 | 3.7 | 3.7 | 0.0 | 3.3 | 1.9 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+## 页签：外部参考
+
+### Pretrain doc-isolated 测试
+
+**〔窗口：window = 8K〕**
+
+**〔视图：bpb〕**
+
+|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 0.4090 | 0.4076 | 0.4269 | 0.3354 | 0.4128 | 0.1859 | 0.6494 | 0.4881 | 0.4899 | 0.4617 |
+| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 0.4289 | 0.4254 | 0.4468 | 0.3587 | 0.4238 | 0.2033 | 0.6724 | 0.5037 | 0.5191 | 0.4882 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 0.4976 | 0.4926 | 0.5132 | 0.4237 | 0.4838 | 0.2716 | 0.7567 | 0.5413 | 0.6024 | 0.5685 |
+| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 0.5242 | 0.5200 | 0.5406 | 0.4479 | 0.5138 | 0.2853 | 0.7947 | 0.5719 | 0.6299 | 0.5939 |
+| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 0.5180 | 0.5125 | 0.5346 | 0.4447 | 0.5025 | 0.2825 | 0.7890 | 0.5624 | 0.6265 | 0.5909 |
+| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 0.4940 | 0.4900 | 0.5135 | 0.4114 | 0.4860 | 0.2677 | 0.7652 | 0.5577 | 0.5928 | 0.5543 |
+| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 0.4692 | 0.4661 | 0.4898 | 0.3853 | 0.4660 | 0.2498 | 0.7396 | 0.5385 | 0.5597 | 0.5227 |
+| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 0.4649 | 0.4612 | 0.4843 | 0.3849 | 0.4584 | 0.2481 | 0.7297 | 0.5269 | 0.5580 | 0.5218 |
+| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 0.4807 | 0.4781 | 0.4999 | 0.3981 | 0.4785 | 0.2598 | 0.7456 | 0.5459 | 0.5716 | 0.5361 |
+| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 0.4744 | 0.4707 | 0.4930 | 0.3951 | 0.4678 | 0.2554 | 0.7364 | 0.5348 | 0.5685 | 0.5332 |
+| DeepSeek-V4-Flash-Base | 284B-A13B | 129,280 | 0.4227 | 0.4196 | 0.4421 | 0.3552 | 0.4174 | 0.2067 | 0.6680 | 0.4949 | 0.5102 | 0.4708 |
+| Kimi-K3 | 2.8T-A104B | 163,840 | 0.3690 | 0.3706 | 0.3915 | 0.3008 | 0.3872 | 0.1549 | 0.6074 | 0.4730 | 0.4258 | 0.3936 |
+| Kimi-K3.1-Pro (MXFP4) | 2.8T-A104B | 163,840 | 0.3677 | 0.3696 | 0.3907 | 0.2992 | 0.3867 | 0.1526 | 0.6084 | 0.4733 | 0.4239 | 0.3904 |
+| Nemotron-3-Ultra-Base | 550B-A55B | 131,072 | 0.4319 | 0.4264 | 0.4477 | 0.3593 | 0.4171 | 0.2383 | 0.6566 | 0.4896 | 0.5255 | 0.4954 |
+| Nemotron-3.5-Super-VL-Base | 120B-A12B | 131,072 | 0.4602 | 0.4537 | 0.4747 | 0.3889 | 0.4396 | 0.2581 | 0.6893 | 0.5077 | 0.5645 | 0.5312 |
+| Qwen3.8-Flash-Next (FP8) | 125B-A6B | 248,320 | 0.4837 | 0.4742 | 0.5031 | 0.4227 | 0.4566 | 0.2404 | 0.7640 | 0.5393 | 0.5959 | 0.5681 |
+| Qwen3.8-27B | 27B | 248,320 | 0.5030 | 0.4902 | 0.5203 | 0.4539 | 0.4594 | 0.2655 | 0.7784 | 0.5349 | 0.6298 | 0.5969 |
+| Qwen3.8-Max (FP8) | 2.4T-A95B | 248,320 | 0.4331 | 0.4264 | 0.4525 | 0.3709 | 0.4185 | 0.2120 | 0.6890 | 0.5000 | 0.5247 | 0.5014 |
+| Mistral-Large-4 (FP8) | 1T-A52B | 204,800 | 0.4904 | 0.4787 | 0.5172 | 0.4223 | 0.4614 | 0.2386 | 0.8363 | 0.5433 | 0.6010 | 0.5750 |
+| Flint（可能不对） | 40B-A2.5B | 150,144 | 0.7811 | 0.7807 | 0.7826 | 0.6872 | 0.7812 | 0.4637 | 1.0556 | 0.7894 | 0.9188 | 0.9009 |
+| Ripple-65B-Base-Preview | 65B | 100,352 | 0.4623 | 0.4578 | 0.4761 | 0.3889 | 0.4510 | 0.2626 | 0.6891 | 0.5093 | 0.5558 | 0.5291 |
+| 我们最好的: ULTRA59B_MUONH_KD_QBK3 · it30000 | · | · | 0.5486 | 0.5431 | 0.5568 | 0.4720 | 0.5248 | 0.3319 | 0.7722 | 0.5667 | 0.6731 | 0.6306 |
+
+**〔视图：val_loss〕**
+
+|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 1.0520 | 1.0374 | 1.1438 | 0.8251 | 1.0632 | 0.5086 | 1.8213 | 1.4541 | 1.1903 | 1.1795 |
+| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 1.1026 | 1.0827 | 1.1962 | 0.8824 | 1.0913 | 0.5562 | 1.8856 | 1.5005 | 1.2613 | 1.2472 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 1.2788 | 1.2537 | 1.3716 | 1.0423 | 1.2460 | 0.7429 | 2.1220 | 1.6125 | 1.4637 | 1.4524 |
+| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 1.3471 | 1.3234 | 1.4447 | 1.1019 | 1.3232 | 0.7806 | 2.2286 | 1.7036 | 1.5306 | 1.5172 |
+| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 1.3311 | 1.3043 | 1.4286 | 1.0939 | 1.2942 | 0.7727 | 2.2127 | 1.6756 | 1.5222 | 1.5095 |
+| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 1.2702 | 1.2470 | 1.3740 | 1.0119 | 1.2517 | 0.7325 | 2.1460 | 1.6614 | 1.4405 | 1.4161 |
+| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 1.2069 | 1.1861 | 1.3116 | 0.9477 | 1.2002 | 0.6834 | 2.0741 | 1.6042 | 1.3600 | 1.3353 |
+| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 1.1957 | 1.1737 | 1.2963 | 0.9468 | 1.1805 | 0.6788 | 2.0464 | 1.5698 | 1.3558 | 1.3331 |
+| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 1.2365 | 1.2167 | 1.3381 | 0.9793 | 1.2324 | 0.7108 | 2.0909 | 1.6262 | 1.3890 | 1.3696 |
+| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 1.2199 | 1.1980 | 1.3192 | 0.9720 | 1.2047 | 0.6988 | 2.0652 | 1.5934 | 1.3813 | 1.3620 |
+| DeepSeek-V4-Flash-Base † | 284B-A13B | 129,280 | 1.1280 | 1.1070 | 1.2113 | 0.9272 | 1.1172 | 0.5386 | 1.9526 | 1.4256 | 1.3066 | 1.2866 |
+| Kimi-K3 † | 2.8T-A104B | 163,840 | 0.9942 | 0.9839 | 1.0960 | 0.7897 | 1.0317 | 0.4286 | 1.7893 | 1.4398 | 1.0967 | 1.0690 |
+| Kimi-K3.1-Pro (MXFP4) † | 2.8T-A104B | 163,840 | 0.9908 | 0.9811 | 1.0939 | 0.7856 | 1.0306 | 0.4221 | 1.7925 | 1.4406 | 1.0920 | 1.0602 |
+| Nemotron-3-Ultra-Base † | 550B-A55B | 131,072 | 1.0966 | 1.0751 | 1.1719 | 0.8932 | 1.0743 | 0.6131 | 1.7996 | 1.3954 | 1.2558 | 1.2642 |
+| Nemotron-3.5-Super-VL-Base † | 120B-A12B | 131,072 | 1.1679 | 1.1440 | 1.2414 | 0.9667 | 1.1323 | 0.6641 | 1.8893 | 1.4471 | 1.3489 | 1.3554 |
+| Qwen3.8-Flash-Next (FP8) † | 125B-A6B | 248,320 | 1.2205 | 1.1864 | 1.3134 | 1.0178 | 1.1661 | 0.6108 | 2.1157 | 1.5392 | 1.4311 | 1.4385 |
+| Qwen3.8-27B † | 27B | 248,320 | 1.2678 | 1.2264 | 1.3560 | 1.0928 | 1.1732 | 0.6747 | 2.1556 | 1.5268 | 1.5127 | 1.5114 |
+| Qwen3.8-Max (FP8) † | 2.4T-A95B | 248,320 | 1.0936 | 1.0670 | 1.1826 | 0.8930 | 1.0687 | 0.5385 | 1.9082 | 1.4270 | 1.2601 | 1.2696 |
+| Mistral-Large-4 (FP8) † | 1T-A52B | 204,800 | 1.3097 | 1.2632 | 1.4257 | 1.1092 | 1.2240 | 0.6417 | 2.4208 | 1.6148 | 1.5435 | 1.5505 |
+| Flint（可能不对） † | 40B-A2.5B | 150,144 | 2.1582 | 2.1305 | 2.2271 | 1.8724 | 2.1410 | 1.2905 | 3.1794 | 2.4390 | 2.4404 | 2.5442 |
+| Ripple-65B-Base-Preview † | 65B | 100,352 | 1.2177 | 1.1771 | 1.3110 | 0.9994 | 1.1368 | 0.7267 | 2.0246 | 1.5511 | 1.4276 | 1.4258 |
+| 我们最好的: ULTRA59B_MUONH_KD_QBK3 · it30000 | · | · | 1.4086 | 1.3823 | 1.4850 | 1.1611 | 1.3516 | 0.9079 | 2.1655 | 1.6884 | 1.6355 | 1.6108 |
+
+**〔视图：ppl〕**
+
+|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 2.863 | 2.822 | 3.139 | 2.282 | 2.896 | 1.663 | 6.180 | 4.281 | 3.288 | 3.253 |
+| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 3.012 | 2.953 | 3.308 | 2.417 | 2.978 | 1.744 | 6.590 | 4.484 | 3.530 | 3.481 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 3.592 | 3.503 | 3.942 | 2.836 | 3.476 | 2.102 | 8.348 | 5.015 | 4.322 | 4.273 |
+| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 3.846 | 3.756 | 4.241 | 3.010 | 3.755 | 2.183 | 9.287 | 5.494 | 4.621 | 4.559 |
+| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 3.785 | 3.685 | 4.173 | 2.986 | 3.648 | 2.166 | 9.140 | 5.342 | 4.582 | 4.524 |
+| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 3.562 | 3.480 | 3.951 | 2.751 | 3.496 | 2.080 | 8.551 | 5.267 | 4.223 | 4.121 |
+| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 3.343 | 3.274 | 3.712 | 2.580 | 3.321 | 1.981 | 7.957 | 4.974 | 3.896 | 3.801 |
+| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 3.306 | 3.234 | 3.656 | 2.577 | 3.256 | 1.972 | 7.740 | 4.806 | 3.880 | 3.793 |
+| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 3.444 | 3.376 | 3.812 | 2.663 | 3.429 | 2.036 | 8.092 | 5.085 | 4.011 | 3.934 |
+| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 3.387 | 3.313 | 3.741 | 2.643 | 3.336 | 2.011 | 7.887 | 4.920 | 3.980 | 3.904 |
+| DeepSeek-V4-Flash-Base † | 284B-A13B | 129,280 | 3.090 | 3.025 | 3.358 | 2.527 | 3.056 | 1.714 | 7.047 | 4.160 | 3.694 | 3.620 |
+| Kimi-K3 † | 2.8T-A104B | 163,840 | 2.703 | 2.675 | 2.992 | 2.203 | 2.806 | 1.535 | 5.986 | 4.220 | 2.994 | 2.912 |
+| Kimi-K3.1-Pro (MXFP4) † | 2.8T-A104B | 163,840 | 2.693 | 2.667 | 2.986 | 2.194 | 2.803 | 1.525 | 6.004 | 4.223 | 2.980 | 2.887 |
+| Nemotron-3-Ultra-Base † | 550B-A55B | 131,072 | 2.994 | 2.930 | 3.228 | 2.443 | 2.928 | 1.846 | 6.047 | 4.037 | 3.511 | 3.540 |
+| Nemotron-3.5-Super-VL-Base † | 120B-A12B | 131,072 | 3.215 | 3.139 | 3.460 | 2.629 | 3.103 | 1.943 | 6.615 | 4.251 | 3.853 | 3.878 |
+| Qwen3.8-Flash-Next (FP8) † | 125B-A6B | 248,320 | 3.389 | 3.275 | 3.719 | 2.767 | 3.209 | 1.842 | 8.296 | 4.661 | 4.183 | 4.214 |
+| Qwen3.8-27B † | 27B | 248,320 | 3.553 | 3.409 | 3.881 | 2.983 | 3.232 | 1.963 | 8.633 | 4.603 | 4.539 | 4.533 |
+| Qwen3.8-Max (FP8) † | 2.4T-A95B | 248,320 | 2.985 | 2.907 | 3.263 | 2.442 | 2.911 | 1.714 | 6.741 | 4.166 | 3.526 | 3.559 |
+| Mistral-Large-4 (FP8) † | 1T-A52B | 204,800 | 3.705 | 3.537 | 4.161 | 3.032 | 3.401 | 1.900 | 11.255 | 5.027 | 4.681 | 4.714 |
+| Flint（可能不对） † | 40B-A2.5B | 150,144 | 8.656 | 8.419 | 9.273 | 6.504 | 8.508 | 3.635 | 24.032 | 11.461 | 11.478 | 12.733 |
+| Ripple-65B-Base-Preview † | 65B | 100,352 | 3.379 | 3.245 | 3.710 | 2.717 | 3.117 | 2.068 | 7.573 | 4.717 | 4.169 | 4.161 |
+| 我们最好的: ULTRA59B_MUONH_KD_QBK3 · it30000 | · | · | 4.090 | 3.984 | 4.415 | 3.193 | 3.864 | 2.479 | 8.719 | 5.411 | 5.132 | 5.007 |
+
+**〔窗口：window = 32K〕**
+
+**〔视图：bpb〕**
+
+|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 0.4010 | 0.3998 | 0.4212 | 0.3216 | 0.4051 | 0.1859 | 0.6460 | 0.4876 | 0.4809 | 0.4449 |
+| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 0.4203 | 0.4171 | 0.4407 | 0.3439 | 0.4157 | 0.2033 | 0.6688 | 0.5031 | 0.5096 | 0.4703 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 0.4890 | 0.4841 | 0.5071 | 0.4091 | 0.4754 | 0.2716 | 0.7533 | 0.5407 | 0.5923 | 0.5513 |
+| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 0.5153 | 0.5113 | 0.5343 | 0.4324 | 0.5056 | 0.2853 | 0.7914 | 0.5713 | 0.6195 | 0.5762 |
+| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 0.5090 | 0.5037 | 0.5282 | 0.4292 | 0.4941 | 0.2825 | 0.7855 | 0.5619 | 0.6160 | 0.5731 |
+| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 0.4855 | 0.4815 | 0.5074 | 0.3973 | 0.4776 | 0.2677 | 0.7618 | 0.5572 | 0.5831 | 0.5378 |
+| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 0.4609 | 0.4578 | 0.4839 | 0.3716 | 0.4576 | 0.2498 | 0.7361 | 0.5380 | 0.5503 | 0.5067 |
+| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 0.4567 | 0.4530 | 0.4785 | 0.3714 | 0.4501 | 0.2481 | 0.7263 | 0.5264 | 0.5486 | 0.5057 |
+| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 0.4726 | 0.4701 | 0.4942 | 0.3843 | 0.4709 | 0.2598 | 0.7424 | 0.5454 | 0.5621 | 0.5199 |
+| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 0.4662 | 0.4626 | 0.4872 | 0.3814 | 0.4597 | 0.2554 | 0.7331 | 0.5343 | 0.5590 | 0.5170 |
+| DeepSeek-V4-Flash-Base | 284B-A13B | 129,280 | 0.4146 | 0.4119 | 0.4362 | 0.3408 | 0.4105 | 0.2067 | 0.6650 | 0.4934 | 0.5006 | 0.4534 |
+| Kimi-K3 | 2.8T-A104B | 163,840 | 0.3618 | 0.3636 | 0.3864 | 0.2882 | 0.3803 | 0.1549 | 0.6044 | 0.4728 | 0.4178 | 0.3789 |
+| Kimi-K3.1-Pro (MXFP4) | 2.8T-A104B | 163,840 | 0.3606 | 0.3626 | 0.3856 | 0.2866 | 0.3800 | 0.1526 | 0.6055 | 0.4731 | 0.4159 | 0.3757 |
+| Nemotron-3-Ultra-Base | 550B-A55B | 131,072 | 0.4238 | 0.4187 | 0.4419 | 0.3456 | 0.4098 | 0.2383 | 0.6532 | 0.4882 | 0.5163 | 0.4781 |
+| Nemotron-3.5-Super-VL-Base | 120B-A12B | 131,072 | 0.4515 | 0.4455 | 0.4684 | 0.3740 | 0.4320 | 0.2581 | 0.6858 | 0.5063 | 0.5544 | 0.5124 |
+| Qwen3.8-Flash-Next (FP8) | 125B-A6B | 248,320 | 0.4741 | 0.4656 | 0.4962 | 0.4044 | 0.4503 | 0.2404 | 0.7615 | 0.5373 | 0.5836 | 0.5447 |
+| Qwen3.8-27B | 27B | 248,320 | 0.4926 | 0.4805 | 0.5129 | 0.4357 | 0.4510 | 0.2655 | 0.7742 | 0.5334 | 0.6175 | 0.5732 |
+| Qwen3.8-Max (FP8) | 2.4T-A95B | 248,320 | 0.4244 | 0.4179 | 0.4462 | 0.3562 | 0.4100 | 0.2120 | 0.6854 | 0.4985 | 0.5150 | 0.4839 |
+| Mistral-Large-4 (FP8) | 1T-A52B | 204,800 | 0.4808 | 0.4700 | 0.5104 | 0.4050 | 0.4540 | 0.2386 | 0.8329 | 0.5423 | 0.5896 | 0.5522 |
+| Flint（可能不对） | 40B-A2.5B | 150,144 | 0.7648 | 0.7663 | 0.7712 | 0.6538 | 0.7702 | 0.4637 | 1.0507 | 0.7894 | 0.8994 | 0.8615 |
+| Ripple-65B-Base-Preview | 65B | 100,352 | 0.4564 | 0.4511 | 0.4721 | 0.3804 | 0.4426 | 0.2626 | 0.6869 | 0.5093 | 0.5506 | 0.5215 |
+| 我们最好的: ULTRA59B_MUONH_KD_QBK3 · it30000 | · | · | 0.5378 | 0.5328 | 0.5493 | 0.4531 | 0.5154 | 0.3319 | 0.7690 | 0.5662 | 0.6601 | 0.6071 |
+
+**〔视图：val_loss〕**
+
+|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 1.0317 | 1.0174 | 1.1293 | 0.7911 | 1.0433 | 0.5085 | 1.8116 | 1.4526 | 1.1686 | 1.1365 |
+| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 1.0811 | 1.0616 | 1.1809 | 0.8460 | 1.0706 | 0.5562 | 1.8756 | 1.4988 | 1.2382 | 1.2015 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 1.2570 | 1.2320 | 1.3561 | 1.0065 | 1.2244 | 0.7429 | 2.1125 | 1.6110 | 1.4392 | 1.4083 |
+| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 1.3249 | 1.3013 | 1.4289 | 1.0637 | 1.3021 | 0.7806 | 2.2195 | 1.7020 | 1.5053 | 1.4719 |
+| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 1.3085 | 1.2818 | 1.4124 | 1.0559 | 1.2724 | 0.7727 | 2.2029 | 1.6740 | 1.4967 | 1.4640 |
+| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 1.2489 | 1.2255 | 1.3588 | 0.9774 | 1.2300 | 0.7324 | 2.1363 | 1.6599 | 1.4168 | 1.3740 |
+| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 1.1860 | 1.1650 | 1.2967 | 0.9142 | 1.1785 | 0.6834 | 2.0645 | 1.6027 | 1.3371 | 1.2943 |
+| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 1.1750 | 1.1529 | 1.2816 | 0.9136 | 1.1592 | 0.6788 | 2.0368 | 1.5683 | 1.3330 | 1.2919 |
+| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 1.2162 | 1.1965 | 1.3236 | 0.9453 | 1.2127 | 0.7109 | 2.0821 | 1.6247 | 1.3660 | 1.3281 |
+| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 1.1993 | 1.1773 | 1.3045 | 0.9383 | 1.1840 | 0.6988 | 2.0558 | 1.5918 | 1.3584 | 1.3208 |
+| DeepSeek-V4-Flash-Base † | 284B-A13B | 129,280 | 1.1065 | 1.0868 | 1.1956 | 0.8897 | 1.0988 | 0.5386 | 1.9439 | 1.4211 | 1.2819 | 1.2392 |
+| Kimi-K3 † | 2.8T-A104B | 163,840 | 0.9752 | 0.9653 | 1.0825 | 0.7567 | 1.0135 | 0.4286 | 1.7807 | 1.4393 | 1.0761 | 1.0291 |
+| Kimi-K3.1-Pro (MXFP4) † | 2.8T-A104B | 163,840 | 0.9719 | 0.9626 | 1.0804 | 0.7526 | 1.0126 | 0.4221 | 1.7838 | 1.4400 | 1.0714 | 1.0204 |
+| Nemotron-3-Ultra-Base † | 550B-A55B | 131,072 | 1.0764 | 1.0557 | 1.1572 | 0.8590 | 1.0557 | 0.6131 | 1.7903 | 1.3916 | 1.2338 | 1.2200 |
+| Nemotron-3.5-Super-VL-Base † | 120B-A12B | 131,072 | 1.1462 | 1.1232 | 1.2256 | 0.9296 | 1.1127 | 0.6641 | 1.8795 | 1.4431 | 1.3248 | 1.3075 |
+| Qwen3.8-Flash-Next (FP8) † | 125B-A6B | 248,320 | 1.1967 | 1.1651 | 1.2964 | 0.9736 | 1.1498 | 0.6107 | 2.1089 | 1.5336 | 1.4016 | 1.3792 |
+| Qwen3.8-27B † | 27B | 248,320 | 1.2421 | 1.2023 | 1.3374 | 1.0489 | 1.1515 | 0.6747 | 2.1441 | 1.5223 | 1.4830 | 1.4514 |
+| Qwen3.8-Max (FP8) † | 2.4T-A95B | 248,320 | 1.0720 | 1.0456 | 1.1668 | 0.8577 | 1.0468 | 0.5385 | 1.8981 | 1.4228 | 1.2370 | 1.2253 |
+| Mistral-Large-4 (FP8) † | 1T-A52B | 204,800 | 1.2845 | 1.2402 | 1.4078 | 1.0638 | 1.2043 | 0.6417 | 2.4107 | 1.6119 | 1.5143 | 1.4890 |
+| Flint（可能不对） † | 40B-A2.5B | 150,144 | 2.1138 | 2.0913 | 2.1959 | 1.7815 | 2.1110 | 1.2905 | 3.1647 | 2.4389 | 2.3889 | 2.4328 |
+| Ripple-65B-Base-Preview † | 65B | 100,352 | 1.2028 | 1.1600 | 1.3006 | 0.9775 | 1.1155 | 0.7267 | 2.0183 | 1.5511 | 1.4142 | 1.4055 |
+| 我们最好的: ULTRA59B_MUONH_KD_QBK3 · it30000 | · | · | 1.3815 | 1.3561 | 1.4661 | 1.1145 | 1.3274 | 0.9079 | 2.1565 | 1.6866 | 1.6039 | 1.5509 |
+
+**〔视图：ppl〕**
+
+|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 2.806 | 2.766 | 3.093 | 2.206 | 2.839 | 1.663 | 6.120 | 4.274 | 3.217 | 3.116 |
+| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 2.948 | 2.891 | 3.257 | 2.330 | 2.917 | 1.744 | 6.525 | 4.477 | 3.449 | 3.325 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 3.515 | 3.428 | 3.881 | 2.736 | 3.402 | 2.102 | 8.269 | 5.008 | 4.217 | 4.089 |
+| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 3.762 | 3.674 | 4.174 | 2.897 | 3.677 | 2.183 | 9.203 | 5.485 | 4.506 | 4.358 |
+| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 3.701 | 3.603 | 4.106 | 2.875 | 3.569 | 2.166 | 9.051 | 5.333 | 4.467 | 4.323 |
+| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 3.487 | 3.406 | 3.892 | 2.657 | 3.421 | 2.080 | 8.468 | 5.259 | 4.124 | 3.951 |
+| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 3.274 | 3.206 | 3.657 | 2.495 | 3.250 | 1.981 | 7.881 | 4.966 | 3.808 | 3.648 |
+| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 3.238 | 3.167 | 3.603 | 2.493 | 3.187 | 1.972 | 7.666 | 4.799 | 3.792 | 3.640 |
+| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 3.374 | 3.309 | 3.757 | 2.574 | 3.363 | 2.036 | 8.021 | 5.077 | 3.919 | 3.774 |
+| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 3.318 | 3.246 | 3.686 | 2.556 | 3.267 | 2.011 | 7.813 | 4.913 | 3.890 | 3.747 |
+| DeepSeek-V4-Flash-Base † | 284B-A13B | 129,280 | 3.024 | 2.965 | 3.306 | 2.434 | 3.001 | 1.714 | 6.986 | 4.141 | 3.603 | 3.453 |
+| Kimi-K3 † | 2.8T-A104B | 163,840 | 2.652 | 2.626 | 2.952 | 2.131 | 2.755 | 1.535 | 5.934 | 4.218 | 2.933 | 2.798 |
+| Kimi-K3.1-Pro (MXFP4) † | 2.8T-A104B | 163,840 | 2.643 | 2.619 | 2.946 | 2.123 | 2.753 | 1.525 | 5.952 | 4.221 | 2.919 | 2.774 |
+| Nemotron-3-Ultra-Base † | 550B-A55B | 131,072 | 2.934 | 2.874 | 3.181 | 2.361 | 2.874 | 1.846 | 5.991 | 4.021 | 3.434 | 3.387 |
+| Nemotron-3.5-Super-VL-Base † | 120B-A12B | 131,072 | 3.146 | 3.075 | 3.406 | 2.534 | 3.043 | 1.943 | 6.550 | 4.234 | 3.761 | 3.697 |
+| Qwen3.8-Flash-Next (FP8) † | 125B-A6B | 248,320 | 3.309 | 3.206 | 3.656 | 2.647 | 3.158 | 1.842 | 8.239 | 4.635 | 4.062 | 3.972 |
+| Qwen3.8-27B † | 27B | 248,320 | 3.463 | 3.328 | 3.809 | 2.855 | 3.163 | 1.963 | 8.534 | 4.583 | 4.406 | 4.269 |
+| Qwen3.8-Max (FP8) † | 2.4T-A95B | 248,320 | 2.921 | 2.845 | 3.212 | 2.358 | 2.849 | 1.714 | 6.673 | 4.149 | 3.445 | 3.405 |
+| Mistral-Large-4 (FP8) † | 1T-A52B | 204,800 | 3.613 | 3.456 | 4.087 | 2.897 | 3.334 | 1.900 | 11.142 | 5.012 | 4.546 | 4.433 |
+| Flint（可能不对） † | 40B-A2.5B | 150,144 | 8.279 | 8.095 | 8.988 | 5.939 | 8.256 | 3.635 | 23.681 | 11.461 | 10.901 | 11.391 |
+| Ripple-65B-Base-Preview † | 65B | 100,352 | 3.329 | 3.190 | 3.671 | 2.658 | 3.051 | 2.068 | 7.526 | 4.717 | 4.113 | 4.077 |
+| 我们最好的: ULTRA59B_MUONH_KD_QBK3 · it30000 | · | · | 3.981 | 3.881 | 4.332 | 3.048 | 3.771 | 2.479 | 8.641 | 5.401 | 4.972 | 4.716 |
+
+**〔窗口：32K − 8K〕**
+
+|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | -0.0081 | -0.0079 | -0.0057 | -0.0138 | -0.0077 | 0 | -0.0035 | -0.0005 | -0.0089 | -0.0168 |
+| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | -0.0086 | -0.0083 | -0.0061 | -0.0148 | -0.0081 | 0 | -0.0036 | -0.0006 | -0.0095 | -0.0179 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | -0.0087 | -0.0086 | -0.0062 | -0.0146 | -0.0084 | 0 | -0.0034 | -0.0005 | -0.0101 | -0.0173 |
+| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | -0.0089 | -0.0087 | -0.0063 | -0.0155 | -0.0082 | 0 | -0.0032 | -0.0005 | -0.0104 | -0.0177 |
+| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | -0.0090 | -0.0088 | -0.0064 | -0.0155 | -0.0085 | 0 | -0.0035 | -0.0005 | -0.0105 | -0.0178 |
+| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | -0.0085 | -0.0084 | -0.0060 | -0.0140 | -0.0084 | 0 | -0.0034 | -0.0005 | -0.0097 | -0.0165 |
+| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | -0.0083 | -0.0083 | -0.0059 | -0.0136 | -0.0084 | 0 | -0.0034 | -0.0005 | -0.0094 | -0.0160 |
+| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | -0.0082 | -0.0082 | -0.0058 | -0.0135 | -0.0082 | 0 | -0.0034 | -0.0005 | -0.0094 | -0.0161 |
+| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | -0.0081 | -0.0079 | -0.0058 | -0.0138 | -0.0076 | 0 | -0.0031 | -0.0005 | -0.0095 | -0.0162 |
+| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | -0.0082 | -0.0081 | -0.0058 | -0.0137 | -0.0081 | 0 | -0.0033 | -0.0005 | -0.0094 | -0.0161 |
+| DeepSeek-V4-Flash-Base | 284B-A13B | 129,280 | -0.0081 | -0.0077 | -0.0059 | -0.0144 | -0.0069 | 0 | -0.0030 | -0.0016 | -0.0097 | -0.0173 |
+| Kimi-K3 | 2.8T-A104B | 163,840 | -0.0072 | -0.0070 | -0.0051 | -0.0126 | -0.0068 | 0 | -0.0029 | -0.0002 | -0.0080 | -0.0147 |
+| Kimi-K3.1-Pro (MXFP4) | 2.8T-A104B | 163,840 | -0.0071 | -0.0070 | -0.0051 | -0.0126 | -0.0067 | 0 | -0.0030 | -0.0002 | -0.0080 | -0.0147 |
+| Nemotron-3-Ultra-Base | 550B-A55B | 131,072 | -0.0081 | -0.0077 | -0.0058 | -0.0137 | -0.0072 | 0 | -0.0034 | -0.0013 | -0.0092 | -0.0173 |
+| Nemotron-3.5-Super-VL-Base | 120B-A12B | 131,072 | -0.0087 | -0.0082 | -0.0063 | -0.0149 | -0.0076 | 0 | -0.0036 | -0.0014 | -0.0101 | -0.0188 |
+| Qwen3.8-Flash-Next (FP8) | 125B-A6B | 248,320 | -0.0096 | -0.0085 | -0.0069 | -0.0183 | -0.0064 | 0 | -0.0025 | -0.0020 | -0.0123 | -0.0234 |
+| Qwen3.8-27B | 27B | 248,320 | -0.0104 | -0.0096 | -0.0075 | -0.0182 | -0.0085 | 0 | -0.0042 | -0.0016 | -0.0124 | -0.0237 |
+| Qwen3.8-Max (FP8) | 2.4T-A95B | 248,320 | -0.0087 | -0.0086 | -0.0063 | -0.0147 | -0.0085 | 0 | -0.0036 | -0.0015 | -0.0096 | -0.0175 |
+| Mistral-Large-4 (FP8) | 1T-A52B | 204,800 | -0.0096 | -0.0087 | -0.0068 | -0.0173 | -0.0074 | 0 | -0.0035 | -0.0010 | -0.0114 | -0.0228 |
+| Flint（可能不对） | 40B-A2.5B | 150,144 | -0.0163 | -0.0144 | -0.0114 | -0.0334 | -0.0110 | 0 | -0.0049 | 0 | -0.0194 | -0.0394 |
+| Ripple-65B-Base-Preview | 65B | 100,352 | -0.0058 | -0.0066 | -0.0040 | -0.0085 | -0.0084 | 0 | -0.0021 | 0 | -0.0052 | -0.0075 |
+| 我们最好的: ULTRA59B_MUONH_KD_QBK3 · it30000 | · | · | -0.0108 | -0.0103 | -0.0075 | -0.0189 | -0.0094 | 0 | -0.0032 | -0.0006 | -0.0130 | -0.0234 |
+
+### 全量测评范围
+
+全量测评 = 统一评测 harness lm-evaluation-harness（ultra-prod 分支）的任务清单 `nvbench/cosmos_ultra_ladder.yml`：36 个任务、66 个指标，取代原来 nemo6 的 40 个任务、75 个指标。各任务的 prompt、few-shot、停止符和答案抽取已按 benchmark 官方实现对齐。重点测评 = 其中 19 个任务，每个取一个主分数（下面的树里标了“重点”，主分数加粗）。分数来自 `runs/cosmos_eval_downstream`（11-12 起）；数学五项（MATH-500 / Minerva / AIME 24 / AIME 25 / HMMT）取数学 prompt 修正后的重测；MiMo-V2.5-Pro-Base 取补上文档结束 stop token 后的整套重测。旧协议（nemo6）的分数和这一版不可比，不再放在报告里。
+
+还没有按这份清单测的外部模型（只有旧协议 nemo6 的分数，不在下面的表里）：DeepSeek-V4-Flash-Base、Kimi-K3、Mistral-Large-4 (FP8)。
+
+我们自己的 checkpoint 用同一份清单测，分数在“prod downstream”页。
+
+**cosmos_ultra_ladder**2 大部分 · 8 类 · 36 任务 · 33 个 benchmark · 66 个指标 · 重点 19 个任务重点greedy采样 ×32执行代码LLM 裁判
+
+#### 非生成类 benchmark 13 任务 · 25 指标
+
+多选题：比较模型给各选项（或选项字母）的对数概率，概率最高的即答案（acc_norm 按长度归一化）。不生成文本，分数不受回答格式和停止符影响。
+
+**常识推理**reasoning · 8 任务 · 13 指标
+
+英文多选题
+
+- CommonsenseQA 7-shot → acc · acc（并列均分）
+- ARC-Challenge 25-shot → acc_norm · acc（并列均分）
+- HellaSwag 10-shot重点 → **acc_norm**
+- OpenBookQA 0-shot重点 → **acc_norm** · acc
+- PIQA 0-shot → acc_norm · acc
+- WinoGrande 5-shot重点 → **acc**
+- Social IQa 0-shot → acc · acc_norm
+- TruthfulQA MC2 0-shot重点 → **acc**
+
+**阅读理解**reading · 1 任务 · 2 指标
+
+读一篇文章，答多选题
+
+- RACE-high 全部 3,498 题 0-shot重点 → **acc** · acc（并列均分）
+
+**知识考试**aggregate · 4 任务 · 10 指标
+
+知识考试多选题，按选项字母的概率打分
+
+- MMLU 字母似然 5-shot重点 → **acc 总分** · acc 总分（并列均分） · acc STEM · acc STEM（并列均分）
+- MMLU-Redux 字母似然，5,330 道核对无误的题 5-shot → acc · acc（并列均分）
+- Global-MMLU-zh 中文 5-shot → acc · acc（并列均分）
+- INCLUDE-zh base-44，中文 5-shot → acc · acc（并列均分）
+
+#### 生成类 benchmark 23 任务 · 41 指标
+
+模型生成回答（贪心一次，或每题采样 32 次），再抽取答案比对、执行代码，或由 LLM 裁判判对错。
+
+**代码**code · 4 任务 · 7 指标
+
+生成代码并执行打分
+
+- MBPP sanitized 3-shot重点执行代码采样 ×32 → **pass@1** · pass@32
+- HumanEval 0-shot重点执行代码采样 ×32 → **pass@1** · pass@32
+- LiveCodeBench release v6
+  - greedy · 0-shot重点执行代码greedy → **pass@1**
+  - 采样 · 0-shot执行代码采样 ×32 → pass@1 · pass@32
+
+**综合考试**aggregate · 6 任务 · 11 指标
+
+生成作答（CoT），抽取最终选项 / 答案比对
+
+- MMLU-Pro 官方 CoT 提示 5-shot重点greedy → **EM（官方）** · EM（未作答算错） · 未作答率
+- AGIEval-en CoT，8 个子集 重点greedy → **EM 宏平均（官方）** · EM 宏平均（无兜底） · EM（按题数加权）
+- GPQA-Diamond CoT
+  - greedy · 5-shotgreedy → EM
+  - 采样 · 5-shot采样 ×32 → pass@1 · 多数票
+- SuperGPQA CoT 5-shotgreedy → EM
+- MGSM-zh native CoT，中文 8-shot重点greedy → **EM**
+
+**数学**math · 7 任务 · 13 指标
+
+生成解答，比对最终答案
+
+- GSM8K CoT
+  - NeMo 提示 · 8-shot重点greedy → **EM**
+  - Wei 提示 · 8-shot重点greedy → **EM strict** · EM flexible
+- Minerva MATH 4-shot重点greedy → **EM** · EM（Hendrycks）
+- MATH-500 4-shot重点采样 ×32 → **pass@1** · pass@32
+- AIME 2024 4-shot重点采样 ×32 → **pass@1** · pass@32
+- AIME 2025 4-shot重点采样 ×32 → **pass@1** · pass@32
+- HMMT Feb 2025 4-shot重点采样 ×32 → **pass@1** · pass@32
+
+**事实问答**reading · 4 任务 · 8 指标
+
+短答案生成，取回答的第一行比对
+
+- TriviaQA 5-shotgreedy → EM · EM（Wiki 子集）
+- PopQA 官方协议 15-shotgreedy → acc（子串，官方） · EM
+- Natural Questions 5-shotgreedy → EM
+- SimpleQA 5-shotgreedy → F1 · correct · not_attempted
+
+**知识**knowledge · 2 任务 · 2 指标
+
+LLM 裁判判对错
+
+- SimpleQA-Verified 25-shotLLM 裁判greedy → 裁判准确率
+- FACTS-parametric 25-shotLLM 裁判greedy → 裁判准确率
+
+重点 = 进“全量测评重点”一章的任务，加粗的是它在那一章用的主分数。生成类的跑法：greedy = 贪心解码一次；采样 ×32 = 每题采样 32 次，报 pass@1（32 次的平均）和 pass@32（至少对一次）；GPQA 采样版报 pass@1 和多数票（32 次里出现最多的答案）。执行代码 = 生成的代码跑测试用例。acc（并列均分）= 最高分选项并列时按 1/k 计分。
+
+### 全量测评重点
+
+重点 = 全量测评 36 个任务里的 19 个，每个任务只取一个主分数，分 3 个标签页：知识 / 推理 8 个、数学 8 个、代码 3 个。其余 17 个任务，以及这 19 个任务的其它分数（共 47 个指标），只在“全量测评结果”里。模型行、颜色和曲线的画法两章相同。
+
+**〔视图：知识 / 推理〕**
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 线 | MMLU · acc 总分 | MMLU-Pro · EM（官方） | AGIEval-en · EM 宏平均（官方） | HellaSwag · acc_norm | WinoG · acc | OBQA · acc_norm | TruthfulQA · acc | RACE-h · acc |
+|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 81.0 | 61.7 | 66.1 | 83.0 | 79.0 | 45.2 | 45.6 | 89.4 |
+| Qwen3.8-Max (FP8) | 89.4 | 79.7 | 76.4 | 89.9 | 69.1 | 47.0 | 85.9 | 92.1 |
+| MiMo-V2.5-Pro-Base | 89.4 | · | 67.5 | 89.9 | 86.1 | 52.2 | 54.3 | 88.6 |
+| MiMo-V2.6-Pro-RL | 89.0 | · | 69.3 | 89.3 | 84.1 | 49.8 | 54.8 | 90.5 |
+| Qwen3.8-Flash-Next (FP8) | 86.4 | 71.3 | 64.9 | 88.8 | 73.4 | 46.4 | 67.3 | 81.7 |
+| Qwen3-235B-A22B (2504) | 86.4 | 73.8 | 78.3 | 86.7 | 81.5 | 45.8 | 60.6 | 92.1 |
+| Qwen3.8-27B | 82.6 | 66.8 | 59.8 | 75.9 | 78.8 | 46.4 | 54.1 | 87.7 |
+
+| 模型 | 大小 | MMLU<br>acc 总分 | MMLU-Pro<br>EM（官方） | AGIEval-en<br>EM 宏平均（官方） | HellaSwag<br>acc_norm | WinoGrande<br>acc | OpenBookQA<br>acc_norm | TruthfulQA<br>acc | RACE-high<br>acc |
+|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 89.4 | - | 67.5 | 89.9 | 86.1 | 52.2 | 54.3 | 88.6 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 89.0 | - | 69.3 | 89.3 | 84.1 | 49.8 | 54.8 | 90.5 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 81.0 | 61.7 | 66.1 | 83.0 | 79.0 | 45.2 | 45.6 | 89.4 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 86.4 | 73.8 | 78.3 | 86.7 | 81.5 | 45.8 | 60.6 | 92.1 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 86.4 | 71.3 | 64.9 | 88.8 | 73.4 | 46.4 | 67.3 | 81.7 |
+| Qwen3.8-27B 后训练 | 27B | 82.6 | 66.8 | 59.8 | 75.9 | 78.8 | 46.4 | 54.1 | 87.7 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 89.4 | 79.7 | 76.4 | 89.9 | 69.1 | 47.0 | 85.9 | 92.1 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：数学〕**
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 线 | GSM8K NeMo 提示 · EM | GSM8K Wei 提示 · EM strict | MATH-500 · pass@1 | Minerva · EM | AIME 24 · pass@1 | AIME 25 · pass@1 | HMMT 25 · pass@1 | MGSM-zh · EM |
+|---|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 89.2 | 81.8 | 58.7 | 63.1 | 4.2 | 2.5 | 0.2 | 82.8 |
+| Qwen3.8-Flash-Next (FP8) | 96.3 | 84.6 | 87.3 | 92.6 | 58.5 | 42.1 | 22.9 | · |
+| Qwen3.8-27B | 96.1 | 95.5 | 84.8 | 87.9 | 47.7 | 37.6 | 24.7 | 87.6 |
+| Qwen3-235B-A22B (2504) | 94.1 | 85.5 | 84.7 | 84.8 | 30.4 | 25.0 | 9.7 | 89.6 |
+| MiMo-V2.6-Pro-RL | 90.1 | 82.9 | 64.0 | 69.1 | 18.4 | 9.5 | 6.5 | 88.4 |
+| Qwen3.8-Max (FP8) | 88.9 | 88.6 | 83.2 | 85.7 | 34.5 | 23.4 | 20.5 | 88.0 |
+| MiMo-V2.5-Pro-Base | 88.3 | 81.3 | 54.5 | 62.7 | 7.1 | 3.1 | · | 84.0 |
+
+| 模型 | 大小 | GSM8K NeMo 提示<br>EM | GSM8K Wei 提示<br>EM strict | MATH-500<br>pass@1 | Minerva MATH<br>EM | AIME 2024<br>pass@1 | AIME 2025<br>pass@1 | HMMT Feb 2025<br>pass@1 | MGSM-zh<br>EM |
+|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 88.3 | 81.3 | 54.5 | 62.7 | 7.1 | 3.1 | - | 84.0 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 90.1 | 82.9 | 64.0 | 69.1 | 18.4 | 9.5 | 6.5 | 88.4 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 89.2 | 81.8 | 58.7 | 63.1 | 4.2 | 2.5 | 0.2 | 82.8 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 94.1 | 85.5 | 84.7 | 84.8 | 30.4 | 25.0 | 9.7 | 89.6 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 96.3 | 84.6 | 87.3 | 92.6 | 58.5 | 42.1 | 22.9 | - |
+| Qwen3.8-27B 后训练 | 27B | 96.1 | 95.5 | 84.8 | 87.9 | 47.7 | 37.6 | 24.7 | 87.6 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 88.9 | 88.6 | 83.2 | 85.7 | 34.5 | 23.4 | 20.5 | 88.0 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：代码〕**
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 线 | HumanEval · pass@1 | MBPP · pass@1 | LCB greedy · pass@1 |
+|---|---|---|---|
+| Qwen3-30B-A3B-Base | 69.6 | 78.2 | 36.3 |
+| Qwen3.8-Flash-Next (FP8) | 86.7 | 85.6 | 40.4 |
+| Qwen3.8-Max (FP8) | 84.1 | 86.0 | 52.6 |
+| MiMo-V2.6-Pro-RL | 81.1 | 84.6 | 49.7 |
+| Qwen3-235B-A22B (2504) | 80.8 | 83.5 | 38.3 |
+| Qwen3.8-27B | 79.2 | 62.9 | 40.7 |
+| MiMo-V2.5-Pro-Base | 69.9 | 90.2 | 45.8 |
+
+| 模型 | 大小 | HumanEval<br>pass@1 | MBPP<br>pass@1 | LiveCodeBench greedy<br>pass@1 |
+|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 69.9 | 90.2 | 45.8 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 81.1 | 84.6 | 49.7 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 69.6 | 78.2 | 36.3 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 80.8 | 83.5 | 38.3 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 86.7 | 85.6 | 40.4 |
+| Qwen3.8-27B 后训练 | 27B | 79.2 | 62.9 | 40.7 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 84.1 | 86.0 | 52.6 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+### 全量测评结果
+
+**〔视图：常识推理 · 阅读理解〕**
+
+常识推理：英文多选题；阅读理解：读一篇文章，答多选题
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 横轴 | Qwen3-30B-A3B-Base | Qwen3.8-Max (FP8) | MiMo-V2.6-Pro-RL | MiMo-V2.5-Pro-Base | Qwen3.8-27B | Qwen3.8-Flash-Next (FP8) | Qwen3-235B-A22B (2504) |
+|---|---|---|---|---|---|---|---|
+| CSQA · acc | 86.5 | 95.9 | 89.4 | 89.2 | 87.9 | 86.9 | 86.8 |
+| ARC-C · acc_norm | 94.2 | 99.5 | 96.5 | 97.4 | 95.9 | 97.4 | 96.3 |
+| HellaSwag · acc_norm | 83.0 | 89.9 | 89.3 | 89.9 | 75.9 | 88.8 | 86.7 |
+| OBQA · acc_norm | 45.2 | 47.0 | 49.8 | 52.2 | 46.4 | 46.4 | 45.8 |
+| OBQA · acc | 33.4 | 38.0 | 39.8 | 38.8 | 33.6 | 35.0 | 38.0 |
+| PIQA · acc_norm | 81.0 | 85.0 | 85.5 | 85.1 | 81.7 | 83.9 | 82.9 |
+| PIQA · acc | 80.8 | 83.7 | 84.2 | 84.3 | 80.9 | 82.6 | 82.2 |
+| WinoG · acc | 79.0 | 69.1 | 84.1 | 86.1 | 78.8 | 73.4 | 81.5 |
+| SIQA · acc | 52.3 | 42.4 | 52.7 | 52.3 | 52.8 | 53.5 | 54.9 |
+| SIQA · acc_norm | 55.3 | 44.5 | 56.2 | 55.1 | 55.9 | 53.9 | 56.5 |
+| TruthfulQA · acc | 45.6 | 85.9 | 54.8 | 54.3 | 54.1 | 67.3 | 60.6 |
+| RACE-h · acc | 89.4 | 92.1 | 90.5 | 88.6 | 87.7 | 81.7 | 92.1 |
+
+| 模型 | 大小 | CommonsenseQA<br>acc | CommonsenseQA<br>acc（并列均分） | ARC-Challenge<br>acc_norm | ARC-Challenge<br>acc（并列均分） | HellaSwag<br>acc_norm | OpenBookQA<br>acc_norm | OpenBookQA<br>acc | PIQA<br>acc_norm | PIQA<br>acc | WinoGrande<br>acc | Social IQa<br>acc | Social IQa<br>acc_norm | TruthfulQA<br>acc | RACE-high<br>acc | RACE-high<br>acc（并列均分） |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 89.2 | 89.2 | 97.4 | 97.4 | 89.9 | 52.2 | 38.8 | 85.1 | 84.3 | 86.1 | 52.3 | 55.1 | 54.3 | 88.6 | 88.6 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 89.4 | 89.4 | 96.5 | 96.5 | 89.3 | 49.8 | 39.8 | 85.5 | 84.2 | 84.1 | 52.7 | 56.2 | 54.8 | 90.5 | 90.5 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 86.5 | 86.4 | 94.2 | 94.2 | 83.0 | 45.2 | 33.4 | 81.0 | 80.8 | 79.0 | 52.3 | 55.3 | 45.6 | 89.4 | 89.4 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 86.8 | 86.8 | 96.3 | 96.3 | 86.7 | 45.8 | 38.0 | 82.9 | 82.2 | 81.5 | 54.9 | 56.5 | 60.6 | 92.1 | 92.1 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 86.9 | 86.9 | 97.4 | 97.4 | 88.8 | 46.4 | 35.0 | 83.9 | 82.6 | 73.4 | 53.5 | 53.9 | 67.3 | 81.7 | 81.8 |
+| Qwen3.8-27B 后训练 | 27B | 87.9 | 88.0 | 95.9 | 95.9 | 75.9 | 46.4 | 33.6 | 81.7 | 80.9 | 78.8 | 52.8 | 55.9 | 54.1 | 87.7 | 87.9 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 95.9 | 95.9 | 99.5 | 99.5 | 89.9 | 47.0 | 38.0 | 85.0 | 83.7 | 69.1 | 42.4 | 44.5 | 85.9 | 92.1 | 92.1 |
+
+**〔视图：知识考试〕**
+
+知识考试多选题，按选项字母的概率打分
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 线 | MMLU · acc 总分 | MMLU · acc STEM | MMLU-Redux · acc | G-MMLU-zh · acc | INCLUDE-zh · acc |
+|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 81.0 | 83.9 | 85.4 | 78.2 | 87.2 |
+| Qwen3.8-Max (FP8) | 89.4 | 91.7 | 92.3 | 88.0 | 88.6 |
+| MiMo-V2.5-Pro-Base | 89.4 | 92.7 | 92.7 | 85.5 | 89.9 |
+| MiMo-V2.6-Pro-RL | 89.0 | 91.8 | 92.5 | 84.5 | 88.3 |
+| Qwen3.8-Flash-Next (FP8) | 86.4 | 86.2 | 88.9 | 81.0 | 85.7 |
+| Qwen3-235B-A22B (2504) | 86.4 | 88.4 | 89.5 | 84.5 | 89.4 |
+| Qwen3.8-27B | 82.6 | 81.8 | 85.6 | 78.8 | 78.5 |
+
+| 模型 | 大小 | MMLU<br>acc 总分 | MMLU<br>acc 总分（并列均分） | MMLU<br>acc STEM | MMLU<br>acc STEM（并列均分） | MMLU-Redux<br>acc | MMLU-Redux<br>acc（并列均分） | Global-MMLU-zh<br>acc | Global-MMLU-zh<br>acc（并列均分） | INCLUDE-zh<br>acc | INCLUDE-zh<br>acc（并列均分） |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 89.4 | 89.4 | 92.7 | 92.7 | 92.7 | 92.7 | 85.5 | 85.4 | 89.9 | 90.1 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 89.0 | 89.0 | 91.8 | 91.8 | 92.5 | 92.5 | 84.5 | 84.5 | 88.3 | 88.3 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 81.0 | 81.0 | 83.9 | 83.9 | 85.4 | 85.4 | 78.2 | 78.2 | 87.2 | 87.2 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 86.4 | 86.4 | 88.4 | 88.4 | 89.5 | 89.5 | 84.5 | 84.5 | 89.4 | 89.1 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 86.4 | 86.4 | 86.2 | 86.2 | 88.9 | 88.9 | 81.0 | 81.0 | 85.7 | 85.6 |
+| Qwen3.8-27B 后训练 | 27B | 82.6 | 82.7 | 81.8 | 82.0 | 85.6 | 85.8 | 78.8 | 78.8 | 78.5 | 78.2 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 89.4 | 89.4 | 91.7 | 91.7 | 92.3 | 92.3 | 88.0 | 88.0 | 88.6 | 88.6 |
+
+**〔视图：代码〕**
+
+生成代码并执行打分
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 线 | MBPP · pass@1 | MBPP · pass@32 | HumanEval · pass@1 | HumanEval · pass@32 | LCB greedy · pass@1 | LCB 采样 · pass@1 | LCB 采样 · pass@32 |
+|---|---|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 78.2 | 94.9 | 69.6 | 87.2 | 36.3 | 35.8 | 51.5 |
+| MiMo-V2.5-Pro-Base | 90.2 | 97.3 | 69.9 | 97.0 | 45.8 | 45.9 | 65.2 |
+| Qwen3.8-Max (FP8) | 86.0 | 97.3 | 84.1 | 95.1 | 52.6 | 51.7 | 68.8 |
+| Qwen3.8-Flash-Next (FP8) | 85.6 | 96.5 | 86.7 | 96.3 | 40.4 | 37.8 | 65.6 |
+| MiMo-V2.6-Pro-RL | 84.6 | 96.1 | 81.1 | 96.3 | 49.7 | 50.0 | 69.3 |
+| Qwen3-235B-A22B (2504) | 83.5 | 94.2 | 80.8 | 90.9 | 38.3 | 36.5 | 56.1 |
+| Qwen3.8-27B | 62.9 | 93.0 | 79.2 | 91.5 | 40.7 | 41.1 | 62.0 |
+
+| 模型 | 大小 | MBPP<br>pass@1 | MBPP<br>pass@32 | HumanEval<br>pass@1 | HumanEval<br>pass@32 | LiveCodeBench greedy<br>pass@1 | LiveCodeBench 采样<br>pass@1 | LiveCodeBench 采样<br>pass@32 |
+|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 90.2 | 97.3 | 69.9 | 97.0 | 45.8 | 45.9 | 65.2 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 84.6 | 96.1 | 81.1 | 96.3 | 49.7 | 50.0 | 69.3 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 78.2 | 94.9 | 69.6 | 87.2 | 36.3 | 35.8 | 51.5 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 83.5 | 94.2 | 80.8 | 90.9 | 38.3 | 36.5 | 56.1 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 85.6 | 96.5 | 86.7 | 96.3 | 40.4 | 37.8 | 65.6 |
+| Qwen3.8-27B 后训练 | 27B | 62.9 | 93.0 | 79.2 | 91.5 | 40.7 | 41.1 | 62.0 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 86.0 | 97.3 | 84.1 | 95.1 | 52.6 | 51.7 | 68.8 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：综合考试〕**
+
+生成作答（CoT），抽取最终选项 / 答案比对
+
+**MMLU-Pro · AGIEval**
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 线 | MMLU-Pro · EM（官方） | MMLU-Pro · EM（未作答算错） | AGIEval-en · EM 宏平均（官方） | AGIEval-en · EM 宏平均（无兜底） | AGIEval-en · EM（按题数加权） |
+|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 61.7 | 61.6 | 66.1 | 65.9 | 63.9 |
+| Qwen3.8-Max (FP8) | 79.7 | 79.6 | 76.4 | 76.3 | 74.1 |
+| Qwen3-235B-A22B (2504) | 73.8 | 73.7 | 78.3 | 78.2 | 77.8 |
+| Qwen3.8-Flash-Next (FP8) | 71.3 | 69.3 | 64.9 | 62.9 | 65.0 |
+| Qwen3.8-27B | 66.8 | 64.8 | 59.8 | 56.9 | 55.3 |
+| MiMo-V2.6-Pro-RL | · | · | 69.3 | 69.1 | 65.9 |
+| MiMo-V2.5-Pro-Base | · | · | 67.5 | 67.4 | 64.1 |
+
+| 模型 | 大小 | MMLU-Pro<br>EM（官方） | MMLU-Pro<br>EM（未作答算错） | MMLU-Pro<br>未作答率 | AGIEval-en<br>EM 宏平均（官方） | AGIEval-en<br>EM 宏平均（无兜底） | AGIEval-en<br>EM（按题数加权） |
+|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | - | - | 81.3 | 67.5 | 67.4 | 64.1 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | - | - | 42.4 | 69.3 | 69.1 | 65.9 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 61.7 | 61.6 | 0.8 | 66.1 | 65.9 | 63.9 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 73.8 | 73.7 | 0.4 | 78.3 | 78.2 | 77.8 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 71.3 | 69.3 | 18.4 | 64.9 | 62.9 | 65.0 |
+| Qwen3.8-27B 后训练 | 27B | 66.8 | 64.8 | 17.5 | 59.8 | 56.9 | 55.3 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 79.7 | 79.6 | 0.3 | 76.4 | 76.3 | 74.1 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**GPQA · SuperGPQA · MGSM**
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 线 | GPQA-D greedy · EM | GPQA-D 采样 · pass@1 | GPQA-D 采样 · 多数票 | SuperGPQA · EM | MGSM-zh · EM |
+|---|---|---|---|---|---|
+| Qwen3-30B-A3B-Base | 34.2 | 33.7 | 40.1 | 35.4 | 82.8 |
+| MiMo-V2.6-Pro-RL | 63.8 | 59.1 | 74.0 | 42.2 | 88.4 |
+| Qwen3.8-Flash-Next (FP8) | 62.8 | 63.0 | 84.2 | 38.0 | · |
+| MiMo-V2.5-Pro-Base | 57.7 | 58.9 | 75.0 | 7.0 | 84.0 |
+| Qwen3.8-Max (FP8) | 55.6 | 57.5 | 70.4 | 54.4 | 88.0 |
+| Qwen3-235B-A22B (2504) | 54.1 | 57.2 | 65.3 | 45.7 | 89.6 |
+| Qwen3.8-27B | 52.6 | 53.2 | 75.8 | 24.7 | 87.6 |
+
+| 模型 | 大小 | GPQA-Diamond greedy<br>EM | GPQA-Diamond 采样<br>pass@1 | GPQA-Diamond 采样<br>多数票 | SuperGPQA<br>EM | MGSM-zh<br>EM |
+|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 57.7 | 58.9 | 75.0 | 7.0 | 84.0 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 63.8 | 59.1 | 74.0 | 42.2 | 88.4 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 34.2 | 33.7 | 40.1 | 35.4 | 82.8 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 54.1 | 57.2 | 65.3 | 45.7 | 89.6 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 62.8 | 63.0 | 84.2 | 38.0 | - |
+| Qwen3.8-27B 后训练 | 27B | 52.6 | 53.2 | 75.8 | 24.7 | 87.6 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 55.6 | 57.5 | 70.4 | 54.4 | 88.0 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：数学〕**
+
+生成解答，比对最终答案
+
+蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 横轴 | Qwen3-30B-A3B-Base | Qwen3.8-Flash-Next (FP8) | Qwen3.8-27B | Qwen3-235B-A22B (2504) | MiMo-V2.6-Pro-RL | Qwen3.8-Max (FP8) | MiMo-V2.5-Pro-Base |
+|---|---|---|---|---|---|---|---|
+| GSM8K NeMo 提示 · EM | 89.2 | 96.3 | 96.1 | 94.1 | 90.1 | 88.9 | 88.3 |
+| GSM8K Wei 提示 · EM strict | 81.8 | 84.6 | 95.5 | 85.5 | 82.9 | 88.6 | 81.3 |
+| GSM8K Wei 提示 · EM flexible | 88.5 | 84.5 | 95.3 | 93.8 | 88.6 | 95.8 | 87.9 |
+| Minerva · EM | 63.1 | 92.6 | 87.9 | 84.8 | 69.1 | 85.7 | 62.7 |
+| Minerva · EM（Hendrycks） | 57.8 | 21.6 | 71.1 | 74.5 | 64.2 | 75.0 | 59.6 |
+| MATH-500 · pass@1 | 58.7 | 87.3 | 84.8 | 84.7 | 64.0 | 83.2 | 54.5 |
+| MATH-500 · pass@32 | 93.4 | 99.2 | 99.4 | 99.8 | 98.4 | 99.6 | 98.2 |
+| AIME 24 · pass@1 | 4.2 | 58.5 | 47.7 | 30.4 | 18.4 | 34.5 | 7.1 |
+| AIME 24 · pass@32 | 30.0 | 90.0 | 86.7 | 70.0 | 83.3 | 90.0 | 56.7 |
+| AIME 25 · pass@1 | 2.5 | 42.1 | 37.6 | 25.0 | 9.5 | 23.4 | 3.1 |
+| AIME 25 · pass@32 | 30.0 | 70.0 | 76.7 | 60.0 | 63.3 | 90.0 | 36.7 |
+| HMMT 25 · pass@1 | 0.2 | 22.9 | 24.7 | 9.7 | 6.5 | 20.5 | · |
+| HMMT 25 · pass@32 | 6.7 | 76.7 | 76.7 | 43.3 | 63.3 | 80.0 | · |
+
+| 模型 | 大小 | GSM8K NeMo 提示<br>EM | GSM8K Wei 提示<br>EM strict | GSM8K Wei 提示<br>EM flexible | Minerva MATH<br>EM | Minerva MATH<br>EM（Hendrycks） | MATH-500<br>pass@1 | MATH-500<br>pass@32 | AIME 2024<br>pass@1 | AIME 2024<br>pass@32 | AIME 2025<br>pass@1 | AIME 2025<br>pass@32 | HMMT Feb 2025<br>pass@1 | HMMT Feb 2025<br>pass@32 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 88.3 | 81.3 | 87.9 | 62.7 | 59.6 | 54.5 | 98.2 | 7.1 | 56.7 | 3.1 | 36.7 | - | - |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 90.1 | 82.9 | 88.6 | 69.1 | 64.2 | 64.0 | 98.4 | 18.4 | 83.3 | 9.5 | 63.3 | 6.5 | 63.3 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 89.2 | 81.8 | 88.5 | 63.1 | 57.8 | 58.7 | 93.4 | 4.2 | 30.0 | 2.5 | 30.0 | 0.2 | 6.7 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 94.1 | 85.5 | 93.8 | 84.8 | 74.5 | 84.7 | 99.8 | 30.4 | 70.0 | 25.0 | 60.0 | 9.7 | 43.3 |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 96.3 | 84.6 | 84.5 | 92.6 | 21.6 | 87.3 | 99.2 | 58.5 | 90.0 | 42.1 | 70.0 | 22.9 | 76.7 |
+| Qwen3.8-27B 后训练 | 27B | 96.1 | 95.5 | 95.3 | 87.9 | 71.1 | 84.8 | 99.4 | 47.7 | 86.7 | 37.6 | 76.7 | 24.7 | 76.7 |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 88.9 | 88.6 | 95.8 | 85.7 | 75.0 | 83.2 | 99.6 | 34.5 | 90.0 | 23.4 | 90.0 | 20.5 | 80.0 |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+**〔视图：事实问答 · 知识〕**
+
+事实问答：短答案生成，取回答的第一行比对；知识：LLM 裁判判对错
+
+蓝色系：Qwen3.8 — Qwen3.8-Max (FP8)
+
+橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
+
+青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
+
+| 横轴 | Qwen3-30B-A3B-Base | MiMo-V2.5-Pro-Base | Qwen3.8-Max (FP8) | MiMo-V2.6-Pro-RL | Qwen3-235B-A22B (2504) |
+|---|---|---|---|---|---|
+| TriviaQA · EM | 69.5 | 84.7 | 84.4 | 83.1 | 76.8 |
+| TriviaQA · EM（Wiki 子集） | 72.0 | 86.1 | 85.9 | 84.0 | 78.9 |
+| PopQA · acc（子串，官方） | 28.7 | 55.2 | 54.0 | 51.9 | 36.1 |
+| PopQA · EM | 28.3 | 54.9 | 53.7 | 51.5 | 35.6 |
+| NQ · EM | 33.1 | 48.5 | · | 46.8 | 34.3 |
+| SimpleQA · F1 | 6.0 | 27.5 | · | 21.0 | 8.5 |
+| SimpleQA · correct | 6.0 | 27.5 | · | 20.7 | 8.4 |
+| SimpleQA-V · 裁判准确率 | 7.1 | 29.0 | · | 20.6 | 10.5 |
+| FACTS · 裁判准确率 | 3.6 | 36.9 | · | 25.3 | · |
+
+| 模型 | 大小 | TriviaQA<br>EM | TriviaQA<br>EM（Wiki 子集） | PopQA<br>acc（子串，官方） | PopQA<br>EM | Natural Questions<br>EM | SimpleQA<br>F1 | SimpleQA<br>correct | SimpleQA<br>not_attempted | SimpleQA-Verified<br>裁判准确率 | FACTS-parametric<br>裁判准确率 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| MiMo-V2.5-Pro-Base | 1.02T-A42B | 84.7 | 86.1 | 55.2 | 54.9 | 48.5 | 27.5 | 27.5 | 0.1 | 29.0 | 36.9 |
+| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 83.1 | 84.0 | 51.9 | 51.5 | 46.8 | 21.0 | 20.7 | 2.7 | 20.6 | 25.3 |
+| Qwen3-30B-A3B-Base | 30B-A3B | 69.5 | 72.0 | 28.7 | 28.3 | 33.1 | 6.0 | 6.0 | 0.1 | 7.1 | 3.6 |
+| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 76.8 | 78.9 | 36.1 | 35.6 | 34.3 | 8.5 | 8.4 | 3.2 | 10.5 | - |
+| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | - | - | - | - | - | - | - | 100.0 | - | - |
+| Qwen3.8-27B 后训练 | 27B | - | - | - | - | - | - | - | 100.0 | - | - |
+| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 84.4 | 85.9 | 54.0 | 53.7 | - | - | - | 99.6 | - | - |
+
+- = 没有有效分数（不是 0 分），悬停看原因：该任务有 ≥ 20% 的回答是空的（分数无效，已撤下；悬停看比例和原始分），或者还没出分。带虚线下划线的分数 = 空回答占 5–20%，分数保留，悬停看比例。未作答率 / not_attempted 是比例，不是分数，始终显示。
+
+## 页签：老实验
 
 ### 优化器对比
 
@@ -3111,128 +8502,410 @@ dense 第 0 层主要救的是只用负熵那组：q1 / q2 / q3 训练结束时 
 
 ### Latent MoE
 
-0 线 = **PROD1_DPSK**（PROD v1）：SWA 512 局部:全局 5:1 + sink，DSV3 router，第 0 层 dense，8 + 1 shared expert，32K 训练 + 文档间 mask，MuonH，纯 CE
+前两条线的 0 线 = **PROD1_DPSK**（PROD v1）：SWA 512 局部:全局 5:1 + sink，DSV3 router，第 0 层 dense，8 + 1 shared expert，32K 训练 + 文档间 mask，MuonH，纯 CE
 latent MoE（Kimi K3 的形式）：MoE 先把 h 维投影到 d = h/2，routed expert 在 d 维上算，RMSNorm 后再投影回 h；router 和 shared expert 仍在 h 维。
-数值 = 该线 − PROD1_DPSK（我们的 115 split doc-isolated 评测，seed 1）。这些 run 都是 32K 训练：每个 checkpoint 只 load 一次，同一个 job 出 8K 窗口和 32K 窗口两份分数（图上方 tab 切换）。
+数值 = 该线 − 它的对照（对照见下表 Change ID 列：前两条和第四条是 PROD1_DPSK，第三条是 PROD1_DPSK_LATENT2；我们的 115 split doc-isolated 评测，seed 1）。这些 run 都是 32K 训练：每个 checkpoint 只 load 一次，同一个 job 出 8K 窗口和 32K 窗口两份分数（图上方 tab 切换）。
 
 |   | 名称 | 改动 | 有数据的 rung |
 |---|---|---|---|
-|   | latent MoE（等参数） | PROD1_DPSK_LATENT2：d = h/2，256 个 routed expert（宽 3h/8）选 16 个；总参数、routed FLOP、all-to-all 都和 0 线相同（只多两个投影，约每层 8%） | q0 8K, q0 32K, q1 8K, q1 32K, q2 8K, q2 32K, q3 8K, q3 32K |
-|   | latent MoE，expert ×2 | PROD1_DPSK_LATENT2_E2X：在上一条基础上把 routed expert 翻倍到 512 个，仍选 16 个。每个 token 的计算量不变，但 routed 参数 ×2（不是等参数） | q0 8K, q0 32K, q1 8K, q1 32K, q2 8K, q2 32K |
+|   | latent MoE（等参数） | PROD1_DPSK_LATENT2：d = h/2，256 个 routed expert（宽 3h/8）选 16 个；总参数、routed FLOP、all-to-all 都和 0 线相同（只多两个投影，约每层 8%） | q0 8K, q0 32K, q1 8K, q1 32K, q2 8K, q2 32K, q3 8K, q3 32K, q4 8K, q4 32K |
+|   | latent MoE，expert ×2 | PROD1_DPSK_LATENT2_E2X：在上一条基础上把 routed expert 翻倍到 512 个，仍选 16 个。每个 token 的计算量不变，但 routed 参数 ×2（不是等参数） | q0 8K, q0 32K, q1 8K, q1 32K, q2 8K, q2 32K, q3 8K, q3 32K, q4 8K, q4 32K |
+|   | expert ×2（有 latent） | PROD1_DPSK_LATENT2_E2X − PROD1_DPSK_LATENT2（这条线的 0 线不同）：两边都有 latent，只把 routed expert 从 256 个加到 512 个，仍选 16 个，看 expert ×2 单独的作用 | q0 8K, q0 32K, q1 8K, q1 32K, q2 8K, q2 32K, q3 8K, q3 32K, q4 8K, q4 32K |
+|   | expert ×2（无 latent） | PROD1_DPSK_E2X − PROD1_DPSK：不加 latent，routed expert 从 128 个加到 256 个，仍选 8 个；每个 token 计算量不变，routed 参数 ×2。和上一条对比：expert ×2 在有 / 没有 latent 时的作用 | q0 8K, q0 32K, q1 8K, q1 32K, q2 8K, q2 32K, q3 8K, q3 32K |
 
-**各线 − PROD1_DPSK（越负越好；鼠标移到某个 rung 看数值）**
+**各线 − 各自的对照（越负越好；数值见图下的表）**
 
 **〔指标：overall_tsqw〕**
 
 **〔视图：8K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0091 | -0.0140 | -0.0192 | -0.0187 |
-| latent MoE，expert ×2 | -0.0458 | -0.0495 | -0.0456 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0091 | -0.0140 | -0.0192 | -0.0187 | -0.0188 |
+| expert ×2（有 latent） | -0.0367 | -0.0355 | -0.0264 | -0.0243 | -0.0210 |
+| expert ×2（无 latent） | -0.0370 | -0.0324 | -0.0286 | -0.0240 | · |
+| latent MoE，expert ×2 | -0.0458 | -0.0495 | -0.0456 | -0.0430 | -0.0399 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0091 | -0.0140 | -0.0192 | -0.0187 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0458 | -0.0495 | -0.0456 | -0.0430 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0367 | -0.0355 | -0.0264 | -0.0243 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0370 | -0.0324 | -0.0286 | -0.0240 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0035 | -0.0054 | -0.0075 | -0.0073 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0178 | -0.0192 | -0.0178 | -0.0167 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0143 | -0.0138 | -0.0103 | -0.0095 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0144 | -0.0126 | -0.0111 | -0.0094 |
 
 **〔视图：32K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0095 | -0.0139 | -0.0191 | -0.0185 |
-| latent MoE，expert ×2 | -0.0453 | -0.0487 | -0.0448 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0095 | -0.0139 | -0.0191 | -0.0185 | -0.0186 |
+| expert ×2（有 latent） | -0.0358 | -0.0348 | -0.0256 | -0.0238 | -0.0205 |
+| expert ×2（无 latent） | -0.0362 | -0.0317 | -0.0280 | -0.0235 | · |
+| latent MoE，expert ×2 | -0.0453 | -0.0487 | -0.0448 | -0.0423 | -0.0391 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0095 | -0.0139 | -0.0191 | -0.0185 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0453 | -0.0487 | -0.0448 | -0.0423 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0358 | -0.0348 | -0.0256 | -0.0238 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0362 | -0.0317 | -0.0280 | -0.0235 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0037 | -0.0054 | -0.0074 | -0.0072 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0176 | -0.0189 | -0.0174 | -0.0164 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0139 | -0.0135 | -0.0100 | -0.0093 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0141 | -0.0123 | -0.0109 | -0.0092 |
 
 **〔指标：overall_tw〕**
 
 **〔视图：8K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0096 | -0.0139 | -0.0199 | -0.0194 |
-| latent MoE，expert ×2 | -0.0462 | -0.0503 | -0.0463 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0096 | -0.0139 | -0.0199 | -0.0194 | -0.0196 |
+| expert ×2（有 latent） | -0.0367 | -0.0364 | -0.0265 | -0.0245 | -0.0210 |
+| expert ×2（无 latent） | -0.0370 | -0.0322 | -0.0287 | -0.0243 | · |
+| latent MoE，expert ×2 | -0.0462 | -0.0503 | -0.0463 | -0.0439 | -0.0406 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0096 | -0.0139 | -0.0199 | -0.0194 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0462 | -0.0503 | -0.0463 | -0.0439 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0367 | -0.0364 | -0.0265 | -0.0245 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0370 | -0.0322 | -0.0287 | -0.0243 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0038 | -0.0055 | -0.0078 | -0.0076 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0182 | -0.0197 | -0.0182 | -0.0173 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0144 | -0.0143 | -0.0104 | -0.0096 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0145 | -0.0127 | -0.0113 | -0.0095 |
 
 **〔视图：32K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0099 | -0.0138 | -0.0198 | -0.0192 |
-| latent MoE，expert ×2 | -0.0457 | -0.0495 | -0.0456 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0099 | -0.0138 | -0.0198 | -0.0192 | -0.0194 |
+| expert ×2（有 latent） | -0.0359 | -0.0357 | -0.0257 | -0.0240 | -0.0205 |
+| expert ×2（无 latent） | -0.0361 | -0.0316 | -0.0282 | -0.0238 | · |
+| latent MoE，expert ×2 | -0.0457 | -0.0495 | -0.0456 | -0.0432 | -0.0399 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0099 | -0.0138 | -0.0198 | -0.0192 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0457 | -0.0495 | -0.0456 | -0.0432 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0359 | -0.0357 | -0.0257 | -0.0240 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0361 | -0.0316 | -0.0282 | -0.0238 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0039 | -0.0054 | -0.0078 | -0.0075 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0180 | -0.0194 | -0.0179 | -0.0170 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0141 | -0.0140 | -0.0101 | -0.0094 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0142 | -0.0124 | -0.0111 | -0.0094 |
 
 **〔指标：overall_macro〕**
 
 **〔视图：8K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0094 | -0.0141 | -0.0184 | -0.0181 |
-| latent MoE，expert ×2 | -0.0452 | -0.0478 | -0.0440 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0094 | -0.0141 | -0.0184 | -0.0181 | -0.0182 |
+| expert ×2（有 latent） | -0.0358 | -0.0337 | -0.0255 | -0.0233 | -0.0203 |
+| expert ×2（无 latent） | -0.0364 | -0.0316 | -0.0277 | -0.0229 | · |
+| latent MoE，expert ×2 | -0.0452 | -0.0478 | -0.0440 | -0.0414 | -0.0385 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0094 | -0.0141 | -0.0184 | -0.0181 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0452 | -0.0478 | -0.0440 | -0.0414 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0358 | -0.0337 | -0.0255 | -0.0233 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0364 | -0.0316 | -0.0277 | -0.0229 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0035 | -0.0053 | -0.0069 | -0.0068 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0170 | -0.0181 | -0.0166 | -0.0157 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0135 | -0.0128 | -0.0097 | -0.0088 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0137 | -0.0120 | -0.0105 | -0.0087 |
 
 **〔视图：32K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0097 | -0.0140 | -0.0183 | -0.0180 |
-| latent MoE，expert ×2 | -0.0449 | -0.0472 | -0.0433 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0097 | -0.0140 | -0.0183 | -0.0180 | -0.0180 |
+| expert ×2（有 latent） | -0.0352 | -0.0332 | -0.0250 | -0.0229 | -0.0199 |
+| expert ×2（无 latent） | -0.0357 | -0.0311 | -0.0273 | -0.0226 | · |
+| latent MoE，expert ×2 | -0.0449 | -0.0472 | -0.0433 | -0.0409 | -0.0380 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0097 | -0.0140 | -0.0183 | -0.0180 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0449 | -0.0472 | -0.0433 | -0.0409 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0352 | -0.0332 | -0.0250 | -0.0229 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0357 | -0.0311 | -0.0273 | -0.0226 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0036 | -0.0053 | -0.0069 | -0.0068 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0169 | -0.0178 | -0.0164 | -0.0154 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0133 | -0.0126 | -0.0094 | -0.0087 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0135 | -0.0118 | -0.0103 | -0.0086 |
 
 **〔指标：val_v2〕**
 
 **〔视图：8K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0067 | -0.0102 | -0.0131 | -0.0139 |
-| latent MoE，expert ×2 | -0.0385 | -0.0383 | -0.0355 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0067 | -0.0102 | -0.0131 | -0.0139 | -0.0137 |
+| expert ×2（无 latent） | -0.0310 | -0.0265 | -0.0230 | -0.0203 | · |
+| expert ×2（有 latent） | -0.0318 | -0.0281 | -0.0224 | -0.0197 | -0.0185 |
+| latent MoE，expert ×2 | -0.0385 | -0.0383 | -0.0355 | -0.0336 | -0.0323 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0067 | -0.0102 | -0.0131 | -0.0139 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0385 | -0.0383 | -0.0355 | -0.0336 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0318 | -0.0281 | -0.0224 | -0.0197 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0310 | -0.0265 | -0.0230 | -0.0203 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0027 | -0.0041 | -0.0053 | -0.0057 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0156 | -0.0156 | -0.0144 | -0.0137 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0129 | -0.0114 | -0.0091 | -0.0080 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0126 | -0.0108 | -0.0094 | -0.0083 |
 
 **〔视图：32K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0072 | -0.0097 | -0.0130 | -0.0133 |
-| latent MoE，expert ×2 | -0.0376 | -0.0367 | -0.0341 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0072 | -0.0097 | -0.0130 | -0.0133 | -0.0134 |
+| expert ×2（无 latent） | -0.0296 | -0.0252 | -0.0219 | -0.0196 | · |
+| expert ×2（有 latent） | -0.0304 | -0.0270 | -0.0211 | -0.0189 | -0.0175 |
+| latent MoE，expert ×2 | -0.0376 | -0.0367 | -0.0341 | -0.0322 | -0.0310 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0072 | -0.0097 | -0.0130 | -0.0133 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0376 | -0.0367 | -0.0341 | -0.0322 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0304 | -0.0270 | -0.0211 | -0.0189 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0296 | -0.0252 | -0.0219 | -0.0196 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0029 | -0.0040 | -0.0053 | -0.0054 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0153 | -0.0149 | -0.0139 | -0.0131 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0124 | -0.0110 | -0.0086 | -0.0077 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0120 | -0.0103 | -0.0089 | -0.0080 |
 
 **〔指标：uncheatable〕**
 
 **〔视图：8K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0115 | -0.0142 | -0.0220 | -0.0217 |
-| latent MoE，expert ×2 | -0.0483 | -0.0523 | -0.0483 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0115 | -0.0142 | -0.0220 | -0.0217 | -0.0221 |
+| expert ×2（无 latent） | -0.0367 | -0.0317 | -0.0287 | -0.0242 | · |
+| expert ×2（有 latent） | -0.0368 | -0.0381 | -0.0263 | -0.0246 | -0.0200 |
+| latent MoE，expert ×2 | -0.0483 | -0.0523 | -0.0483 | -0.0463 | -0.0422 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0115 | -0.0142 | -0.0220 | -0.0217 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0483 | -0.0523 | -0.0483 | -0.0463 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0368 | -0.0381 | -0.0263 | -0.0246 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0367 | -0.0317 | -0.0287 | -0.0242 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0045 | -0.0055 | -0.0085 | -0.0084 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0188 | -0.0203 | -0.0187 | -0.0180 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0143 | -0.0148 | -0.0102 | -0.0095 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0142 | -0.0123 | -0.0111 | -0.0094 |
 
 **〔视图：32K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0116 | -0.0142 | -0.0219 | -0.0216 |
-| latent MoE，expert ×2 | -0.0479 | -0.0519 | -0.0477 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0116 | -0.0142 | -0.0219 | -0.0216 | -0.0219 |
+| expert ×2（无 latent） | -0.0360 | -0.0314 | -0.0284 | -0.0239 | · |
+| expert ×2（有 latent） | -0.0364 | -0.0377 | -0.0259 | -0.0243 | -0.0197 |
+| latent MoE，expert ×2 | -0.0479 | -0.0519 | -0.0477 | -0.0459 | -0.0416 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0116 | -0.0142 | -0.0219 | -0.0216 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0479 | -0.0519 | -0.0477 | -0.0459 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0364 | -0.0377 | -0.0259 | -0.0243 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0360 | -0.0314 | -0.0284 | -0.0239 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0045 | -0.0055 | -0.0085 | -0.0084 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0186 | -0.0201 | -0.0185 | -0.0178 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0141 | -0.0146 | -0.0100 | -0.0094 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0140 | -0.0122 | -0.0110 | -0.0093 |
 
 **〔指标：codefresh〕**
 
 **〔视图：8K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0101 | -0.0186 | -0.0209 | -0.0173 |
-| latent MoE，expert ×2 | -0.0521 | -0.0573 | -0.0504 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0101 | -0.0186 | -0.0209 | -0.0173 | -0.0179 |
+| expert ×2（无 latent） | -0.0411 | -0.0373 | -0.0315 | -0.0226 | · |
+| expert ×2（有 latent） | -0.0420 | -0.0387 | -0.0295 | -0.0257 | -0.0215 |
+| latent MoE，expert ×2 | -0.0521 | -0.0573 | -0.0504 | -0.0430 | -0.0394 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0101 | -0.0186 | -0.0209 | -0.0173 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0521 | -0.0573 | -0.0504 | -0.0430 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0420 | -0.0387 | -0.0295 | -0.0257 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0411 | -0.0373 | -0.0315 | -0.0226 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0037 | -0.0068 | -0.0076 | -0.0063 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0190 | -0.0209 | -0.0184 | -0.0157 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0154 | -0.0142 | -0.0108 | -0.0094 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0150 | -0.0136 | -0.0115 | -0.0083 |
 
 **〔视图：32K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0101 | -0.0186 | -0.0209 | -0.0173 |
-| latent MoE，expert ×2 | -0.0521 | -0.0573 | -0.0504 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0101 | -0.0186 | -0.0209 | -0.0173 | -0.0179 |
+| expert ×2（无 latent） | -0.0411 | -0.0373 | -0.0315 | -0.0226 | · |
+| expert ×2（有 latent） | -0.0420 | -0.0387 | -0.0295 | -0.0257 | -0.0215 |
+| latent MoE，expert ×2 | -0.0521 | -0.0573 | -0.0504 | -0.0430 | -0.0394 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0101 | -0.0186 | -0.0209 | -0.0173 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0521 | -0.0573 | -0.0504 | -0.0430 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0420 | -0.0387 | -0.0295 | -0.0257 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0411 | -0.0373 | -0.0315 | -0.0226 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0037 | -0.0068 | -0.0076 | -0.0063 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0190 | -0.0209 | -0.0184 | -0.0157 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0154 | -0.0142 | -0.0108 | -0.0094 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0150 | -0.0136 | -0.0115 | -0.0083 |
 
 **〔指标：private_internal〕**
 
 **〔视图：8K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0083 | -0.0118 | -0.0168 | -0.0170 |
-| latent MoE，expert ×2 | -0.0377 | -0.0385 | -0.0344 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0083 | -0.0118 | -0.0168 | -0.0170 | -0.0170 |
+| expert ×2（无 latent） | -0.0292 | -0.0240 | -0.0217 | -0.0162 | · |
+| expert ×2（有 latent） | -0.0294 | -0.0267 | -0.0176 | -0.0171 | -0.0145 |
+| latent MoE，expert ×2 | -0.0377 | -0.0385 | -0.0344 | -0.0341 | -0.0315 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0083 | -0.0118 | -0.0168 | -0.0170 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0377 | -0.0385 | -0.0344 | -0.0341 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0294 | -0.0267 | -0.0176 | -0.0171 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0292 | -0.0240 | -0.0217 | -0.0162 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2` − `PROD1_DPSK` | -0.0028 | -0.0040 | -0.0056 | -0.0057 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK` | -0.0126 | -0.0129 | -0.0115 | -0.0115 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X` − `PROD1_DPSK_LATENT2` | -0.0099 | -0.0090 | -0.0059 | -0.0057 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X` − `PROD1_DPSK` | -0.0098 | -0.0081 | -0.0073 | -0.0054 |
 
 **〔视图：32K 窗口〕**
 
-| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
-|---|---|---|---|---|
-| latent MoE（等参数） | -0.0083 | -0.0118 | -0.0168 | -0.0170 |
-| latent MoE，expert ×2 | -0.0377 | -0.0385 | -0.0343 | · |
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M | q4 · 1.17B |
+|---|---|---|---|---|---|
+| latent MoE（等参数） | -0.0083 | -0.0118 | -0.0168 | -0.0170 | -0.0170 |
+| expert ×2（无 latent） | -0.0293 | -0.0240 | -0.0217 | -0.0162 | · |
+| expert ×2（有 latent） | -0.0294 | -0.0267 | -0.0176 | -0.0171 | -0.0145 |
+| latent MoE，expert ×2 | -0.0377 | -0.0385 | -0.0343 | -0.0341 | -0.0315 |
+
+Δloss（nats / token，和上图同一单位）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0083 | -0.0118 | -0.0168 | -0.0170 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0377 | -0.0385 | -0.0343 | -0.0341 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0294 | -0.0267 | -0.0176 | -0.0171 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0293 | -0.0240 | -0.0217 | -0.0162 |
+
+Δbpb（bits / byte，按原文字节数换算，不受 tokenizer 影响）
+
+|   |   | Change ID | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|---|---|
+|   | latent MoE（等参数） | `PROD1_DPSK_LATENT2_W32K` − `PROD1_DPSK_W32K` | -0.0028 | -0.0040 | -0.0056 | -0.0057 |
+|   | latent MoE，expert ×2 | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0126 | -0.0129 | -0.0115 | -0.0115 |
+|   | expert ×2（有 latent） | `PROD1_DPSK_LATENT2_E2X_W32K` − `PROD1_DPSK_LATENT2_W32K` | -0.0099 | -0.0090 | -0.0059 | -0.0057 |
+|   | expert ×2（无 latent） | `PROD1_DPSK_E2X_W32K` − `PROD1_DPSK_W32K` | -0.0098 | -0.0081 | -0.0073 | -0.0054 |
 
 ### 位置编码：NoPE / RoPE / partial RoPE
 
@@ -3359,670 +9032,360 @@ partial RoPE：每个 head 的 128 维里只有 32 维（1/4）加 RoPE（NeoX �
 | 所有层 1/4 RoPE | -0.0003 | -0.0011 | -0.0035 |
 | SWA 层 1/4 RoPE | -0.0030 | 0.0007 | -0.0026 |
 
-## 页签：外部参考
+### 数据 derisk 和 2.5 vs 2.6
 
-### Pretrain doc-isolated 测试
+**数据**：80B 的 KD 语料预先打包成 32K 的行（pack plan e9r500：一行由若干文档块拼成，块之间互不 attend），teacher cache = tc_80b，seed 1（plan 固定了数据顺序）。
+**实验**：MUONH_FIT 底座在同一份 plan 上训 CE / KD 2.6 / KD 2.5，检查新数据管线、KD 在新数据上的增益，以及 teacher 2.5 对 2.6。KD 都是 α 0.8（KD 0.8 + CE 0.2）、tail = S64Y。
+**每个 checkpoint 评两份**：8K 窗口（长文档按 8192 切块，和之前所有实验一样，可直接比较）和 32K 窗口（按 32768 切块，和训练长度一致）。
 
-**〔窗口：window = 8K〕**
-
-**〔视图：bpb〕**
-
-|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 0.4090 | 0.4076 | 0.4269 | 0.3354 | 0.4128 | 0.1859 | 0.6494 | 0.4881 | 0.4899 | 0.4617 |
-| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 0.4289 | 0.4254 | 0.4468 | 0.3587 | 0.4238 | 0.2033 | 0.6724 | 0.5037 | 0.5191 | 0.4882 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 0.4976 | 0.4926 | 0.5132 | 0.4237 | 0.4838 | 0.2716 | 0.7567 | 0.5413 | 0.6024 | 0.5685 |
-| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 0.5242 | 0.5200 | 0.5406 | 0.4479 | 0.5138 | 0.2853 | 0.7947 | 0.5719 | 0.6299 | 0.5939 |
-| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 0.5180 | 0.5125 | 0.5346 | 0.4447 | 0.5025 | 0.2825 | 0.7890 | 0.5624 | 0.6265 | 0.5909 |
-| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 0.4940 | 0.4900 | 0.5135 | 0.4114 | 0.4860 | 0.2677 | 0.7652 | 0.5577 | 0.5928 | 0.5543 |
-| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 0.4692 | 0.4661 | 0.4898 | 0.3853 | 0.4660 | 0.2498 | 0.7396 | 0.5385 | 0.5597 | 0.5227 |
-| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 0.4649 | 0.4612 | 0.4843 | 0.3849 | 0.4584 | 0.2481 | 0.7297 | 0.5269 | 0.5580 | 0.5218 |
-| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 0.4807 | 0.4781 | 0.4999 | 0.3981 | 0.4785 | 0.2598 | 0.7456 | 0.5459 | 0.5716 | 0.5361 |
-| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 0.4744 | 0.4707 | 0.4930 | 0.3951 | 0.4678 | 0.2554 | 0.7364 | 0.5348 | 0.5685 | 0.5332 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 129,280 | 0.4227 | 0.4196 | 0.4421 | 0.3552 | 0.4174 | 0.2067 | 0.6680 | 0.4949 | 0.5102 | 0.4708 |
-| Kimi-K3 | 2.8T-A104B | 163,840 | 0.3690 | 0.3706 | 0.3915 | 0.3008 | 0.3872 | 0.1549 | 0.6074 | 0.4730 | 0.4258 | 0.3936 |
-| Kimi-K3.1-Pro (MXFP4) | 2.8T-A104B | 163,840 | 0.3677 | 0.3696 | 0.3907 | 0.2992 | 0.3867 | 0.1526 | 0.6084 | 0.4733 | 0.4239 | 0.3904 |
-| Nemotron-3-Ultra-Base | 550B-A55B | 131,072 | 0.4319 | 0.4264 | 0.4477 | 0.3593 | 0.4171 | 0.2383 | 0.6566 | 0.4896 | 0.5255 | 0.4954 |
-| Nemotron-3.5-Super-VL-Base | 120B-A12B | 131,072 | 0.4602 | 0.4537 | 0.4747 | 0.3889 | 0.4396 | 0.2581 | 0.6893 | 0.5077 | 0.5645 | 0.5312 |
-| Qwen3.8-Flash-Next (FP8) | 125B-A6B | 248,320 | 0.4837 | 0.4742 | 0.5031 | 0.4227 | 0.4566 | 0.2404 | 0.7640 | 0.5393 | 0.5959 | 0.5681 |
-| Qwen3.8-27B | 27B | 248,320 | 0.5030 | 0.4902 | 0.5203 | 0.4539 | 0.4594 | 0.2655 | 0.7784 | 0.5349 | 0.6298 | 0.5969 |
-| Qwen3.8-Max (FP8) | 2.4T-A95B | 248,320 | 0.4331 | 0.4264 | 0.4525 | 0.3709 | 0.4185 | 0.2120 | 0.6890 | 0.5000 | 0.5247 | 0.5014 |
-| Mistral-Large-4 (FP8) | 1T-A52B | 204,800 | 0.4904 | 0.4787 | 0.5172 | 0.4223 | 0.4614 | 0.2386 | 0.8363 | 0.5433 | 0.6010 | 0.5750 |
-| Flint（可能不对） | 40B-A2.5B | 150,144 | 0.7811 | 0.7807 | 0.7826 | 0.6872 | 0.7812 | 0.4637 | 1.0556 | 0.7894 | 0.9188 | 0.9009 |
-| Ripple-65B-Base-Preview | 65B | 100,352 | 0.4623 | 0.4578 | 0.4761 | 0.3889 | 0.4510 | 0.2626 | 0.6891 | 0.5093 | 0.5558 | 0.5291 |
-| 我们最好的: PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K · q3 (683M) | · | · | 0.5826 | 0.5793 | 0.5913 | 0.4887 | 0.5649 | 0.3733 | 0.8154 | 0.5975 | 0.7081 | 0.6560 |
-
-**〔视图：val_loss〕**
-
-|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 1.0520 | 1.0374 | 1.1438 | 0.8251 | 1.0632 | 0.5086 | 1.8213 | 1.4541 | 1.1903 | 1.1795 |
-| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 1.1026 | 1.0827 | 1.1962 | 0.8824 | 1.0913 | 0.5562 | 1.8856 | 1.5005 | 1.2613 | 1.2472 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 1.2788 | 1.2537 | 1.3716 | 1.0423 | 1.2460 | 0.7429 | 2.1220 | 1.6125 | 1.4637 | 1.4524 |
-| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 1.3471 | 1.3234 | 1.4447 | 1.1019 | 1.3232 | 0.7806 | 2.2286 | 1.7036 | 1.5306 | 1.5172 |
-| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 1.3311 | 1.3043 | 1.4286 | 1.0939 | 1.2942 | 0.7727 | 2.2127 | 1.6756 | 1.5222 | 1.5095 |
-| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 1.2702 | 1.2470 | 1.3740 | 1.0119 | 1.2517 | 0.7325 | 2.1460 | 1.6614 | 1.4405 | 1.4161 |
-| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 1.2069 | 1.1861 | 1.3116 | 0.9477 | 1.2002 | 0.6834 | 2.0741 | 1.6042 | 1.3600 | 1.3353 |
-| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 1.1957 | 1.1737 | 1.2963 | 0.9468 | 1.1805 | 0.6788 | 2.0464 | 1.5698 | 1.3558 | 1.3331 |
-| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 1.2365 | 1.2167 | 1.3381 | 0.9793 | 1.2324 | 0.7108 | 2.0909 | 1.6262 | 1.3890 | 1.3696 |
-| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 1.2199 | 1.1980 | 1.3192 | 0.9720 | 1.2047 | 0.6988 | 2.0652 | 1.5934 | 1.3813 | 1.3620 |
-| DeepSeek-V4-Flash-Base † | 284B-A13B | 129,280 | 1.1280 | 1.1070 | 1.2113 | 0.9272 | 1.1172 | 0.5386 | 1.9526 | 1.4256 | 1.3066 | 1.2866 |
-| Kimi-K3 † | 2.8T-A104B | 163,840 | 0.9942 | 0.9839 | 1.0960 | 0.7897 | 1.0317 | 0.4286 | 1.7893 | 1.4398 | 1.0967 | 1.0690 |
-| Kimi-K3.1-Pro (MXFP4) † | 2.8T-A104B | 163,840 | 0.9908 | 0.9811 | 1.0939 | 0.7856 | 1.0306 | 0.4221 | 1.7925 | 1.4406 | 1.0920 | 1.0602 |
-| Nemotron-3-Ultra-Base † | 550B-A55B | 131,072 | 1.0966 | 1.0751 | 1.1719 | 0.8932 | 1.0743 | 0.6131 | 1.7996 | 1.3954 | 1.2558 | 1.2642 |
-| Nemotron-3.5-Super-VL-Base † | 120B-A12B | 131,072 | 1.1679 | 1.1440 | 1.2414 | 0.9667 | 1.1323 | 0.6641 | 1.8893 | 1.4471 | 1.3489 | 1.3554 |
-| Qwen3.8-Flash-Next (FP8) † | 125B-A6B | 248,320 | 1.2205 | 1.1864 | 1.3134 | 1.0178 | 1.1661 | 0.6108 | 2.1157 | 1.5392 | 1.4311 | 1.4385 |
-| Qwen3.8-27B † | 27B | 248,320 | 1.2678 | 1.2264 | 1.3560 | 1.0928 | 1.1732 | 0.6747 | 2.1556 | 1.5268 | 1.5127 | 1.5114 |
-| Qwen3.8-Max (FP8) † | 2.4T-A95B | 248,320 | 1.0936 | 1.0670 | 1.1826 | 0.8930 | 1.0687 | 0.5385 | 1.9082 | 1.4270 | 1.2601 | 1.2696 |
-| Mistral-Large-4 (FP8) † | 1T-A52B | 204,800 | 1.3097 | 1.2632 | 1.4257 | 1.1092 | 1.2240 | 0.6417 | 2.4208 | 1.6148 | 1.5435 | 1.5505 |
-| Flint（可能不对） † | 40B-A2.5B | 150,144 | 2.1582 | 2.1305 | 2.2271 | 1.8724 | 2.1410 | 1.2905 | 3.1794 | 2.4390 | 2.4404 | 2.5442 |
-| Ripple-65B-Base-Preview † | 65B | 100,352 | 1.2177 | 1.1771 | 1.3110 | 0.9994 | 1.1368 | 0.7267 | 2.0246 | 1.5511 | 1.4276 | 1.4258 |
-| 我们最好的: PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K · q3 (683M) | · | · | 1.4969 | 1.4743 | 1.5776 | 1.2022 | 1.4549 | 1.0212 | 2.2868 | 1.7799 | 1.7205 | 1.6758 |
-
-**〔视图：ppl〕**
-
-|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 2.863 | 2.822 | 3.139 | 2.282 | 2.896 | 1.663 | 6.180 | 4.281 | 3.288 | 3.253 |
-| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 3.012 | 2.953 | 3.308 | 2.417 | 2.978 | 1.744 | 6.590 | 4.484 | 3.530 | 3.481 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 3.592 | 3.503 | 3.942 | 2.836 | 3.476 | 2.102 | 8.348 | 5.015 | 4.322 | 4.273 |
-| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 3.846 | 3.756 | 4.241 | 3.010 | 3.755 | 2.183 | 9.287 | 5.494 | 4.621 | 4.559 |
-| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 3.785 | 3.685 | 4.173 | 2.986 | 3.648 | 2.166 | 9.140 | 5.342 | 4.582 | 4.524 |
-| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 3.562 | 3.480 | 3.951 | 2.751 | 3.496 | 2.080 | 8.551 | 5.267 | 4.223 | 4.121 |
-| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 3.343 | 3.274 | 3.712 | 2.580 | 3.321 | 1.981 | 7.957 | 4.974 | 3.896 | 3.801 |
-| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 3.306 | 3.234 | 3.656 | 2.577 | 3.256 | 1.972 | 7.740 | 4.806 | 3.880 | 3.793 |
-| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 3.444 | 3.376 | 3.812 | 2.663 | 3.429 | 2.036 | 8.092 | 5.085 | 4.011 | 3.934 |
-| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 3.387 | 3.313 | 3.741 | 2.643 | 3.336 | 2.011 | 7.887 | 4.920 | 3.980 | 3.904 |
-| DeepSeek-V4-Flash-Base † | 284B-A13B | 129,280 | 3.090 | 3.025 | 3.358 | 2.527 | 3.056 | 1.714 | 7.047 | 4.160 | 3.694 | 3.620 |
-| Kimi-K3 † | 2.8T-A104B | 163,840 | 2.703 | 2.675 | 2.992 | 2.203 | 2.806 | 1.535 | 5.986 | 4.220 | 2.994 | 2.912 |
-| Kimi-K3.1-Pro (MXFP4) † | 2.8T-A104B | 163,840 | 2.693 | 2.667 | 2.986 | 2.194 | 2.803 | 1.525 | 6.004 | 4.223 | 2.980 | 2.887 |
-| Nemotron-3-Ultra-Base † | 550B-A55B | 131,072 | 2.994 | 2.930 | 3.228 | 2.443 | 2.928 | 1.846 | 6.047 | 4.037 | 3.511 | 3.540 |
-| Nemotron-3.5-Super-VL-Base † | 120B-A12B | 131,072 | 3.215 | 3.139 | 3.460 | 2.629 | 3.103 | 1.943 | 6.615 | 4.251 | 3.853 | 3.878 |
-| Qwen3.8-Flash-Next (FP8) † | 125B-A6B | 248,320 | 3.389 | 3.275 | 3.719 | 2.767 | 3.209 | 1.842 | 8.296 | 4.661 | 4.183 | 4.214 |
-| Qwen3.8-27B † | 27B | 248,320 | 3.553 | 3.409 | 3.881 | 2.983 | 3.232 | 1.963 | 8.633 | 4.603 | 4.539 | 4.533 |
-| Qwen3.8-Max (FP8) † | 2.4T-A95B | 248,320 | 2.985 | 2.907 | 3.263 | 2.442 | 2.911 | 1.714 | 6.741 | 4.166 | 3.526 | 3.559 |
-| Mistral-Large-4 (FP8) † | 1T-A52B | 204,800 | 3.705 | 3.537 | 4.161 | 3.032 | 3.401 | 1.900 | 11.255 | 5.027 | 4.681 | 4.714 |
-| Flint（可能不对） † | 40B-A2.5B | 150,144 | 8.656 | 8.419 | 9.273 | 6.504 | 8.508 | 3.635 | 24.032 | 11.461 | 11.478 | 12.733 |
-| Ripple-65B-Base-Preview † | 65B | 100,352 | 3.379 | 3.245 | 3.710 | 2.717 | 3.117 | 2.068 | 7.573 | 4.717 | 4.169 | 4.161 |
-| 我们最好的: PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K · q3 (683M) | · | · | 4.468 | 4.368 | 4.843 | 3.327 | 4.284 | 2.777 | 9.844 | 5.929 | 5.587 | 5.343 |
-
-**〔窗口：window = 32K〕**
-
-**〔视图：bpb〕**
-
-|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 0.4010 | 0.3998 | 0.4212 | 0.3216 | 0.4051 | 0.1859 | 0.6460 | 0.4876 | 0.4809 | 0.4449 |
-| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 0.4203 | 0.4171 | 0.4407 | 0.3439 | 0.4157 | 0.2033 | 0.6688 | 0.5031 | 0.5096 | 0.4703 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 0.4890 | 0.4841 | 0.5071 | 0.4091 | 0.4754 | 0.2716 | 0.7533 | 0.5407 | 0.5923 | 0.5513 |
-| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 0.5153 | 0.5113 | 0.5343 | 0.4324 | 0.5056 | 0.2853 | 0.7914 | 0.5713 | 0.6195 | 0.5762 |
-| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 0.5090 | 0.5037 | 0.5282 | 0.4292 | 0.4941 | 0.2825 | 0.7855 | 0.5619 | 0.6160 | 0.5731 |
-| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 0.4855 | 0.4815 | 0.5074 | 0.3973 | 0.4776 | 0.2677 | 0.7618 | 0.5572 | 0.5831 | 0.5378 |
-| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 0.4609 | 0.4578 | 0.4839 | 0.3716 | 0.4576 | 0.2498 | 0.7361 | 0.5380 | 0.5503 | 0.5067 |
-| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 0.4567 | 0.4530 | 0.4785 | 0.3714 | 0.4501 | 0.2481 | 0.7263 | 0.5264 | 0.5486 | 0.5057 |
-| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 0.4726 | 0.4701 | 0.4942 | 0.3843 | 0.4709 | 0.2598 | 0.7424 | 0.5454 | 0.5621 | 0.5199 |
-| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 0.4662 | 0.4626 | 0.4872 | 0.3814 | 0.4597 | 0.2554 | 0.7331 | 0.5343 | 0.5590 | 0.5170 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 129,280 | 0.4146 | 0.4119 | 0.4362 | 0.3408 | 0.4105 | 0.2067 | 0.6650 | 0.4934 | 0.5006 | 0.4534 |
-| Kimi-K3 | 2.8T-A104B | 163,840 | 0.3618 | 0.3636 | 0.3864 | 0.2882 | 0.3803 | 0.1549 | 0.6044 | 0.4728 | 0.4178 | 0.3789 |
-| Kimi-K3.1-Pro (MXFP4) | 2.8T-A104B | 163,840 | 0.3606 | 0.3626 | 0.3856 | 0.2866 | 0.3800 | 0.1526 | 0.6055 | 0.4731 | 0.4159 | 0.3757 |
-| Nemotron-3-Ultra-Base | 550B-A55B | 131,072 | 0.4238 | 0.4187 | 0.4419 | 0.3456 | 0.4098 | 0.2383 | 0.6532 | 0.4882 | 0.5163 | 0.4781 |
-| Nemotron-3.5-Super-VL-Base | 120B-A12B | 131,072 | 0.4515 | 0.4455 | 0.4684 | 0.3740 | 0.4320 | 0.2581 | 0.6858 | 0.5063 | 0.5544 | 0.5124 |
-| Qwen3.8-Flash-Next (FP8) | 125B-A6B | 248,320 | 0.4741 | 0.4656 | 0.4962 | 0.4044 | 0.4503 | 0.2404 | 0.7615 | 0.5373 | 0.5836 | 0.5447 |
-| Qwen3.8-27B | 27B | 248,320 | 0.4926 | 0.4805 | 0.5129 | 0.4357 | 0.4510 | 0.2655 | 0.7742 | 0.5334 | 0.6175 | 0.5732 |
-| Qwen3.8-Max (FP8) | 2.4T-A95B | 248,320 | 0.4244 | 0.4179 | 0.4462 | 0.3562 | 0.4100 | 0.2120 | 0.6854 | 0.4985 | 0.5150 | 0.4839 |
-| Mistral-Large-4 (FP8) | 1T-A52B | 204,800 | 0.4808 | 0.4700 | 0.5104 | 0.4050 | 0.4540 | 0.2386 | 0.8329 | 0.5423 | 0.5896 | 0.5522 |
-| Flint（可能不对） | 40B-A2.5B | 150,144 | 0.7648 | 0.7663 | 0.7712 | 0.6538 | 0.7702 | 0.4637 | 1.0507 | 0.7894 | 0.8994 | 0.8615 |
-| Ripple-65B-Base-Preview | 65B | 100,352 | 0.4564 | 0.4511 | 0.4721 | 0.3804 | 0.4426 | 0.2626 | 0.6869 | 0.5093 | 0.5506 | 0.5215 |
-| 我们最好的: PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K · q3 (683M) | · | · | - | - | - | - | - | - | - | - | - | - |
-
-**〔视图：val_loss〕**
-
-|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 1.0317 | 1.0174 | 1.1293 | 0.7911 | 1.0433 | 0.5085 | 1.8116 | 1.4526 | 1.1686 | 1.1365 |
-| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 1.0811 | 1.0616 | 1.1809 | 0.8460 | 1.0706 | 0.5562 | 1.8756 | 1.4988 | 1.2382 | 1.2015 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 1.2570 | 1.2320 | 1.3561 | 1.0065 | 1.2244 | 0.7429 | 2.1125 | 1.6110 | 1.4392 | 1.4083 |
-| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 1.3249 | 1.3013 | 1.4289 | 1.0637 | 1.3021 | 0.7806 | 2.2195 | 1.7020 | 1.5053 | 1.4719 |
-| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 1.3085 | 1.2818 | 1.4124 | 1.0559 | 1.2724 | 0.7727 | 2.2029 | 1.6740 | 1.4967 | 1.4640 |
-| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 1.2489 | 1.2255 | 1.3588 | 0.9774 | 1.2300 | 0.7324 | 2.1363 | 1.6599 | 1.4168 | 1.3740 |
-| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 1.1860 | 1.1650 | 1.2967 | 0.9142 | 1.1785 | 0.6834 | 2.0645 | 1.6027 | 1.3371 | 1.2943 |
-| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 1.1750 | 1.1529 | 1.2816 | 0.9136 | 1.1592 | 0.6788 | 2.0368 | 1.5683 | 1.3330 | 1.2919 |
-| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 1.2162 | 1.1965 | 1.3236 | 0.9453 | 1.2127 | 0.7109 | 2.0821 | 1.6247 | 1.3660 | 1.3281 |
-| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 1.1993 | 1.1773 | 1.3045 | 0.9383 | 1.1840 | 0.6988 | 2.0558 | 1.5918 | 1.3584 | 1.3208 |
-| DeepSeek-V4-Flash-Base † | 284B-A13B | 129,280 | 1.1065 | 1.0868 | 1.1956 | 0.8897 | 1.0988 | 0.5386 | 1.9439 | 1.4211 | 1.2819 | 1.2392 |
-| Kimi-K3 † | 2.8T-A104B | 163,840 | 0.9752 | 0.9653 | 1.0825 | 0.7567 | 1.0135 | 0.4286 | 1.7807 | 1.4393 | 1.0761 | 1.0291 |
-| Kimi-K3.1-Pro (MXFP4) † | 2.8T-A104B | 163,840 | 0.9719 | 0.9626 | 1.0804 | 0.7526 | 1.0126 | 0.4221 | 1.7838 | 1.4400 | 1.0714 | 1.0204 |
-| Nemotron-3-Ultra-Base † | 550B-A55B | 131,072 | 1.0764 | 1.0557 | 1.1572 | 0.8590 | 1.0557 | 0.6131 | 1.7903 | 1.3916 | 1.2338 | 1.2200 |
-| Nemotron-3.5-Super-VL-Base † | 120B-A12B | 131,072 | 1.1462 | 1.1232 | 1.2256 | 0.9296 | 1.1127 | 0.6641 | 1.8795 | 1.4431 | 1.3248 | 1.3075 |
-| Qwen3.8-Flash-Next (FP8) † | 125B-A6B | 248,320 | 1.1967 | 1.1651 | 1.2964 | 0.9736 | 1.1498 | 0.6107 | 2.1089 | 1.5336 | 1.4016 | 1.3792 |
-| Qwen3.8-27B † | 27B | 248,320 | 1.2421 | 1.2023 | 1.3374 | 1.0489 | 1.1515 | 0.6747 | 2.1441 | 1.5223 | 1.4830 | 1.4514 |
-| Qwen3.8-Max (FP8) † | 2.4T-A95B | 248,320 | 1.0720 | 1.0456 | 1.1668 | 0.8577 | 1.0468 | 0.5385 | 1.8981 | 1.4228 | 1.2370 | 1.2253 |
-| Mistral-Large-4 (FP8) † | 1T-A52B | 204,800 | 1.2845 | 1.2402 | 1.4078 | 1.0638 | 1.2043 | 0.6417 | 2.4107 | 1.6119 | 1.5143 | 1.4890 |
-| Flint（可能不对） † | 40B-A2.5B | 150,144 | 2.1138 | 2.0913 | 2.1959 | 1.7815 | 2.1110 | 1.2905 | 3.1647 | 2.4389 | 2.3889 | 2.4328 |
-| Ripple-65B-Base-Preview † | 65B | 100,352 | 1.2028 | 1.1600 | 1.3006 | 0.9775 | 1.1155 | 0.7267 | 2.0183 | 1.5511 | 1.4142 | 1.4055 |
-| 我们最好的: PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K · q3 (683M) | · | · | - | - | - | - | - | - | - | - | - | - |
-
-**〔视图：ppl〕**
-
-|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | 2.806 | 2.766 | 3.093 | 2.206 | 2.839 | 1.663 | 6.120 | 4.274 | 3.217 | 3.116 |
-| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | 2.948 | 2.891 | 3.257 | 2.330 | 2.917 | 1.744 | 6.525 | 4.477 | 3.449 | 3.325 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | 3.515 | 3.428 | 3.881 | 2.736 | 3.402 | 2.102 | 8.269 | 5.008 | 4.217 | 4.089 |
-| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | 3.762 | 3.674 | 4.174 | 2.897 | 3.677 | 2.183 | 9.203 | 5.485 | 4.506 | 4.358 |
-| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | 3.701 | 3.603 | 4.106 | 2.875 | 3.569 | 2.166 | 9.051 | 5.333 | 4.467 | 4.323 |
-| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | 3.487 | 3.406 | 3.892 | 2.657 | 3.421 | 2.080 | 8.468 | 5.259 | 4.124 | 3.951 |
-| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | 3.274 | 3.206 | 3.657 | 2.495 | 3.250 | 1.981 | 7.881 | 4.966 | 3.808 | 3.648 |
-| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | 3.238 | 3.167 | 3.603 | 2.493 | 3.187 | 1.972 | 7.666 | 4.799 | 3.792 | 3.640 |
-| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | 3.374 | 3.309 | 3.757 | 2.574 | 3.363 | 2.036 | 8.021 | 5.077 | 3.919 | 3.774 |
-| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | 3.318 | 3.246 | 3.686 | 2.556 | 3.267 | 2.011 | 7.813 | 4.913 | 3.890 | 3.747 |
-| DeepSeek-V4-Flash-Base † | 284B-A13B | 129,280 | 3.024 | 2.965 | 3.306 | 2.434 | 3.001 | 1.714 | 6.986 | 4.141 | 3.603 | 3.453 |
-| Kimi-K3 † | 2.8T-A104B | 163,840 | 2.652 | 2.626 | 2.952 | 2.131 | 2.755 | 1.535 | 5.934 | 4.218 | 2.933 | 2.798 |
-| Kimi-K3.1-Pro (MXFP4) † | 2.8T-A104B | 163,840 | 2.643 | 2.619 | 2.946 | 2.123 | 2.753 | 1.525 | 5.952 | 4.221 | 2.919 | 2.774 |
-| Nemotron-3-Ultra-Base † | 550B-A55B | 131,072 | 2.934 | 2.874 | 3.181 | 2.361 | 2.874 | 1.846 | 5.991 | 4.021 | 3.434 | 3.387 |
-| Nemotron-3.5-Super-VL-Base † | 120B-A12B | 131,072 | 3.146 | 3.075 | 3.406 | 2.534 | 3.043 | 1.943 | 6.550 | 4.234 | 3.761 | 3.697 |
-| Qwen3.8-Flash-Next (FP8) † | 125B-A6B | 248,320 | 3.309 | 3.206 | 3.656 | 2.647 | 3.158 | 1.842 | 8.239 | 4.635 | 4.062 | 3.972 |
-| Qwen3.8-27B † | 27B | 248,320 | 3.463 | 3.328 | 3.809 | 2.855 | 3.163 | 1.963 | 8.534 | 4.583 | 4.406 | 4.269 |
-| Qwen3.8-Max (FP8) † | 2.4T-A95B | 248,320 | 2.921 | 2.845 | 3.212 | 2.358 | 2.849 | 1.714 | 6.673 | 4.149 | 3.445 | 3.405 |
-| Mistral-Large-4 (FP8) † | 1T-A52B | 204,800 | 3.613 | 3.456 | 4.087 | 2.897 | 3.334 | 1.900 | 11.142 | 5.012 | 4.546 | 4.433 |
-| Flint（可能不对） † | 40B-A2.5B | 150,144 | 8.279 | 8.095 | 8.988 | 5.939 | 8.256 | 3.635 | 23.681 | 11.461 | 10.901 | 11.391 |
-| Ripple-65B-Base-Preview † | 65B | 100,352 | 3.329 | 3.190 | 3.671 | 2.658 | 3.051 | 2.068 | 7.526 | 4.717 | 4.113 | 4.077 |
-| 我们最好的: PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K · q3 (683M) | · | · | - | - | - | - | - | - | - | - | - | - |
-
-**〔窗口：32K − 8K〕**
-
-|   | model size | vocab size | overall_tsqw | overall_tw | overall_macro | val_v2 | uncheatable | codefresh | v3small | private_internal | pile_test | pile_10k |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 152,576 | -0.0081 | -0.0079 | -0.0057 | -0.0138 | -0.0077 | 0 | -0.0035 | -0.0005 | -0.0089 | -0.0168 |
-| MiMo-V2.6-Pro-RL | 1.02T-A42B | 152,576 | -0.0086 | -0.0083 | -0.0061 | -0.0148 | -0.0081 | 0 | -0.0036 | -0.0006 | -0.0095 | -0.0179 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 151,936 | -0.0087 | -0.0086 | -0.0062 | -0.0146 | -0.0084 | 0 | -0.0034 | -0.0005 | -0.0101 | -0.0173 |
-| Qwen3-VL-30B-A3B-Instruct | 30B-A3B | 151,936 | -0.0089 | -0.0087 | -0.0063 | -0.0155 | -0.0082 | 0 | -0.0032 | -0.0005 | -0.0104 | -0.0177 |
-| Qwen3-VL-30B-A3B-Thinking | 30B-A3B | 151,936 | -0.0090 | -0.0088 | -0.0064 | -0.0155 | -0.0085 | 0 | -0.0035 | -0.0005 | -0.0105 | -0.0178 |
-| Qwen3-235B-A22B (2504) | 235B-A22B | 151,936 | -0.0085 | -0.0084 | -0.0060 | -0.0140 | -0.0084 | 0 | -0.0034 | -0.0005 | -0.0097 | -0.0165 |
-| Qwen3-235B-A22B-Instruct-2507 | 235B-A22B | 151,936 | -0.0083 | -0.0083 | -0.0059 | -0.0136 | -0.0084 | 0 | -0.0034 | -0.0005 | -0.0094 | -0.0160 |
-| Qwen3-235B-A22B-Thinking-2507 | 235B-A22B | 151,936 | -0.0082 | -0.0082 | -0.0058 | -0.0135 | -0.0082 | 0 | -0.0034 | -0.0005 | -0.0094 | -0.0161 |
-| Qwen3-VL-235B-A22B-Instruct | 235B-A22B | 151,936 | -0.0081 | -0.0079 | -0.0058 | -0.0138 | -0.0076 | 0 | -0.0031 | -0.0005 | -0.0095 | -0.0162 |
-| Qwen3-VL-235B-A22B-Thinking | 235B-A22B | 151,936 | -0.0082 | -0.0081 | -0.0058 | -0.0137 | -0.0081 | 0 | -0.0033 | -0.0005 | -0.0094 | -0.0161 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 129,280 | -0.0081 | -0.0077 | -0.0059 | -0.0144 | -0.0069 | 0 | -0.0030 | -0.0016 | -0.0097 | -0.0173 |
-| Kimi-K3 | 2.8T-A104B | 163,840 | -0.0072 | -0.0070 | -0.0051 | -0.0126 | -0.0068 | 0 | -0.0029 | -0.0002 | -0.0080 | -0.0147 |
-| Kimi-K3.1-Pro (MXFP4) | 2.8T-A104B | 163,840 | -0.0071 | -0.0070 | -0.0051 | -0.0126 | -0.0067 | 0 | -0.0030 | -0.0002 | -0.0080 | -0.0147 |
-| Nemotron-3-Ultra-Base | 550B-A55B | 131,072 | -0.0081 | -0.0077 | -0.0058 | -0.0137 | -0.0072 | 0 | -0.0034 | -0.0013 | -0.0092 | -0.0173 |
-| Nemotron-3.5-Super-VL-Base | 120B-A12B | 131,072 | -0.0087 | -0.0082 | -0.0063 | -0.0149 | -0.0076 | 0 | -0.0036 | -0.0014 | -0.0101 | -0.0188 |
-| Qwen3.8-Flash-Next (FP8) | 125B-A6B | 248,320 | -0.0096 | -0.0085 | -0.0069 | -0.0183 | -0.0064 | 0 | -0.0025 | -0.0020 | -0.0123 | -0.0234 |
-| Qwen3.8-27B | 27B | 248,320 | -0.0104 | -0.0096 | -0.0075 | -0.0182 | -0.0085 | 0 | -0.0042 | -0.0016 | -0.0124 | -0.0237 |
-| Qwen3.8-Max (FP8) | 2.4T-A95B | 248,320 | -0.0087 | -0.0086 | -0.0063 | -0.0147 | -0.0085 | 0 | -0.0036 | -0.0015 | -0.0096 | -0.0175 |
-| Mistral-Large-4 (FP8) | 1T-A52B | 204,800 | -0.0096 | -0.0087 | -0.0068 | -0.0173 | -0.0074 | 0 | -0.0035 | -0.0010 | -0.0114 | -0.0228 |
-| Flint（可能不对） | 40B-A2.5B | 150,144 | -0.0163 | -0.0144 | -0.0114 | -0.0334 | -0.0110 | 0 | -0.0049 | 0 | -0.0194 | -0.0394 |
-| Ripple-65B-Base-Preview | 65B | 100,352 | -0.0058 | -0.0066 | -0.0040 | -0.0085 | -0.0084 | 0 | -0.0021 | 0 | -0.0052 | -0.0075 |
-| 我们最好的: PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K · q3 (683M) | · | · | - | - | - | - | - | - | - | - | - | - |
-
-vocab size：模型 config 里的 vocab_size，即 embedding 行数（含 padding，所以比 tokenizer 实际的 token 数略大，如 Qwen3 是 151,936 行、151,665 个 token）；我们的 checkpoint 为训练时的 padded vocab。
-model size：MoE 写「总参数-A激活参数」，dense 只写总参数，数字取自模型卡；我们的 checkpoint 含 embedding 和输出层（行名里的 1.17B 等是不含 embedding 的激活参数）；Qwen3.8-Flash-Next 另有 51B n-gram embedding 不在 125B 里。
-† 用自己的 tokenizer：val_loss / ppl 按它自己的 token 计，和按 Qwen3 token 计的其他行不可比（只看 bpb）。bpb = 总 NLL ÷（原文 UTF-8 字节数 × ln 2），分母与 ladder 完全相同；文本为 ~/data/eval_ppl_decon 的原文，切分规则同 ladder（每篇第一个 token 不计分，BOS 只作上下文）。
-
-### 全量测评范围
-
-下游 benchmark 全量评测，配置是 Boxiang 的 ADLR lm-eval 的 `nemo6_report.yml`（与他评测我们 production 模型时完全相同）。协议：few-shot base prompt，不套 chat 模板；模型用 vLLM 起服务。下面是测哪些 benchmark；各模型的分数另起一章。
-
-先按是否生成分成两大部分（非生成类在前），每部分里再按配置的 task_group 分类；reading 和 aggregate 两个 task_group 两种都有，按任务拆到两边。一个 benchmark 可能有两种跑法（贪心一次 / 每题采样 32 次），各算一个任务。
-
-**nemo6**2 大部分 · 9 类 · 40 任务 · 36 个 benchmark · 75 个指标greedy采样 ×32执行代码LLM 裁判
-
-#### 非生成类 benchmark 11 任务 · 26 指标
-
-多选题：把每个选项接在题目后面，比较模型给各选项的对数概率（acc_norm 按长度归一化），概率最高的选项即答案。不生成文本，所以分数不受回答格式和停止符影响。
-
-**常识推理**reasoning · 8 任务 · 8 指标
-
-英文多选题
-
-- CommonsenseQA 7-shot → acc
-- ARC-Challenge 25-shot → acc_norm
-- HellaSwag 10-shot → acc_norm
-- OpenBookQA → acc_norm
-- PIQA → acc_norm
-- WinoGrande 5-shot → acc
-- Social IQa → acc
-- TruthfulQA MC2 0-shot → acc
-
-**阅读理解**reading · 1 任务 · 1 指标
-
-读一篇文章，答多选题
-
-- RACE → acc
-
-**多语言考试**aggregate · 2 任务 · 17 指标
-
-知识考试多选题，8–9 种非英语语言（含中文），每种语言一个分
-
-- Global-MMLU 5-shot → acc × 8 种语言de · es · fr · it · ja · ko · pt · zh
-- INCLUDE base-44 5-shot → acc × 9 种语言spanish · german · french · chinese · japanese · russian · italian · portuguese · korean
-
-#### 生成类 benchmark 29 任务 · 49 指标
-
-模型生成回答（贪心一次，或每题采样 32 次），再抽取答案比对、执行代码，或由 LLM 裁判判对错。分数也受回答格式影响（见结果表里的 ‡）。
-
-**代码**code · 6 任务 · 9 指标
-
-生成代码并执行打分
-
-- MBPP sanitized 3-shot执行代码采样 ×32 → pass@1 · pass@32
-- HumanEval 0-shot执行代码采样 ×32 → pass@1 · pass@32
-- LiveCodeBench release v6
-  - greedy · 0-shot执行代码greedy → pass@1
-  - 采样 · 0-shot执行代码采样 ×32 → pass@1 · pass@32
-- BigCodeBench
-  - complete · 0-shot执行代码greedy → pass@1
-  - instruct · 0-shot执行代码greedy → pass@1
-
-**综合考试**aggregate · 10 任务 · 19 指标
-
-生成作答（多为 CoT），抽取最终选项 / 答案比对
-
-- MMLU-Pro
-  - base · 5-shotgreedy → EM
-  - 采样 · 0-shot采样 ×32 → pass@1 · pass@32
-- MMLU string 版 5-shotgreedy → EM（总分 / STEM）
-- MMLU-Redux string 版 5-shotgreedy → EM
-- AGIEval-en CoT greedy → EM
-- GPQA-Diamond CoT
-  - greedy · 5-shotgreedy → EM
-  - 采样 · 0-shot采样 ×32 → pass@1 · pass@32
-- SuperGPQA CoT 5-shotgreedy → EM
-- HLE 纯文本题 0-shot采样 ×32 → pass@1 · pass@32
-- MGSM native CoT 8-shotgreedy → EM × 6 种语言es · de · fr · zh · ja · ru
-
-**数学**math · 6 任务 · 12 指标
-
-生成解答，比对最终答案
-
-- GSM8K CoT 8-shotgreedy → EM
-- Minerva MATH 4-shotgreedy → EM · EM (Level 5) · EM (MATH-500 子集)
-- MATH-500 4-shot采样 ×32 → pass@1 · pass@32
-- AIME 2024 4-shot采样 ×32 → pass@1 · pass@32
-- AIME 2025 4-shot采样 ×32 → pass@1 · pass@32
-- HMMT Feb 2025 0-shot采样 ×32 → pass@1 · pass@32
-
-**事实问答**reading · 4 任务 · 6 指标
-
-短答案生成，精确匹配
-
-- TriviaQA 5-shotgreedy → EM
-- PopQA 5-shotgreedy → EM
-- Natural Questions 5-shotgreedy → EM
-- SimpleQA 5-shotgreedy → F1 · correct · not_attempted
-
-**知识**knowledge · 2 任务 · 2 指标
-
-LLM 裁判 gpt-oss-120b 判对错
-
-- SimpleQA-Verified 25-shotLLM 裁判greedy → 裁判准确率
-- FACTS-parametric 每题判 3 次 25-shotLLM 裁判greedy → 裁判准确率
-
-**多语言**multilingual · 1 任务 · 1 指标
-
-翻译
-
-- WMT24++ 英 → 55 种语言，报一个总分 0-shotgreedy → chrF++
-
-生成类的跑法：greedy = 贪心解码一次；采样 ×32 = 每题采样 32 次，报 pass@1（平均）和 pass@32（至少对一次）；执行代码 = 生成的代码跑测试用例；LLM 裁判 = gpt-oss-120b 判对错。
-
-### 全量测评结果
-
-分数 ×100（准确率 / pass@k 为 %，WMT24++ 为 chrF++）。点表头排序（第一次从高到低）；**粗体** = 该列最高；· = 还没跑出来（job 在跑，跑完后更新）。模型名、大小与上面 Pretrain doc-isolated 表一致。
-
-曲线：每一列在各模型之间做 min–max 归一化（该列最低 = 0，最高 = 1），只看相对位置，纵轴没有绝对意义。0 分、‡ 空回答、以及明显偏低的分（同时低于该列 Q1 − 1.5×IQR 和中位数的一半，至少 4 个模型有分时才判）不参与归一化，画在图下方的“范围外”一栏（空心点，线照样连过去）；只有一个模型有分的列不画。颜色按模型家族，同一家族用同一色系的深浅（Qwen3 和 Qwen3.8 各一个色系，按模型大小由浅到深）。鼠标放在图上显示原始分（与表格相同）。
-
-#### 非生成类 benchmark 多选题，按选项概率打分，不生成 · 11 任务 · 26 指标
-
-##### 常识推理 · 阅读理解 · 多语言考试 reasoning · reading · aggregate
-
-常识推理：英文多选题；阅读理解：读一篇文章，答多选题；多语言考试：知识考试多选题，8–9 种非英语语言（含中文），每种语言一个分
-
-蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
-
-橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
-
-青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
-
-黄色：DeepSeek-V4-Flash-Base
-
-品红：Kimi-K3
-
-紫色：Mistral-Large-4 (FP8)
-
-| 横轴 | Qwen3.8-Max (FP8) | Kimi-K3 | MiMo-V2.5-Pro-Base | MiMo-V2.6-Pro-RL | Qwen3-235B-A22B (2504) | Qwen3.8-Flash-Next (FP8) | Qwen3.8-27B | Qwen3-30B-A3B-Base | Mistral-Large-4 (FP8) | DeepSeek-V4-Flash-Base |
-|---|---|---|---|---|---|---|---|---|---|---|
-| CSQA · acc | 95.7 | 89.6 | 89.2 | 88.6 | 87.8 | 87.7 | 87.7 | 87.4 | 87.1 | 85.0 |
-| ARC-C · acc_norm | 99.7 | 97.4 | 97.1 | 96.6 | 96.2 | 97.4 | 96.2 | 94.0 | 96.9 | 96.0 |
-| HellaSwag · acc_norm | 90.0 | 91.8 | 89.5 | 89.3 | 86.9 | 88.6 | 75.7 | 82.8 | 87.9 | 89.0 |
-| OBQA · acc_norm | 46.8 | 49.4 | 50.6 | 50.4 | 45.8 | 45.6 | 46.6 | 45.4 | 50.6 | 47.6 |
-| PIQA · acc_norm | 84.9 | 86.7 | 85.1 | 85.7 | 82.9 | 83.7 | 81.7 | 80.8 | 84.3 | 84.9 |
-| WinoG · acc | 67.1 | 82.0 | 85.5 | 83.5 | 80.6 | 75.1 | 79.0 | 78.9 | 80.5 | 83.6 |
-| SIQA · acc | 42.9 | 54.7 | 51.4 | 52.7 | 54.9 | 53.4 | 53.0 | 52.4 | 57.8 | 52.2 |
-| TruthfulQA · acc | 86.2 | 59.4 | 55.0 | 55.0 | 60.7 | 67.2 | 54.1 | 45.7 | 59.9 | 53.2 |
-| RACE · acc | 93.4 | 95.0 | 91.6 | 92.8 | 93.0 | 92.7 | 92.6 | 89.9 | 92.2 | 93.3 |
-| G-MMLU · acc 平均 | 88.7 | 90.6 | 87.2 | 86.6 | 85.5 | 86.0 | 82.4 | 76.6 | 84.1 | 88.4 |
-| INCLUDE · acc 平均 | 83.5 | 84.1 | 80.6 | 80.3 | 79.3 | 79.8 | 76.3 | 74.9 | 80.9 | 82.3 |
-
-| 模型 | 大小 | CommonsenseQA<br>acc | ARC-Challenge<br>acc_norm | HellaSwag<br>acc_norm | OpenBookQA<br>acc_norm | PIQA<br>acc_norm | WinoGrande<br>acc | Social IQa<br>acc | TruthfulQA<br>acc | RACE<br>acc | Global-MMLU<br>acc · 平均（8 种语言） | INCLUDE<br>acc · 平均（9 种语言） |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 89.2 | 97.1 | 89.5 | 50.6 | 85.1 | 85.5 | 51.4 | 55.0 | 91.6 | 87.2 | 80.6 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 88.6 | 96.6 | 89.3 | 50.4 | 85.7 | 83.5 | 52.7 | 55.0 | 92.8 | 86.6 | 80.3 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 87.4 | 94.0 | 82.8 | 45.4 | 80.8 | 78.9 | 52.4 | 45.7 | 89.9 | 76.6 | 74.9 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 87.8 | 96.2 | 86.9 | 45.8 | 82.9 | 80.6 | 54.9 | 60.7 | 93.0 | 85.5 | 79.3 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 85.0 | 96.0 | 89.0 | 47.6 | 84.9 | 83.6 | 52.2 | 53.2 | 93.3 | 88.4 | 82.3 |
-| Kimi-K3 后训练 | 2.8T-A104B | 89.6 | 97.4 | 91.8 | 49.4 | 86.7 | 82.0 | 54.7 | 59.4 | 95.0 | 90.6 | 84.1 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 87.7 | 97.4 | 88.6 | 45.6 | 83.7 | 75.1 | 53.4 | 67.2 | 92.7 | 86.0 | 79.8 |
-| Qwen3.8-27B 后训练 | 27B | 87.7 | 96.2 | 75.7 | 46.6 | 81.7 | 79.0 | 53.0 | 54.1 | 92.6 | 82.4 | 76.3 |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 95.7 | 99.7 | 90.0 | 46.8 | 84.9 | 67.1 | 42.9 | 86.2 | 93.4 | 88.7 | 83.5 |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 87.1 | 96.9 | 87.9 | 50.6 | 84.3 | 80.5 | 57.8 | 59.9 | 92.2 | 84.1 | 80.9 |
-
-各语言明细（Global-MMLU）
-
-| 模型 | 大小 | de | es | fr | it | ja | ko | pt | zh |
-|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 87.8 | 89.0 | 86.2 | 88.8 | 86.5 | 83.8 | 88.8 | 87.2 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 87.0 | 88.0 | 87.8 | 87.0 | 86.8 | 83.0 | 86.8 | 86.2 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 81.0 | 79.2 | 76.5 | 78.0 | 72.2 | 70.5 | 78.8 | 76.8 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 85.0 | 87.2 | 86.0 | 88.2 | 83.5 | 78.8 | 88.5 | 86.5 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 87.5 | 90.2 | 88.8 | 89.8 | 88.0 | 85.8 | 89.2 | 87.8 |
-| Kimi-K3 后训练 | 2.8T-A104B | 91.2 | 92.0 | 90.2 | 91.5 | 89.5 | 89.0 | 92.0 | 89.0 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 88.2 | 88.5 | 85.5 | 89.0 | 83.5 | 83.5 | 87.0 | 82.8 |
-| Qwen3.8-27B 后训练 | 27B | 82.8 | 83.5 | 85.0 | 84.0 | 79.5 | 79.8 | 83.5 | 81.2 |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 89.8 | 90.0 | 89.0 | 89.0 | 88.0 | 87.0 | 90.0 | 86.8 |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 85.2 | 87.8 | 85.2 | 86.8 | 83.0 | 77.5 | 84.8 | 82.2 |
-
-各语言明细（INCLUDE）
-
-| 模型 | 大小 | spanish | german | french | chinese | japanese | russian | italian | portuguese | korean |
-|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 82.2 | 62.6 | 83.1 | 89.7 | 92.0 | 77.4 | 88.3 | 76.6 | 73.8 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 82.5 | 64.0 | 82.8 | 87.9 | 93.0 | 74.1 | 87.0 | 75.5 | 76.0 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 78.5 | 58.3 | 70.9 | 85.7 | 86.4 | 73.0 | 82.8 | 71.1 | 67.4 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 81.3 | 61.9 | 79.5 | 88.6 | 93.6 | 71.7 | 87.4 | 77.3 | 72.0 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 85.8 | 64.7 | 83.8 | 89.9 | 94.8 | 78.4 | 88.9 | 78.6 | 75.4 |
-| Kimi-K3 后训练 | 2.8T-A104B | 84.4 | 64.0 | 86.6 | 91.4 | 97.4 | 81.3 | 91.4 | 81.5 | 78.6 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 79.3 | 63.3 | 82.1 | 87.2 | 94.8 | 73.9 | 86.5 | 79.1 | 72.2 |
-| Qwen3.8-27B 后训练 | 27B | 77.8 | 63.3 | 74.9 | 80.0 | 87.8 | 72.3 | 85.6 | 75.7 | 69.2 |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 85.6 | 67.6 | 86.6 | 86.8 | 96.4 | 79.0 | 91.2 | 80.0 | 77.8 |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 85.3 | 62.6 | 80.9 | 84.4 | 94.8 | 80.4 | 88.3 | 77.5 | 74.0 |
-
-#### 生成类 benchmark 生成回答后打分 · 29 任务 · 49 指标
-
-##### 代码 code
-
-生成代码并执行打分
-
-蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
-
-橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
-
-青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
-
-黄色：DeepSeek-V4-Flash-Base
-
-品红：Kimi-K3
-
-紫色：Mistral-Large-4 (FP8)
-
-| 横轴 | Kimi-K3 | Qwen3.8-Max (FP8) | Qwen3-235B-A22B (2504) | Mistral-Large-4 (FP8) | MiMo-V2.5-Pro-Base | MiMo-V2.6-Pro-RL | Qwen3-30B-A3B-Base | Qwen3.8-Flash-Next (FP8) | Qwen3.8-27B | DeepSeek-V4-Flash-Base |
-|---|---|---|---|---|---|---|---|---|---|---|
-| MBPP · pass@1 | 92.5 | 86.1 | 82.1 | 79.8 | 78.9 | 75.6 | 75.0 | 74.5 | 73.5 | 71.4 |
-| MBPP · pass@32 | 98.8 | 97.3 | 93.0 | 91.8 | 93.0 | 93.0 | 93.4 | 94.6 | 91.8 | 92.2 |
-| HumanEval · pass@1 | 77.6 | 82.1 | 80.2 | 76.2 | 54.6 | 77.1 | 70.8 | 85.3 | 77.3 | 44.6 |
-| HumanEval · pass@32 | 99.4 | 98.2 | 97.0 | 97.0 | 97.6 | 98.2 | 94.5 | 98.8 | 97.0 | 90.9 |
-| LCB greedy · pass@1 | 40.0 | 37.7 | 29.0 | 33.1 | 27.5 | 39.8 | 33.1 | 27.7 | 29.9 | 38.6 |
-| LCB 采样 · pass@1 | 46.4 | 45.1 | 32.0 | 38.7 | 29.5 | 43.2 | 31.6 | 33.5 | 35.9 | 41.2 |
-| LCB 采样 · pass@32 | 70.0 | 70.4 | 58.8 | 69.3 | 63.1 | 68.5 | 53.6 | 64.9 | 65.7 | 63.6 |
-| BCB complete · pass@1 | 48.2 | 50.7 | 51.3 | 51.6 | 48.4 | 50.5 | 51.6 | 51.5 | 51.7 | 44.0 |
-| BCB instruct · pass@1 | 41.9 | 53.2 | 51.0 | 51.9 | 44.3 | 66.3 | 69.9 | 59.0 | 52.0 | 28.5 |
-
-| 模型 | 大小 | MBPP<br>pass@1 | MBPP<br>pass@32 | HumanEval<br>pass@1 | HumanEval<br>pass@32 | LiveCodeBench greedy<br>pass@1 | LiveCodeBench 采样<br>pass@1 | LiveCodeBench 采样<br>pass@32 | BigCodeBench complete<br>pass@1 | BigCodeBench instruct<br>pass@1 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 78.9 | 93.0 | 54.6 | 97.6 | 27.5 | 29.5 | 63.1 | 48.4 | 44.3 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 75.6 | 93.0 | 77.1 | 98.2 | 39.8 | 43.2 | 68.5 | 50.5 | 66.3 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 75.0 | 93.4 | 70.8 | 94.5 | 33.1 | 31.6 | 53.6 | 51.6 | 69.9 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 82.1 | 93.0 | 80.2 | 97.0 | 29.0 | 32.0 | 58.8 | 51.3 | 51.0 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 71.4 | 92.2 | 44.6 | 90.9 | 38.6 | 41.2 | 63.6 | 44.0 | 28.5 |
-| Kimi-K3 后训练 | 2.8T-A104B | 92.5 | 98.8 | 77.6 | 99.4 | 40.0 | 46.4 | 70.0 | 48.2 | 41.9 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 74.5 | 94.6 | 85.3 | 98.8 | 27.7 | 33.5 | 64.9 | 51.5 | 59.0 |
-| Qwen3.8-27B 后训练 | 27B | 73.5 | 91.8 | 77.3 | 97.0 | 29.9 | 35.9 | 65.7 | 51.7 | 52.0 |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 86.1 | 97.3 | 82.1 | 98.2 | 37.7 | 45.1 | 70.4 | 50.7 | 53.2 |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 79.8 | 91.8 | 76.2 | 97.0 | 33.1 | 38.7 | 69.3 | 51.6 | 51.9 |
-
-##### 综合考试 aggregate
-
-生成作答（多为 CoT），抽取最终选项 / 答案比对
-
-**MMLU 系 · AGIEval**
-
-蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
-
-橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
-
-青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
-
-黄色：DeepSeek-V4-Flash-Base
-
-品红：Kimi-K3
-
-紫色：Mistral-Large-4 (FP8)
-
-| 线 | MMLU-Pro base · EM | MMLU-Pro 采样 · pass@1 | MMLU-Pro 采样 · pass@32 | MMLU · EM 总分 | MMLU · EM STEM | MMLU-Redux · EM | AGIEval-en · EM |
-|---|---|---|---|---|---|---|---|
-| Mistral-Large-4 (FP8) | 78.9 | 66.7 | 92.7 | 87.3 | 86.4 | 87.8 | 75.9 |
-| Kimi-K3 | 78.2 | · | · | 91.3 | 94.0 | 91.2 | 74.9 |
-| Qwen3.8-Max (FP8) | 77.1 | · | · | 44.9‡ | 51.6‡ | 48.5‡ | 72.9 |
-| Qwen3.8-Flash-Next (FP8) | 76.6 | 72.6 | 91.3 | 0.8‡ | 0.4‡ | 0.9‡ | 56.3 |
-| Qwen3-235B-A22B (2504) | 72.7 | 69.2 | 93.7 | 86.3 | 88.4 | 87.0 | 76.5 |
-| MiMo-V2.6-Pro-RL | 71.3 | 54.0 | 96.0 | 88.7 | 91.2 | 90.3 | 62.3 |
-| Qwen3.8-27B | 70.6 | 61.8 | 89.4 | 53.7‡ | 65.6‡ | 59.6‡ | 69.2 |
-| DeepSeek-V4-Flash-Base | 66.9 | 52.1 | 97.1 | 88.6 | 90.6 | 89.2 | 67.6 |
-| MiMo-V2.5-Pro-Base | 62.9 | 44.7 | 97.1 | 39.8 | 28.6 | 38.2 | 37.9 |
-| Qwen3-30B-A3B-Base | 60.5 | 57.0 | 93.5 | 81.3 | 83.7 | 83.1 | 61.0 |
-
-| 模型 | 大小 | MMLU-Pro base<br>EM | MMLU-Pro 采样<br>pass@1 | MMLU-Pro 采样<br>pass@32 | MMLU<br>EM 总分 | MMLU<br>EM STEM | MMLU-Redux<br>EM | AGIEval-en<br>EM |
-|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 62.9 | 44.7 | 97.1 | 39.8 | 28.6 | 38.2 | 37.9 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 71.3 | 54.0 | 96.0 | 88.7 | 91.2 | 90.3 | 62.3 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 60.5 | 57.0 | 93.5 | 81.3 | 83.7 | 83.1 | 61.0 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 72.7 | 69.2 | 93.7 | 86.3 | 88.4 | 87.0 | 76.5 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 66.9 | 52.1 | 97.1 | 88.6 | 90.6 | 89.2 | 67.6 |
-| Kimi-K3 后训练 | 2.8T-A104B | 78.2 | · | · | 91.3 | 94.0 | 91.2 | 74.9 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 76.6 | 72.6 | 91.3 | 0.8‡ | 0.4‡ | 0.9‡ | 56.3 |
-| Qwen3.8-27B 后训练 | 27B | 70.6 | 61.8 | 89.4 | 53.7‡ | 65.6‡ | 59.6‡ | 69.2 |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 77.1 | · | · | 44.9‡ | 51.6‡ | 48.5‡ | 72.9 |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 78.9 | 66.7 | 92.7 | 87.3 | 86.4 | 87.8 | 75.9 |
-
-‡ 灰色 = 这个模型在这一项有大量空回答（悬停看比例）：它在 few-shot 的 “A:” 后先输出换行，而这一项遇到换行就停止生成，回答被截成空字符串，分数不代表模型能力。只出现在部分后训练模型上（如 Qwen3.8-27B；MiMo-V2.6-Pro-RL 没有这个问题）。
-
-**GPQA · SuperGPQA · HLE · MGSM**
-
-蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
-
-橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
-
-青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
-
-黄色：DeepSeek-V4-Flash-Base
-
-品红：Kimi-K3
-
-紫色：Mistral-Large-4 (FP8)
-
-| 线 | GPQA-D greedy · EM | GPQA-D 采样 · pass@1 | GPQA-D 采样 · pass@32 | SuperGPQA · EM | HLE · pass@1 | HLE · pass@32 | MGSM · EM 平均 |
-|---|---|---|---|---|---|---|---|
-| Kimi-K3 | 69.2 | 58.3 | 98.0 | 53.6 | 0.3 | 5.4 | 90.0 |
-| Mistral-Large-4 (FP8) | 65.2 | 54.0 | 93.4 | 51.6 | 0.1 | 1.1 | 68.9 |
-| Qwen3.8-27B | 61.6 | 19.3 | 72.7 | 43.0 | 0.3 | 3.8 | 61.4 |
-| MiMo-V2.5-Pro-Base | 60.6 | 28.7 | 99.5 | 32.2 | 0.3 | 7.9 | 83.6 |
-| Qwen3-235B-A22B (2504) | 60.1 | 54.5 | 98.0 | 45.2 | 0.6 | 9.5 | 88.3 |
-| MiMo-V2.6-Pro-RL | 59.6 | 54.4 | 99.0 | 43.1 | 0.6 | 11.1 | 85.5 |
-| Qwen3.8-Max (FP8) | 49.5 | 42.3 | 98.5 | 53.6 | 0.6 | 7.5 | 80.9 |
-| Qwen3-30B-A3B-Base | 38.4 | 34.1 | 92.4 | 35.5 | 0.2 | 4.4 | 82.0 |
-| DeepSeek-V4-Flash-Base | 36.9 | 28.3 | 99.5 | 44.5 | 1.0 | 17.2 | 84.0 |
-| Qwen3.8-Flash-Next (FP8) | 11.6 | 29.3 | 87.4 | 40.9 | 0.2 | 2.7 | 49.5 |
-
-| 模型 | 大小 | GPQA-Diamond greedy<br>EM | GPQA-Diamond 采样<br>pass@1 | GPQA-Diamond 采样<br>pass@32 | SuperGPQA<br>EM | HLE<br>pass@1 | HLE<br>pass@32 | MGSM<br>EM · 平均（6 种语言） |
-|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 60.6 | 28.7 | 99.5 | 32.2 | 0.3 | 7.9 | 83.6 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 59.6 | 54.4 | 99.0 | 43.1 | 0.6 | 11.1 | 85.5 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 38.4 | 34.1 | 92.4 | 35.5 | 0.2 | 4.4 | 82.0 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 60.1 | 54.5 | 98.0 | 45.2 | 0.6 | 9.5 | 88.3 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 36.9 | 28.3 | 99.5 | 44.5 | 1.0 | 17.2 | 84.0 |
-| Kimi-K3 后训练 | 2.8T-A104B | 69.2 | 58.3 | 98.0 | 53.6 | 0.3 | 5.4 | 90.0 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 11.6 | 29.3 | 87.4 | 40.9 | 0.2 | 2.7 | 49.5 |
-| Qwen3.8-27B 后训练 | 27B | 61.6 | 19.3 | 72.7 | 43.0 | 0.3 | 3.8 | 61.4 |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 49.5 | 42.3 | 98.5 | 53.6 | 0.6 | 7.5 | 80.9 |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 65.2 | 54.0 | 93.4 | 51.6 | 0.1 | 1.1 | 68.9 |
-
-各语言明细（MGSM）
-
-| 模型 | 大小 | es | de | fr | zh | ja | ru |
-|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 84.8 | 82.4 | 84.4 | 84.0 | 77.6 | 88.4 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 86.8 | 86.8 | 84.0 | 87.6 | 79.2 | 88.8 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 85.2 | 82.4 | 83.2 | 82.8 | 73.6 | 84.8 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 95.2 | 86.4 | 86.0 | 89.2 | 82.8 | 90.0 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 87.6 | 86.0 | 85.6 | 83.2 | 73.6 | 88.0 |
-| Kimi-K3 后训练 | 2.8T-A104B | 94.4 | 88.4 | 92.8 | 92.8 | 80.0 | 91.6 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 44.8 | 47.2 | 48.8 | 46.4 | 59.2 | 50.8 |
-| Qwen3.8-27B 后训练 | 27B | 66.4 | 68.4 | 68.4 | 56.0 | 48.8 | 60.4 |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 89.2 | 80.4 | 88.8 | 61.2 | 73.6 | 92.0 |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 84.4 | 86.8 | 74.8 | 50.4 | 32.0 | 85.2 |
-
-##### 数学 math
-
-生成解答，比对最终答案
-
-蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
-
-橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
-
-青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
-
-黄色：DeepSeek-V4-Flash-Base
-
-品红：Kimi-K3
-
-紫色：Mistral-Large-4 (FP8)
-
-| 横轴 | Qwen3.8-Flash-Next (FP8) | Qwen3.8-27B | Kimi-K3 | Qwen3-235B-A22B (2504) | Mistral-Large-4 (FP8) | MiMo-V2.6-Pro-RL | Qwen3-30B-A3B-Base | DeepSeek-V4-Flash-Base | Qwen3.8-Max (FP8) | MiMo-V2.5-Pro-Base |
-|---|---|---|---|---|---|---|---|---|---|---|
-| GSM8K · EM | 96.5 | 95.8 | 94.1 | 93.7 | 93.2 | 90.9 | 89.1 | 88.2 | 88.2 | 87.6 |
-| Minerva · EM | 77.5 | 76.7 | 80.7 | 79.4 | 76.5 | 68.1 | 63.0 | 61.6 | 79.4 | 87.5 |
-| Minerva · EM (Level 5) | 56.6 | 59.7 | 65.3 | 62.4 | 58.3 | 46.5 | 38.7 | 35.5 | 61.7 | 79.1 |
-| Minerva · EM (MATH-500 子集) | 75.2 | 77.1 | 85.2 | 80.3 | 75.3 | 67.1 | 61.1 | 57.8 | 80.1 | 91.9 |
-| MATH-500 · pass@1 | 75.6 | 67.5 | 81.8 | 77.9 | 73.5 | 65.9 | 57.5 | 55.8 | 77.7 | 87.6 |
-| MATH-500 · pass@32 | 92.6 | 94.2 | 99.2 | 96.0 | 98.2 | 97.6 | 94.8 | 95.0 | 98.4 | 99.6 |
-| AIME 24 · pass@1 | 8.5 | 12.4 | 40.9 | 12.4 | 11.7 | 8.9 | 3.9 | 1.7 | 17.4 | 15.6 |
-| AIME 24 · pass@32 | 26.7 | 33.3 | 100.0 | 43.3 | 56.7 | 63.3 | 36.7 | 26.7 | 73.3 | 70.0 |
-| AIME 25 · pass@1 | 7.5 | 11.2 | 17.0 | 9.9 | 8.7 | 5.1 | 2.3 | 1.5 | 12.2 | 4.1 |
-| AIME 25 · pass@32 | 33.3 | 43.3 | 90.0 | 40.0 | 53.3 | 50.0 | 23.3 | 20.0 | 53.3 | 46.7 |
-| HMMT 25 · pass@1 | 10.4 | 8.2 | 16.7 | 8.1 | 19.8 | 10.2 | 2.3 | 4.5 | 20.5 | 5.7 |
-| HMMT 25 · pass@32 | 36.7 | 30.0 | 76.7 | 26.7 | 50.0 | 43.3 | 30.0 | 33.3 | 60.0 | 43.3 |
-
-| 模型 | 大小 | GSM8K<br>EM | Minerva MATH<br>EM | Minerva MATH<br>EM (Level 5) | Minerva MATH<br>EM (MATH-500 子集) | MATH-500<br>pass@1 | MATH-500<br>pass@32 | AIME 2024<br>pass@1 | AIME 2024<br>pass@32 | AIME 2025<br>pass@1 | AIME 2025<br>pass@32 | HMMT Feb 2025<br>pass@1 | HMMT Feb 2025<br>pass@32 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 87.6 | 87.5 | 79.1 | 91.9 | 87.6 | 99.6 | 15.6 | 70.0 | 4.1 | 46.7 | 5.7 | 43.3 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 90.9 | 68.1 | 46.5 | 67.1 | 65.9 | 97.6 | 8.9 | 63.3 | 5.1 | 50.0 | 10.2 | 43.3 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 89.1 | 63.0 | 38.7 | 61.1 | 57.5 | 94.8 | 3.9 | 36.7 | 2.3 | 23.3 | 2.3 | 30.0 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 93.7 | 79.4 | 62.4 | 80.3 | 77.9 | 96.0 | 12.4 | 43.3 | 9.9 | 40.0 | 8.1 | 26.7 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 88.2 | 61.6 | 35.5 | 57.8 | 55.8 | 95.0 | 1.7 | 26.7 | 1.5 | 20.0 | 4.5 | 33.3 |
-| Kimi-K3 后训练 | 2.8T-A104B | 94.1 | 80.7 | 65.3 | 85.2 | 81.8 | 99.2 | 40.9 | 100.0 | 17.0 | 90.0 | 16.7 | 76.7 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 96.5 | 77.5 | 56.6 | 75.2 | 75.6 | 92.6 | 8.5 | 26.7 | 7.5 | 33.3 | 10.4 | 36.7 |
-| Qwen3.8-27B 后训练 | 27B | 95.8 | 76.7 | 59.7 | 77.1 | 67.5 | 94.2 | 12.4 | 33.3 | 11.2 | 43.3 | 8.2 | 30.0 |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 88.2 | 79.4 | 61.7 | 80.1 | 77.7 | 98.4 | 17.4 | 73.3 | 12.2 | 53.3 | 20.5 | 60.0 |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 93.2 | 76.5 | 58.3 | 75.3 | 73.5 | 98.2 | 11.7 | 56.7 | 8.7 | 53.3 | 19.8 | 50.0 |
-
-##### 事实问答 reading
-
-短答案生成，精确匹配
-
-蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
-
-橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
-
-青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
-
-黄色：DeepSeek-V4-Flash-Base
-
-品红：Kimi-K3
-
-紫色：Mistral-Large-4 (FP8)
-
-| 线 | TriviaQA · EM | PopQA · EM | NQ · EM | SimpleQA · F1 | SimpleQA · correct |
-|---|---|---|---|---|---|
-| Kimi-K3 | 85.4 | 56.3 | 45.1 | 41.0 | 40.8 |
-| DeepSeek-V4-Flash-Base | 83.9 | 48.5 | 40.5 | 23.2 | 19.0 |
-| Qwen3.8-Max (FP8) | 82.1 | 49.8 | 9.9‡ | 0.5‡ | 0.2‡ |
-| MiMo-V2.5-Pro-Base | 82.1 | 51.3 | 44.1 | 27.8 | 27.8 |
-| MiMo-V2.6-Pro-RL | 80.8 | 48.4 | 42.1 | 21.3 | 20.9 |
-| Mistral-Large-4 (FP8) | 79.3 | 34.0 | 36.5 | 14.8 | 14.4 |
-| Qwen3-235B-A22B (2504) | 74.8 | 31.9 | 32.4 | 9.0 | 8.9 |
-| Qwen3-30B-A3B-Base | 67.2 | 26.7 | 31.5 | 6.3 | 6.3 |
-| Qwen3.8-27B | 19.9‡ | 4.0‡ | 19.7‡ | 0.0‡ | 0.0‡ |
-| Qwen3.8-Flash-Next (FP8) | 0.8‡ | 0.0‡ | 0.2‡ | 0.0‡ | 0.0‡ |
-
-| 模型 | 大小 | TriviaQA<br>EM | PopQA<br>EM | Natural Questions<br>EM | SimpleQA<br>F1 | SimpleQA<br>correct | SimpleQA<br>not_attempted |
-|---|---|---|---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 82.1 | 51.3 | 44.1 | 27.8 | 27.8 | 0.2 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 80.8 | 48.4 | 42.1 | 21.3 | 20.9 | 3.5 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 67.2 | 26.7 | 31.5 | 6.3 | 6.3 | 0.2 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 74.8 | 31.9 | 32.4 | 9.0 | 8.9 | 3.5 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 83.9 | 48.5 | 40.5 | 23.2 | 19.0 | 36.5 |
-| Kimi-K3 后训练 | 2.8T-A104B | 85.4 | 56.3 | 45.1 | 41.0 | 40.8 | 0.8 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 0.8‡ | 0.0‡ | 0.2‡ | 0.0‡ | 0.0‡ | 100.0‡ |
-| Qwen3.8-27B 后训练 | 27B | 19.9‡ | 4.0‡ | 19.7‡ | 0.0‡ | 0.0‡ | 100.0‡ |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 82.1 | 49.8 | 9.9‡ | 0.5‡ | 0.2‡ | 99.7‡ |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 79.3 | 34.0 | 36.5 | 14.8 | 14.4 | 5.2 |
-
-‡ 灰色 = 这个模型在这一项有大量空回答（悬停看比例）：它在 few-shot 的 “A:” 后先输出换行，而这一项遇到换行就停止生成，回答被截成空字符串，分数不代表模型能力。只出现在部分后训练模型上（如 Qwen3.8-27B；MiMo-V2.6-Pro-RL 没有这个问题）。
-
-##### 知识 · 多语言 knowledge · multilingual
-
-知识：LLM 裁判 gpt-oss-120b 判对错；多语言：翻译
-
-蓝色系：Qwen3.8 — Qwen3.8-27B / Qwen3.8-Flash-Next (FP8) / Qwen3.8-Max (FP8)（由浅到深，按模型大小）
-
-橙色系：Qwen3 — Qwen3-30B-A3B-Base / Qwen3-235B-A22B (2504)（由浅到深，按模型大小）
-
-青绿色系：MiMo — MiMo-V2.5-Pro-Base / MiMo-V2.6-Pro-RL（由浅到深）
-
-黄色：DeepSeek-V4-Flash-Base
-
-品红：Kimi-K3
-
-紫色：Mistral-Large-4 (FP8)
-
-| 线 | SimpleQA-V · 裁判准确率 | FACTS · 裁判准确率 | WMT24++ · chrF++ |
-|---|---|---|---|
-| Kimi-K3 | 45.6 | 50.3 | 12.1 |
-| MiMo-V2.5-Pro-Base | 28.6 | 36.9 | 22.5 |
-| DeepSeek-V4-Flash-Base | 25.6 | 23.2 | 23.4 |
-| MiMo-V2.6-Pro-RL | 20.8 | 26.2 | 24.7 |
-| Mistral-Large-4 (FP8) | 14.7 | 12.1 | 39.7 |
-| Qwen3-235B-A22B (2504) | 10.5 | 5.3 | 37.0 |
-| Qwen3.8-Max (FP8) | 10.2‡ | 3.1‡ | 12.7‡ |
-| Qwen3-30B-A3B-Base | 6.9 | 3.4 | 35.6 |
-| Qwen3.8-27B | 0.5‡ | 0.0‡ | 1.0‡ |
-| Qwen3.8-Flash-Next (FP8) | 0.1‡ | 0.0‡ | 2.7‡ |
-
-| 模型 | 大小 | SimpleQA-Verified<br>裁判准确率 | FACTS-parametric<br>裁判准确率 | WMT24++<br>chrF++ |
+| 线 | 数据 | 架构 | loss | Change ID（8K 窗口） |
 |---|---|---|---|---|
-| MiMo-V2.5-Pro-Base | 1.02T-A42B | 28.6 | 36.9 | 22.5 |
-| MiMo-V2.6-Pro-RL 后训练 | 1.02T-A42B | 20.8 | 26.2 | 24.7 |
-| Qwen3-30B-A3B-Base | 30B-A3B | 6.9 | 3.4 | 35.6 |
-| Qwen3-235B-A22B (2504) 后训练 | 235B-A22B | 10.5 | 5.3 | 37.0 |
-| DeepSeek-V4-Flash-Base | 284B-A13B | 25.6 | 23.2 | 23.4 |
-| Kimi-K3 后训练 | 2.8T-A104B | 45.6 | 50.3 | 12.1 |
-| Qwen3.8-Flash-Next (FP8) 后训练 | 125B-A6B | 0.1‡ | 0.0‡ | 2.7‡ |
-| Qwen3.8-27B 后训练 | 27B | 0.5‡ | 0.0‡ | 1.0‡ |
-| Qwen3.8-Max (FP8) 后训练 | 2.4T-A95B | 10.2‡ | 3.1‡ | 12.7‡ |
-| Mistral-Large-4 (FP8) 后训练 | 1T-A52B | 14.7 | 12.1 | 39.7 |
+| MUONH_FIT_PP32K | 80B pack plan，32K | MUONH_FIT：softmax router、全注意力、文档 mask | CE | `MUONH_FIT_PP32K` |
+| KD 2.6 · MUONH_FIT · 新数据 | 80B pack plan，32K | 同上 | KD，teacher MiMo-2.6-Pro-RL | `KD_MUONH_A0P8_S64Y_FIT_PP32K` |
+| KD 2.5 · MUONH_FIT · 新数据 | 80B pack plan，32K | 同上 | KD，teacher MiMo-2.5-Pro-Base | `KD_MUONH_A0P8_S64Y_FIT_MIMO25_PP32K` |
+| KD 2.5 · PROD1_DPSK · 新数据 | 80B pack plan，32K | PROD1_DPSK（PROD v1：SWA 512 局部:全局 5:1 + sink、DSV3 router、第 0 层 dense、8 + 1 shared expert、文档 mask） | KD，teacher MiMo-2.5-Pro-Base | `PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K` |
+| KD 2.6 · MUONH_FIT · 650B 数据（参照） | 650B 数据，8K | MUONH_FIT + 文档 mask | KD，teacher MiMo-2.6-Pro-RL | `KD_MUONH_A0P8_S64Y_FIT_DOCMASK` |
+| KD 2.5 · MUONH_FIT · 45B 语料（参照） | 45B KD 语料，8K | MUONH_FIT（无文档 mask） | KD，teacher MiMo-2.5-Pro-Base | `KD_MUONH_FIT_A0P8_S64Y_TCS_MIMO25` |
+| CE · PROD1_DPSK · 650B 数据（参照） | 650B 数据，32K | PROD1_DPSK，和「KD 2.5 · PROD1_DPSK · 新数据」同一架构；激活参数比 MUONH_FIT 多约 8%，训练 token 也多约 8%（TPP 200 按自己的激活参数算） | CE | `PROD1_DPSK` |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | 650B 数据，32K | PROD1_DPSK + latent MoE（d = h/2），routed expert 512 个选 16 个：每个 token 的计算量和 PROD1_DPSK 基本相同，routed 参数 ×2（不是等参数）；文档 mask | CE | `PROD1_DPSK_LATENT2_E2X` |
 
-‡ 灰色 = 这个模型在这一项有大量空回答（悬停看比例）：它在 few-shot 的 “A:” 后先输出换行，而这一项遇到换行就停止生成，回答被截成空字符串，分数不代表模型能力。只出现在部分后训练模型上（如 Qwen3.8-27B；MiMo-V2.6-Pro-RL 没有这个问题）。
+所有 KD 组都是 α 0.8（KD 0.8 + CE 0.2），tail = S64Y（top-64 + 采样 tail 4 draws，y 精确），MuonH + 拟合 LR。32K 窗口的评测 Change ID 在后面加 _W32K。虚线 = 之前的同类 run（8K 训练）作参照：KD 2.6 用 650B 数据上的；KD 2.5 在 650B 数据上没有 run，用 45B KD 语料上的（它的 q3 是 TPP 100，不画；只有 8K 窗口）。PROD1_DPSK 和 latent MoE expert ×2 两条参照都是 650B 数据上 32K 训练（加文档 mask）的 CE，所以三个窗口 tab 都画。
+
+**〔指标：overall_tsqw〕**
+
+**〔视图：8K 窗口〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0041 | -0.0033 | 0.0005 | 0.0027 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0325 | -0.0417 | -0.0395 | -0.0397 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0483 | -0.0528 | -0.0517 | -0.0539 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0505 | -0.0556 | -0.0520 | -0.0561 |
+| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0506 | -0.0529 | -0.0498 | · |
+| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0575 | -0.0620 | -0.0591 | -0.0617 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0775 | -0.0870 | -0.0882 | -0.0897 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0782 | -0.0912 | -0.0851 | -0.0827 |
+
+**〔视图：32K 窗口〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0280 | -0.0290 | -0.0253 | -0.0229 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0655 | -0.0729 | -0.0695 | -0.0686 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0717 | -0.0781 | -0.0772 | -0.0790 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0737 | -0.0810 | -0.0774 | -0.0810 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.1105 | -0.1179 | -0.1180 | -0.1182 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1108 | -0.1216 | -0.1143 | -0.1109 |
+
+**〔视图：32K 窗口 · 0 线 = 新 CE〕**
+
+**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
+
+0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0409 | -0.0439 | -0.0441 | -0.0458 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0437 | -0.0491 | -0.0519 | -0.0561 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0457 | -0.0520 | -0.0520 | -0.0581 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0825 | -0.0889 | -0.0926 | -0.0953 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0862 | -0.0926 | -0.0889 | -0.0880 |
+
+**〔指标：overall_tw〕**
+
+**〔视图：8K 窗口〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0028 | -0.0024 | 0.0008 | 0.0031 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0320 | -0.0427 | -0.0404 | -0.0406 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0490 | -0.0547 | -0.0541 | -0.0565 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0508 | -0.0569 | -0.0537 | -0.0578 |
+| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0513 | -0.0548 | -0.0518 | · |
+| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0591 | -0.0643 | -0.0616 | -0.0643 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0782 | -0.0930 | -0.0868 | -0.0846 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0784 | -0.0897 | -0.0915 | -0.0930 |
+
+**〔视图：32K 窗口〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0267 | -0.0279 | -0.0248 | -0.0222 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0640 | -0.0729 | -0.0694 | -0.0686 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0726 | -0.0797 | -0.0794 | -0.0813 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0742 | -0.0821 | -0.0789 | -0.0824 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1097 | -0.1224 | -0.1149 | -0.1118 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.1104 | -0.1195 | -0.1201 | -0.1205 |
+
+**〔视图：32K 窗口 · 0 线 = 新 CE〕**
+
+**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
+
+0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0401 | -0.0450 | -0.0446 | -0.0464 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0459 | -0.0518 | -0.0546 | -0.0591 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0474 | -0.0542 | -0.0541 | -0.0602 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0837 | -0.0916 | -0.0954 | -0.0983 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0858 | -0.0945 | -0.0902 | -0.0896 |
+
+**〔指标：overall_macro〕**
+
+**〔视图：8K 窗口〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0049 | -0.0050 | -0.0003 | 0.0022 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0321 | -0.0408 | -0.0384 | -0.0389 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0480 | -0.0522 | -0.0497 | -0.0516 |
+| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0495 | -0.0509 | -0.0476 | · |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0503 | -0.0553 | -0.0505 | -0.0546 |
+| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0566 | -0.0609 | -0.0570 | -0.0596 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0762 | -0.0848 | -0.0849 | -0.0864 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0773 | -0.0886 | -0.0824 | -0.0803 |
+
+**〔视图：32K 窗口〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0218 | -0.0232 | -0.0185 | -0.0159 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0554 | -0.0628 | -0.0595 | -0.0591 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0641 | -0.0699 | -0.0677 | -0.0692 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0663 | -0.0733 | -0.0684 | -0.0721 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0995 | -0.1066 | -0.1057 | -0.1063 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1003 | -0.1100 | -0.1028 | -0.1000 |
+
+**〔视图：32K 窗口 · 0 线 = 新 CE〕**
+
+**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
+
+0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0389 | -0.0396 | -0.0409 | -0.0432 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0423 | -0.0468 | -0.0491 | -0.0534 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0445 | -0.0501 | -0.0498 | -0.0562 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0778 | -0.0834 | -0.0871 | -0.0904 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0838 | -0.0869 | -0.0843 | -0.0841 |
+
+**〔指标：val_v2〕**
+
+**〔视图：8K 窗口〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0041 | -0.0026 | 0.0004 | 0.0030 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0270 | -0.0316 | -0.0280 | -0.0276 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0362 | -0.0373 | -0.0347 | -0.0366 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0387 | -0.0406 | -0.0379 | -0.0398 |
+| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0389 | -0.0403 | -0.0366 | · |
+| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0414 | -0.0432 | -0.0399 | -0.0424 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0622 | -0.0651 | -0.0643 | -0.0648 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0654 | -0.0699 | -0.0636 | -0.0612 |
+
+**〔视图：32K 窗口〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0460 | -0.0467 | -0.0433 | -0.0412 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0776 | -0.0808 | -0.0782 | -0.0797 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0796 | -0.0843 | -0.0807 | -0.0827 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0844 | -0.0858 | -0.0797 | -0.0775 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.1197 | -0.1187 | -0.1158 | -0.1144 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1220 | -0.1225 | -0.1138 | -0.1097 |
+
+**〔视图：32K 窗口 · 0 线 = 新 CE〕**
+
+**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
+
+0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0316 | -0.0341 | -0.0349 | -0.0385 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0336 | -0.0376 | -0.0374 | -0.0415 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0401 | -0.0391 | -0.0364 | -0.0363 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0737 | -0.0721 | -0.0724 | -0.0732 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0777 | -0.0758 | -0.0705 | -0.0685 |
+
+**〔指标：uncheatable〕**
+
+**〔视图：8K 窗口〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | 0.0006 | -0.0009 | 0.0018 | 0.0045 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0302 | -0.0466 | -0.0435 | -0.0442 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0517 | -0.0613 | -0.0606 | -0.0633 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0524 | -0.0617 | -0.0583 | -0.0625 |
+| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0538 | -0.0604 | -0.0570 | · |
+| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0627 | -0.0708 | -0.0682 | -0.0708 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0785 | -0.0990 | -0.0918 | -0.0905 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0817 | -0.0985 | -0.1008 | -0.1027 |
+
+**〔视图：32K 窗口〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0229 | -0.0245 | -0.0217 | -0.0192 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0564 | -0.0719 | -0.0687 | -0.0691 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0749 | -0.0844 | -0.0836 | -0.0863 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0755 | -0.0850 | -0.0814 | -0.0854 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.1043 | -0.1238 | -0.1165 | -0.1150 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.1080 | -0.1240 | -0.1261 | -0.1276 |
+
+**〔视图：32K 窗口 · 0 线 = 新 CE〕**
+
+**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
+
+0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0368 | -0.0474 | -0.0471 | -0.0499 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0520 | -0.0598 | -0.0619 | -0.0671 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0526 | -0.0605 | -0.0598 | -0.0662 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0848 | -0.0993 | -0.0948 | -0.0958 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0851 | -0.0994 | -0.1044 | -0.1084 |
+
+**〔指标：codefresh〕**
+
+**〔视图：8K 窗口〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0119 | -0.0087 | 0.0041 | 0.0074 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0386 | -0.0429 | -0.0416 | -0.0431 |
+| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0567 | -0.0497 | -0.0477 | · |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0613 | -0.0642 | -0.0541 | -0.0598 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0618 | -0.0611 | -0.0591 | -0.0599 |
+| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0756 | -0.0764 | -0.0725 | -0.0740 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0853 | -0.0890 | -0.0872 | -0.0894 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0907 | -0.1002 | -0.0920 | -0.0861 |
+
+**〔视图：32K 窗口〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0119 | -0.0087 | 0.0041 | 0.0074 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0386 | -0.0429 | -0.0416 | -0.0431 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0613 | -0.0642 | -0.0541 | -0.0598 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0618 | -0.0611 | -0.0591 | -0.0599 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0853 | -0.0890 | -0.0872 | -0.0894 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0907 | -0.1002 | -0.0920 | -0.0861 |
+
+**〔视图：32K 窗口 · 0 线 = 新 CE〕**
+
+**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
+
+0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0348 | -0.0343 | -0.0457 | -0.0505 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0494 | -0.0555 | -0.0582 | -0.0672 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0499 | -0.0525 | -0.0632 | -0.0673 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0734 | -0.0803 | -0.0912 | -0.0968 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0869 | -0.0916 | -0.0961 | -0.0935 |
+
+**〔指标：private_internal〕**
+
+**〔视图：8K 窗口〕**
+
+**8K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**：650B 数据、8K 训练、MuonH、拟合 LR、CE、softmax router、全注意力（和本报告其他章节同一条 0 线）。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0076 | -0.0074 | -0.0038 | -0.0015 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0262 | -0.0366 | -0.0355 | -0.0368 |
+| KD 2.5 · MUONH_FIT · 45B 语料（参照） | -0.0436 | -0.0426 | -0.0412 | · |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0438 | -0.0480 | -0.0442 | -0.0462 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0448 | -0.0489 | -0.0444 | -0.0485 |
+| KD 2.6 · MUONH_FIT · 650B 数据（参照） | -0.0477 | -0.0525 | -0.0480 | -0.0513 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0639 | -0.0752 | -0.0699 | -0.0710 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0663 | -0.0752 | -0.0752 | -0.0784 |
+
+**〔视图：32K 窗口〕**
+
+**32K 窗口：各线 − MUONH_FIT**
+
+0 线 = **MUONH_FIT**，和 8K 窗口 tab 同一条（它是 8K 训练，用的就是它的 8K 窗口分数，只作基准参考）；各线是 32K 窗口的分数。负数 = 更好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| MUONH_FIT_PP32K | -0.0096 | -0.0093 | -0.0057 | -0.0033 |
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0280 | -0.0384 | -0.0373 | -0.0385 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0458 | -0.0498 | -0.0460 | -0.0479 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0467 | -0.0507 | -0.0461 | -0.0502 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0657 | -0.0769 | -0.0716 | -0.0727 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0682 | -0.0770 | -0.0770 | -0.0801 |
+
+**〔视图：32K 窗口 · 0 线 = 新 CE〕**
+
+**32K 窗口：各线 − MUONH_FIT_PP32K（新数据 CE，32K 窗口）**
+
+0 线 = **MUONH_FIT_PP32K**：同一份 80B pack plan、32K 训练的 CE，也按 32K 窗口评，按 seed 配对。各线和它一样是 32K 窗口分数；负数 = 比新 CE 好。
+
+| 线 | q0 · 48M | q1 · 154M | q2 · 356M | q3 · 683M |
+|---|---|---|---|---|
+| CE · PROD1_DPSK · 650B 数据（参照） | -0.0221 | -0.0291 | -0.0316 | -0.0352 |
+| KD 2.6 · MUONH_FIT · 新数据 | -0.0361 | -0.0405 | -0.0403 | -0.0446 |
+| KD 2.5 · MUONH_FIT · 新数据 | -0.0371 | -0.0414 | -0.0405 | -0.0469 |
+| KD 2.5 · PROD1_DPSK · 新数据 | -0.0586 | -0.0677 | -0.0713 | -0.0768 |
+| CE · PROD1_DPSK + latent MoE，expert ×2 · 650B 数据（参照） | -0.0597 | -0.0676 | -0.0659 | -0.0693 |
 
 ## 页签：LR 拟合实验
 
@@ -5093,7 +10456,7 @@ Boxiang ladder 的主线：AdamW / Muon / MuonH 三个 CE 优化器，和 MuonH 
 
 ## 附录 B：全部 checkpoint 的 overall_tsqw（doc-isolated）
 
-`trichord/dense_pretrain_result` 里的全部 332 个 Change ID。后缀约定：`_S2` / `_S3` = 第 2、3 个 seed（无后缀 = seed 1）；`_W32K` = 同一 checkpoint 按 32K 窗口评（无后缀 = 8K 窗口）；`_PP32K` = 80B pack plan、32K 训练的新数据管线；`_IT4577` 等 = 改了训练步数（LR 格子）。Change ID 的含义以正文各节的说明为准。
+`trichord/dense_pretrain_result` 里的全部 380 个 Change ID。后缀约定：`_S2` / `_S3` = 第 2、3 个 seed（无后缀 = seed 1）；`_W32K` = 同一 checkpoint 按 32K 窗口评（无后缀 = 8K 窗口）；`_PP32K` = 80B pack plan、32K 训练的新数据管线；`_IT4577` 等 = 改了训练步数（LR 格子）。Change ID 的含义以正文各节的说明为准。
 
 | Change ID | q0 | q1 | q2 | q3 | q4 | q5 | q6 |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -5375,22 +10738,68 @@ Boxiang ladder 的主线：AdamW / Muon / MuonH 三个 CE 优化器，和 MuonH 
 | `OPT_MUON_LR4X_TPP600` | 2.0928 |  |  |  |  |  |  |
 | `OPT_MUON_S2` | 2.1986 | 1.9210 |  |  |  |  |  |
 | `OPT_MUON_S3` | 2.2019 | 1.9192 |  |  |  |  |  |
-| `PROD1_DPSK` | 2.1454 | 1.8567 | 1.6886 | 1.5754 |  |  |  |
+| `PROD1_DPSK` | 2.1454 | 1.8567 | 1.6886 | 1.5754 | 1.4945 | 1.4315 |  |
+| `PROD1_DPSK_CLAMP20` |  |  |  | 1.5756 |  |  |  |
+| `PROD1_DPSK_CLAMP20_W32K` |  |  |  | 1.5466 |  |  |  |
+| `PROD1_DPSK_CLAMP7` |  |  |  | 1.5760 |  |  |  |
+| `PROD1_DPSK_CLAMP7_W32K` |  |  |  | 1.5470 |  |  |  |
+| `PROD1_DPSK_E2X` | 2.1084 | 1.8243 | 1.6600 | 1.5514 |  |  |  |
+| `PROD1_DPSK_E2X_W32K` | 2.0762 | 1.7938 | 1.6306 | 1.5229 |  |  |  |
+| `PROD1_DPSK_GAUX` |  |  |  | 1.5740 |  |  |  |
+| `PROD1_DPSK_GAUX_NOBIAS` |  |  |  | 1.5734 |  |  |  |
+| `PROD1_DPSK_GAUX_NOBIAS_W32K` |  |  |  | 1.5445 |  |  |  |
+| `PROD1_DPSK_GAUX_W32K` |  |  |  | 1.5451 |  |  |  |
 | `PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K` | 2.1002 | 1.8114 | 1.6398 | 1.5254 |  |  |  |
 | `PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_S2` | 2.1035 |  |  |  |  |  |  |
 | `PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_S3` | 2.1040 |  |  |  |  |  |  |
 | `PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K` | 2.0669 | 1.7805 | 1.6101 | 1.4969 |  |  |  |
 | `PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K_S2` | 2.0706 |  |  |  |  |  |  |
 | `PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_W32K_S3` | 2.0712 |  |  |  |  |  |  |
-| `PROD1_DPSK_LATENT2` | 2.1363 | 1.8427 | 1.6693 | 1.5567 |  |  |  |
-| `PROD1_DPSK_LATENT2_E2X` | 2.0996 | 1.8072 | 1.6429 |  |  |  |  |
-| `PROD1_DPSK_LATENT2_E2X_W32K` | 2.0671 | 1.7768 | 1.6138 |  |  |  |  |
-| `PROD1_DPSK_LATENT2_W32K` | 2.1029 | 1.8116 | 1.6394 | 1.5280 |  |  |  |
+| `PROD1_DPSK_LATENT2` | 2.1363 | 1.8427 | 1.6693 | 1.5567 | 1.4757 |  |  |
+| `PROD1_DPSK_LATENT2_E2X` | 2.0996 | 1.8072 | 1.6429 | 1.5324 | 1.4546 |  |  |
+| `PROD1_DPSK_LATENT2_E2X_BIASONLY` |  | 1.8061 | 1.6394 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_BIASONLY_W32K` |  | 1.7757 | 1.6101 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_G2P5EM4` |  | 1.8091 | 1.6422 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_G2P5EM4_W32K` |  | 1.7787 | 1.6130 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_G5EM4` |  | 1.8080 | 1.6423 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_G5EM4_W32K` |  | 1.7775 | 1.6130 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_KD_A0P8_S64Y_MIMO25_PPFULL` |  | 1.7552 | 1.5871 | 1.4751 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_KD_A0P8_S64Y_MIMO25_PPFULL_W32K` |  | 1.7252 | 1.5584 | 1.4474 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QB` |  | 1.8074 | 1.6394 | 1.5327 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBK3` |  | 1.8065 | 1.6394 | 1.5320 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBK3_W32K` |  | 1.7760 | 1.6102 | 1.5038 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBK3_WU` |  | 1.8074 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBK3_WU_W32K` |  | 1.7770 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX` |  | 1.8079 | 1.6400 | 1.5323 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_EMA5` |  | 1.8082 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_EMA5_W32K` |  | 1.7778 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_KD_A0P8_S64Y_MIMO25_PPFULL` |  | 1.7555 | 1.5858 | 1.4744 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_KD_A0P8_S64Y_MIMO25_PPFULL_W32K` |  | 1.7255 | 1.5570 | 1.4468 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RLR0P5` |  | 1.8087 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RLR0P5_W32K` |  | 1.7781 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RLR2` |  | 1.8075 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RLR2_W32K` |  | 1.7770 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RTADAMW` |  | 1.8143 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RTADAMW_W32K` |  | 1.7838 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RTMUONH` |  | 1.8093 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RTMUONH_W32K` |  | 1.7788 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RTPIN` |  | 1.8082 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_RTPIN_W32K` |  | 1.7777 |  |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QBX_W32K` |  | 1.7774 | 1.6106 | 1.5040 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_QB_W32K` |  | 1.7770 | 1.6102 | 1.5045 |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_RTADAMW` |  | 1.8127 | 1.6490 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_RTADAMW_W32K` |  | 1.7822 | 1.6196 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_RTPIN` |  | 1.8085 | 1.6418 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_RTPIN_W32K` |  | 1.7781 | 1.6126 |  |  |  |  |
+| `PROD1_DPSK_LATENT2_E2X_W32K` | 2.0671 | 1.7768 | 1.6138 | 1.5042 | 1.4272 |  |  |
+| `PROD1_DPSK_LATENT2_W32K` | 2.1029 | 1.8116 | 1.6394 | 1.5280 | 1.4477 |  |  |
 | `PROD1_DPSK_PROPE25` | 2.1444 | 1.8573 | 1.6863 |  |  |  |  |
 | `PROD1_DPSK_PROPE25G` | 2.1452 | 1.8559 | 1.6851 |  |  |  |  |
 | `PROD1_DPSK_PROPE25G_W32K` | 2.1126 | 1.8248 | 1.6552 |  |  |  |  |
 | `PROD1_DPSK_PROPE25_W32K` | 2.1118 | 1.8261 | 1.6563 |  |  |  |  |
-| `PROD1_DPSK_W32K` | 2.1124 | 1.8255 | 1.6586 | 1.5465 |  |  |  |
+| `PROD1_DPSK_RS1` |  |  |  | 1.5760 |  |  |  |
+| `PROD1_DPSK_RS1_W32K` |  |  |  | 1.5469 |  |  |  |
+| `PROD1_DPSK_W32K` | 2.1124 | 1.8255 | 1.6586 | 1.5465 | 1.4664 | 1.4040 |  |
 | `ROUTER_NE_1EM2_SWS` | 2.2021 | 2.1458 |  |  |  |  |  |
 | `ROUTER_NE_1EM3` | 2.1907 |  |  |  |  |  |  |
 | `ROUTER_NE_1EM3_SWS` | 2.1748 | 1.8917 |  |  |  |  |  |
@@ -5429,3 +10838,5 @@ Boxiang ladder 的主线：AdamW / Muon / MuonH 三个 CE 优化器，和 MuonH 
 | `SWA_FIT_SINK_W512_W32K` | 2.1410 | 1.8562 | 1.6866 | 1.5747 |  |  |  |
 | `SWA_FIT_W1K` | 2.1813 | 1.8936 | 1.7276 | 1.6118 |  |  |  |
 | `SWA_FIT_W4K` | 2.1798 | 1.9040 | 1.7250 |  |  |  |  |
+| `ULTRA_XXDEV_3B_KD_A0P8_S64Y_MIMO25_PPFULL` |  | 1.7545 |  |  |  |  |  |
+| `ULTRA_XXDEV_3B_KD_A0P8_S64Y_MIMO25_PPFULL_W32K` |  | 1.7245 |  |  |  |  |  |

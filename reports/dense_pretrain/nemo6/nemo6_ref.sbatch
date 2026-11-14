@@ -5,7 +5,7 @@
 #   client: Boxiang's aarch64 lm-eval venv (frozen harness @17abcb7) in his pytorch 25.08 image -> reports_xx/nemo6/run_tasks.py (lanes)
 #
 #   sbatch -N 1 -t 12:00:00 --export=ALL,NAME=QWEN3_30B_A3B_BASE,MODEL=<snapshot>,TP=1 reports_xx/nemo6/nemo6_ref.sbatch
-# env: NAME MODEL [IMAGE] [TP=4] [PP=1] [DP=nodes*4/(TP*PP), single node only] [MML=16384] [MNS=256] [SERVE_EXTRA=<vllm serve flags>]
+# env: NAME MODEL [IMAGE] [TP=4] [PP=1] [DP=nodes*4/(TP*PP), single node only] [MML=32768] [MNS=256] [SERVE_EXTRA=<vllm serve flags>]
 #      [LANES=4] [CONC=0] [PBUDGET=2048] [TASKS=<names or indices>] [TOKENIZER=MODEL]
 #      [CONFIG=nemo6_report.yml] (full 40-task suite, user 11-04 "全测"; nemo6_nomulti.yml = 36 tasks without multilingual, unused)
 #   multi-node: TP x PP spans the nodes (vLLM mp backend: head = API server, others `--headless`), as in mimo_doc_eval.sbatch.
@@ -31,7 +31,7 @@ RT=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmo
 export LME_SRC_DIR=$RT/src VENV=$RT/env
 CIMAGE=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/container/nvidia+pytorch+25.08-py3.sqsh
 IMAGE=${IMAGE:-$U/containers/vllm-openai+v0.31.0.sqsh}
-TP=${TP:-4}; PP=${PP:-1}; MML=${MML:-16384}; MNS=${MNS:-256}; LANES=${LANES:-4}
+TP=${TP:-4}; PP=${PP:-1}; MML=${MML:-32768}; MNS=${MNS:-256}; LANES=${LANES:-4}
 CONC=${CONC:-0}; PBUDGET=${PBUDGET:-2048}   # CONC 0: per task, conc = clamp(PBUDGET / batch_size, 4, 128) prompts in flight per lane
 TOKENIZER=${TOKENIZER:-${MODEL:?}}
 NN=$SLURM_NNODES
@@ -80,8 +80,18 @@ export NAME MODEL IMAGE CIMAGE TP PP DP NN MML MNS SERVE_EXTRA="${SERVE_EXTRA:-}
 MAN=$(python3 -c 'import json, os
 print(json.dumps({k.lower(): os.environ.get(k, "") for k in "NAME MODEL IMAGE CIMAGE TP PP DP NN MML MNS SERVE_EXTRA SERVE_ENV".split()}))' 2>/dev/null || echo '{}')
 export NEMO6_LCB_WORKERS=${NEMO6_LCB_WORKERS:-32} NEMO6_EXEC_DATA_GB=${NEMO6_EXEC_DATA_GB:-16}   # client_compat/nemo6_patches.py
+# client = v2 only (user 11-08 "以后我们统一用v2"): few-shot seed 1234, max_gen_toks default 4096, log-likelihood max_length = the
+# server's max-model-len (client_compat_v2/nemo6_fix_v2.py), on top of client_compat
+COMPAT=$N6/client_compat_v2:$N6/client_compat
+export NEMO6_FIX=v2 NEMO6_FEWSHOT_SEED=${NEMO6_FEWSHOT_SEED:-1234} NEMO6_MAX_GEN_TOKS=${NEMO6_MAX_GEN_TOKS:-4096} NEMO6_MAX_LENGTH=${NEMO6_MAX_LENGTH:-$MML}
+# 11-10: MATH-500 at 31232 tokens: one batch can outlast the SDK default 600 s timeout (re-sent duplicates); same default as the ladder sbatch
+export NEMO6_REQ_TIMEOUT=${NEMO6_REQ_TIMEOUT:-7200}
+MAN=$(python3 -c 'import json, os, sys
+d = json.loads(sys.argv[1]); d.update(client_fix="v2", fewshot_seed=os.environ["NEMO6_FEWSHOT_SEED"],
+         max_gen_toks_default=os.environ["NEMO6_MAX_GEN_TOKS"], ll_max_length=os.environ["NEMO6_MAX_LENGTH"])
+print(json.dumps(d))' "$MAN")
 CLIENT=(--overlap --nodes=1 --ntasks=1 -w "$head" --container-image="$CIMAGE" --container-mounts=/lustre:/lustre,/scratch:/scratch
-        --container-workdir=/tmp --export=ALL,PYTHONPATH=$N6/client_compat:$LME_SRC_DIR)
+        --container-workdir=/tmp --export=ALL,PYTHONPATH=$COMPAT:$LME_SRC_DIR)
 # preflight: client tokenizer ids == server /tokenize ids (likelihood requests are tokenized client-side), else no task is run
 if [[ "${SKIP_TOKCHECK:-0}" != 1 ]]; then
     trc=0
@@ -93,7 +103,7 @@ fi
 for attempt in 1 2 3; do
     rc=0
     srun --overlap --nodes=1 --ntasks=1 -w "$head" --container-image="$CIMAGE" --container-mounts=/lustre:/lustre,/scratch:/scratch \
-        --container-workdir=/tmp --export=ALL,PYTHONPATH=$N6/client_compat:$LME_SRC_DIR bash -c \
+        --container-workdir=/tmp --export=ALL,PYTHONPATH=$COMPAT:$LME_SRC_DIR bash -c \
         'mkdir -p $XDG_CACHE_HOME; source $VENV/bin/activate; cd $LME_SRC_DIR; exec python -u "$@"' _ \
         "$N6/run_tasks.py" --config "$N6/${CONFIG:-nemo6_report.yml}" --results-dir "$OUTROOT" --model-name "$NAME" --tokenizer "$TOKENIZER" \
         --host "$addr" --port "$PORT" --lanes "$LANES" --conc "$CONC" --prompt-budget "$PBUDGET" ${TASKS:+--tasks "$TASKS"} \

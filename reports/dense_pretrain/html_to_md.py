@@ -241,6 +241,8 @@ class Conv:
             return
         if t in SKIP or n.a.get("id") == "tip" or {"toggle", "rtoggle"} & c:
             return
+        if "nomd" in c:                                      # a block of charts (and their captions) that repeats the table next to it
+            return
         if t == "svg":
             if "data-tip" in n.a or any("data-tip" in d.a for d in n.desc()):
                 if any("pie" in p.cls() for p in self.ancestors(n)):   # the pie repeats the table next to it

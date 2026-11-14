@@ -73,6 +73,10 @@ tasks:
     num_fewshot: 4
     overrides:
       repeats: 32
+      # 11-10 decision (user + Runlong): MATH-500 and Minerva for ALL models (baselines and ours) at the longest generation a 32K context
+      # allows, instead of ADLR's 1024-token cap (which cut 5-14 % of our samples, ~12 % of Qwen3-235B's). 31232 + the longest 4-shot prompt
+      # (1354 Qwen3 tokens) <= 32768 = server MAXSEQ / MML.
+      generation_kwargs.max_gen_toks: 31232
     report_metric:
       - alias: math_500_sampled
         metric: pass@1[32],math_verify
@@ -98,6 +102,10 @@ tasks:
     task_group: math
     batch_size: 64
     num_fewshot: 4
+    overrides:
+      # 11-10 decision (user + Runlong), as MATH-500: 30720 + the longest 4-shot prompt (1899 Qwen3 tokens over the 5000 problems) <= 32768.
+      # Group overrides reach all 7 subtasks (checked: mmlu_pro_0_shot_sampled's repeats 32 is in every subject config).
+      generation_kwargs.max_gen_toks: 30720
     report_metric:
       - alias: minerva_math_nemo
         metric: exact_match,none # all math

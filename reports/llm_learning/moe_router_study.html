@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MoE router 学习笔记</title>
+<style>
+/* Layout: sidebar table of contents + one reading column; expert side = blue, token side = amber, gradient = violet, everywhere */
+:root{
+  --bg:#f5f7fa; --panel:#ffffff; --ink:#1b2230; --muted:#5b6677; --rule:#d7dde6; --soft:#eef1f5; --code:#eef1f5;
+  --accent:#2453b3; --exp:#2563a8; --exp-soft:#dce7f5; --tok:#b5610c; --tok-soft:#f7e4cc;
+  --grad:#7c3aed; --grad-soft:#ede4fd; --good:#17803a; --good-soft:#dcf2e2; --bad:#c42b2b; --bad-soft:#fbe1e1;
+  --warn:#94620a; --warn-soft:#fbf0d4; --sel:#33415a; --sel-soft:#c9d1de; --cell:#eef1f5;
+  --f-body:"PingFang SC","Noto Sans SC","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --f-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10141b; --panel:#171d26; --ink:#e3e8ef; --muted:#97a2b3; --rule:#2c3543; --soft:#1e2531; --code:#1e2531;
+  --accent:#7aa7f0; --exp:#79aee9; --exp-soft:#1d3350; --tok:#eba75a; --tok-soft:#45301a;
+  --grad:#b89af7; --grad-soft:#2d2347; --good:#56c27a; --good-soft:#173823; --bad:#f07b7b; --bad-soft:#3d1c1c;
+  --warn:#e2b45a; --warn-soft:#3a2e15; --sel:#c3cddb; --sel-soft:#3a4556; --cell:#222a36; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10141b; --panel:#171d26; --ink:#e3e8ef; --muted:#97a2b3; --rule:#2c3543; --soft:#1e2531; --code:#1e2531;
+  --accent:#7aa7f0; --exp:#79aee9; --exp-soft:#1d3350; --tok:#eba75a; --tok-soft:#45301a;
+  --grad:#b89af7; --grad-soft:#2d2347; --good:#56c27a; --good-soft:#173823; --bad:#f07b7b; --bad-soft:#3d1c1c;
+  --warn:#e2b45a; --warn-soft:#3a2e15; --sel:#c3cddb; --sel-soft:#3a4556; --cell:#222a36; color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.75}
+a{color:var(--accent)}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px;max-width:1260px;margin:0 auto;
+  padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+aside{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:28px 0 28px;font-size:13.5px}
+aside .tt{font-weight:700;font-size:12px;letter-spacing:.08em;color:var(--muted);margin-bottom:10px}
+aside a{display:block;color:var(--muted);text-decoration:none;padding:4px 10px;border-left:2px solid var(--rule);line-height:1.5}
+aside a:hover,aside a:focus-visible{color:var(--ink);border-left-color:var(--accent);outline:none}
+aside a.sub{padding-left:22px;font-size:12.5px}
+main{min-width:0;padding-block:32px 80px}
+header.hero{display:flex;flex-direction:column;gap:10px;padding-bottom:22px;border-bottom:1px solid var(--rule)}
+h1{font-size:30px;line-height:1.3;margin:0;text-wrap:balance;letter-spacing:.01em}
+.sub-t{font-size:16.5px;color:var(--muted);margin:0;max-width:62ch}
+.meta{font-size:13px;color:var(--muted)}
+h2{font-size:22px;margin:56px 0 6px;padding-top:6px;text-wrap:balance;scroll-margin-top:12px}
+h2 .no{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:8px}
+h3{font-size:17px;margin:32px 0 6px;scroll-margin-top:12px}
+h4{font-size:15px;margin:22px 0 4px}
+.lead{color:var(--muted);margin:0 0 14px;max-width:72ch}
+p,li{max-width:76ch}
+ul,ol{padding-left:1.4em}
+code{font-family:var(--f-mono);font-size:.88em;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{font-family:var(--f-mono);font-size:12.8px;line-height:1.6;background:var(--code);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;overflow-x:auto}
+pre code{background:none;padding:0}
+.scroll{overflow-x:auto;min-width:0}
+table{border-collapse:collapse;margin:10px 0 14px;font-size:14px;min-width:520px}
+th,td{border-bottom:1px solid var(--rule);padding:7px 11px;text-align:left;vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:13px;white-space:nowrap;border-bottom:2px solid var(--rule)}
+td{font-variant-numeric:tabular-nums}
+td.n{white-space:nowrap}
+td.num{text-align:right;white-space:nowrap;font-family:var(--f-mono);font-size:13px}
+td.g{color:var(--good);font-weight:600}
+td.b{color:var(--bad);font-weight:600}
+td.z{color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:18px 0 6px}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.card .k{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+.card p{margin:0;font-size:14px}
+.box{border-radius:8px;padding:10px 16px;margin:14px 0;border:1px solid var(--rule);background:var(--panel)}
+.box p{margin:6px 0}
+.box.key{background:var(--warn-soft);border-color:transparent}
+.box.note{background:var(--exp-soft);border-color:transparent}
+.box.grad{background:var(--grad-soft);border-color:transparent}
+.box.ex{background:var(--soft);border-color:transparent}
+.box .h{font-weight:700;font-size:13px;letter-spacing:.04em}
+.formula{font-family:var(--f-mono);font-size:15px;text-align:center;margin:8px 0;padding:10px;background:var(--panel);border-radius:6px}
+.e{color:var(--exp);font-weight:600}.t{color:var(--tok);font-weight:600}.v{color:var(--grad);font-weight:600}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:0 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap;line-height:1.7}
+.pill.ok{color:var(--good)}.pill.bad{color:var(--bad)}.pill.warn{color:var(--warn)}.pill.na{color:var(--muted)}
+details{background:var(--panel);border:1px solid var(--rule);border-radius:8px;padding:8px 14px;margin:12px 0}
+details summary{cursor:pointer;font-weight:600;color:var(--accent)}
+details[open] summary{margin-bottom:6px}
+figure{margin:18px 0;background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:14px 14px 10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+figure svg{display:block;width:100%;height:auto}
+figure.wide svg{min-width:760px}
+figcaption{font-size:13.5px;color:var(--muted)}
+.foot{font-size:13px;color:var(--muted);border-top:1px solid var(--rule);padding-top:14px;margin-top:48px}
+/* svg classes */
+svg text{font-family:var(--f-body);font-size:12.5px}
+svg .mono{font-family:var(--f-mono);font-size:12px}
+svg .h{font-size:14px;font-weight:600}
+svg .s{font-size:11.5px}
+.ink{fill:var(--ink)}.mut{fill:var(--muted)}.ex{fill:var(--exp)}.tk{fill:var(--tok)}.vi{fill:var(--grad)}
+.nd{fill:var(--panel);stroke:var(--rule);stroke-width:1.4}
+.ndE{fill:var(--exp-soft);stroke:var(--exp);stroke-width:1.4}
+.ndV{fill:var(--grad-soft);stroke:var(--grad);stroke-width:1.2}
+.cell{fill:var(--cell);stroke:var(--panel);stroke-width:2}
+.selc{fill:var(--sel);stroke:var(--panel);stroke-width:2}
+.top{fill:var(--sel-soft);stroke:var(--panel);stroke-width:2}
+.ruT{fill:var(--tok-soft);stroke:var(--tok);stroke-width:2}
+.ruE{fill:var(--exp-soft);stroke:var(--exp);stroke-width:2}
+.bstrip{fill:var(--exp-soft);stroke:var(--exp);stroke-width:1.2}
+.astrip{fill:var(--tok-soft);stroke:var(--tok);stroke-width:1.2}
+.box2{fill:var(--panel);stroke:var(--rule);stroke-width:1.2}
+.ln{stroke:var(--muted);stroke-width:1.4;fill:none}
+.lnE{stroke:var(--exp);stroke-width:1.6;fill:none}
+.lnT{stroke:var(--tok);stroke-width:1.6;fill:none}
+.lnV{stroke:var(--grad);stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+.dash{stroke-dasharray:4 4}
+.dot{stroke-dasharray:2 4}
+.arrM{fill:var(--muted)}.arrE{fill:var(--exp)}.arrT{fill:var(--tok)}.arrV{fill:var(--grad)}
+.dotP{fill:var(--exp)}.dotN{fill:var(--panel);stroke:var(--muted);stroke-width:1.5}
+@media (max-width:1000px){
+  .wrap{grid-template-columns:minmax(0,1fr);gap:0}
+  aside{position:static;height:auto;padding:16px 0 4px;border-bottom:1px solid var(--rule);display:flex;flex-wrap:wrap;gap:4px 2px}
+  aside .tt{width:100%;margin:0}
+  aside a{border-left:none;padding:2px 8px;background:var(--panel);border-radius:999px;font-size:12.5px}
+  aside a.sub{display:none}
+  h1{font-size:25px}
+}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<aside aria-label="目录">
+  <div class="tt">目录</div>
+  <a href="#s0">先看这里</a>
+  <a href="#s1">1. router 一步</a>
+  <a href="#s2">2. router 怎么学</a>
+  <a href="#s3">3. 均衡方法地图</a>
+  <a href="#s4">4. aux loss</a>
+  <a href="#s5">5. DSV3 bias</a>
+  <a href="#s6">6. Quantile Balancing</a>
+  <a class="sub" href="#s6-1">QB</a>
+  <a class="sub" href="#s6-2">QBX</a>
+  <a class="sub" href="#s6-3">QBK3</a>
+  <a class="sub" href="#s6-4">三者对比</a>
+  <a href="#s7">7. router 的优化器</a>
+  <a href="#s8">8. 健康指标</a>
+  <a href="#s9">9. 实验结果</a>
+  <a class="sub" href="#s9-1">E2X（11 月）</a>
+  <a class="sub" href="#s9-2">老 ladder（10 月）</a>
+  <a href="#s10">10. 常见误解</a>
+  <a href="#s11">11. 来源</a>
+</aside>
+
+<main>
+<header class="hero">
+  <h1>MoE router 学习笔记</h1>
+  <p class="sub-t">router 怎么选 expert、怎么学、怎么保持负载均衡；三种 Quantile Balancing（QB / QBX / QBK3）的区别；健康指标怎么看。</p>
+  <p class="meta">2026-11-10 更新 · 合并了原来的 moe_router.md（10-29）和 router_health_metrics（11-07），并补上 QB 系列 · 给 agent 读的文字版：同目录 <code>moe_router_study.md</code> · 数字来自我们的 doc-isolated 评测（overall_tsqw，负数 = 更好；单 seed 噪声约 ±0.002–0.003）</p>
+</header>
+
+<!-- ============ 0 ============ -->
+<h2 id="s0">先看这里</h2>
+<p class="lead">每一条后面都有详细的一节。</p>
+<div class="cards">
+  <div class="card"><span class="k">两个用途</span><p>router 的分数既决定<b>选谁</b>（取前 k 个，没有梯度），也决定<b>权重</b>（有梯度）。bias、β 这些"门槛"只影响选谁，不进权重。</p></div>
+  <div class="card"><span class="k">权重</span><p>g = 2.5 × σ(z) ÷ 选中那 k 个的 σ 之和。只在选中的里归一化，加起来是 2.5，不是 1。</p></div>
+  <div class="card"><span class="k">梯度</span><p>router 只能从权重 g 拿到梯度，而且只在选中的 expert 之间挪份量。冷门 expert 选不上，就拿不到梯度，所以需要不走梯度的均衡手段。</p></div>
+  <div class="card"><span class="k">QB 的门槛</span><p>β 是<span class="e">每层每个 expert 一个</span>，存进 checkpoint；α 是<span class="t">每个 token 一个</span>，现算现扔。没有"整层一个"的门槛。</p></div>
+  <div class="card"><span class="k">QB / QBX / QBK3</span><p>QB：logit 空间，每个 micro-batch 各取分位数再平均。QBX：logit 空间，全局合并。QBK3：sigmoid 空间（就是 DSV3 的 bias），全局合并，<b>生产在用</b>。</p></div>
+  <div class="card"><span class="k">结果</span><p>loss 上四种做法（只用 bias、QB、QBX、QBK3）分不出高低。差别在健康指标：QB 后期 MaxVio 停在 1.4，QBK3 的 bias 始终很小（≤ 0.10），底座的 bias 涨到 7。</p></div>
+</div>
+
+<!-- ============ 1 ============ -->
+<h2 id="s1"><span class="no">1</span>router 一步在做什么</h2>
+<p class="lead">一个 token 进来，router 算出每个 expert 的分数，用它选出 k 个 expert，再用同一组分数给这 k 个 expert 定权重。</p>
+
+<figure class="wide">
+  <div class="scroll">
+  <svg viewBox="0 0 1000 400" role="img" aria-label="router 一步：x 经 W_r 得到 logit z，过 sigmoid 得到分数 s；选谁由 z − β（QB、QBX）或 s + b（DSV3、QBK3）取前 k 个决定；权重是选中的 s 归一化后乘 2.5；梯度只沿 g、s、z 回到 W_r；β 和 b 每步由统计量直接写入，不走梯度。">
+    <defs>
+      <marker id="f1m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrM"/></marker>
+      <marker id="f1e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrE"/></marker>
+      <marker id="f1v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrV"/></marker>
+    </defs>
+    <!-- gradient path -->
+    <path d="M932,80 L932,46 L215,46 L215,76" class="lnV" marker-end="url(#f1v)"/>
+    <text x="574" y="36" class="vi s" text-anchor="middle">梯度只走这条：loss → 权重 g → 分数 s → logit z → W_r（选谁、b、β 都不传梯度）</text>
+    <!-- lane 1 -->
+    <rect x="20" y="80" width="100" height="44" rx="6" class="nd"/><text x="70" y="107" class="ink" text-anchor="middle">x（隐状态）</text>
+    <rect x="160" y="80" width="110" height="44" rx="6" class="nd"/><text x="215" y="100" class="ink" text-anchor="middle">W_r</text><text x="215" y="116" class="mut s" text-anchor="middle">E × h，fp32</text>
+    <rect x="310" y="80" width="110" height="44" rx="6" class="nd"/><text x="365" y="100" class="ink" text-anchor="middle">logit z</text><text x="365" y="116" class="mut s" text-anchor="middle">每个 expert 一个</text>
+    <rect x="460" y="80" width="50" height="44" rx="6" class="nd"/><text x="485" y="107" class="ink" text-anchor="middle">σ</text>
+    <rect x="550" y="80" width="110" height="44" rx="6" class="nd"/><text x="605" y="100" class="ink" text-anchor="middle">分数 s</text><text x="605" y="116" class="mut s" text-anchor="middle">在 0 到 1 之间</text>
+    <rect x="700" y="80" width="150" height="44" rx="6" class="nd"/><text x="775" y="100" class="ink" text-anchor="middle">权重 g = 2.5·s / Σs</text><text x="775" y="116" class="mut s" text-anchor="middle">只在选中的 k 个里</text>
+    <rect x="884" y="80" width="100" height="44" rx="6" class="nd"/><text x="934" y="100" class="ink" text-anchor="middle">输出 y</text><text x="934" y="116" class="mut s" text-anchor="middle">→ loss</text>
+    <path d="M120,102 L156,102" class="ln" marker-end="url(#f1m)"/>
+    <path d="M270,102 L306,102" class="ln" marker-end="url(#f1m)"/>
+    <path d="M420,102 L456,102" class="ln" marker-end="url(#f1m)"/>
+    <path d="M510,102 L546,102" class="ln" marker-end="url(#f1m)"/>
+    <path d="M660,102 L696,102" class="ln" marker-end="url(#f1m)"/>
+    <path d="M850,102 L880,102" class="ln" marker-end="url(#f1m)"/>
+    <!-- lane 2 selection -->
+    <rect x="425" y="210" width="120" height="44" rx="6" class="nd"/><text x="485" y="230" class="ink" text-anchor="middle">选前 k 个</text><text x="485" y="246" class="mut s" text-anchor="middle">离散，没有梯度</text>
+    <path d="M365,124 L440,206" class="ln" marker-end="url(#f1m)"/>
+    <text x="352" y="170" class="ink s" text-anchor="end">QB、QBX 比 z − β</text>
+    <path d="M605,124 L530,206" class="ln" marker-end="url(#f1m)"/>
+    <text x="618" y="170" class="ink s">DSV3、QBK3 比 s + b</text>
+    <path d="M545,232 L775,232 L775,128" class="ln" marker-end="url(#f1m)"/>
+    <text x="660" y="250" class="mut s" text-anchor="middle">选中的是哪 k 个</text>
+    <!-- lane 3 state -->
+    <rect x="200" y="300" width="230" height="46" rx="6" class="ndE"/><text x="315" y="320" class="ex" text-anchor="middle">β：每层 E 个（QB、QBX）</text><text x="315" y="337" class="ex s" text-anchor="middle">步末用 margin 的分位数直接算出</text>
+    <rect x="560" y="300" width="250" height="46" rx="6" class="ndE"/><text x="685" y="320" class="ex" text-anchor="middle">b：每层 E 个（DSV3、QBK3）</text><text x="685" y="337" class="ex s" text-anchor="middle">DSV3 每步 ±0.001；QBK3 全局分位数</text>
+    <path d="M380,300 L455,258" class="lnE dot" marker-end="url(#f1e)"/>
+    <path d="M620,300 L515,258" class="lnE dot" marker-end="url(#f1e)"/>
+    <text x="505" y="384" class="mut s" text-anchor="middle">β 和 b 都不是参数，没有梯度：每个 step 结束时由这一步的统计量直接写入，从下一步开始用</text>
+  </svg>
+  </div>
+  <figcaption>灰色实线是前向计算，紫色虚线是梯度，蓝色点线是不走梯度的均衡状态。softmax router（老底座）没有 β 和 b，直接对 softmax(z) 取前 k 个，均衡只靠 aux loss（aux loss 的梯度也走紫色那条路）。PROD1 和 E2X 还有 1 个 shared expert，所有 token 都过它，图里省略了。</figcaption>
+</figure>
+
+<h3>权重怎么算</h3>
+<pre><code>scores = sigmoid(logits)                    # 全部 E 个 expert
+# 选下标：DSV3 / QBK3 用 topk(scores + bias)；QB / QBX 用 topk(logits - beta)
+scores = gather(scores, top_indices)        # 只取选中的 k 个，不含 bias
+probs  = scores / scores.sum()              # 在选中的 k 个里归一化（k = 1 时不做）
+probs  = probs * 2.5                        # --moe-router-topk-scaling-factor</code></pre>
+<div class="box ex">
+  <p class="h">例子：选中了 3 个 expert</p>
+  <div class="scroll"><table>
+    <thead><tr><th></th><th>expert 1</th><th>expert 2</th><th>expert 3</th></tr></thead>
+    <tbody>
+      <tr><td>logit z</td><td class="num">2.0</td><td class="num">0.0</td><td class="num">−1.0</td></tr>
+      <tr><td>σ(z)</td><td class="num">0.881</td><td class="num">0.500</td><td class="num">0.269</td></tr>
+      <tr><td>在选中的里归一化（和 = 1）</td><td class="num">0.534</td><td class="num">0.303</td><td class="num">0.163</td></tr>
+      <tr><td><b>× 2.5 = 实际权重</b></td><td class="num"><b>1.335</b></td><td class="num"><b>0.758</b></td><td class="num"><b>0.408</b></td></tr>
+      <tr><td class="z">对比：在选中的里做 softmax</td><td class="num z">0.844</td><td class="num z">0.114</td><td class="num z">0.042</td></tr>
+    </tbody>
+  </table></div>
+  <p>sigmoid 后归一化比 softmax 平得多：softmax 用指数放大差距，sigmoid 在两端饱和，差距被压扁。直接归一化 z 行不通，因为 z 有正有负，和可能是 0。</p>
+</div>
+<p>几个模型的写法：DeepSeek-V2 用 softmax，选出前 k 个后不重新归一化；DeepSeek-V3 就是上面这套，另有分组限制路由（我们没开）；Kimi K3 也是这套，但 896 个 expert 选 16 个、2 个 shared、不乘 2.5。</p>
+
+<h3>我们用过的几种配置</h3>
+<div class="scroll"><table>
+  <thead><tr><th>配置</th><th>时间</th><th>expert：routed / 选几个 / shared</th><th>打分</th><th>负载均衡</th><th>训练长度 / micro-batch</th></tr></thead>
+  <tbody>
+    <tr><td>老 ladder softmax 底座（BASE、MUONH_FIT、KD 主线）</td><td class="n">10 月</td><td class="n">128 / 8 / 0</td><td>softmax</td><td>aux loss 1e-3</td><td>8K；q0–q3 每次 4 条，q4 2 条，q5–q6 1 条</td></tr>
+    <tr><td>老 ladder DSV3 组</td><td class="n">10 月</td><td class="n">128 / 8 / 0</td><td>sigmoid</td><td>bias + seq aux 1e-4</td><td>同上</td></tr>
+    <tr><td>PROD1_DPSK</td><td class="n">11 月</td><td class="n">128 / 8 / 1</td><td>sigmoid × 2.5</td><td>bias + seq aux 1e-4</td><td>32K；每次 1 条</td></tr>
+    <tr><td>E2X（PROD1_DPSK_LATENT2_E2X）</td><td class="n">11 月</td><td class="n">512 / 16 / 1</td><td>sigmoid × 2.5</td><td>bias + seq aux 1e-4</td><td>32K；每次 1 条</td></tr>
+    <tr><td>E2X + QB / QBX / QBK3</td><td class="n">11-05 起</td><td class="n">512 / 16 / 1</td><td>sigmoid × 2.5</td><td>见第 6 节</td><td>32K；每次 1 条</td></tr>
+  </tbody>
+</table></div>
+
+<!-- ============ 2 ============ -->
+<h2 id="s2"><span class="no">2</span>router 怎么学</h2>
+<p class="lead">选谁这一步没有梯度，bias 和 β 也没有梯度。router 只能通过选中的那几个 expert 的权重学习。</p>
+<div class="box grad">
+  <p class="h">对选中的 expert i</p>
+  <div class="formula">∂L/∂z<sub>i</sub> = g<sub>i</sub> · (1 − p<sub>i</sub>) · (a<sub>i</sub> − ā)</div>
+  <p>p = σ(z)；a<sub>e</sub> = ⟨∂L/∂y, Expert<sub>e</sub>(x)⟩，越负说明这个 expert 越有用；ā 是选中的 k 个按权重求的平均。没选中的 expert：∂L/∂z = 0。</p>
+</div>
+<ol>
+  <li><b>只在选中的 expert 之间挪份量。</b>比平均更有用的 expert，logit 被推高；更没用的被压低。按权重加起来，这些梯度正好抵消，不会把它们整体推高或压低。</li>
+  <li><b>排名只能间接变化。</b>一个 expert 进出前 k 名，要靠它被别的 token 选中时得到的更新，或者输入 x 本身变了。冷门 expert 选不上就拿不到梯度，会越来越冷，所以需要 bias、β 这类不走梯度的均衡手段。</li>
+  <li><b>饱和会切断梯度。</b>g<sub>i</sub>(1 − p<sub>i</sub>) 和 σ'(z) 成正比：</li>
+</ol>
+<div class="scroll"><table>
+  <thead><tr><th>z</th><th>σ(z)</th><th>σ'(z)</th><th>z 加 1 时 σ 增加</th><th></th></tr></thead>
+  <tbody>
+    <tr><td class="num">0</td><td class="num">0.5</td><td class="num">0.25</td><td class="num">0.23</td><td><span class="pill ok">梯度畅通</span></td></tr>
+    <tr><td class="num">2</td><td class="num">0.88</td><td class="num">0.10</td><td class="num">0.07</td><td></td></tr>
+    <tr><td class="num">4</td><td class="num">0.982</td><td class="num">0.018</td><td class="num">0.012</td><td><span class="pill warn">饱和阈值</span></td></tr>
+    <tr><td class="num">6</td><td class="num">0.9975</td><td class="num">0.0025</td><td class="num">0.002</td><td><span class="pill bad">基本传不过去</span></td></tr>
+  </tbody>
+</table></div>
+<div class="box ex"><p>例子：某个 token 选中了 A，梯度说"A 很有用，权重该再大一点"。z<sub>A</sub> = 0 时，把 z<sub>A</sub> 调大一点，权重明显上升；z<sub>A</sub> = 6 时，σ 已经是 0.9975，再怎么调也几乎不变，这个信号到这里就断了。</p></div>
+<p>饱和只切断经过 σ 的那几条路：</p>
+<div class="scroll"><table>
+  <thead><tr><th>路径（看一个被选中的 expert）</th><th>经过 σ' 吗</th><th>饱和时</th></tr></thead>
+  <tbody>
+    <tr><td>① loss → 这个 expert 自己的参数</td><td>不经过</td><td>照常学习</td></tr>
+    <tr><td>② loss → g → s → z → W<sub>r</sub></td><td>经过</td><td><b>被切断</b>：router 学不动</td></tr>
+    <tr><td>③ loss → g → s → z → 隐状态 x</td><td>经过</td><td>被切断，但这条本来就细</td></tr>
+  </tbody>
+</table></div>
+<p>aux loss 的梯度也走 ②，饱和时同样变弱。所以在 DSV3 里，"logit 失控"和"均衡全靠 bias 撑"往往一起出现。</p>
+<details><summary>推导</summary>
+<p>记 w<sub>e</sub> = p<sub>e</sub> / Σ<sub>j∈S</sub> p<sub>j</sub>，g<sub>e</sub> = 2.5 w<sub>e</sub>。∂g<sub>e</sub>/∂z<sub>i</sub> = (δ<sub>ei</sub> − w<sub>e</sub>) · g<sub>i</sub> (1 − p<sub>i</sub>)。代入 ∂L/∂z<sub>i</sub> = Σ<sub>e</sub> a<sub>e</sub> ∂g<sub>e</sub>/∂z<sub>i</sub> 就得到上式。Σ<sub>i</sub> g<sub>i</sub>(a<sub>i</sub> − ā) = 2.5(Σ w<sub>i</sub>a<sub>i</sub> − ā) = 0。</p>
+</details>
+
+<!-- ============ 3 ============ -->
+<h2 id="s3"><span class="no">3</span>负载均衡方法地图</h2>
+<p class="lead">分两大类：走梯度的（各种 aux loss），和不走梯度、直接改选人分的（bias 和各种 QB）。</p>
+<div class="scroll"><table>
+  <thead><tr><th>方法</th><th>怎么做</th><th>走梯度</th><th>统计范围</th><th>加在哪</th><th>要调的</th><th>谁在用</th></tr></thead>
+  <tbody>
+    <tr><td class="n">aux loss</td><td>L = α·E·Σ f<sub>e</sub>P<sub>e</sub></td><td>是</td><td>一个 micro-batch</td><td>梯度推 logit</td><td>α</td><td>老 ladder softmax（1e-3）</td></tr>
+    <tr><td class="n">seq aux</td><td>同上，每条序列单独算</td><td>是</td><td>每条序列</td><td>同上</td><td>α</td><td>DSV3、PROD1、E2X（1e-4）</td></tr>
+    <tr><td class="n">global aux</td><td>同上，跨卡、跨 micro-batch 累计</td><td>是</td><td>整个 global batch</td><td>同上</td><td>α</td><td>Qwen3 官方</td></tr>
+    <tr><td class="n">DSV3 bias</td><td>负载多就 −0.001，少就 +0.001</td><td>否</td><td>整个 global batch 的计数</td><td>sigmoid 之后</td><td>步长 γ</td><td>DSV3、PROD1、E2X</td></tr>
+    <tr><td class="n">QB</td><td>每个 micro-batch 取分位数，再平均</td><td>否</td><td>每个 micro-batch</td><td>logit</td><td>几乎没有</td><td>E2X 实验</td></tr>
+    <tr><td class="n">QBX</td><td>全局直方图取分位数</td><td>否</td><td>整个 global batch</td><td>logit</td><td>窗口、格数</td><td>E2X 实验</td></tr>
+    <tr><td class="n">QBK3</td><td>全局直方图取分位数</td><td>否</td><td>整个 global batch</td><td>sigmoid 之后</td><td>没有</td><td>E2X 实验，<b>生产</b></td></tr>
+    <tr><td class="n">负熵均衡损失</td><td>α·E·Σ p<sub>e</sub>(log m<sub>e</sub>+1)</td><td>是</td><td>概率的 EMA</td><td>梯度推 logit</td><td>α、η</td><td>Runlong 的实验</td></tr>
+  </tbody>
+</table></div>
+<div class="box key">
+  <p class="h">统计范围越小，越压制专业化</p>
+  <p>两条序列，一条全是代码、只用 expert 1–64，一条全是中文、只用 expert 65–128。合在一起数：128 个 expert 完全均衡，没有惩罚。每条序列单独数：每条只用了一半 expert，被惩罚。所以 Qwen3 改成按整个 global batch 统计，鼓励不同领域用不同 expert。</p>
+</div>
+
+<!-- ============ 4 ============ -->
+<h2 id="s4"><span class="no">4</span>aux loss</h2>
+<div class="formula">L<sub>aux</sub> = α · Σ<sub>e</sub> f<sub>e</sub> · P<sub>e</sub></div>
+<ul>
+  <li><b>f<sub>e</sub></b>：这个 expert 被选中的比例，乘 E/k，完全均衡时为 1。它是数出来的，<b>不可导</b>。</li>
+  <li><b>P<sub>e</sub></b>：所有 token 给它的平均分数，<b>可导</b>，梯度只经过它。f<sub>e</sub> 大的 expert，P<sub>e</sub> 被往下压。</li>
+  <li>每张卡只用自己的 token 算 P<sub>e</sub>，所有卡的部分加起来才是完整的 loss。</li>
+  <li>aux loss 只更新 router 权重，不碰 expert bias。</li>
+  <li>seq aux 用来数 f<sub>e</sub> 的前 k 名<b>不加 bias</b>，和实际路由不是同一个；P<sub>e</sub> 在全部 E 个 expert 上归一化，所以梯度会流到没选中的 expert 上。</li>
+</ul>
+<div class="scroll"><table>
+  <thead><tr><th>配置</th><th>每次统计多少 token</th></tr></thead>
+  <tbody>
+    <tr><td>老 ladder <code>aux_loss</code>（8K）</td><td>q0–q3：32,768；q4：16,384；q5、q6：8,192。随 rung 变小，11-05 手册筛查列为问题</td></tr>
+    <tr><td>老 ladder <code>seq_aux</code></td><td>每条 8,192</td></tr>
+    <tr><td>PROD1、E2X 的 <code>seq_aux</code></td><td>每条 32,768，正好等于一个 micro-batch</td></tr>
+  </tbody>
+</table></div>
+<p><code>aux_loss</code> 不跨卡，也不跨 micro-batch：一步 2M token 被切成 64 个互不相关的 32K 小块，各算各的。老 ladder 没用 <code>global_aux_loss</code>，是因为当时 fork 里它的系数实际是 1e-3 / DP，不同 rung 之间差 16 倍。</p>
+<details><summary>复杂一点的例子：64 张 GB300 训练 Qwen3-235B-A22B（切分方式是假设的）</summary>
+<p>TP 2（开 SP）、PP 4、CP 1，所以 DP = 8。每个 stage 16 张卡，EP 16。序列 8192，每次 2 条，GBS 1024 条，所以一个 DP 副本一步要跑 64 次。</p>
+<ul>
+  <li><code>aux_loss</code>：f<sub>e</sub> 在 TP 两张卡之间汇总，覆盖 16,384 个 token；一步里有 512 个互不相关的小块。</li>
+  <li><code>seq_aux</code>：每条序列 8,192 个 token，一步 1024 个 loss。</li>
+  <li><code>global_aux</code>：f<sub>e</sub> 在本 stage 的 16 张卡之间汇总，并在 64 次之间累计；到最后一次时覆盖整个 global batch，8.4M token。</li>
+  <li>DSV3 bias：64 次的计数累加，步末在本 stage 的 TP × DP × CP 之间求和，覆盖 8.4M token。</li>
+  <li>PP 下所有汇总只在本 stage 内做；EP 不参与这些统计；TP 两张卡上的 bias 永远一样。</li>
+</ul>
+</details>
+
+<!-- ============ 5 ============ -->
+<h2 id="s5"><span class="no">5</span>DSV3 expert bias</h2>
+<ul>
+  <li>是 buffer，不是参数，没有梯度，任何 loss 都改不了它。</li>
+  <li>每步：各卡累计每个 expert 分到的 token 数 → 步末跨 TP × DP × CP 求和 → 高于平均的减 0.001，低于平均的加 0.001。每层各自更新。</li>
+  <li>只有相对大小有用：所有 b 一起加同一个数，不改变路由。</li>
+</ul>
+<div class="box ex">
+  <p class="h">为什么 |b| 的健康上限是 1</p>
+  <p>分数 s 在 0 到 1 之间。两个 expert 的 b 差一旦超过 1，b 低的那个对任何 token 都赢不了。例：A 的 s = 0.9、b = 0；B 的 s = 0.1、b = +0.85。B 的选人分 0.95 &gt; 0.9，选了 B，虽然 router 更想要 A。</p>
+</div>
+<ul>
+  <li><b>看极差，不看绝对值</b>：DSV3 q3 第 0 层的 b 都在 +11.2 到 +11.7 之间，绝对值很大，极差只有 0.5，问题不大。</li>
+  <li><b>整体漂移</b>：按符号更新不是零和的。多数 expert 略低于平均、少数远高于平均时，加的总量大于减的，整层一起往上漂。</li>
+  <li><b>病态</b>：b 远大于 1 时，分数接近 0 的 expert 也会被选上，选上后权重又接近 0，等于浪费名额。MaxVio 看起来很好，其实是 bias 在硬撑。</li>
+  <li><b>固定步长的局限</b>：E2X 底座的 |b| 最大值 q1 1.73 → q2 4.19 → q3 7.03。每步只能挪 0.001，追不上就会一直偏。这正是 QBK3 要解决的问题。</li>
+</ul>
+
+<!-- ============ 6 ============ -->
+<h2 id="s6"><span class="no">6</span>Quantile Balancing：QB、QBX、QBK3</h2>
+<p class="lead">共同的想法：不再按固定步长慢慢调门槛，而是每个 step 直接算出"让每个 expert 正好分到平均份额"的门槛。这个门槛是一个分位数，所以叫 quantile balancing。三种实现的区别在门槛加在哪里，以及跨卡怎么合并。</p>
+
+<h3 id="s6-1">QB（Megatron 自带）</h3>
+<p>记号（每层各自做）：z<sub>te</sub> 是 token t 对 expert e 的 logit；k 是每个 token 选几个；E 是 expert 数；T 是一个 micro-batch 的 token 数；C = T·k/E 是每个 expert 的目标 token 数。</p>
+<ol>
+  <li><b>路由</b>：每个 token 选 z − <span class="e">β</span> 最大的 k 个，β 用上一步算好的。</li>
+  <li><b><span class="t">α<sub>t</sub></span></b>：同一排序里第 k+1 名的值，也就是落选的选项里最好的那个。</li>
+  <li><b>新门槛</b>：每个 expert 在这批 token 上取 margin = z − α 的第 C+1 大值。</li>
+  <li><b>步末</b>：对所有 micro-batch、所有 DP rank 取平均，减去均值（居中），写回 β，下一步用。评测时 β 固定。</li>
+</ol>
+
+<div class="scroll"><table>
+  <thead><tr><th></th><th><span class="e">β<sub>e</sub></span>：expert 的门槛</th><th><span class="t">α<sub>t</sub></span>：token 的门槛</th></tr></thead>
+  <tbody>
+    <tr><td>有几个</td><td>每层每个 expert 一个（E2X 每层 512 个）</td><td>每层每个 token 一个</td></tr>
+    <tr><td>含义</td><td>expert 的"入场价"，越热门越高</td><td>这个 token 落选选项里最好的分数</td></tr>
+    <tr><td>什么时候算</td><td>每个 step 一次</td><td>每次 forward</td></tr>
+    <tr><td>存不存</td><td>存，跟着 checkpoint 走</td><td>不存，用完就扔</td></tr>
+    <tr><td>用途</td><td>路由</td><td>只用来算新 β</td></tr>
+  </tbody>
+</table></div>
+<p>没有"整层一个"的门槛：所有 expert 减同一个数，每个 token 的排序都不变，什么都没改变。也因为这样，第 4 步可以放心减去均值。</p>
+
+<figure class="wide">
+  <div class="scroll">
+  <svg viewBox="0 0 980 470" role="img" aria-label="QB 在一层里的数据流：① 用 β 路由并取出每个 token 的 α；② 用 α 算 margin，每列取第 C+1 大得到这个 micro-batch 的 β；③ 各 micro-batch 和 DP rank 取平均、居中，写回 β，给下一个 step 用。">
+    <defs>
+      <marker id="aM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrM"/></marker>
+      <marker id="aE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrE"/></marker>
+      <marker id="aT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrT"/></marker>
+    </defs>
+    <text x="40" y="22" class="ink h">① 路由：每行取 z − β 的前 k 个</text>
+    <text x="276" y="58" class="ex s">β</text>
+    <g><rect x="60" y="45" width="26" height="18" class="bstrip"/><rect x="86" y="45" width="26" height="18" class="bstrip"/><rect x="112" y="45" width="26" height="18" class="bstrip"/><rect x="138" y="45" width="26" height="18" class="bstrip"/><rect x="164" y="45" width="26" height="18" class="bstrip"/><rect x="190" y="45" width="26" height="18" class="bstrip"/><rect x="216" y="45" width="26" height="18" class="bstrip"/><rect x="242" y="45" width="26" height="18" class="bstrip"/></g>
+    <text x="164" y="38" class="ex s" text-anchor="middle">每个 expert 一个（上一步算好的）</text>
+    <text x="164" y="80" class="mut s" text-anchor="middle">expert e →</text>
+    <text x="40" y="196" class="mut s" text-anchor="middle" transform="rotate(-90 40 196)">token t →</text>
+    <g>
+      <rect x="60" y="88" width="26" height="26" class="selc"/><rect x="86" y="88" width="26" height="26" class="cell"/><rect x="112" y="88" width="26" height="26" class="cell"/><rect x="138" y="88" width="26" height="26" class="selc"/><rect x="164" y="88" width="26" height="26" class="cell"/><rect x="190" y="88" width="26" height="26" class="ruT"/><rect x="216" y="88" width="26" height="26" class="cell"/><rect x="242" y="88" width="26" height="26" class="cell"/>
+      <rect x="60" y="114" width="26" height="26" class="selc"/><rect x="86" y="114" width="26" height="26" class="selc"/><rect x="112" y="114" width="26" height="26" class="cell"/><rect x="138" y="114" width="26" height="26" class="cell"/><rect x="164" y="114" width="26" height="26" class="cell"/><rect x="190" y="114" width="26" height="26" class="cell"/><rect x="216" y="114" width="26" height="26" class="ruT"/><rect x="242" y="114" width="26" height="26" class="cell"/>
+      <rect x="60" y="140" width="26" height="26" class="selc"/><rect x="86" y="140" width="26" height="26" class="cell"/><rect x="112" y="140" width="26" height="26" class="ruT"/><rect x="138" y="140" width="26" height="26" class="cell"/><rect x="164" y="140" width="26" height="26" class="cell"/><rect x="190" y="140" width="26" height="26" class="cell"/><rect x="216" y="140" width="26" height="26" class="selc"/><rect x="242" y="140" width="26" height="26" class="cell"/>
+      <rect x="60" y="166" width="26" height="26" class="ruT"/><rect x="86" y="166" width="26" height="26" class="cell"/><rect x="112" y="166" width="26" height="26" class="selc"/><rect x="138" y="166" width="26" height="26" class="cell"/><rect x="164" y="166" width="26" height="26" class="selc"/><rect x="190" y="166" width="26" height="26" class="cell"/><rect x="216" y="166" width="26" height="26" class="cell"/><rect x="242" y="166" width="26" height="26" class="cell"/>
+      <rect x="60" y="192" width="26" height="26" class="selc"/><rect x="86" y="192" width="26" height="26" class="cell"/><rect x="112" y="192" width="26" height="26" class="cell"/><rect x="138" y="192" width="26" height="26" class="cell"/><rect x="164" y="192" width="26" height="26" class="cell"/><rect x="190" y="192" width="26" height="26" class="selc"/><rect x="216" y="192" width="26" height="26" class="cell"/><rect x="242" y="192" width="26" height="26" class="ruT"/>
+      <rect x="60" y="218" width="26" height="26" class="cell"/><rect x="86" y="218" width="26" height="26" class="selc"/><rect x="112" y="218" width="26" height="26" class="cell"/><rect x="138" y="218" width="26" height="26" class="ruT"/><rect x="164" y="218" width="26" height="26" class="cell"/><rect x="190" y="218" width="26" height="26" class="cell"/><rect x="216" y="218" width="26" height="26" class="cell"/><rect x="242" y="218" width="26" height="26" class="selc"/>
+      <rect x="60" y="244" width="26" height="26" class="ruT"/><rect x="86" y="244" width="26" height="26" class="cell"/><rect x="112" y="244" width="26" height="26" class="cell"/><rect x="138" y="244" width="26" height="26" class="selc"/><rect x="164" y="244" width="26" height="26" class="cell"/><rect x="190" y="244" width="26" height="26" class="cell"/><rect x="216" y="244" width="26" height="26" class="selc"/><rect x="242" y="244" width="26" height="26" class="cell"/>
+      <rect x="60" y="270" width="26" height="26" class="cell"/><rect x="86" y="270" width="26" height="26" class="ruT"/><rect x="112" y="270" width="26" height="26" class="cell"/><rect x="138" y="270" width="26" height="26" class="cell"/><rect x="164" y="270" width="26" height="26" class="selc"/><rect x="190" y="270" width="26" height="26" class="cell"/><rect x="216" y="270" width="26" height="26" class="cell"/><rect x="242" y="270" width="26" height="26" class="selc"/>
+    </g>
+    <g><rect x="282" y="88" width="20" height="26" class="astrip"/><rect x="282" y="114" width="20" height="26" class="astrip"/><rect x="282" y="140" width="20" height="26" class="astrip"/><rect x="282" y="166" width="20" height="26" class="astrip"/><rect x="282" y="192" width="20" height="26" class="astrip"/><rect x="282" y="218" width="20" height="26" class="astrip"/><rect x="282" y="244" width="20" height="26" class="astrip"/><rect x="282" y="270" width="20" height="26" class="astrip"/></g>
+    <text x="292" y="82" class="tk s" text-anchor="middle">α</text>
+    <text x="54" y="316" class="mut s" text-anchor="end">负载</text>
+    <g class="mono"><text x="73" y="316" class="ex" text-anchor="middle" font-weight="600">4</text><text x="99" y="316" class="ink" text-anchor="middle">2</text><text x="125" y="316" class="tk" text-anchor="middle" font-weight="600">1</text><text x="151" y="316" class="ink" text-anchor="middle">2</text><text x="177" y="316" class="ink" text-anchor="middle">2</text><text x="203" y="316" class="tk" text-anchor="middle" font-weight="600">1</text><text x="229" y="316" class="ink" text-anchor="middle">2</text><text x="255" y="316" class="ink" text-anchor="middle">2</text></g>
+    <text x="164" y="336" class="mut s" text-anchor="middle">目标 C = T·k / E = 8·2/8 = 2</text>
+    <rect x="60" y="356" width="14" height="14" class="selc"/><text x="80" y="368" class="ink s">选中（每行 k = 2 个）</text>
+    <rect x="60" y="378" width="14" height="14" class="ruT"/><text x="80" y="390" class="ink s">第 k+1 名 → 它的值就是 α</text>
+    <text x="60" y="414" class="mut s">评测时只走这一步，β 固定</text>
+    <path d="M306,192 C330,192 336,192 356,192" class="lnT" marker-end="url(#aT)"/>
+    <text x="332" y="184" class="tk s" text-anchor="middle">α</text>
+    <text x="364" y="22" class="ink h">② margin = z − α，每列取第 C+1 大</text>
+    <g><rect x="362" y="88" width="20" height="26" class="astrip"/><rect x="362" y="114" width="20" height="26" class="astrip"/><rect x="362" y="140" width="20" height="26" class="astrip"/><rect x="362" y="166" width="20" height="26" class="astrip"/><rect x="362" y="192" width="20" height="26" class="astrip"/><rect x="362" y="218" width="20" height="26" class="astrip"/><rect x="362" y="244" width="20" height="26" class="astrip"/><rect x="362" y="270" width="20" height="26" class="astrip"/></g>
+    <text x="372" y="82" class="tk s" text-anchor="middle">−α</text>
+    <text x="498" y="58" class="mut s" text-anchor="middle">每个格子 = z − α（每行减自己的 α）</text>
+    <text x="498" y="80" class="mut s" text-anchor="middle">每列从大到小排</text>
+    <g>
+      <rect x="394" y="88" width="26" height="26" class="top"/><rect x="420" y="88" width="26" height="26" class="cell"/><rect x="446" y="88" width="26" height="26" class="cell"/><rect x="472" y="88" width="26" height="26" class="top"/><rect x="498" y="88" width="26" height="26" class="cell"/><rect x="524" y="88" width="26" height="26" class="top"/><rect x="550" y="88" width="26" height="26" class="cell"/><rect x="576" y="88" width="26" height="26" class="cell"/>
+      <rect x="394" y="114" width="26" height="26" class="cell"/><rect x="420" y="114" width="26" height="26" class="top"/><rect x="446" y="114" width="26" height="26" class="ruE"/><rect x="472" y="114" width="26" height="26" class="cell"/><rect x="498" y="114" width="26" height="26" class="cell"/><rect x="524" y="114" width="26" height="26" class="cell"/><rect x="550" y="114" width="26" height="26" class="ruE"/><rect x="576" y="114" width="26" height="26" class="cell"/>
+      <rect x="394" y="140" width="26" height="26" class="top"/><rect x="420" y="140" width="26" height="26" class="cell"/><rect x="446" y="140" width="26" height="26" class="cell"/><rect x="472" y="140" width="26" height="26" class="cell"/><rect x="498" y="140" width="26" height="26" class="ruE"/><rect x="524" y="140" width="26" height="26" class="cell"/><rect x="550" y="140" width="26" height="26" class="top"/><rect x="576" y="140" width="26" height="26" class="cell"/>
+      <rect x="394" y="166" width="26" height="26" class="cell"/><rect x="420" y="166" width="26" height="26" class="ruE"/><rect x="446" y="166" width="26" height="26" class="top"/><rect x="472" y="166" width="26" height="26" class="cell"/><rect x="498" y="166" width="26" height="26" class="top"/><rect x="524" y="166" width="26" height="26" class="cell"/><rect x="550" y="166" width="26" height="26" class="cell"/><rect x="576" y="166" width="26" height="26" class="cell"/>
+      <rect x="394" y="192" width="26" height="26" class="ruE"/><rect x="420" y="192" width="26" height="26" class="cell"/><rect x="446" y="192" width="26" height="26" class="cell"/><rect x="472" y="192" width="26" height="26" class="cell"/><rect x="498" y="192" width="26" height="26" class="cell"/><rect x="524" y="192" width="26" height="26" class="top"/><rect x="550" y="192" width="26" height="26" class="cell"/><rect x="576" y="192" width="26" height="26" class="ruE"/>
+      <rect x="394" y="218" width="26" height="26" class="cell"/><rect x="420" y="218" width="26" height="26" class="top"/><rect x="446" y="218" width="26" height="26" class="cell"/><rect x="472" y="218" width="26" height="26" class="ruE"/><rect x="498" y="218" width="26" height="26" class="cell"/><rect x="524" y="218" width="26" height="26" class="cell"/><rect x="550" y="218" width="26" height="26" class="cell"/><rect x="576" y="218" width="26" height="26" class="top"/>
+      <rect x="394" y="244" width="26" height="26" class="cell"/><rect x="420" y="244" width="26" height="26" class="cell"/><rect x="446" y="244" width="26" height="26" class="cell"/><rect x="472" y="244" width="26" height="26" class="top"/><rect x="498" y="244" width="26" height="26" class="cell"/><rect x="524" y="244" width="26" height="26" class="ruE"/><rect x="550" y="244" width="26" height="26" class="top"/><rect x="576" y="244" width="26" height="26" class="cell"/>
+      <rect x="394" y="270" width="26" height="26" class="cell"/><rect x="420" y="270" width="26" height="26" class="cell"/><rect x="446" y="270" width="26" height="26" class="top"/><rect x="472" y="270" width="26" height="26" class="cell"/><rect x="498" y="270" width="26" height="26" class="top"/><rect x="524" y="270" width="26" height="26" class="cell"/><rect x="550" y="270" width="26" height="26" class="cell"/><rect x="576" y="270" width="26" height="26" class="top"/>
+    </g>
+    <path d="M498,300 L498,318" class="lnE" marker-end="url(#aE)"/>
+    <g><rect x="394" y="324" width="26" height="18" class="bstrip"/><rect x="420" y="324" width="26" height="18" class="bstrip"/><rect x="446" y="324" width="26" height="18" class="bstrip"/><rect x="472" y="324" width="26" height="18" class="bstrip"/><rect x="498" y="324" width="26" height="18" class="bstrip"/><rect x="524" y="324" width="26" height="18" class="bstrip"/><rect x="550" y="324" width="26" height="18" class="bstrip"/><rect x="576" y="324" width="26" height="18" class="bstrip"/></g>
+    <g class="mono"><text x="407" y="360" class="ex" text-anchor="middle" font-weight="600">↑</text><text x="459" y="360" class="tk" text-anchor="middle" font-weight="600">↓</text><text x="537" y="360" class="tk" text-anchor="middle" font-weight="600">↓</text></g>
+    <text x="498" y="380" class="ex s" text-anchor="middle">这个 micro-batch 的 β（β_local）</text>
+    <text x="498" y="398" class="mut s" text-anchor="middle">过载的 expert 门槛 ↑，欠载的 ↓</text>
+    <rect x="394" y="418" width="14" height="14" class="top"/><text x="414" y="430" class="ink s">每列前 C = 2 名</text>
+    <rect x="512" y="418" width="14" height="14" class="ruE"/><text x="532" y="430" class="ink s">第 C+1 名 → 新 β</text>
+    <path d="M606,333 C640,333 650,333 668,333" class="lnE" marker-end="url(#aE)"/>
+    <text x="676" y="22" class="ink h">③ 每个 step 结束时一次</text>
+    <g><rect x="690" y="58" width="150" height="16" class="bstrip"/><rect x="690" y="80" width="150" height="16" class="bstrip"/><rect x="690" y="102" width="150" height="16" class="bstrip"/></g>
+    <text x="850" y="71" class="mut s">micro-batch 1</text><text x="850" y="93" class="mut s">micro-batch 2</text><text x="850" y="115" class="mut s">…</text>
+    <text x="765" y="138" class="mut s" text-anchor="middle">每个 micro-batch 一条 β_local</text>
+    <path d="M765,146 L765,166" class="ln" marker-end="url(#aM)"/>
+    <rect x="672" y="170" width="186" height="34" rx="4" class="box2"/><text x="765" y="192" class="ink" text-anchor="middle">按 micro-batch 平均</text>
+    <path d="M765,204 L765,222" class="ln" marker-end="url(#aM)"/>
+    <rect x="672" y="226" width="186" height="34" rx="4" class="box2"/><text x="765" y="248" class="ink" text-anchor="middle">DP rank 间 all-reduce 平均</text>
+    <path d="M765,260 L765,278" class="ln" marker-end="url(#aM)"/>
+    <rect x="672" y="282" width="186" height="34" rx="4" class="box2"/><text x="765" y="304" class="ink" text-anchor="middle">减去 E 个的均值（居中）</text>
+    <path d="M765,316 L765,334" class="lnE" marker-end="url(#aE)"/>
+    <rect x="690" y="338" width="150" height="18" class="bstrip"/>
+    <text x="765" y="374" class="ex s" text-anchor="middle">写回 β（存进 checkpoint）</text>
+    <path d="M690,347 C660,347 660,440 600,446 L40,446 C14,446 14,54 40,54 L54,54" class="lnE dash" marker-end="url(#aE)"/>
+    <text x="320" y="462" class="ex s" text-anchor="middle">下一个 step 用新 β 路由（新的一批 token）</text>
+  </svg>
+  </div>
+  <figcaption>示意规模：8 个 token、8 个 expert、每个 token 选 2 个，目标 C = 2。第 ① 步里 expert 0 收了 4 个（过载），expert 2 和 5 只收了 1 个（欠载）；第 ② 步给 expert 0 算出更高的门槛，给 2 和 5 算出更低的。</figcaption>
+</figure>
+
+<h4>为什么取 margin，而不是原始 logit</h4>
+<p>margin = "这个 token 想要 e，比它落选的头号选项高出多少"。只看原始分数，会把"也很想要别的 expert"的 token 算进来。</p>
+<div class="scroll"><table>
+  <thead><tr><th>3 个 expert，选 1 个</th><th>z<sub>A</sub></th><th>z<sub>B</sub></th><th>z<sub>C</sub></th><th>α（第 2 名）</th><th>A 的 margin</th></tr></thead>
+  <tbody>
+    <tr><td>token 1</td><td class="num">0.9</td><td class="num">1.5</td><td class="num">1.2</td><td class="num">1.2</td><td class="num">−0.3</td></tr>
+    <tr><td>token 2</td><td class="num">0.6</td><td class="num">0.0</td><td class="num">−0.2</td><td class="num">0.0</td><td class="num">+0.6</td></tr>
+  </tbody>
+</table></div>
+<p>按原始分数，token 1 对 A 更积极（0.9 &gt; 0.6）；但它有 B、C 两个更好的选项，根本不会来抢 A。按 margin，token 2 才是 A 的真正候选。</p>
+
+<h4>一个 expert 的门槛怎么定</h4>
+<figure>
+  <div class="scroll">
+  <svg viewBox="0 0 760 210" role="img" aria-label="一个 expert 的 8 个 margin 画在数轴上：旧门槛 0 右边有 5 个点，过载；新门槛取第 3 大的 0.12，右边正好 2 个点。" style="min-width:560px">
+    <line x1="60" y1="120" x2="700" y2="120" class="ln"/>
+    <g text-anchor="middle">
+      <line x1="60" y1="120" x2="60" y2="126" class="ln"/><text x="60" y="142" class="mut mono s">−0.3</text>
+      <line x1="140" y1="120" x2="140" y2="126" class="ln"/><text x="140" y="142" class="mut mono s">−0.2</text>
+      <line x1="220" y1="120" x2="220" y2="126" class="ln"/><text x="220" y="142" class="mut mono s">−0.1</text>
+      <line x1="380" y1="120" x2="380" y2="126" class="ln"/><text x="380" y="142" class="mut mono s">0.1</text>
+      <line x1="460" y1="120" x2="460" y2="126" class="ln"/><text x="460" y="142" class="mut mono s">0.2</text>
+      <line x1="540" y1="120" x2="540" y2="126" class="ln"/><text x="540" y="142" class="mut mono s">0.3</text>
+      <line x1="620" y1="120" x2="620" y2="126" class="ln"/><text x="620" y="142" class="mut mono s">0.4</text>
+      <line x1="700" y1="120" x2="700" y2="126" class="ln"/><text x="700" y="142" class="mut mono s">0.5</text>
+    </g>
+    <text x="380" y="166" class="mut s" text-anchor="middle">margin = z − α（这个 token 想要 e，比它落选的头号选项高多少）</text>
+    <line x1="300" y1="40" x2="300" y2="120" class="ln dash"/>
+    <text x="300" y="32" class="mut s" text-anchor="middle">旧 β = 0：右边 5 个 token 选它（过载）</text>
+    <line x1="396" y1="56" x2="396" y2="120" class="lnE"/>
+    <text x="404" y="66" class="ex s">新 β = 第 C+1 = 3 大 = 0.12：右边正好 2 个</text>
+    <circle cx="620" cy="104" r="7" class="dotP"/><text x="620" y="92" class="ex s mono" text-anchor="middle">0.40</text>
+    <circle cx="548" cy="104" r="7" class="dotP"/><text x="548" y="92" class="ex s mono" text-anchor="middle">0.31</text>
+    <circle cx="396" cy="104" r="7" class="dotN"/><text x="414" y="92" class="mut s mono">0.12</text>
+    <circle cx="364" cy="104" r="7" class="dotN"/><circle cx="316" cy="104" r="7" class="dotN"/><circle cx="260" cy="104" r="7" class="dotN"/><circle cx="212" cy="104" r="7" class="dotN"/><circle cx="140" cy="104" r="7" class="dotN"/>
+    <circle cx="80" cy="196" r="6" class="dotP"/><text x="92" y="200" class="ink s">新门槛下还选它</text>
+    <circle cx="220" cy="196" r="6" class="dotN"/><text x="232" y="200" class="ink s">不再选它（正好落在门槛上的第 C+1 名也算落选）</text>
+  </svg>
+  </div>
+  <figcaption>同一个 expert 在 8 个 token 上的 margin（编的数），目标 C = 2。margin 大于 β 的 token 会选它，所以把 β 设成第 C+1 大的 margin，正好 C 个过线。512 个 expert 各自在自己那一列上做一遍。</figcaption>
+</figure>
+
+<div class="box key">
+  <p class="h">"正好 C 个"只是近似</p>
+  <ul>
+    <li>只在 α 不变时成立。512 个 β 一起变，每个 token 的 α 也跟着变。对本来没选上的 expert，要挤掉的是第 k 名，比第 k+1 名的 α 更高，判据偏宽。</li>
+    <li>新 β 用在下一批 token 上，只能做到统计意义上的均衡。</li>
+    <li>这是对偶问题上的坐标下降，每步修正一次。我们的玩具模拟：64 个 expert 选 4 个，每步一批新的高斯 logit，MaxVio 第一步从 8.8 降到 0.44，之后稳定在 0.15–0.2。</li>
+  </ul>
+</div>
+<p><b>放到 E2X 里</b>：E = 512，k = 16，一个 micro-batch 是 1 条 32K 序列，所以 T = 32,768、C = 1,024，每条序列取第 1,025 大的 margin。一个 step 64 条序列，β 每步更新一次。</p>
+
+<h3 id="s6-2">QBX：全局精确分位数（我们的补丁）</h3>
+<p>只改第 4 步：QB 是"每个 micro-batch 的分位数取平均"，QBX 是"所有 micro-batch、所有卡的 margin 合在一起取分位数"。三种做法<b>都要跨卡同步</b>，因为 β 必须在所有卡上相同；区别在同步的是什么。</p>
+<figure class="wide">
+  <div class="scroll">
+  <svg viewBox="0 0 980 230" role="img" aria-label="QB 先在每个 micro-batch 上取分位数再平均；QBX 和 QBK3 先把所有 micro-batch 的直方图相加，再取一次分位数。">
+    <defs>
+      <marker id="aM3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrM"/></marker>
+      <marker id="aE3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrE"/></marker>
+    </defs>
+    <text x="20" y="24" class="ink h">QB：先取分位数，再平均</text>
+    <rect x="20" y="44" width="110" height="28" rx="4" class="box2"/><text x="75" y="63" class="ink s" text-anchor="middle">micro-batch 1</text>
+    <rect x="20" y="80" width="110" height="28" rx="4" class="box2"/><text x="75" y="99" class="ink s" text-anchor="middle">micro-batch 2</text>
+    <text x="75" y="126" class="mut s" text-anchor="middle">⋮</text>
+    <rect x="20" y="136" width="110" height="28" rx="4" class="box2"/><text x="75" y="155" class="ink s" text-anchor="middle">micro-batch 64</text>
+    <path d="M130,58 L176,58" class="ln" marker-end="url(#aM3)"/><path d="M130,94 L176,94" class="ln" marker-end="url(#aM3)"/><path d="M130,150 L176,150" class="ln" marker-end="url(#aM3)"/>
+    <rect x="180" y="48" width="96" height="20" class="bstrip"/><text x="228" y="62" class="ex s" text-anchor="middle">第 C+1 大</text>
+    <rect x="180" y="84" width="96" height="20" class="bstrip"/><text x="228" y="98" class="ex s" text-anchor="middle">第 C+1 大</text>
+    <rect x="180" y="140" width="96" height="20" class="bstrip"/><text x="228" y="154" class="ex s" text-anchor="middle">第 C+1 大</text>
+    <path d="M276,58 C310,58 310,100 336,100" class="ln" marker-end="url(#aM3)"/><path d="M276,94 C300,94 310,100 336,100" class="ln"/><path d="M276,150 C310,150 310,100 336,100" class="ln"/>
+    <rect x="340" y="84" width="96" height="32" rx="4" class="box2"/><text x="388" y="104" class="ink" text-anchor="middle">平均</text>
+    <path d="M436,100 L458,100" class="lnE" marker-end="url(#aE3)"/><text x="462" y="104" class="ex">β</text>
+    <text x="20" y="196" class="mut s">跨卡同步：E 个数</text>
+    <text x="20" y="214" class="mut s">分位数的平均 ≠ 合起来的分位数</text>
+    <text x="520" y="24" class="ink h">QBX、QBK3：先合并，再取分位数</text>
+    <rect x="520" y="44" width="110" height="28" rx="4" class="box2"/><text x="575" y="63" class="ink s" text-anchor="middle">micro-batch 1</text>
+    <rect x="520" y="80" width="110" height="28" rx="4" class="box2"/><text x="575" y="99" class="ink s" text-anchor="middle">micro-batch 2</text>
+    <text x="575" y="126" class="mut s" text-anchor="middle">⋮</text>
+    <rect x="520" y="136" width="110" height="28" rx="4" class="box2"/><text x="575" y="155" class="ink s" text-anchor="middle">micro-batch 64</text>
+    <path d="M630,58 L656,58" class="ln" marker-end="url(#aM3)"/><path d="M630,94 L656,94" class="ln" marker-end="url(#aM3)"/><path d="M630,150 L656,150" class="ln" marker-end="url(#aM3)"/>
+    <g class="ex">
+      <rect x="662" y="62" width="6" height="8"/><rect x="670" y="56" width="6" height="14"/><rect x="678" y="50" width="6" height="20"/><rect x="686" y="58" width="6" height="12"/><rect x="694" y="64" width="6" height="6"/>
+      <rect x="662" y="96" width="6" height="10"/><rect x="670" y="90" width="6" height="16"/><rect x="678" y="94" width="6" height="12"/><rect x="686" y="88" width="6" height="18"/><rect x="694" y="100" width="6" height="6"/>
+      <rect x="662" y="154" width="6" height="6"/><rect x="670" y="144" width="6" height="16"/><rect x="678" y="140" width="6" height="20"/><rect x="686" y="148" width="6" height="12"/><rect x="694" y="152" width="6" height="8"/>
+    </g>
+    <text x="681" y="186" class="mut s" text-anchor="middle">每个 expert 一个直方图</text>
+    <path d="M704,64 C736,64 736,100 760,100" class="ln" marker-end="url(#aM3)"/><path d="M704,98 C730,98 736,100 760,100" class="ln"/><path d="M704,152 C736,152 736,100 760,100" class="ln"/>
+    <rect x="764" y="84" width="96" height="32" rx="4" class="box2"/><text x="812" y="104" class="ink" text-anchor="middle">直方图相加</text>
+    <path d="M860,100 L878,100" class="ln" marker-end="url(#aM3)"/>
+    <rect x="882" y="90" width="70" height="20" class="bstrip"/><text x="917" y="104" class="ex s" text-anchor="middle">第 C+1 大</text>
+    <text x="917" y="132" class="ex" text-anchor="middle">β / b</text>
+    <text x="520" y="214" class="mut s">跨卡同步：直方图（QBX 每个 expert 255 格，QBK3 1000 格）</text>
+  </svg>
+  </div>
+  <figcaption>两边的选人方法、α、margin 都一样（QBX 和 QB 完全相同；QBK3 换成 sigmoid 空间，见下一节），只有合并方式不同。</figcaption>
+</figure>
+<div class="box ex">
+  <p class="h">平均为什么不等于全局</p>
+  <p>某个 expert，两个 micro-batch 各 4 个 token，每个 micro-batch 的目标是 1 个，全局目标是 2 个。</p>
+  <div class="scroll"><table>
+    <thead><tr><th></th><th>margin</th><th>本地第 2 大</th></tr></thead>
+    <tbody>
+      <tr><td>micro-batch 1（这条序列很爱用它）</td><td class="n">0.9, 0.8, 0.7, 0.6</td><td class="num">0.8</td></tr>
+      <tr><td>micro-batch 2（这条序列基本不用它）</td><td class="n">0.2, 0.1, 0.0, −0.1</td><td class="num">0.1</td></tr>
+    </tbody>
+  </table></div>
+  <p><b>QB</b>：β = 平均 0.45，8 个 token 里 4 个过线，是目标的两倍。<b>QBX</b>：8 个合起来取第 3 大，β = 0.7，正好 2 个。序列之间对同一个 expert 的偏好差得越多，QB 偏得越厉害；我们一个 micro-batch 就是一条序列，代码、中文、数学之间差别很大。</p>
+</div>
+<details><summary>QBX 的具体设置</summary>
+<ul>
+  <li>Megatron：<code>share/megatron-lm-80781ab0ab-qbx2</code>（改了 router.py、moe_utils.py、finalize_model_grads.py 三个文件）；环境变量 <code>MOE_QB_EXACT=1</code>。命令行参数和 QB 完全一样。</li>
+  <li>直方图窗口：中心 ± 2.0 logit，255 格，每格约 0.016。格数取奇数：每个 token 都有一个 margin 正好落在中心上，偶数格时它落在格子边界，读数会偏高约 0.3 格（256 格的 run 已删掉重跑）。</li>
+  <li>落在窗口外的 expert 退回用平均值，并截到窗口边界；q2 结束时每步有 4–16 个（共 11,776 个 router × expert 组合）。</li>
+  <li>要求 TP = CP = 1。</li>
+</ul>
+</details>
+
+<h3 id="s6-3">QBK3：完全按 Kimi K3</h3>
+<p>K3 是月之暗面的 Kimi K3。QBK3 按 K3 技术报告（2.3.3 节、附录 C / D）和他们在 HF 上公开的推理版 gate 代码实现（训练代码没有公开）。Runlong 核对后发现 QBX 并不是 K3 的做法，所以重写了这一版。</p>
+<div class="cards">
+  <div class="card"><span class="k">路由完全不动</span><p>仍然是 DSV3：按 σ(z) + b 选，权重用不带 b 的 σ(z)。只换了 b 的更新规则，所以可以直接替换现有的 router。</p></div>
+  <div class="card"><span class="k">一步到位，没有步长</span><p>每步直接把 b 设成全局分位数算出来的值，再减去均值。DSV3 每步最多挪 0.001，QBK3 没有步长要调，默认也不用 EMA。</p></div>
+  <div class="card"><span class="k">范围天然有界</span><p>σ 在 0 到 1 之间，所以"还差多少 bias"一定落在 [b_min − 1, b_max + 1] 里。1000 格覆盖全部，不会有值落在范围外。</p></div>
+  <div class="card"><span class="k">切分无关、代价小</span><p>每张卡只记自己的 token，计数相加后逐位相同，TP、CP 都能开。代价约 1% 的 step 时间，显存多 33–45 MiB。</p></div>
+</div>
+<div class="box note">
+  <p class="h">每个 step 一次，覆盖整个 global batch</p>
+  <p>α<sub>i</sub> = (s<sub>i</sub> + b) 里第 k+1 大的值<br>
+  r<sub>ij</sub> = α<sub>i</sub> − s<sub>ij</sub>（expert j 要挤进 token i 的前 k 名还差多少 bias：b<sub>j</sub> &gt; r<sub>ij</sub> 就会被选中）<br>
+  b̂<sub>j</sub> = 第 ⌈m·k/E⌉ 小的 r<sub>·j</sub>（从直方图读，格内线性插值）<br>
+  b = b̂ − mean(b̂)，下一步生效</p>
+</div>
+<ul>
+  <li><b>启动瞬态</b>：没有 LR warmup 时，开头几十步 MaxVio 约 11–15。review 认为是 router 在漂移，不是方法本身的问题，所以另开了 QBK3_WU（加 1% warmup）。</li>
+  <li><b>反应速度</b>：合成测试里（router 不断漂移，40 步，从 b = 0 开始），第 8 步以后 QBK3 的 MaxVio 是 0.20，DSV3 按 ±0.001 更新的是 5.6。固定步长从 0 开始本来就追不上，所以这只说明 QBK3 反应快，不代表长时间训练里的差距。</li>
+  <li><b>和 K3 原版的不同</b>：我们只搬了均衡方法，结构还是 E2X（512 选 16，1 个 shared，× 2.5）。</li>
+  <li><b>review</b>：Runlong 让 22 个 agent 审过，没有严重或重要的缺陷（<code>share/megatron_qbk3_tests/REVIEW_REPORT.md</code>）。</li>
+</ul>
+
+<h3 id="s6-4">三者对比</h3>
+<div class="scroll"><table>
+  <thead><tr><th></th><th>QB</th><th>QBX</th><th>QBK3</th></tr></thead>
+  <tbody>
+    <tr><td>选人分</td><td>z − β（logit）</td><td>z − β（logit）</td><td>σ(z) + b（sigmoid 之后）</td></tr>
+    <tr><td>合并方式</td><td>每个 micro-batch 取分位数 → 平均</td><td>全局直方图 → 一个分位数</td><td>全局直方图 → 一个分位数</td></tr>
+    <tr><td>跨卡同步</td><td>E 个分位数</td><td>直方图</td><td>直方图</td></tr>
+    <tr><td>直方图范围</td><td>不用直方图</td><td>± 2 logit 窗口，超出要退回</td><td>[b<sub>min</sub> − 1, b<sub>max</sub> + 1]，全覆盖</td></tr>
+    <tr><td>TP / CP</td><td>支持 TP，CP 未核对</td><td>必须都是 1</td><td>都支持</td></tr>
+    <tr><td>推理</td><td>要自己写路由</td><td>要自己写路由</td><td>就是 DSV3 的 bias，vLLM / SGLang 已经支持</td></tr>
+    <tr><td>和 K3 的关系</td><td>无关</td><td>只借了合并方式</td><td>就是 K3</td></tr>
+  </tbody>
+</table></div>
+<div class="box ex">
+  <p class="h">门槛加在 logit 上还是 sigmoid 分数上，挤走的 token 不同</p>
+  <p>expert A 过载，要压它。只看 A、B 两个 expert，每个 token 选 1 个：</p>
+  <div class="scroll"><table>
+    <thead><tr><th></th><th>z<sub>A</sub></th><th>z<sub>B</sub></th><th>σ<sub>A</sub></th><th>σ<sub>B</sub></th><th>QBX：β<sub>A</sub> = 2.5</th><th>QBK3：b<sub>A</sub> = −0.2</th></tr></thead>
+    <tbody>
+      <tr><td>token 1</td><td class="num">6</td><td class="num">3</td><td class="num">0.998</td><td class="num">0.953</td><td>3.5 &gt; 3 → <b>留在 A</b></td><td>0.798 &lt; 0.953 → <b>改去 B</b></td></tr>
+      <tr><td>token 2</td><td class="num">0</td><td class="num">−2</td><td class="num">0.500</td><td class="num">0.119</td><td>−2.5 &lt; −2 → <b>改去 B</b></td><td>0.300 &gt; 0.119 → <b>留在 A</b></td></tr>
+    </tbody>
+  </table></div>
+  <p>logit 空间按 logit 差来挤，先挤走差距小的 token 2；sigmoid 空间按分数差来挤，先挤走两个分数都接近 1 的 token 1。后者顺带有个好处：两个分数都接近 1 时，归一化后的权重本来就差不多，换 expert 对输出影响小。不过这只是直觉，没有实验验证过哪种更好。</p>
+</div>
+<p><b>现状（11-09）</b>：生产用 E2X + QBK3。59B-A4B 的 de-risk 默认就是 QBK3，PROD_LR_FIT 的 41 个 run 也全是 QBK3；461B 的脚本仍默认 DSV3。选 QBK3 主要是工程原因：没有要调的超参数，bias 不漂，能开 CP，推理框架直接能用。</p>
+
+<!-- ============ 7 ============ -->
+<h2 id="s7"><span class="no">7</span>router 的优化器与 LR</h2>
+<ul>
+  <li><b>AdamH</b>：Adam 更新，但把整个 router 权重投回固定半径的球面（hyperball），范数不会变大。MuonH 主体的默认。</li>
+  <li><b>AdamW</b>：普通 AdamW，范数可以自由变化。</li>
+</ul>
+<div class="box key">
+  <p class="h">挡住 logit 变大的是 hyperball，不是 aux loss</p>
+  <p>z = W<sub>r</sub>·x，x 前面有 norm。只要 router 用 AdamH，W<sub>r</sub> 就长不大，logit 也长不大。E2X 上的证据（q2 训练结束时）：</p>
+  <div class="scroll"><table>
+    <thead><tr><th>组</th><th>最大 |logit|</th><th>pinned</th></tr></thead>
+    <tbody>
+      <tr><td>所有 AdamH 的组（底座、只用 bias、QB、QBX、QBK3……）</td><td class="num">约 16–18</td><td class="num">≤ 0.2%</td></tr>
+      <tr><td>router 改用 AdamW，LR × 0.19</td><td class="num b">65.2</td><td class="num b">4.26%</td></tr>
+      <tr><td>每一行单独做 hyperball（约束更紧）</td><td class="num g">16.1</td><td class="num g">0.12%</td></tr>
+    </tbody>
+  </table></div>
+</div>
+<ul>
+  <li><b>宽模型上 router 会崩</b>：L24 h4096 的格子上，MuonH + softmax router 在 h ≥ 3072 时第 50 步负载均衡 loss 就到 15（上限 16 = 所有 token 选同样的 expert）。gate 换 AdamW 没用；router LR 降到 × 0.25 修好了。Runlong 的候选规则：router LR 倍数 = min(1, 2048 / h)。PROD_LR_FIT 里有 router LR × 0.25 / 0.5 / 1 在 h2048 和 h4096 上的对比。</li>
+  <li><b>老 ladder 的结论</b>：DSV3 + AdamH + LR × 1 时 bias 一路涨；LR 降到 × 0.19 就健康；AdamW gate 会把分数卡在 1（见第 9 节）。</li>
+</ul>
+
+<!-- ============ 8 ============ -->
+<h2 id="s8"><span class="no">8</span>健康指标怎么看</h2>
+<p class="lead">Boxiang 的 <code>router_health.py</code> 每 100 步记一次。9 个指标回答两个问题：expert 之间<b>分活均不均</b>，router <b>有没有失控</b>。</p>
+<div class="scroll"><table>
+  <thead><tr><th>指标</th><th>量什么</th><th>健康标准</th><th>注意</th></tr></thead>
+  <tbody>
+    <tr><td class="n">MaxVio（层平均 / 最差层）</td><td>最忙的 expert ÷ 平均 − 1</td><td><span class="pill ok">逐渐下降</span></td><td>最差层要单独看，问题常藏在第 0 层</td></tr>
+    <tr><td class="n">dead expert (%)</td><td>负载不到平均 10% 的 expert 占（层数 × E）的比例</td><td><span class="pill ok">0</span></td><td>换算成个数更直观，见下</td></tr>
+    <tr><td class="n">|bias| 最大</td><td>所有层、所有 expert 的 |b| 最大值</td><td><span class="pill ok">&lt; 1</span></td><td>看同层极差；QB / QBX 的 β 不统计</td></tr>
+    <tr><td class="n">logit 饱和 (%)</td><td>|z| &gt; 4 的比例</td><td><span class="pill na">不是判据</span></td><td>包括 z &lt; −4（明确不选），无害</td></tr>
+    <tr><td class="n">z &gt; +4 (%)</td><td>只算正向饱和</td><td><span class="pill ok">&lt; 5%</span></td><td>softmax 下无意义</td></tr>
+    <tr><td class="n">top-8 pinned (%)</td><td>每个 token 最大的 8 个 logit 里 z &gt; 4 的比例</td><td><span class="pill ok">&lt; 5%</span></td><td>E2X 选 16 个，这个指标也只看 8 个</td></tr>
+    <tr><td class="n">最大 |logit|</td><td>所有层里最大的 |z|</td><td><span class="pill na">看趋势</span></td><td>只是一个极值</td></tr>
+    <tr><td class="n">gate 更新幅度</td><td>router 权重这一步的相对变化</td><td><span class="pill na">只作参考</span></td><td>末期会被 bf16 精度量化</td></tr>
+  </tbody>
+</table></div>
+<p class="meta">统计范围：MaxVio、dead、gate 更新幅度覆盖一整个 step 的所有 token；logit 相关的四个只看 rank 0 的第一个 micro-batch。</p>
+
+<h3>负载：MaxVio 和 dead</h3>
+<ul>
+  <li>一个 step 2<sup>21</sup> 个 token。128 选 8 时平均每个 expert 131,072 个，512 选 16 时 65,536 个。MaxVio = 0.17 表示最忙的 expert 分到 1.17 倍。</li>
+  <li>为什么重要：expert 并行时，所有卡都要等最忙的那张，它同时决定速度和显存。</li>
+  <li>dead expert 拿不到梯度就不会变好，会越来越冷。换算：老 q0 是 12 层 × 128 = 1,536 个，0.0651% = 1 个；E2X q2 是 24 × 512 = 12,288 个，0.17% ≈ 21 个。</li>
+</ul>
+
+<h3>logit：z &gt; +4 是坏信号，z &lt; −4 无所谓</h3>
+<ul>
+  <li><b>z &lt; −4</b> 是"明确不要这个 expert"。大部分 expert 本来就不该被选，饱和也不损失什么。所以"logit 饱和"在 40–75% 本身不算坏。</li>
+  <li><b>z &gt; +4 / pinned</b> 是被选中的 expert 分数钉在 1：几个 σ 都约等于 1，归一化后权重几乎一样，router 既分不出高低，梯度也传不进去。</li>
+  <li>128 选 8 时 <b>pinned ≈ 16 × (z &gt; +4)</b>，因为 z &gt; 4 的几乎都在前 8 名里，分母从 128 换成 8。实测 0.55% × 16 ≈ 8.9%，对得上。</li>
+  <li><b>"硬分类器"</b>指 router 对每个 token 都极其确定，不是分不了类。坏处有三个：早期的分配被锁死；选中的几个权重失去区分度；DSV3 里选谁变成由 bias 决定。</li>
+  <li><b>最大 |logit|</b> 只能看趋势：它说明 router 权重的尺度在变大；被选中的是否变硬，要看 z &gt; +4 和 pinned。</li>
+</ul>
+<p class="meta">Boxiang 预设的判据（<code>dsv3/DESIGN.md</code> 第 3 节）：z &gt; +4 和 pinned &lt; 5%；dead = 0；|b| &lt; 1；MaxVio 逐渐下降；gate 更新幅度只作参考。</p>
+
+<!-- ============ 9 ============ -->
+<h2 id="s9"><span class="no">9</span>实验结果</h2>
+
+<h3 id="s9-1">E2X 上的负载均衡（11 月，512 选 16）</h3>
+<p class="lead">每条线只改 router 的一处，其余和 E2X 底座相同（seed 1）。数值 = 该线 − E2X，overall_tsqw，8K 窗口（32K 窗口几乎一样）。</p>
+<div class="scroll"><table>
+  <thead><tr><th>线</th><th>改了什么</th><th>q1</th><th>q2</th><th>q3</th></tr></thead>
+  <tbody>
+    <tr><td class="n">只用 bias</td><td>去掉 seq aux</td><td class="num">−0.0012</td><td class="num g">−0.0035</td><td class="num z">未出</td></tr>
+    <tr><td class="n">QBK3</td><td>K3 的全局分位数 bias</td><td class="num">−0.0008</td><td class="num g">−0.0035</td><td class="num">−0.0004</td></tr>
+    <tr><td class="n">QB</td><td>Megatron 自带</td><td class="num">+0.0002</td><td class="num g">−0.0035</td><td class="num">+0.0003</td></tr>
+    <tr><td class="n">QBK3 + warmup</td><td>加 1% LR warmup</td><td class="num">+0.0002</td><td class="num z">—</td><td class="num z">—</td></tr>
+    <tr><td class="n">QBX</td><td>全局精确分位数</td><td class="num">+0.0007</td><td class="num g">−0.0029</td><td class="num">−0.0002</td></tr>
+    <tr><td class="n">bias 步长 × 0.5</td><td>1e-3 → 5e-4</td><td class="num">+0.0007</td><td class="num">−0.0006</td><td class="num z">—</td></tr>
+    <tr><td class="n">每行单独 hyperball</td><td>router 每一行各自投回球面</td><td class="num">+0.0013</td><td class="num">−0.0011</td><td class="num z">已停</td></tr>
+    <tr><td class="n">bias 步长 × 0.25</td><td>1e-3 → 2.5e-4</td><td class="num">+0.0019</td><td class="num">−0.0007</td><td class="num z">—</td></tr>
+    <tr><td class="n">router 用 AdamW</td><td>LR × 0.19</td><td class="num b">+0.0055</td><td class="num b">+0.0060</td><td class="num z">已停</td></tr>
+  </tbody>
+</table></div>
+
+<p>训练最后一步的 router health（三个数依次是 q1 / q2 / q3）：</p>
+<div class="scroll"><table>
+  <thead><tr><th>线</th><th>MaxVio 层平均</th><th>MaxVio 最差层</th><th>dead</th><th>|b| 最大</th><th>logit 饱和</th><th>pinned</th><th>最大 |logit|</th></tr></thead>
+  <tbody>
+    <tr><td class="n">E2X 底座</td><td class="n">0.60 / 0.44 / 0.63</td><td class="n">0.88 / 0.81 / 1.16</td><td class="n">0 / 0 / 0</td><td class="n b">1.73 / 4.19 / 7.03</td><td class="n">58 / 51 / 47%</td><td class="n">0.05 / 0.17 / 0.54%</td><td class="n">13.9 / 17.1 / 25.5</td></tr>
+    <tr><td class="n">只用 bias</td><td class="n">0.65 / 0.57 / —</td><td class="n">1.31 / 1.22 / —</td><td class="n">0 / 0 / —</td><td class="n b">2.79 / 3.41 / —</td><td class="n">75 / 70 / —%</td><td class="n">0.03 / 0.19 / —%</td><td class="n">13.0 / 17.6 / —</td></tr>
+    <tr><td class="n">QB</td><td class="n b">1.46 / 1.43 / 1.39</td><td class="n b">3.10 / 2.53 / 3.20</td><td class="n">0 / 0 / 0</td><td class="n z">不统计</td><td class="n">74 / 69 / 72%</td><td class="n">0.04 / 0.20 / 0.83%</td><td class="n">13.7 / 16.3 / 19.1</td></tr>
+    <tr><td class="n">QBX</td><td class="n">0.73 / 0.85 / 0.73</td><td class="n">1.14 / 2.35 / 1.26</td><td class="n">0 / 0.17 / 0.09%</td><td class="n z">不统计</td><td class="n">74 / 70 / 73%</td><td class="n">0.03 / 0.19 / 0.78%</td><td class="n">13.1 / 15.8 / 28.0</td></tr>
+    <tr><td class="n">QBK3</td><td class="n">0.77 / 0.72 / 0.70</td><td class="n">1.47 / 1.08 / 1.22</td><td class="n">0 / 0.17 / 0.08%</td><td class="n g">0.07 / 0.10 / 0.10</td><td class="n">74 / 70 / 72%</td><td class="n">0.04 / 0.20 / 0.77%</td><td class="n">12.9 / 16.8 / 21.6</td></tr>
+    <tr><td class="n">router 用 AdamW</td><td class="n b">2.08 / 2.49 / —</td><td class="n b">4.64 / 8.37 / —</td><td class="n">0 / 0.10 / —</td><td class="n b">2.21 / 8.24 / —</td><td class="n">83 / 79 / —%</td><td class="n b">3.85 / 4.26 / —%</td><td class="n b">37.5 / 65.2 / —</td></tr>
+  </tbody>
+</table></div>
+<div class="cards">
+  <div class="card"><span class="k">loss 分不出高低</span><p>只用 bias、QB、QBX、QBK3 在 q2 都是 −0.003 左右，这是"去掉 seq aux"共有的效果；到 q3 都在 ±0.0005 以内。</p></div>
+  <div class="card"><span class="k">QB 后期反而不均衡</span><p>前期 QB、QBX 明显更均衡（q1 第 3,291 步：底座 2.45、QB 1.26、QBX 0.82）。后期底座的 bias 越累积越准，降到 0.4–0.6；QB 每步重算、不累积，又是平均的分位数，停在 1.4 左右。</p></div>
+  <div class="card"><span class="k">QBK3 的 bias 不漂</span><p>QBK3 的 |b| 一直 ≤ 0.10；底座按固定步长更新，|b| 涨到 7.0。</p></div>
+  <div class="card"><span class="k">有待查</span><p>QBX、QBK3 在 q2 / q3 有约 12–21 个 dead expert，底座和 QB 是 0。原因还没查。</p></div>
+  <div class="card"><span class="k">饱和变多但无害</span><p>去掉 seq aux 的四组，logit 饱和从约 50% 涨到约 70%，但 z &gt; +4 仍接近 0，涨的全是 z &lt; −4。推测是 seq aux 的梯度会流到没选中的 expert，把很负的 logit 往回拉；去掉后就没有了。</p></div>
+  <div class="card"><span class="k">pinned 只看优化器</span><p>只有 router 改用 AdamW 那组超标，和用哪种均衡方法无关（第 7 节）。</p></div>
+</div>
+
+<h3 id="s9-2">老 ladder 的 router 消融（10 月，128 选 8，8K 训练）</h3>
+<p class="lead">对照 ① 是 MUONH_FIT（softmax + aux 1e-3，router 用 AdamH、LR × 1）；对照 ② 是 BASE（softmax + aux 1e-3，router 用 AdamW）。q0 是 3 个 seed 的平均。</p>
+<div class="scroll"><table>
+  <thead><tr><th>组</th><th>router 优化器</th><th>router LR</th><th>Δ</th><th>健康</th></tr></thead>
+  <tbody>
+    <tr><td class="n">A：DSV3</td><td>AdamH</td><td>× 1</td><td>相对 ①：q0 +0.0023，q1 −0.0024，q2 +0.0018，q3 +0.0017</td><td><span class="pill bad">病态</span> |b| 从 q0 到 q3 是 1.0 → 3.2 → 5.9 → 12，最大 logit 26 → 184</td></tr>
+    <tr><td class="n">B2：DSV3</td><td>AdamW</td><td>× 0.19</td><td>相对 ①：q0 +0.0051，q1 +0.0020</td><td><span class="pill bad">病态</span> pinned 8.9–10.9%，最大 logit 54–153</td></tr>
+    <tr><td class="n">B3：DSV3</td><td>AdamH</td><td>× 0.19</td><td>相对 ①：q0 +0.0074</td><td><span class="pill ok">最健康</span> MaxVio 0.13–0.16，pinned 0.8–2.2%，|b| 0.31–0.55</td></tr>
+    <tr><td class="n">C：DSV3</td><td>AdamW</td><td>× 1</td><td>相对 ②：q0 −0.0012，q1 +0.0054，q2 +0.0022</td><td><span class="pill ok">正常</span></td></tr>
+  </tbody>
+</table></div>
+<ul>
+  <li>DSV3 和 softmax 在 loss 上没有实质差别。两种病态原因不同：A 是 router LR 太大，B2 是 AdamW gate 本身。健康的 B3 在 q0 的 loss 反而差约 0.007。</li>
+  <li>softmax 主线 MUONH_FIT：MaxVio 1.1–1.6，最差层 3.3–3.9，aux loss 没把均衡压紧，这就是 11-05 手册筛查说的"主线负载均衡没人监控"。</li>
+  <li>DSV3 去掉 seq aux（q0）：最差层 4.2，13 个 dead。DSV3 + MuonH gate（q0）：全部达标。</li>
+  <li>负熵均衡损失（Runlong TODO 9）在 q0 第一阶段：DSV3 底座 α = 1e-5 / 1e-4 分别是 −0.0017 / −0.0015，softmax 底座分别是 −0.0005 / +0.0029，都在噪声范围内。</li>
+</ul>
+
+<!-- ============ 10 ============ -->
+<h2 id="s10"><span class="no">10</span>常见误解</h2>
+<div class="scroll"><table>
+  <thead><tr><th>说法</th><th>对不对</th><th>实际是</th></tr></thead>
+  <tbody>
+    <tr><td>QB 的门槛是整层一个，或者每个 token 一个</td><td><span class="pill bad">都不对</span></td><td>β 每个 expert 一个；α 每个 token 一个，只是中间量</td></tr>
+    <tr><td>QB 不需要全局同步</td><td><span class="pill bad">不对</span></td><td>β 必须在所有卡上相同，QB 也做 all-reduce；区别在同步的是分位数还是直方图</td></tr>
+    <tr><td>QBX 就是 K3 的做法</td><td><span class="pill bad">不对</span></td><td>QBX 只借了 K3 的全局合并，门槛仍加在 logit 上</td></tr>
+    <tr><td>QBX 和 QBK3 一样</td><td><span class="pill warn">一半对</span></td><td>合并方式一样；门槛加的位置不同，挤走的 token 也不同</td></tr>
+    <tr><td>权重是把 z 归一化</td><td><span class="pill bad">不对</span></td><td>先过 sigmoid，再在选中的 k 个里归一化，再乘 2.5</td></tr>
+    <tr><td>QB 没有 aux loss 却让 pinned 变好</td><td><span class="pill bad">前提不成立</span></td><td>QB 的 pinned 和底座一样；pinned 由 hyperball 挡住</td></tr>
+    <tr><td>QB 的负载均衡一直比底座好</td><td><span class="pill warn">只有前期对</span></td><td>后期底座 0.4–0.6，QB 约 1.4</td></tr>
+    <tr><td>z &lt; −4 的饱和是坏事</td><td><span class="pill bad">不对</span></td><td>只是明确不选；坏的是 z &gt; +4 / pinned</td></tr>
+    <tr><td>|b| 大就是病态</td><td><span class="pill warn">不一定</span></td><td>看同层极差；整层一起漂不影响路由</td></tr>
+  </tbody>
+</table></div>
+
+<!-- ============ 11 ============ -->
+<h2 id="s11"><span class="no">11</span>来源</h2>
+<details><summary>代码、文档和数据的位置</summary>
+<p class="meta">路径相对 <code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/</code></p>
+<ul>
+  <li>健康指标：<code>Project/cosmos_llm_scaling_ladder/code/scaling_ladder/router_health.py</code></li>
+  <li>原版 Megatron（expert bias、aux loss）：<code>Project/cosmos_llm_scaling_ladder/code/megatron-lm-80781ab0ab/megatron/core/</code></li>
+  <li>QB / QBX：<code>share/megatron-lm-80781ab0ab-qbx2/</code>，<code>share/megatron_qbx_tests/</code></li>
+  <li>K3 原文核对：<code>share/megatron_qbx_tests/K3_QB_REFERENCE.md</code></li>
+  <li>QBK3：<code>share/megatron-lm-80781ab0ab-qbk3/</code>，<code>share/megatron_qbk3_tests/</code>（补丁、review、测试）</li>
+  <li>生产代码：<code>share/megatron-lm-ultra-prod-qbk3-*</code></li>
+  <li>Runlong 的实验日志：<code>cosmos_llm_scaling_ladder</code> 仓库分支 <code>runlong/prod-xx</code> 的 <code>prod_xx/NOTES.md</code></li>
+  <li>评测和 router health 数字：<code>Project/cosmos_llm_scaling_ladder/reports_xx/qwen3_scaling_ladder_eval.md</code> 的 "E2X 上的 router / 负载均衡" 一节</li>
+  <li>10 月消融：<code>cosmos_llm_scaling_ladder/reports/dsv3_router_experiment_design_2026-10-26.md</code>、<code>DECISIONS.md</code></li>
+  <li>手册对照筛查：<code>trichord/reports/dense_pretrain/2026-11-05_moe_handbook_audit.md</code></li>
+</ul>
+<p>更细的行号、argv、环境变量见 <code>moe_router_study.md</code> 第 12 节。</p>
+</details>
+
+<p class="foot">2026-11-10 · 合并自 moe_router.md（10-29）和 router_health_metrics（11-07），新增 QB / QBX / QBK3、router 梯度、权重归一化和常见误解。</p>
+</main>
+</div>
+</body>
+</html>

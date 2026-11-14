@@ -29,9 +29,9 @@ KINDS = [
      "Multiple choice: each option is appended to the prompt and the option log-likelihoods are compared (acc_norm: length-normalised); "
      "the most likely option is the answer. Nothing is generated, so answer format and stop strings do not matter."),
     ("gen", "生成类 benchmark", "Generation benchmarks", "生成回答后打分", "answers generated, then scored",
-     "模型生成回答（贪心一次，或每题采样 32 次），再抽取答案比对、执行代码，或由 LLM 裁判判对错。分数也受回答格式影响（见结果表里的 ‡）。",
+     "模型生成回答（贪心一次，或每题采样 32 次），再抽取答案比对、执行代码，或由 LLM 裁判判对错。回答格式出问题导致无效的分数已撤下（结果表里显示 -）。",
      "The model generates an answer (one greedy decode, or 32 samples per item), which is then matched, executed or graded by an LLM judge. "
-     "Scores also depend on the answer format (see ‡ in the result tables)."),
+     "Scores made invalid by the answer format are withdrawn (- in the result tables)."),
 ]
 # (kind, task_group of the config) -> zh / en name, how it is scored; display order inside each kind. reading / aggregate hold both kinds.
 CATS = [
@@ -119,7 +119,9 @@ TXT = {
            "cnt": "{t} 任务 · {m} 指标", "shot": "{n}-shot", "x_lang": "{m} × {n} 种语言",
            "chips": {"greedy": "greedy", "sampled": "采样 ×{r}", "judge": "LLM 裁判", "exec": "执行代码"},
            "legend": "生成类的跑法：greedy = 贪心解码一次；采样 ×32 = 每题采样 32 次，报 pass@1（平均）和 pass@32（至少对一次）；"
-                     "执行代码 = 生成的代码跑测试用例；LLM 裁判 = gpt-oss-120b 判对错。"},
+                     "执行代码 = 生成的代码跑测试用例；LLM 裁判 = gpt-oss-120b 判对错。"
+                     "MATH-500 和 Minerva MATH 对所有模型统一用 32K 上下文内的最长生成（上限 31232 / 30720 token，加上提示不超过 32768；"
+                     "ADLR 原配置 1024 截断了我们 5–19%、Qwen3-235B 约 11–12% 的回答，11-10 改），1024 的旧分数已撤下（-），32K 重测出分后补上。"},
     "en": {"h": "Full evaluation scope",
            "note": "Downstream benchmarks, Boxiang's ADLR lm-eval config <code>nemo6_report.yml</code> (the same one he uses for our production models). "
                    "Protocol: few-shot base prompts, no chat template; models served with vLLM. Below: which benchmarks are run; the scores get their own chapter.",
@@ -130,7 +132,10 @@ TXT = {
            "cnt": "{t} tasks · {m} metrics", "shot": "{n}-shot", "x_lang": "{m} × {n} languages",
            "chips": {"greedy": "greedy", "sampled": "{r} samples", "judge": "LLM judge", "exec": "code exec"},
            "legend": "Generation modes: greedy = one greedy decode; 32 samples = 32 samples per item, pass@1 (mean) and pass@32 (any correct); "
-                     "code exec = generated code runs the test cases; LLM judge = gpt-oss-120b grades."},
+                     "code exec = generated code runs the test cases; LLM judge = gpt-oss-120b grades. "
+                     "MATH-500 and Minerva MATH: every model generates up to the longest a 32K context allows (31232 / 30720 tokens, prompt included "
+                     "<= 32768; ADLR's 1024 cap cut 5-19 % of our answers and ~11-12 % of Qwen3-235B's; changed 11-10); the 1024-token scores are "
+                     "withdrawn (-) until the 32K re-run is in."},
 }
 CSS = """<style>
 .nt-root{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}.nt-root b{font-size:16px}.nt-root .nt-s{color:var(--text-secondary)}
@@ -156,12 +161,20 @@ def _e(s):
     return html.escape(str(s), quote=False)
 
 
+# zero-shot tasks whose n-shot lm_eval records as null: checked 11-08 in the pilot's raw results (num_fewshot None, no fewshot_config) and its
+# logged prompts (the question alone, no examples; RACE = one article + the earlier questions on it, by the task's design); the tree cell was blank
+# (user 11-08 "OBQA 介绍好像没有")
+ZERO_SHOT = {"openbookqa", "piqa", "social_iqa", "race"}
+
+
 def _shots(cfg_task, pilot_rows):
     ns = {m.get("n_shot") for m in pilot_rows if isinstance(m.get("n_shot"), int)}
     if len(ns) == 1:
         return ns.pop()
     if isinstance(cfg_task.get("num_fewshot"), int):
         return cfg_task["num_fewshot"]
+    if cfg_task["task_name"] in ZERO_SHOT:
+        return 0
     m = re.search(r"(\d+)_?shot", cfg_task["task_name"])
     return int(m.group(1)) if m else None
 
@@ -257,8 +270,7 @@ def nemo6_chapter(lang, esc=_e):
         parts.append(f'<h3 class="nt-k">{esc(kzh if zh else ken)} <span class="nt-s">{esc(tx["cnt"].format(t=len(ktasks), m=kmets))}</span></h3>'
                      f'<p class="note">{esc(lzh if zh else len_)}</p><div class="nt-grid">{"".join(cards)}</div>')
     stats = tx["stats"].format(k=len(KINDS), c=len(CATS), t=len(cfg), b=len(BENCH), m=n_met)
-    return (f'{CSS}{KCSS}<h2>{esc(tx["h"])}</h2><p class="note">{tx["note"]}</p>'
-            f'<p class="note">{esc(tx["tree_note"])}</p>'
+    return (f'{CSS}{KCSS}<h2>{esc(tx["h"])}</h2>'   # the two intro notes (protocol + tree layout) removed (user 11-09 "扔掉"); tx["note"] / tx["tree_note"] kept unused
             f'<div class="card nt-root"><b>{esc(tx["root"])}</b><span class="nt-s">{esc(stats)}</span><span class="nt-c greedy">greedy</span>'
             f'<span class="nt-c sampled">{esc(tx["chips"]["sampled"].format(r=32))}</span><span class="nt-c exec">{esc(tx["chips"]["exec"])}</span>'
             f'<span class="nt-c judge">{esc(tx["chips"]["judge"])}</span></div>'
@@ -268,33 +280,65 @@ def nemo6_chapter(lang, esc=_e):
 # ---------------------------------------------------------------------------------------------------------------------------------------
 # Chapter "全量测评结果" (user 11-05: one doc-isolated-style table per category): rows = reference models (REF_MODELS order / names /
 # sizes of gen_eval_html.py), columns = the category's report metrics (x100). Multilingual tasks: language mean in the main table,
-# per-language tables folded below. Cells whose task had >= EMPTY_FLAG empty answers (collect_nemo6.py empty_frac) are greyed + ‡.
+# per-language tables folded below. Cells whose task had >= EMPTY_FLAG empty answers (collect_nemo6.py empty_frac) are withdrawn and shown as "-" (= missing, never 0; user 11-06), like scores not out yet; the reason is on hover.
 RESULTS = os.path.join(HERE, "..", "results_xx", "nemo6")
 EMPTY_FLAG = 0.2
+BCB_TASKS = {"bigcodebench_complete_greedy", "bigcodebench_instruct_greedy"}
+# tasks whose SCORING is known wrong (user 11-08 "主要是打分机制", "比如HLE"): every model's score withdrawn ("-", reason on hover) until
+# the scoring is fixed and re-run. HLE (hle_text_sampled, harness utils.exact_match_passk): normalised string equality with the gold
+# answer (official HLE: an LLM judge for equivalence); multiple-choice gold = one letter, so "D. <option text>" is wrong while a bare
+# guessed letter scores, and pass@32 over 32 samples rewards guessing letters.
+WITHDRAWN = {"hle_text_sampled"}
 STXT = {
-    "zh": {"h": "全量测评结果", "note": "分数 ×100（准确率 / pass@k 为 %，WMT24++ 为 chrF++）。点表头排序（第一次从高到低）；<b>粗体</b> = 该列最高；"
-                                         "· = 还没跑出来（job 在跑，跑完后更新）。模型名、大小与上面 Pretrain doc-isolated 表一致。",
+    "zh": {"h": "全量测评结果", "note": "分数 ×100（准确率 / pass@k 为 %，WMT24++ 为 chrF++）。点表头排序（第一次从高到低）；<b>粗体</b> = 我们的模型（外部参考都不加粗）；"
+                                         "- = 缺失，不是 0 分（还没出分，或分数无效已撤下；悬停看原因），0 就是 0 分。模型名、大小与上面 Pretrain doc-isolated 表一致。",
+           "ours_note": "<b>我们的模型</b>（每张表第一行，只放我们最好的一个）：{desc}。激活参数含 embedding。用训练时同一份 Megatron "
+                        "直接加载 checkpoint 起推理服务（逐层 SWA、NoPE 层、attention sink 都与训练一致，不转 HF），客户端、题目、few-shot、"
+                        "采样设置和打分与外部参考完全相同；开跑前把整个 enron 验证集按 doc eval 的规则经服务重算，loss 与 doc eval 的差 {pre}。",
+           "ours": "我们的模型",
            "st_h": "进度", "st_head": ["模型", "大小", "已出分指标", "状态"], "done": "完成", "run": "在跑", "post": "后训练",
            "mean": "平均（{n} 种语言）", "langs": "各语言明细（{b}）",
-           "flag": "‡ 灰色 = 这个模型在这一项有大量空回答（悬停看比例）：它在 few-shot 的 “A:” 后先输出换行，而这一项遇到换行就停止生成，"
-                   "回答被截成空字符串，分数不代表模型能力。只出现在部分后训练模型上（如 Qwen3.8-27B；MiMo-V2.6-Pro-RL 没有这个问题）。",
-           "empty": "空回答 {p:.0f}%", "ylab": ["最低", "最高", "每列归一化"], "out": "范围外", "cn": True,
+           "flag": "- = 缺失，不是 0 分（悬停看原因）。两类无效分数已撤下，修好 harness 后重测：① 大量无效回答（≥ 20%，空或以文档结束标记开头，悬停看比例）："
+                   "部分后训练模型在 few-shot 的 “A:” 后先输出换行，而这一项遇到换行就停止生成，回答被截成空字符串；BigCodeBench instruct "
+                   "的题目以闭合的代码块结尾，base 模型在这里就结束文档（输出 EOS 被服务端停止，或输出文件结束标记后接着写一篇无关文档）；"
+                   "GPQA / AGIEval / HLE 等其余几处原因还在查。② BigCodeBench：原 harness "
+                   "不运行题目的单元测试（代码能运行不报错就算通过，空回答也算），这两列原来的分数作废，正在用官方 checker（与 Boxiang 相同）重新打分。"
+                   "③ HLE：harness 把抽出的答案和标准答案逐字比较（官方 HLE 用 LLM 裁判判断是否等价）；选择题标准答案只是一个字母，"
+                   "回答 “D. 选项内容” 即使选对也判错，只输出一个字母的乱猜在 pass@32 下反而得分。打分修好之前所有模型的 HLE 都撤下。",
+           "withdrawn": {"hle_text_sampled": "HLE：打分方式有误（逐字比较，选择题只认单个字母；官方用 LLM 裁判），所有模型的分数撤下，修好打分后重算"},
+           "pending": "还没出分（job 在跑）", "m500_pending": "MATH-500：生成上限从 1024 改为 32K 上下文后重测中（1024 截断了不少回答，旧分数撤下）", "bcb_pending": "BigCodeBench：原分数作废（harness 不运行单元测试），官方 checker 重打分中",
+           "empty": "无效回答 {p:.0f}%（空，或以文档结束标记开头），分数无效", "ylab": ["最低", "最高", "每列归一化"], "out": "范围外", "cn": True,
            "fam": {"Qwen3.8": ("蓝色系", "Qwen3.8", "由浅到深，按模型大小"), "Qwen3": ("橙色系", "Qwen3", "由浅到深，按模型大小"),
                    "MiMo": ("青绿色系", "MiMo", "由浅到深"), "DeepSeek": ("黄色", "DeepSeek", ""), "Kimi": ("品红", "Kimi", ""),
-                   "Mistral": ("紫色", "Mistral", "")},
-           "norm": "曲线：每一列在各模型之间做 min–max 归一化（该列最低 = 0，最高 = 1），只看相对位置，纵轴没有绝对意义。0 分、‡ 空回答、以及明显偏低的分（同时低于该列 Q1 − 1.5×IQR 和中位数的一半，至少 4 个模型有分时才判）不参与归一化，画在图下方的“范围外”一栏（空心点，线照样连过去）；只有一个模型有分的列不画。颜色按模型家族，同一家族用同一色系的深浅（Qwen3 和 Qwen3.8 各一个色系，按模型大小由浅到深）。鼠标放在图上显示原始分（与表格相同）。"},
+                   "Mistral": ("紫色", "Mistral", ""), "Ours": ("灰到黑的粗线（深色主题为灰到白）", "我们的模型", "由浅到深，按模型大小")},
+           "norm": "曲线：每一列在各模型之间做 min–max 归一化（该列最低 = 0，最高 = 1），只看相对位置，纵轴没有绝对意义。缺失（-）不画；0 分以及明显偏低的分（同时低于该列 Q1 − 1.5×IQR 和中位数的一半，至少 4 个模型有分时才判）不参与归一化，画在图下方的“范围外”一栏（空心点，线照样连过去）；只有一个模型有分的列不画。颜色按模型家族，同一家族用同一色系的深浅（Qwen3 和 Qwen3.8 各一个色系，按模型大小由浅到深）。鼠标放在图上显示原始分（与表格相同）。"},
     "en": {"h": "Full evaluation results", "note": "Scores x100 (accuracy / pass@k in %, chrF++ for WMT24++). Click a header to sort (first click: high to low); "
-                                                   "<b>bold</b> = best in the column; · = not out yet (job running, updated when done). Model names / sizes as in the Pretrain doc-isolated table above.",
+                                                   "<b>bold</b> = ours (references never bold); - = missing, not zero (not out yet, or an invalid score withdrawn; hover for the reason), 0 is a real 0. Model names / sizes as in the Pretrain doc-isolated table above.",
+           "ours_note": "<b>Ours</b> (first row of every table, our best model only): {desc}. Activated incl. embeddings. Served by the training "
+                        "Megatron loading the checkpoint directly (per-layer SWA, NoPE layers and attention sinks as trained, no HF conversion); "
+                        "client, prompts, few-shot, sampling settings and scoring identical to the references. Preflight: the whole "
+                        "enron validation split re-scored through the server under the doc eval protocol vs the doc eval loss: {pre}.",
+           "ours": "ours",
            "st_h": "Progress", "st_head": ["model", "size", "metrics scored", "status"], "done": "done", "run": "running", "post": "post-trained",
            "mean": "mean ({n} languages)", "langs": "Per language ({b})",
-           "flag": "‡ grey = many empty answers from this model on this task (hover for the share): it starts with a newline after the few-shot \"A:\", "
-                   "the task stops generation at a newline, so the answer is cut to an empty string; the score does not reflect the model. "
-                   "Only some post-trained models (e.g. Qwen3.8-27B; MiMo-V2.6-Pro-RL is fine).",
-           "empty": "{p:.0f}% empty answers", "ylab": ["min", "max", "per-column normalised"], "out": "out of range", "cn": False,
+           "flag": "- = missing, not zero (hover for the reason). Two kinds of invalid scores are withdrawn until the harness is fixed and the "
+                   "tasks re-run: (1) many void answers (>= 20 %, empty or starting with an end-of-document marker; hover for the share): some post-trained models start with a newline after the "
+                   "few-shot \"A:\" and the task stops at a newline, so the answer is cut to an empty string; BigCodeBench instruct prompts end with "
+                   "a closing code fence and base models end the document there (EOS, where the server stops, or an end-of-file marker followed by "
+                   "an unrelated document); the cause of the remaining cases (GPQA / AGIEval / HLE) is under investigation. (2) BigCodeBench: "
+                   "this harness never runs the unit tests (any program that runs passes, empty answers included); the old numbers are void and "
+                   "are being re-scored with the official checker (as in Boxiang's runs). (3) HLE: the harness compares the extracted "
+                   "answer with the gold answer as a string (the official HLE uses an LLM judge for equivalence); multiple-choice gold is a "
+                   "single letter, so \"D. <option text>\" is scored wrong even when right, while bare guessed letters score under pass@32. "
+                   "HLE is withdrawn for every model until its scoring is fixed.",
+           "withdrawn": {"hle_text_sampled": "HLE: scoring is wrong (exact string match, multiple choice accepts only a bare letter; "
+                                             "the official HLE uses an LLM judge); withdrawn for every model until re-scored"},
+           "pending": "not out yet (job running)", "m500_pending": "MATH-500: re-running with a 32K context instead of the 1024-token cap (which cut many answers; old score withdrawn)", "bcb_pending": "BigCodeBench: old score void (harness never runs the unit tests), official-checker re-scoring running",
+           "empty": "{p:.0f}% void answers (empty or starting with an end-of-document marker), score invalid", "ylab": ["min", "max", "per-column normalised"], "out": "out of range", "cn": False,
            "fam": {"Qwen3.8": ("Blues", "Qwen3.8", "light to dark by model size"), "Qwen3": ("Oranges", "Qwen3", "light to dark by model size"),
                    "MiMo": ("Aquas", "MiMo", "light to dark"), "DeepSeek": ("Yellow", "DeepSeek", ""), "Kimi": ("Magenta", "Kimi", ""),
-                   "Mistral": ("Violet", "Mistral", "")},
-           "norm": "Curves: each column min-max normalised across the models (column min = 0, max = 1), relative positions only, the y axis has no absolute meaning. 0, ‡ (empty answers) and significantly low scores (below both Q1 − 1.5×IQR and half the median of the column, judged when >= 4 models are scored) are left out of the normalisation and drawn in the \"out of range\" strip below (hollow points, still joined by the line); columns with a single scored model are not drawn. Colour = model family, models of a family = shades of one hue (Qwen3 and Qwen3.8 each their own, light to dark by size). Hover: raw scores (as in the table)."},
+                   "Mistral": ("Violet", "Mistral", ""), "Ours": ("Thick grey-to-black lines (grey-to-white in dark mode)", "ours", "light to dark by model size")},
+           "norm": "Curves: each column min-max normalised across the models (column min = 0, max = 1), relative positions only, the y axis has no absolute meaning. Missing (-) cells are not drawn; 0 and significantly low scores (below both Q1 − 1.5×IQR and half the median of the column, judged when >= 4 models are scored) are left out of the normalisation and drawn in the \"out of range\" strip below (hollow points, still joined by the line); columns with a single scored model are not drawn. Colour = model family, models of a family = shades of one hue (Qwen3 and Qwen3.8 each their own, light to dark by size). Hover: raw scores (as in the table)."},
 }
 
 
@@ -335,21 +379,34 @@ def _mshort(metric, lang):
 # Family hues = the report's categorical slots in their fixed order (blue, orange, aqua, yellow, magenta: adjacent pairs validated in both
 # modes); the family steps validated as ordinal ramps (monotone L, step gaps, light end >= 2:1) in both modes. Identity is also carried by
 # the grouped legend, the hover list and the table. Out of range (hollow points in a strip under the plot; not in the min / max, not joined
-# by the line): 0, ‡ (empty answers) and significantly low scores (< Q1 - 1.5 IQR AND < half the column median, >= 4 models scored).
+# by the line): 0 and significantly low scores (< Q1 - 1.5 IQR AND < half the column median, >= 4 models scored).
 # The line still runs to an out-of-range point (user 11-05); it breaks only where a model has no score yet.
-FAMILIES = [("Qwen3.8", ["QWEN38_27B", "QWEN38_FLASH_NEXT", "QWEN38_MAX"]), ("Qwen3", ["QWEN3_30B_A3B_BASE", "QWEN3_235B_A22B"]),
+FAMILIES = [("Qwen3.8", ["QWEN38_27B", "QWEN38_FLASH_NEXT", "QWEN38_MAX"]), ("Qwen3", ["QWEN3_30B_A3B_BASE", "QWEN3_235B_A22B", "QWEN3_235B_A22B_THINKING_2507"]),
             ("MiMo", ["MIMO_V25_PRO_BASE", "MIMO_V26_PRO_RL"]), ("DeepSeek", ["DEEPSEEK_V4_FLASH_BASE"]),
             ("Kimi", ["KIMI_K3"]), ("Mistral", ["MISTRAL_LARGE4"])]
+# our ladder checkpoints (nemo6_ladder.sbatch; user 11-06 "能把这个也放到外部参考"): first rows of every table, thick lines in a neutral
+# ramp (apart from every reference hue) light -> dark by size, the largest in the text colour (black / white by theme), drawn on top of the
+# references. 11-08 (user "把q4 q5做全量测评"): + PROD1_DPSK CE q4 / q5 (jobs 53746 / 53747).
+OURS = ["PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_q3", "PROD1_DPSK_q4", "PROD1_DPSK_q5"]
+# per-model text of the ours note (only the models shown are described; user 11-09: the tables show our best only): (zh, en, preflight Δloss)
+OURS_DESC = {"PROD1_DPSK_KD_A0P8_S64Y_MIMO25_PP32K_q3": ("KD 2.5 · PROD1_DPSK · 新数据 q3（iter 70438，训练 148B token，7.5B-A1.1B，不含 embedding 激活 0.74B）",
+                                                     "KD 2.5 · PROD1_DPSK · new data q3 (iter 70438, 148B training tokens, 7.5B-A1.1B, 0.74B activated without embeddings)", "0.00001"),
+             "PROD1_DPSK_q4": ("CE · PROD1_DPSK q4（650B 数据，iter 120500，训练 253B token，12.9B-A1.7B，不含 embedding 激活 1.26B）",
+                               "CE · PROD1_DPSK q4 (650B data, iter 120500, 253B training tokens, 12.9B-A1.7B, 1.26B activated without embeddings)", "0.00001"),
+             "PROD1_DPSK_q5": ("CE · PROD1_DPSK q5（650B 数据，iter 189968，训练 398B token，20.3B-A2.5B，不含 embedding 激活 1.99B）",
+                               "CE · PROD1_DPSK q5 (650B data, iter 189968, 398B training tokens, 20.3B-A2.5B, 1.99B activated without embeddings)", "0.00005")}
+FAMILIES = FAMILIES + [("Ours", OURS)]
 # 11-05 (user "qwen3.8还是和qwen3区分下色系"): Qwen3.8 = blue steps (3, by size), Qwen3 = orange steps (2, by size), MiMo = aqua steps (2);
 # DeepSeek yellow (--c4), Kimi magenta (--c5), Mistral violet. Steps validated --ordinal in both modes. The 6th hue: every candidate
 # sits < 15 normal-vision dE from one other colour (green 8.6 vs MiMo's dark aqua, red 7.1 vs Qwen3 orange, violet 10.5 / 9.8 vs the
 # Qwen3.8 mid blue) -> violet, the largest worst case; the grouped legend, the hover names and the table carry identity as well.
 COLOR = {**{c: f"--nq{i + 1}" for i, c in enumerate(FAMILIES[0][1])}, **{c: f"--no{i + 1}" for i, c in enumerate(FAMILIES[1][1])},
          **{c: f"--nm{i + 1}" for i, c in enumerate(FAMILIES[2][1])},
-         "DEEPSEEK_V4_FLASH_BASE": "--c4", "KIMI_K3": "--c5", "MISTRAL_LARGE4": "--nv"}
-SHADES = (".viz-root{--nq1:#86b6ef;--nq2:#2a78d6;--nq3:#104281;--no1:#eb6834;--no2:#b4471d;--nm1:#1baf7a;--nm2:#0f7a53;--nv:#6250d6}"
+         "DEEPSEEK_V4_FLASH_BASE": "--c4", "KIMI_K3": "--c5", "MISTRAL_LARGE4": "--nv", **{c: f"--ng{i + 1}" for i, c in enumerate(OURS[:-1])}, OURS[-1]: "--text-primary"}
+SHADES = (".viz-root{--nq1:#86b6ef;--nq2:#2a78d6;--nq3:#104281;--no1:#eb6834;--no2:#b4471d;--no3:#7c2d0e;--nm1:#1baf7a;--nm2:#0f7a53;--nv:#6250d6;"
+          "--ng1:#a0a0a0;--ng2:#636363}"
           '@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .viz-root{--nq1:#9ec5f4;--nq2:#3987e5;--nq3:#184f95;'
-          "--no1:#f0a47f;--no2:#d95926;--nm1:#7fcfa9;--nm2:#199e70;--nv:#9085e9}}")
+          "--no1:#f0a47f;--no2:#d95926;--no3:#a8401a;--nm1:#7fcfa9;--nm2:#199e70;--nv:#9085e9;--ng1:#6f6f6f;--ng2:#a9a9a9}}")
 SHORT = {"LiveCodeBench": "LCB", "BigCodeBench": "BCB", "GPQA-Diamond": "GPQA-D", "Natural Questions": "NQ", "SimpleQA-Verified": "SimpleQA-V",
          "FACTS-parametric": "FACTS", "CommonsenseQA": "CSQA", "ARC-Challenge": "ARC-C", "HMMT Feb 2025": "HMMT 25", "AIME 2024": "AIME 24",
          "AIME 2025": "AIME 25", "Minerva MATH": "Minerva", "Global-MMLU": "G-MMLU", "Social IQa": "SIQA", "OpenBookQA": "OBQA",
@@ -380,8 +437,11 @@ def _smooth(pts):
     return " ".join(d)
 
 
-def _curve(ccols, models, esc, tx, W=1000, H=400):
-    """ccols = [(line1, line2, getter)]; models = [(code, display name)]. Grouped legend + inline SVG (viewBox W x H, width 100%)."""
+def _curve(ccols, models, esc, tx, W=1000, H=400, colors=None, dashes=None, legend=True):
+    """ccols = [(line1, line2, getter)]; models = [(code, display name)]. Grouped legend + inline SVG (viewBox W x H, width 100%).
+    colors / dashes: own colour (and dash) per model with a flat legend, one entry per model (the ours-only downstream tab, user 11-09)."""
+    CMAP = colors or COLOR
+    dashes = dashes or {}
     import statistics
     n = len(ccols)
     rot = n > 9                                            # dense x axis: one-line labels at -30 deg (no overlap), else two lines
@@ -440,24 +500,26 @@ def _curve(ccols, models, esc, tx, W=1000, H=400):
             elif out[c][j]:
                 i = oc.index(c)
                 pos[c][j] = (X(j) + (i - (len(oc) - 1) / 2) * 9, yo, False)
-    for c in shown:                                        # solid lines; they also run down to out-of-range points (user 11-05),
-        col = COLOR.get(c, "--text-secondary")             # and break only where a model has no score yet
+    for c in sorted(shown, key=lambda c: c in OURS):      # solid lines; they also run down to out-of-range points (user 11-05),
+        col = CMAP.get(c, "--text-secondary")              # and break only where a model has no score yet; ours last = on top
+        lw = 3 if c in OURS and not colors else 2
+        da = (f' stroke-dasharray="{dashes[c]}"' if dashes.get(c) else "") + (f' data-dm="{c}"' if colors else "")   # data-dm: show / hide checkbox (downstream tab)
         seg = []
         for pt in pos[c] + [None]:
             if pt is not None:
                 seg.append(pt[:2])
                 continue
             if len(seg) > 1:
-                o.append(f'<path d="{_smooth(seg)}" fill="none" stroke="var({col})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>')
+                o.append(f'<path d="{_smooth(seg)}" fill="none" stroke="var({col})" stroke-width="{lw}" stroke-linejoin="round" stroke-linecap="round"{da}/>')
             seg = []
-    for c in shown:                                        # markers: filled in range, hollow out of range
-        col = COLOR.get(c, "--text-secondary")
+    for c in sorted(shown, key=lambda c: c in OURS):      # markers: filled in range, hollow out of range
+        col = CMAP.get(c, "--text-secondary")
         for pt in pos[c]:
             if pt is None:
                 continue
             x, y, inr = pt
             o.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{4 if inr else 3.5}" fill="var({"--" + col[2:] if inr else "--surface-1"})" '
-                     f'stroke="var({"--surface-1" if inr else col})" stroke-width="2"/>')
+                     f'stroke="var({"--surface-1" if inr else col})" stroke-width="2"{f" data-dm={chr(34)}{c}{chr(34)}" if colors else ""}/>')
     colw = (W - ml - mr) / n
     names = dict(models)
     for j, (l1, l2, _) in enumerate(ccols):               # hover band per column: raw scores (as in the table), highest first
@@ -465,14 +527,22 @@ def _curve(ccols, models, esc, tx, W=1000, H=400):
         if not rows:
             continue
         def val(c, v, f):
-            return f"{v * 100:.1f}" + ("‡" if f else "")   # raw score only, as in the table (user 11-05: "hover只是放raw score")
+            return f"{v * 100:.1f}"   # raw score only, as in the table (user 11-05: "hover只是放raw score")
         tip = f"<b>{esc(l1)} · {esc(l2)}</b>" + "".join(
-            f'<br><span style="color:var({COLOR.get(c, "--text-secondary")})">●</span> {esc(names[c])}: {esc(val(c, v, f))}'
+            (f'<span data-dm="{c}">' if colors else "") +
+            f'<br><span style="color:var({CMAP.get(c, "--text-secondary")})">●</span> {esc(names[c])}: {esc(val(c, v, f))}' + ("</span>" if colors else "")
             for c, (v, f) in sorted(rows, key=lambda r: r[1][0], reverse=True))
         o.append(f'<rect class="hit" x="{X(j) - colw / 2:.1f}" y="{mt}" width="{colw:.1f}" height="{H - mt - mb}" data-tip="{esc(tip)}"/>')
     o.append("</svg>")
     # legend in the KD-teacher section's form (user 11-05): one line per colour family, swatches light -> dark, then
     # "<colour>：<family> — member / member (由浅到深)"; only the models drawn in this chart
+    if colors and not legend:                              # legend = a table elsewhere (downstream tab "实验列表", user 11-09)
+        return "".join(o)
+    if colors:                                             # flat legend: a line sample (colour + dash) and the name per model
+        items = "".join(f'<span style="display:inline-flex;align-items:center;gap:5px;margin-right:16px;white-space:nowrap">'
+                        f'<svg width="22" height="8"><line x1="1" x2="21" y1="4" y2="4" stroke="var({CMAP.get(c, "--text-secondary")})" stroke-width="2.5"'
+                        f'{f" stroke-dasharray={chr(34)}{dashes[c]}{chr(34)}" if dashes.get(c) else ""}/></svg>{esc(names[c])}</span>' for c, _ in models if c in shown)
+        return f'<div style="font-size:12.5px;line-height:1.9;margin:2px 0 6px;display:flex;flex-wrap:wrap">{items}</div>{"".join(o)}'
     lines = []
     for fam, codes in FAMILIES + [("·", [c for c in shown if c not in COLOR])]:
         items = [c for c in codes if c in shown]
@@ -492,7 +562,16 @@ def _curve(ccols, models, esc, tx, W=1000, H=400):
     return f'<div class="kd25fam" style="font-size:12.5px;line-height:1.7;margin:2px 0 6px">{"".join(lines)}</div>{"".join(o)}'
 
 
-def nemo6_scores(lang, esc, ref_models, ref_size):
+# chapter "全量测评重点" above "全量测评范围" (user 11-09): these benchmarks from the full results, in this order, one curve + one table
+FOCUS = ["MMLU", "MMLU-Pro", "AGIEval-en", "HellaSwag", "WinoGrande", "OpenBookQA", "TruthfulQA", "RACE"]
+# tabs of the key-benchmark chapter (user 11-09 "搞个tab，一个是知识/推理"): (key, zh, en, benchmarks)
+FOCUS_TABS = [("kr", "知识 / 推理", "Knowledge / reasoning", FOCUS),
+              ("math", "数学 / 代码", "Math / code", ["GSM8K", "MATH-500", "Minerva MATH", "MGSM", "HumanEval", "MBPP", "LiveCodeBench"])]   # user 11-09 "另一个是数学"
+FTXT = {"zh": {"h": "全量测评重点", "note": "从下面的全量测评里挑出的 8 个 benchmark，分数、模型行、颜色和曲线的画法都和“全量测评结果”一章相同。"},
+        "en": {"h": "Full evaluation: key benchmarks", "note": "8 benchmarks picked from the full evaluation below; scores, model rows, colours and curves as in the \"Full evaluation results\" chapter."}}
+
+
+def nemo6_scores(lang, esc, ref_models, ref_size, focus=None, ours_only=False, colors=None, dashes=None, legend=True):
     if not os.path.exists(CFG):
         return ""
     tx, tt = STXT[lang], TXT[lang]
@@ -508,9 +587,15 @@ def nemo6_scores(lang, esc, ref_models, ref_size):
     def fmt(v):
         return f"{v * 100:.1f}"
 
+    ck = {"colors": colors, "dashes": dashes, "legend": legend}   # own colours / dashes (ours-only downstream tab)
+
     def name_cell(c, n):
-        tag = f' <span class="nt-d">{esc(tx["post"])}</span>' if res[c].get("post_trained") else ""
-        return f'<td class="l"><b>{esc(n)}</b>{tag}</td><td class="l nt-d">{esc(ref_size.get(c, ""))}</td>'
+        if ours_only:                                      # every row is ours: no tag, no bold (bold = ours only makes sense next to references)
+            return f'<td class="l">{esc(n)}</td><td class="l nt-d">{esc(ref_size.get(c, ""))}</td>'
+        tag = (f' <span class="nt-d">{esc(tx["ours"])}</span>' if c in OURS else
+               f' <span class="nt-d">{esc(tx["post"])}</span>' if res[c].get("post_trained") else "")
+        nm = f"<b>{esc(n)}</b>" if c in OURS else esc(n)       # only ours bold (user 11-09)
+        return f'<td class="l">{nm}{tag}</td><td class="l nt-d">{esc(ref_size.get(c, ""))}</td>'
 
     def table(cols, rows_extra=""):
         """cols: [(header html, getter(code) -> (value|None, flag_text|None))]"""
@@ -522,17 +607,15 @@ def nemo6_scores(lang, esc, ref_models, ref_size):
         head = ('<tr><th class="l">' + esc(tx["st_head"][0]) + '</th><th class="l">' + esc(tx["st_head"][1]) + "</th>"
                 + "".join(f"<th>{h}</th>" for h, *_ in cols) + "</tr>")
         body = []
-        for c, n in models:
+        for c, n in (models if ours_only else sorted(models, key=lambda m: m[0] in OURS)):   # ours at the bottom of every table (user 11-09 "我们的放在表格最下面")
             tds = []
             for j, (v, flag) in enumerate(vals[c]):
-                if v is None:
-                    tds.append('<td data-v="">·</td>')
-                elif flag:
-                    tds.append(f'<td class="nt-flag" data-v="{v}" title="{esc(flag)}">{fmt(v)}‡</td>')
+                if v is None:      # missing or withdrawn (invalid) = "-", never 0 (user 11-06); reason on hover
+                    tds.append(f'<td class="nt-flag" data-v="" title="{esc(flag or tx["pending"])}">-</td>')
                 else:
                     s = fmt(v)
-                    tds.append(f'<td data-v="{v}">{"<b>" + s + "</b>" if best[j] is not None and v == best[j] else s}</td>')
-            body.append(f'<tr data-s="1">{name_cell(c, n)}{"".join(tds)}</tr>')
+                    tds.append(f'<td data-v="{v}">{"<b>" + s + "</b>" if c in OURS and not ours_only else s}</td>')   # only ours bold, no best-in-column bold (user 11-09)
+            body.append(f'<tr{"" if c in OURS and not ours_only else " data-s=\"1\""}{f" data-dm={chr(34)}{c}{chr(34)}" if ours_only else ""}>{name_cell(c, n)}{"".join(tds)}</tr>')   # ours: no data-s = stays at the bottom when sorting
         flagged = any(f for c, _ in models for _, f in vals[c])
         return (f'<table class="rsort nt-tab" data-hi="1"><thead>{head}</thead><tbody>{"".join(body)}</tbody></table>', flagged)
 
@@ -541,8 +624,15 @@ def nemo6_scores(lang, esc, ref_models, ref_size):
             cells, ef = look[c]
             v = cells.get((task, alias, metric))
             e = ef.get(task)
-            flag = tx["empty"].format(p=e * 100) if isinstance(e, (int, float)) and e >= EMPTY_FLAG and v is not None else None
-            return (v if isinstance(v, (int, float)) else None), flag
+            if task in WITHDRAWN:
+                return None, tx["withdrawn"][task]                  # scoring known wrong: "-" for every model (user 11-08)
+            if isinstance(e, (int, float)) and e >= EMPTY_FLAG and isinstance(v, (int, float)):
+                return None, tx["empty"].format(p=e * 100)          # invalid score: withdrawn, shown as "-" (user 11-06)
+            if not isinstance(v, (int, float)):
+                if task in ("math_500_sampled", "minerva_math_nemo"):     # 11-10: 1024-capped results dropped by collect_nemo6 (MIN_GEN_TOKS)
+                    return None, tx["m500_pending"] if task == "math_500_sampled" else tx["m500_pending"].replace("MATH-500", "Minerva MATH")
+                return None, tx["bcb_pending"] if task in BCB_TASKS else tx["pending"]
+            return v, None
         return g
 
     def mean_getter(task):
@@ -554,23 +644,66 @@ def nemo6_scores(lang, esc, ref_models, ref_size):
             return (sum(vs) / len(vs) if vs and all(isinstance(v, (int, float)) for v in vs) else None), None
         return g
 
-    out = [f'<h2>{esc(tx["h"])}</h2><p class="note">{tx["note"]}</p><p class="note">{esc(tx["norm"])}</p>']   # no progress table (user 11-05: "进度 这个不要")
-    zh_ = lang == "zh"
-    for kind, kzh, ken, szh, sen, _, _ in KINDS:          # two big parts, non-generation first (user 11-05)
-        ktasks = [tn for b in BENCH if _bkind(b) == kind for tn, _, _ in b[4]]
-        kmets = sum(len(by[tn]["report_metric"]) for tn in ktasks)
-        out.append(f'<h3 class="nt-k">{esc(kzh if zh_ else ken)} <span class="nt-s">{esc(szh if zh_ else sen)} · '
-                   f'{esc(tt["cnt"].format(t=len(ktasks), m=kmets))}</span></h3>')
-        out.extend(_kind_sections(kind, lang, esc, tx, by, table, getter, mean_getter, models))
     css = ("<style>.nt-tab th{white-space:normal;vertical-align:bottom;min-width:64px}.nt-tab td.nt-flag{color:var(--muted);font-style:italic}"
            ".nt-fn{margin:8px 0 0}.nt-fold{margin-top:8px}.nt-fold summary{cursor:pointer;color:var(--text-secondary);font-size:13px}"
            ".nt-lg{flex-wrap:wrap;gap:4px 22px;margin:2px 0 4px}.nt-lg i{width:16px}.nt-lgg{display:inline-flex;flex-wrap:wrap;gap:2px 10px;align-items:center}"
-           ".nt-lgg b{color:var(--text-primary);font-weight:600}.nt-tab{margin-top:10px}" + SHADES + "</style>")
-    return css + KCSS + "".join(out)
+           ".nt-lgg b{color:var(--text-primary);font-weight:600}.nt-tab{margin-top:10px}.nt-part+.nt-part{margin-top:26px;padding-top:14px;border-top:1px solid var(--grid)}" + SHADES + "</style>")
+    if focus:                                              # the key-benchmark chapter: one card, a tab per FOCUS_TABS entry (curve + table each)
+        bmap = {b[1]: b for b in BENCH}
+        panes, btns = [], []
+        for j, (k, nz, ne, names) in enumerate(focus):
+            cols, _ = _bench_cols([bmap[n] for n in names], lang, esc, tx, by, table, getter, mean_getter)
+            cols = [c for c in cols if "pass@32" not in c[3]   # no pass@32 in the key chapter (user 11-09)
+                    and c[2] != "LCB greedy"                 # nor LiveCodeBench greedy (user 11-09 "LiveCodeBench greedy 不看")
+                    and not (c[2] == "Minerva" and c[3] != "EM")   # Minerva MATH: EM only (user 11-09 "在重点里，我们只看 Minerva Math EM")
+                    and not (c[2] == "MMLU" and c[3] == "EM STEM")   # MMLU: EM overall only (user 11-09)
+                    and not (c[2].startswith("MMLU-Pro") and c[2] != "MMLU-Pro base")]   # MMLU-Pro: base EM only (user 11-09)
+            tbl, flagged = table(cols)
+            # full card width, not squeezed left (user 11-09): the page's global table{display:block} keeps the inner table at content width,
+            # so the table itself is display:table + width 100%, and a wrapper keeps the horizontal scroll on narrow screens
+            tbl = ('<div style="overflow-x:auto">' + tbl.replace('<table class="rsort nt-tab"', '<table class="rsort nt-tab" style="display:table;width:100%"', 1) + "</div>")
+            chart = _curve([(l1, l2, g) for _, g, l1, l2, ok in cols if ok], models, esc, tx, **ck)
+            btns.append(f'<button data-r="nf_{k}" class="{"on" if j == 0 else ""}">{esc(nz if lang == "zh" else ne)}</button>')
+            panes.append(f'<div data-ref="nf_{k}"{"" if j == 0 else " hidden"}>{chart}{tbl}'
+                         + (f'<p class="note nt-fn">{esc(tx["flag"])}</p>' if flagged else "") + "</div>")
+        ft = FTXT[lang]
+        return (css + KCSS + f'<h2>{esc(ft["h"])}</h2>'   # intro note removed (user 11-09 "删除")
+                + f'<div class="card"><div class="rtoggle">{"".join(btns)}</div>{"".join(panes)}</div>')
+    # one card, a tab per category section (user 11-09 "全量测评结果 也变成tab吧"; was h3 per kind + h4 per category), non-generation first;
+    # each pane = the category's note + its curve(s) / table(s) (no inner cards), as the key-benchmark chapter
+    secs = [x for kind, *_ in KINDS for x in _kind_sections(kind, lang, esc, tx, by, table, getter, mean_getter, models, tabs=True, ck=ck)]
+    btns = "".join(f'<button data-r="nr_{i}" class="{"on" if i == 0 else ""}">{esc(lab)}</button>' for i, (lab, _) in enumerate(secs))
+    panes = "".join(f'<div data-ref="nr_{i}"{"" if i == 0 else " hidden"}>{body}</div>' for i, (_, body) in enumerate(secs))
+    return css + KCSS + f'<h2>{esc(tx["h"])}</h2><div class="card"><div class="rtoggle" style="flex-wrap:wrap">{btns}</div>{panes}</div>'   # intro notes removed (user 11-09); no progress table (user 11-05)
 
 
-def _kind_sections(kind, lang, esc, tx, by, table, getter, mean_getter, models):
-    """the category sections (h4, curve + table per card) of one big part."""
+def _bench_cols(benches, lang, esc, tx, by, table, getter, mean_getter):
+    """table / chart columns of the BENCH entries `benches` (in that order): ([(header html, getter, x label 1, x label 2, drawn)], folds)."""
+    cols, folds = [], []
+    for _, bname, _, _, variants in benches:
+        for tn, vz, ve in variants:
+            t = by[tn]
+            v = vz if lang == "zh" else ve
+            top = esc(bname) + (f' <span class="nt-d">{esc(v)}</span>' if v else "")
+            l1 = SHORT.get(bname, bname) + (f" {v}" if v else "")          # chart x label, line 1
+            if tn in LANGS:
+                m = _mshort(t["report_metric"][0]["metric"], lang)
+                cols.append((f'{top}<br><span class="nt-d">{esc(m)} · {esc(tx["mean"].format(n=len(t["report_metric"])))}</span>', mean_getter(tn),
+                             l1, f'{m} {"平均" if lang == "zh" else "mean"}', True))
+                lcols = [(esc(rm["alias"].replace(LANGS[tn], "")), getter(tn, rm["alias"], rm["metric"])) for rm in t["report_metric"]]
+                folds.append((bname, table(lcols)[0]))
+                continue
+            for rm in t["report_metric"]:
+                sub = _mshort(rm["metric"], lang)
+                if tn == "mmlu_str":
+                    sub = ("EM 总分" if lang == "zh" else "EM overall") if rm["alias"] == "mmlu_str" else "EM STEM"
+                cols.append((f'{top}<br><span class="nt-d">{esc(sub)}</span>', getter(tn, rm["alias"], rm["metric"]),
+                             l1, sub, "not_attempted" not in rm["metric"]))      # a refusal rate is not a score: table only
+    return cols, folds
+
+
+def _kind_sections(kind, lang, esc, tx, by, table, getter, mean_getter, models, tabs=False, ck=None):
+    """the category sections (h4, curve + table per card) of one big part; tabs=True: [(tab label, body without h4, parts not in cards)]."""
     out = []
     zh_ = lang == "zh"
     for _, key, zh, en, how_zh, how_en in [c for c in CATS if c[0] == kind]:
@@ -586,35 +719,15 @@ def _kind_sections(kind, lang, esc, tx, by, table, getter, mean_getter, models):
             how_zh, how_en = "；".join(f"{c[2]}：{c[4]}" for c in allc), "; ".join(f"{c[3]}: {c[5]}" for c in allc)
             label = " · ".join(k[1] for k in cats)
         parts = SPLIT.get(cat) or [(None, None, [b[1] for b in benches])]
-        sec = (f'<h4 class="nt-cat">{esc(zh if zh_ else en)} <span class="nt-d">{esc(label)}</span></h4>'
-               f'<p class="note">{esc(how_zh if zh_ else how_en)}</p>')
+        sec = ("" if tabs else f'<h4 class="nt-cat">{esc(zh if zh_ else en)} <span class="nt-d">{esc(label)}</span></h4>') + f'<p class="note">{esc(how_zh if zh_ else how_en)}</p>'
         for ptz, pte, pnames in parts:
-            cols, folds = [], []
-            for _, bname, _, _, variants in [b for b in benches if b[1] in pnames]:
-                for tn, vz, ve in variants:
-                    t = by[tn]
-                    v = vz if lang == "zh" else ve
-                    top = esc(bname) + (f' <span class="nt-d">{esc(v)}</span>' if v else "")
-                    l1 = SHORT.get(bname, bname) + (f" {v}" if v else "")          # chart x label, line 1
-                    if tn in LANGS:
-                        m = _mshort(t["report_metric"][0]["metric"], lang)
-                        cols.append((f'{top}<br><span class="nt-d">{esc(m)} · {esc(tx["mean"].format(n=len(t["report_metric"])))}</span>', mean_getter(tn),
-                                     l1, f'{m} {"平均" if lang == "zh" else "mean"}', True))
-                        lcols = [(esc(rm["alias"].replace(LANGS[tn], "")), getter(tn, rm["alias"], rm["metric"])) for rm in t["report_metric"]]
-                        folds.append((bname, table(lcols)[0]))
-                        continue
-                    for rm in t["report_metric"]:
-                        sub = _mshort(rm["metric"], lang)
-                        if tn == "mmlu_str":
-                            sub = ("EM 总分" if lang == "zh" else "EM overall") if rm["alias"] == "mmlu_str" else "EM STEM"
-                        cols.append((f'{top}<br><span class="nt-d">{esc(sub)}</span>', getter(tn, rm["alias"], rm["metric"]),
-                                     l1, sub, "not_attempted" not in rm["metric"]))      # a refusal rate is not a score: table only
+            cols, folds = _bench_cols([b for b in benches if b[1] in pnames], lang, esc, tx, by, table, getter, mean_getter)
             tbl, flagged = table(cols)
-            chart = _curve([(l1, l2, g) for _, g, l1, l2, ok in cols if ok], models, esc, tx)
+            chart = _curve([(l1, l2, g) for _, g, l1, l2, ok in cols if ok], models, esc, tx, **(ck or {}))
             title = f'<div class="ct">{esc(ptz if lang == "zh" else pte)}</div>' if ptz else ""
-            sec += (f'<div class="card">{title}{chart}{tbl}' + (f'<p class="note nt-fn">{esc(tx["flag"])}</p>' if flagged else ""))
+            sec += (f'<div class="{"nt-part" if tabs else "card"}">{title}{chart}{tbl}' + (f'<p class="note nt-fn">{esc(tx["flag"])}</p>' if flagged else ""))
             for bname, ft in folds:
                 sec += f'<details class="nt-fold"><summary>{esc(tx["langs"].format(b=bname))}</summary>{ft}</details>'
             sec += "</div>"
-        out.append(sec)
+        out.append((zh if zh_ else en, sec) if tabs else sec)
     return out

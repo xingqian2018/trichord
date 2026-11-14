@@ -1,0 +1,145 @@
+#!/bin/bash
+# reports_xx/nemo6/nemo6_ladder.sbatch - the nemo6 benchmark suite (nemo6_report.yml: 40 tasks / 75 metrics) for one of OUR ladder checkpoints
+# (user 11-05: "全量测评" on our models, first KD 2.5 · PROD1_DPSK · 新数据 q3), with the external references' client unchanged.
+#   server: Megatron's dynamic text-generation server (tools/run_dynamic_text_generation_server.py, OpenAI /v1/completions) from the run's
+#           own Megatron tree (run.json 'megatron') in the training conda env (code/scaling_ladder/env.sh), argv = the training argv
+#           (ladder_server_argv.py): per-layer SWA + NoPE + QK-norm + learnable-sink softmax exactly as trained; torchrun 4 ranks, EP 4.
+#           No HF / vLLM conversion (HF Qwen3-MoE has no per-layer SWA / NoPE).
+#   client: Boxiang's aarch64 lm-eval venv (frozen harness @17abcb7) in his pytorch 25.08 image -> run_tasks.py, `local-completions`,
+#           tokenizer = the training tokenizer (Qwen3), + NEMO6_STOP_TOKEN_IDS=151643 / NEMO6_DROP_SEED=1 (client_compat/nemo6_patches.py).
+#   preflight (megatron_api_check.py, no task runs unless it passes): tokenizer ids, likelihood response shape, generation, sampling
+#           diversity, and PARITY: a whole validation split re-scored through the server under the doc eval protocol must reproduce the
+#           doc eval's loss (PARITY_LOSS / PARITY_TOKENS) within PARITY_TOL.
+#
+#   sbatch -N 1 -t 24:00:00 --export=ALL,NAME=<CHANGE>_<rung>,RUN_DIR=<run dir>,PARITY_LOSS=<x>,PARITY_TOKENS=<n> reports_xx/nemo6/nemo6_ladder.sbatch
+# env: NAME RUN_DIR (PARITY_LOSS PARITY_TOKENS | PARITY_FROM=<8K doc eval dir>) [ITER=latest] [PARITY_PREFIX=pile_test_enron_emails] [PARITY_SEQ=8192] [PARITY_TOL=0.01]
+#      [MAXSEQ=16384] [BUFFER_GB=80] [LANES=4] [CONC=0] [PBUDGET=2048] [TASKS] [CONFIG=nemo6_report.yml] [SKIP_APICHECK=0]
+# Output: $U/runs/nemo6_eval/<NAME>/ (same layout as the references; resumable: finished tasks skipped, per-batch response cache).
+#SBATCH -A cosmos_base_training
+#SBATCH -p batch_long
+#SBATCH --qos=normal
+#SBATCH --segment=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --gres=gpu:4
+#SBATCH --exclusive
+#SBATCH --mem=0
+#SBATCH --requeue
+#SBATCH --open-mode=append
+#SBATCH -J xxnemo6l
+#SBATCH -o /scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/runs/nemo6_eval/sbatch/xxnemo6l_%j.log
+set -euo pipefail
+U=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx
+REPO=$U/Project/cosmos_llm_scaling_ladder
+N6=$REPO/reports_xx/nemo6
+LADDER=$REPO/code/scaling_ladder
+RT=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmos_lightning/lm-evaluation-harness/temp/nemo5_muon_eval
+export LME_SRC_DIR=$RT/src VENV=$RT/env
+CIMAGE=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/container/nvidia+pytorch+25.08-py3.sqsh
+: "${NAME:?}" "${RUN_DIR:?}"
+MAXSEQ=${MAXSEQ:-16384}; BUFFER_GB=${BUFFER_GB:-80}; LANES=${LANES:-4}; CONC=${CONC:-0}; PBUDGET=${PBUDGET:-2048}
+PARITY_PREFIX=${PARITY_PREFIX:-/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/cosmos3_llm_datasets/pretrain/qwen3_tokenized/val_set/eval_ppl_decon/05_pile_decon/pile_test_enron_emails}
+# PARITY_FROM=<doc eval dir> (instead of PARITY_LOSS / PARITY_TOKENS): read the split's doc-isolated loss + tokens from that eval's
+# eval/val_splits_*_doc_isolated.json at job start, so this job can wait (--dependency=afterok) on the 8K doc eval part with the split.
+if [[ -z "${PARITY_LOSS:-}" && -n "${PARITY_FROM:-}" ]]; then
+    read -r PARITY_LOSS PARITY_TOKENS < <(python3 -c 'import glob, json, os, sys
+f, = glob.glob(os.path.join(sys.argv[1], "eval", "val_splits_*_doc_isolated.json"))
+for s in json.load(open(f))["suites"].values():
+    if sys.argv[2] in s["labels"]:
+        i = s["labels"].index(sys.argv[2]); print(repr(s["loss"][i]), s["tokens"][i]); break' "$PARITY_FROM" "$(basename "$PARITY_PREFIX")")
+    echo "=== parity reference from $PARITY_FROM: loss $PARITY_LOSS tokens $PARITY_TOKENS"
+fi
+: "${PARITY_LOSS:?}" "${PARITY_TOKENS:?}"
+OUTROOT=$U/runs/nemo6_eval
+OUT=$OUTROOT/$NAME
+JUDGE_ENV=${JUDGE_ENV:-$U/private/nemo6_judge.env}
+# The training env (boxiangw/envs/dpl) lacks the server's own deps (pyzmq, msgpack, quart, hypercorn, ...; job 43015 died on
+# "please install the pyzmq library to use InferenceCoordinator"). Installed separately, never into the shared env, with --no-deps
+# so nothing dpl already has is shadowed (aiofiles too: the login node's ~/.local copy is invisible under env.sh's PYTHONNOUSERSITE=1,
+# job 43303 "Web backend framework (Quart) not available"):
+#   dpl/bin/python -m pip install --no-deps --target $U/envs/mlm_serve_extras pyzmq msgpack quart hypercorn orjson blinker flask \
+#       itsdangerous h2 hpack hyperframe priority wsproto aiofiles
+SERVE_EXTRAS=${SERVE_EXTRAS:-$U/envs/mlm_serve_extras}
+mkdir -p "$OUT"
+# NEMO6_FORCE_TASKS=1 (a forced re-run of finished TASKS, e.g. the 11-08 v2 client fix) must not stop at the all-complete check
+if [[ "${NEMO6_FORCE_TASKS:-0}" != 1 ]] && python3 "$N6/collect_nemo6.py" --check "$NAME" --config "$N6/${CONFIG:-nemo6_report.yml}" 2>/dev/null; then
+    echo "=== $(date) $NAME: all tasks already complete, nothing to run"; exit 0
+fi
+MLM=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['megatron'])" "$RUN_DIR/run.json")
+ARGV=$OUT/server_argv_${SLURM_JOB_ID}.txt
+python3 "$N6/ladder_server_argv.py" --run-dir "$RUN_DIR" ${ITER:+--iter "$ITER"} --max-seq "$MAXSEQ" --buffer-gb "$BUFFER_GB" --out "$ARGV" > /dev/null
+TOKENIZER=$(awk 'p {print; exit} $0 == "--tokenizer-model" {p = 1}' "$ARGV")
+CKITER=$(awk 'p {print; exit} $0 == "--ckpt-step" {p = 1}' "$ARGV")
+head=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n1)
+addr=$(getent hosts "$head" | awk '{print $1}'); PORT=8000; MPORT=$((20000 + SLURM_JOB_ID % 20000)); CPORT=$((MPORT + 1))
+echo "=== $(date)  NAME $NAME  run $RUN_DIR  iter $CKITER  megatron $MLM ($(git -C "$MLM" rev-parse --short HEAD 2>/dev/null || echo ?))  node $head  maxseq $MAXSEQ  lanes $LANES"
+
+# --- server (bare metal, training env; same NCCL / TE settings as sh/eval_ckpt.sh) ---
+# The server log keeps the job id across requeues (append mode): a preempted attempt's shutdown writes "Exception in async function ...
+# [Errno 9] Bad file descriptor" into it, and the readiness check below used to grep the WHOLE file, so every requeued attempt died
+# 15 s after start on the previous attempt's line (11-08: 54286 / 54280 / 54281 / 53747 / 54972). Only this attempt's bytes are checked.
+SRVLOG="$OUT/server_${SLURM_JOB_ID}.log"
+SRVOFF=$(stat -c %s "$SRVLOG" 2>/dev/null || echo 0)
+srun --nodes=1 --ntasks=1 -w "$head" -o "$SRVLOG" bash -c '
+    source "'"$LADDER"'/env.sh"
+    export NCCL_SOCKET_IFNAME=eth0 NCCL_IB_HCA==rdma_vf_rail0,rdma_vf_rail1,rdma_vf_rail2,rdma_vf_rail3 NCCL_IB_ADDR_FAMILY=AF_INET6 NCCL_IB_TC=96
+    export NCCL_IB_TIMEOUT=20 NCCL_IB_ADAPTIVE_ROUTING=1 NCCL_MNNVL_ENABLE=2 NCCL_NVLS_ENABLE=0 NCCL_CUMEM_ENABLE=1 CUDA_DEVICE_MAX_CONNECTIONS=1
+    export NVTE_FWD_LAYERNORM_SM_MARGIN=16 NVTE_BWD_LAYERNORM_SM_MARGIN=16 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    export TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=1800 TORCH_NCCL_ENABLE_MONITORING=0 WANDB_MODE=offline OMP_NUM_THREADS=8
+    export TRITON_CACHE_DIR=/tmp/sl_triton_cache TORCHINDUCTOR_CACHE_DIR=/tmp/sl_inductor_cache PYTHONPATH="'"$MLM:$SERVE_EXTRAS"'"
+    cd "'"$MLM"'"
+    exec python -m torch.distributed.run --nnodes 1 --nproc_per_node 4 --master_addr 127.0.0.1 --master_port '"$MPORT"' \
+        tools/run_dynamic_text_generation_server.py $(cat "'"$ARGV"'") --host 0.0.0.0 --port '"$PORT"' --inference-coordinator-port '"$CPORT"'
+' &
+SERVER=$!
+trap 'kill $SERVER 2>/dev/null || true' EXIT
+for i in $(seq 1 360); do                                   # up to 30 min
+    curl -sf "http://$addr:$PORT/health" >/dev/null 2>&1 && break
+    kill -0 $SERVER 2>/dev/null || { echo "server exited before ready (see $OUT/server_${SLURM_JOB_ID}.log)"; exit 1; }
+    # a dead async task (e.g. the HTTP frontend) leaves the ranks alive: fail now, not after 30 min (job 43303)
+    tail -c +$((SRVOFF + 1)) "$SRVLOG" 2>/dev/null | grep -q "Exception in async function" && {
+        echo "server task died before ready:"; tail -c +$((SRVOFF + 1)) "$SRVLOG" | grep -A1 "Exception in async function" | head -4; exit 1; }
+    sleep 5
+done
+curl -sf "http://$addr:$PORT/health" >/dev/null || { echo "server not ready after 30 min"; exit 1; }
+echo "=== server ready $(date)"
+
+export NEMO6_LCB_WORKERS=${NEMO6_LCB_WORKERS:-32} NEMO6_EXEC_DATA_GB=${NEMO6_EXEC_DATA_GB:-16}
+export NEMO6_STOP_TOKEN_IDS=151643 NEMO6_DROP_SEED=1
+# client = v2, the ONLY client (user 11-08 "以后我们统一用v2"; the v1 switch is gone): client_compat_v2 = client_compat (base patches)
+# + few-shot seed 1234 + max_gen_toks default 4096 + log-likelihood max_length = MAXSEQ (was the harness's silent 2048 left-truncation),
+# = Boxiang's nemo6_driver.py on those three points; see client_compat_v2/nemo6_fix_v2.py
+COMPAT=$N6/client_compat_v2:$N6/client_compat
+export NEMO6_FEWSHOT_SEED=${NEMO6_FEWSHOT_SEED:-1234} NEMO6_MAX_GEN_TOKS=${NEMO6_MAX_GEN_TOKS:-4096} NEMO6_MAX_LENGTH=${NEMO6_MAX_LENGTH:-$MAXSEQ}
+export NEMO6_FIX=v2
+# 11-09: short-answer QA (until = \n . ,) capped at 256 new tokens (same answers; the 4096 default cut server concurrency ~10-15x) and a
+# 2 h per-request HTTP timeout (the 600 s SDK default re-sent long batches still being generated); see client_compat_v2/nemo6_fix_v2.py 4.
+export NEMO6_SHORTQA_MAX_GEN=${NEMO6_SHORTQA_MAX_GEN:-256} NEMO6_REQ_TIMEOUT=${NEMO6_REQ_TIMEOUT:-7200}
+export HF_HOME=$U/data/nemo6_hf_cache HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 PYTHONNOUSERSITE=1 XDG_CACHE_HOME=/tmp/nemo6_cache_$SLURM_JOB_ID
+export NAME RUN_DIR MLM CKITER MAXSEQ BUFFER_GB
+MAN=$(python3 -c 'import json, os
+d = {k.lower(): os.environ.get(k, "") for k in "NAME RUN_DIR MLM CKITER MAXSEQ BUFFER_GB".split()}
+d.update(model=os.environ["RUN_DIR"], server="megatron run_dynamic_text_generation_server", stop_token_ids="151643", drop_seed=True)
+d.update(client_fix=os.environ.get("NEMO6_FIX", "v1"), fewshot_seed=os.environ.get("NEMO6_FEWSHOT_SEED", ""),
+         max_gen_toks_default=os.environ.get("NEMO6_MAX_GEN_TOKS", ""), ll_max_length=os.environ.get("NEMO6_MAX_LENGTH", ""))
+print(json.dumps(d))')
+CLIENT=(--overlap --nodes=1 --ntasks=1 -w "$head" --container-image="$CIMAGE" --container-mounts=/lustre:/lustre,/scratch:/scratch
+        --container-workdir=/tmp --export=ALL,PYTHONPATH=$COMPAT:$LME_SRC_DIR)
+if [[ "${SKIP_APICHECK:-0}" != 1 ]]; then
+    arc=0
+    srun "${CLIENT[@]}" bash -c 'source $VENV/bin/activate; exec python -u "$@"' _ "$N6/megatron_api_check.py" \
+        --host "$addr" --port "$PORT" --tokenizer "$TOKENIZER" --parity-prefix "$PARITY_PREFIX" --parity-loss "$PARITY_LOSS" \
+        --parity-tokens "$PARITY_TOKENS" --parity-seq "${PARITY_SEQ:-8192}" --tol "${PARITY_TOL:-0.01}" \
+        --out "$OUT/apicheck_${SLURM_JOB_ID}.json" || arc=$?
+    (( arc == 0 )) || { echo "=== API / parity check failed (rc $arc): not running any task"; exit 4; }
+fi
+for attempt in 1 2 3; do
+    rc=0
+    srun "${CLIENT[@]}" bash -c 'mkdir -p $XDG_CACHE_HOME; source $VENV/bin/activate; cd $LME_SRC_DIR; exec python -u "$@"' _ \
+        "$N6/run_tasks.py" --config "$N6/${CONFIG:-nemo6_report.yml}" --results-dir "$OUTROOT" --model-name "$NAME" --tokenizer "$TOKENIZER" \
+        --host "$addr" --port "$PORT" --lanes "$LANES" --conc "$CONC" --prompt-budget "$PBUDGET" ${TASKS:+--tasks "$TASKS"} \
+        --judge-env "$JUDGE_ENV" --manifest "$MAN" || rc=$?
+    echo "=== client attempt $attempt exit $rc $(date)"
+    (( rc == 0 || rc == 3 )) && break
+    curl -sf "http://$addr:$PORT/health" >/dev/null || { echo "server down, not relaunching the client"; break; }
+done
+exit $rc

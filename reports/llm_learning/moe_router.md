@@ -158,6 +158,8 @@ Megatron 有三种 aux loss，公式一样，区别只在 **f_e 是在多少 tok
 
 ## 6. 健康指标（Boxiang 的 router 监测，`router_health.py`，每 100 步一次）
 
+> 每个指标的详细解释（怎么算、为什么饱和会切断 router 的梯度、"硬分类器"、当前读数）见 [router_health_metrics.md](router_health_metrics.md)（2026-11-07）。
+
 | 指标 | 含义 | 预设上限 |
 |---|---|---|
 | MaxVio | 最忙的 expert 比平均多分到多少 token（0 = 完全均衡） | — |

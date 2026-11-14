@@ -30,12 +30,12 @@ REPO_DIR = os.path.join(HERE, "..", "results_xx")   # copy in the ladder repo (g
 PART_RE = re.compile(r"^(?P<base>.+)__P(?P<i>\d)of(?P<n>\d)$")
 SUITE_ORDER = ["cosmos_val_v2_cc_decon_qwen3", "cosmos_val_v2_python_decon_qwen3", "cosmos_val_v2_arxiv_decon_qwen3", "uncheatable_decon_qwen3",
                "codefresh_decon_qwen3", "v3small_decon_qwen3", "private_internal_decon_qwen3", "pile_test_decon_qwen3", "pile_10k_decon_qwen3"]
-DIR_RE = re.compile(r"^(?P<change>.+)-(?P<rung>q\d|ref)-(?P<job>\d+)$")   # ref = an external HF model (mimo_doc_eval.py)
+DIR_RE = re.compile(r"^(?P<change>.+)-(?P<rung>q\d|ref|it\d+)-(?P<job>\d+)$")   # ref = an external HF model (mimo_doc_eval.py); it<N> = iteration N of a production run (stage_prod_ckpt.py, 11-13)
 
 
 def latest_evals():
     found = {}
-    for d in glob.glob(os.path.join(WORK_DIR, "*-q[0-9]-*")) + glob.glob(os.path.join(WORK_DIR, "*-ref-*")):
+    for d in glob.glob(os.path.join(WORK_DIR, "*-q[0-9]-*")) + glob.glob(os.path.join(WORK_DIR, "*-ref-*")) + glob.glob(os.path.join(WORK_DIR, "*-it[0-9]*-*")):
         m = DIR_RE.match(os.path.basename(d))
         files = sorted(glob.glob(os.path.join(d, "eval", "val_splits_iter*_doc_isolated.json")))
         if not m or not files:

@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Doc-isolated（iso-doc）测评手册：测什么、结果格式、存在哪、怎么跑</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:36px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+.neg { color:var(--good); }
+.pos { color:var(--bad); }
+hr { border:0; border-top:1px solid var(--border); margin:28px 0; }
+em { color:var(--muted); }
+
+main { max-width:1080px; }
+nav { background:color-mix(in srgb, Canvas 92%, transparent); }
+p, li { line-height:1.65; }
+h3 { font-size:16px; margin-top:26px; }
+table { display:table; width:100%; }
+th, td { white-space:normal; vertical-align:top; text-align:left; overflow-wrap:anywhere; }
+th { white-space:nowrap; }
+td:first-child { min-width:8em; }
+td code, li code, p code { overflow-wrap:anywhere; }
+pre { background:var(--head); border:1px solid var(--border); border-radius:6px; padding:10px 14px; overflow-x:auto; line-height:1.45; }
+pre code { background:none; padding:0; font-size:12.5px; white-space:pre; }
+blockquote { margin:14px 0; padding:8px 16px; border-left:4px solid var(--accent); background:var(--head); border-radius:0 6px 6px 0; }
+blockquote p { margin:4px 0; }
+</style></head>
+<body><nav><a href="#s1">1. 这个测评测什么</a><a href="#s2">2. 指标</a><a href="#s3">3. 结果文件格式</a><a href="#s4">4. 存储位置</a><a href="#s5">5. 怎么跑</a><a href="#s6">6. 当前状态（2026-11-13 23:30）</a></nav><main>
+<h1>Doc-isolated（iso-doc）测评手册：测什么、结果格式、存在哪、怎么跑</h1>
+<h2 id="s1">1. 这个测评测什么</h2>
+<p><strong>定义</strong>：每篇验证文档单独成为一个样本，不带任何别的文档的上下文，对文档里的每个 token 算预测它的负对数似然（NLL），再取平均。训练时的验证是把文档首尾相接装进窗口（packed），文档之间能互相看到；doc-isolated 没有这个问题，所以不同装箱方式、不同训练长度的模型可以放在一起比。</p>
+<p><strong>打分规则</strong>（代码在 harness repo 的 <code>scripts/doc_isolated/</code>，见 4.3）：</p>
+<ul>
+<li>每篇文档单独计分，看不到任何别的文档（怎么做到的见下面的「两种实现」）。</li>
+<li>文档共 N 个 token（含结尾的 EOD）时，输入是第 1 到第 N−1 个，标签是第 2 到第 N 个。第一个 token 不被预测，EOD 不作为目标，所以每篇文档有 N−2 个被预测的 token。</li>
+<li>被预测的 token 数超过窗口的文档，切成连续的几段，每段是独立样本，<strong>段的开头看不到上一段</strong>。</li>
+<li>一个 split 的 loss = 该 split 所有被预测 token 的 NLL 平均值（按 token 加权）。</li>
+</ul>
+<p><strong>两种实现，计分完全相同</strong>：</p>
+<ul>
+<li><strong>packed（新方法，2026-11-13 起默认）</strong>：每行固定 32,768 个 token，一行放多篇文档，用模型自己的段隔离（<code>cu_seqlens</code>）让它们互相看不到。一个 checkpoint 一个作业、一次加载，依次跑下表三遍。8K 结果 = S + L8，32K 结果 = S + L32。</li>
+<li><strong>padded（老方法）</strong>：一篇文档一行，后面补 pad 到窗口长度。现在只用来复现老结果。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>遍</th>
+<th>放哪些文档</th>
+<th>段长</th>
+<th>得到</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S</td>
+<td>被预测 token ≤ 8,192 的文档，装箱</td>
+<td>一篇一段</td>
+<td>两个窗口共用的分数</td>
+</tr>
+<tr>
+<td>L32</td>
+<td>其余的长文档，切成 32K 的段后装箱</td>
+<td>32,768</td>
+<td>它们的 32K 分数</td>
+</tr>
+<tr>
+<td>L8</td>
+<td>和 L32 同样的行</td>
+<td>8,192</td>
+<td>它们的 8K 分数</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>两种实现逐个 split 对比过：59B 的 step 10,000 / 20,000 / 24,000 两个窗口共 690 个 split；ladder 的 OPT_MUONH q1（按 8K 训练、训练时没开文档隔离）和 PROD1_DPSK q1 共 345 个 split。token 数全部相同，loss 最大差 1.2e-7。</li>
+<li>新方法和 checkpoint 怎么训练的无关：评测时一律打开段隔离（<code>--dataloader-inter-document-masking</code>，不改任何权重），行宽一律 32K。</li>
+<li>成本：59B 一个 checkpoint 用 1 个节点约 1 小时（老方法约 13.6 节点小时）；ladder q1 约 15 分钟。</li>
+</ul>
+<p><strong>两个窗口</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>窗口</th>
+<th>长度</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8K</td>
+<td>8,192</td>
+<td>和所有历史结果可比，是默认的对比口径</td>
+</tr>
+<tr>
+<td>32K</td>
+<td>32,768</td>
+<td>和按 32K 训练的模型的训练长度一致</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>两个窗口计分的 token 完全相同，差别只在长文档切几段。短于 8K 的文档两个窗口结果相同；长文档在 32K 下上下文更完整，loss 更低。</li>
+<li>按 8K 训练的 checkpoint 不要看它的 32K 结果：超过 8,192 的位置它没见过，loss 会明显变差（实测：8K 训练的 <code>KD_MUONH_A0P8_S64Y_FIT_DOCMASK</code> q0–q2，32K 窗口的 overall_tsqw 比 8K 高 0.18–0.40）。新方法对按短于 32K 训练的 checkpoint 只出 8K 结果。</li>
+<li>两个窗口必须出自<strong>同一次模型加载</strong>（用户 2026-11-04 的要求）：新方法在一个作业里跑完 S、L32、L8 三遍。</li>
+</ul>
+<p><strong>数据</strong>：9 个 suite，115 个 split，130,957 篇文档，234,291,595 个计分 token。suite 归并成 7 个集合（collection）。</p>
+<table>
+<thead>
+<tr>
+<th>suite</th>
+<th>集合</th>
+<th style="text-align:right">split 数</th>
+<th style="text-align:right">文档数</th>
+<th style="text-align:right">计分 token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cosmos_val_v2_cc_decon_qwen3</code></td>
+<td>val_v2</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">9,784</td>
+<td style="text-align:right">12,938,323</td>
+</tr>
+<tr>
+<td><code>cosmos_val_v2_python_decon_qwen3</code></td>
+<td>val_v2</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">3,200</td>
+<td style="text-align:right">5,671,655</td>
+</tr>
+<tr>
+<td><code>cosmos_val_v2_arxiv_decon_qwen3</code></td>
+<td>val_v2</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">205</td>
+<td style="text-align:right">7,976,849</td>
+</tr>
+<tr>
+<td><code>uncheatable_decon_qwen3</code></td>
+<td>uncheatable</td>
+<td style="text-align:right">55</td>
+<td style="text-align:right">26,689</td>
+<td style="text-align:right">114,928,353</td>
+</tr>
+<tr>
+<td><code>codefresh_decon_qwen3</code></td>
+<td>codefresh</td>
+<td style="text-align:right">30</td>
+<td style="text-align:right">26,720</td>
+<td style="text-align:right">19,029,400</td>
+</tr>
+<tr>
+<td><code>v3small_decon_qwen3</code></td>
+<td>v3small</td>
+<td style="text-align:right">8</td>
+<td style="text-align:right">4,572</td>
+<td style="text-align:right">2,765,345</td>
+</tr>
+<tr>
+<td><code>private_internal_decon_qwen3</code></td>
+<td>private_internal</td>
+<td style="text-align:right">2</td>
+<td style="text-align:right">1,968</td>
+<td style="text-align:right">3,204,144</td>
+</tr>
+<tr>
+<td><code>pile_test_decon_qwen3</code></td>
+<td>pile_test</td>
+<td style="text-align:right">16</td>
+<td style="text-align:right">54,977</td>
+<td style="text-align:right">60,395,136</td>
+</tr>
+<tr>
+<td><code>pile_10k_decon_qwen3</code></td>
+<td>pile_10k</td>
+<td style="text-align:right">1</td>
+<td style="text-align:right">2,842</td>
+<td style="text-align:right">7,382,390</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>token 文件和 suite 的 yaml：<code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/cosmos3_llm_datasets/pretrain/qwen3_tokenized/val_set/eval_ppl_decon/</code>，yaml 在其中的 <code>suites/</code>，每个 split 记着 token 数、文档数、字节数。</li>
+<li>原文（每行一篇文档的 JSONL，和 token 文件逐篇对应）：<code>~/data/eval_ppl_decon/</code>，给别的 tokenizer 重新分词用。</li>
+<li><code>private_internal</code> 是非公开数据，文件权限 600；结果文件里只有它的 loss 数字。</li>
+</ul>
+<h2 id="s2">2. 指标</h2>
+<p>每个指标都有三个数：<code>loss</code>（nats / token，越低越好）、<code>ppl</code> = exp(loss)、<code>bpb</code>（bits per byte）= loss × token 数 ÷ (字节数 × ln 2)。</p>
+<table>
+<thead>
+<tr>
+<th>指标 key</th>
+<th>显示名</th>
+<th>定义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00_overall_tsqw</code></td>
+<td>overall_tsqw</td>
+<td><strong>主指标</strong>。7 个集合各自的 token 加权 loss，再按 √token 数加权平均</td>
+</tr>
+<tr>
+<td><code>00_overall_tw</code></td>
+<td>overall_tw</td>
+<td>6 个集合（不含 pile_10k）的全部 token 合在一起取平均</td>
+</tr>
+<tr>
+<td><code>00_overall_macro</code></td>
+<td>overall_macro</td>
+<td>上面 6 个集合的 loss 直接平均</td>
+</tr>
+<tr>
+<td><code>01_val_v2_overall_tw</code></td>
+<td>val_v2</td>
+<td>cc + python + arxiv 三个 suite 合并，token 加权</td>
+</tr>
+<tr>
+<td><code>01_val_v2_cc</code> / <code>_python</code> / <code>_arxiv</code></td>
+<td>val_v2 的三个子项</td>
+<td>各自的 loss</td>
+</tr>
+<tr>
+<td><code>02_uncheatable_tw</code></td>
+<td>uncheatable</td>
+<td>55 个 split，token 加权</td>
+</tr>
+<tr>
+<td><code>03_codefresh_tw</code></td>
+<td>codefresh</td>
+<td>30 个 split，token 加权</td>
+</tr>
+<tr>
+<td><code>04_v3small_tw</code></td>
+<td>v3small</td>
+<td>8 个 split，token 加权</td>
+</tr>
+<tr>
+<td><code>04_private_internal_tw</code></td>
+<td>private_internal</td>
+<td>2 个 split，token 加权</td>
+</tr>
+<tr>
+<td><code>05_pile_test_tw</code></td>
+<td>pile_test</td>
+<td>16 个 split，token 加权</td>
+</tr>
+<tr>
+<td><code>05_pile_10k_tw</code></td>
+<td>pile_10k</td>
+<td>1 个 split</td>
+</tr>
+<tr>
+<td><code>02_uncheatable_macro</code>、<code>04_v3small_macro</code>、<code>05_pile_test_macro</code></td>
+<td>（macro）</td>
+<td>同一集合的各 split loss 直接平均，不按 token 加权</td>
+</tr>
+</tbody>
+</table>
+<p>各集合在两个 overall 指标里的权重：</p>
+<table>
+<thead>
+<tr>
+<th>集合</th>
+<th style="text-align:right">计分 token</th>
+<th style="text-align:right">overall_tsqw 权重</th>
+<th style="text-align:right">overall_tw 权重</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>uncheatable</td>
+<td style="text-align:right">114,928,353</td>
+<td style="text-align:right">31.4%</td>
+<td style="text-align:right">50.6%</td>
+</tr>
+<tr>
+<td>pile_test</td>
+<td style="text-align:right">60,395,136</td>
+<td style="text-align:right">22.7%</td>
+<td style="text-align:right">26.6%</td>
+</tr>
+<tr>
+<td>val_v2</td>
+<td style="text-align:right">26,586,827</td>
+<td style="text-align:right">15.1%</td>
+<td style="text-align:right">11.7%</td>
+</tr>
+<tr>
+<td>codefresh</td>
+<td style="text-align:right">19,029,400</td>
+<td style="text-align:right">12.8%</td>
+<td style="text-align:right">8.4%</td>
+</tr>
+<tr>
+<td>pile_10k</td>
+<td style="text-align:right">7,382,390</td>
+<td style="text-align:right">7.9%</td>
+<td style="text-align:right">不计入</td>
+</tr>
+<tr>
+<td>private_internal</td>
+<td style="text-align:right">3,204,144</td>
+<td style="text-align:right">5.2%</td>
+<td style="text-align:right">1.4%</td>
+</tr>
+<tr>
+<td>v3small</td>
+<td style="text-align:right">2,765,345</td>
+<td style="text-align:right">4.9%</td>
+<td style="text-align:right">1.2%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>比较规则</strong>：</p>
+<ul>
+<li>tokenizer 相同的模型之间比 <code>loss</code>。我们的模型、Qwen3 系列和 MiMo 的 token id 相同。</li>
+<li>tokenizer 不同的模型之间只能比 <code>bpb</code>。overall_tsqw 的权重对所有模型都用 Qwen3 的 token 数。</li>
+<li>新旧结果对比用 8K 窗口。</li>
+</ul>
+<h2 id="s3">3. 结果文件格式</h2>
+<h3>3.1 完整结果：一个 checkpoint、一个窗口、一个 JSON</h3>
+<p>文件名 <code>&lt;Change ID&gt;_&lt;rung&gt;.json</code>，约 14 KB。新老方法的结果文件字段完全相同。</p>
+<ul>
+<li><strong>Change ID</strong>：实验的名字，例如 <code>PROD1_DPSK_LATENT2_E2X_QBK3</code>。</li>
+<li><strong>rung</strong>：<code>q0</code>–<code>q6</code> 是 ladder 的模型大小档位；<code>ref</code> 表示外部模型；<code>it&lt;N&gt;</code> 表示生产 run 的第 N 步 checkpoint。</li>
+<li><strong>窗口</strong>：32K 的结果在 Change ID 里多一个 <code>_W32K</code>，例如 <code>PROD1_DPSK_LATENT2_E2X_QBK3_W32K_q3.json</code>。文件里没有单独的 window 字段，评测窗口记在 <code>train.seq_length</code>（这个字段记的是评测时的 <code>--seq-length</code>，不是训练长度）。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>change</code>、<code>rung</code></td>
+<td>Change ID 和 rung，和文件名一致</td>
+</tr>
+<tr>
+<td><code>iteration</code></td>
+<td>checkpoint 的训练步数（外部模型为 0）</td>
+</tr>
+<tr>
+<td><code>protocol</code></td>
+<td>固定为 <code>doc_isolated</code></td>
+</tr>
+<tr>
+<td><code>checkpoint</code></td>
+<td>checkpoint 的完整路径（外部模型是 HF 模型目录）</td>
+</tr>
+<tr>
+<td><code>eval_job</code>、<code>eval_dir</code>、<code>evaluated_at</code></td>
+<td>评测的 Slurm 作业号、原始评测目录、完成时间。新方法的 <code>eval_dir</code> 是该窗口长文档那一遍的目录（<code>&lt;ID&gt;__PKL8-…</code> 或 <code>&lt;ID&gt;__PKL32-…</code>）；老方法分三部分跑的，<code>eval_dir</code> 是第 1 部分的目录，<code>eval_job</code> 是最大的作业号</td>
+</tr>
+<tr>
+<td><code>train</code></td>
+<td>评测参数里的 <code>lr</code>、<code>min_lr</code>、<code>train_iters</code>、<code>num_layers</code>、<code>hidden_size</code>、<code>global_batch_size</code>、<code>seq_length</code>；外部模型为 null</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td>16 个指标（第 2 节），每个是 <code>{loss, ppl, bpb}</code></td>
+</tr>
+<tr>
+<td><code>suites</code></td>
+<td>9 个 suite，每个有 <code>loss_tw</code>（token 加权 loss）、<code>tokens</code>、<code>splits</code>（每个 split 的 <code>loss</code> 和 <code>tokens</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>外部模型如果用的是自己的 tokenizer，<code>suites</code> 里每个 suite 和 split 还多 <code>bytes</code> 和 <code>bpb</code>。</p>
+<p>真实例子（有删节）：</p>
+<pre><code class="language-json">{
+ &quot;change&quot;: &quot;PROD1_DPSK_LATENT2_E2X_QBK3&quot;, &quot;rung&quot;: &quot;q3&quot;, &quot;iteration&quot;: 70438,
+ &quot;protocol&quot;: &quot;doc_isolated&quot;,
+ &quot;checkpoint&quot;: &quot;.../results/PROD1_DPSK_LATENT2_E2X_QBK3/ckpts/q3/iter_0070438&quot;,
+ &quot;eval_job&quot;: 56590, &quot;eval_dir&quot;: &quot;.../runs/ladder_doc_eval/PROD1_DPSK_LATENT2_E2X_QBK3__P1of3-q3-56588&quot;,
+ &quot;evaluated_at&quot;: &quot;2026-11-10T01:56:48&quot;,
+ &quot;train&quot;: {&quot;lr&quot;: 0.00687, &quot;num_layers&quot;: 30, &quot;hidden_size&quot;: 1280, &quot;seq_length&quot;: 8192},
+ &quot;metrics&quot;: {
+  &quot;00_overall_tsqw&quot;:      {&quot;loss&quot;: 1.5320, &quot;ppl&quot;: 4.6275, &quot;bpb&quot;: 0.5966},
+  &quot;01_val_v2_overall_tw&quot;: {&quot;loss&quot;: 1.2549, &quot;ppl&quot;: 3.5074, &quot;bpb&quot;: 0.5101}
+ },
+ &quot;suites&quot;: {
+  &quot;v3small_decon_qwen3&quot;: {&quot;loss_tw&quot;: 2.3000, &quot;tokens&quot;: 2765345,
+    &quot;splits&quot;: {&quot;c4_en&quot;: {&quot;loss&quot;: 2.4880, &quot;tokens&quot;: 463467},
+               &quot;dolma_common_crawl&quot;: {&quot;loss&quot;: 2.8063, &quot;tokens&quot;: 195508}}}
+ }
+}
+</code></pre>
+<h3>3.2 合并集合结果（Boxiang 的评测，报告页面不显示）</h3>
+<p>生产 run（59B，<code>ULTRA59B_MUONH_KD_QBK3</code>）在 2026-11-13 之前只有 5 个这种结果（step 4,000 / 10,000 / 18,000 / 20,000 / 24,000，8K），来自 Boxiang 给 downstream 评测做 loss 对齐用的评测。现在 59B 已有 3.1 的完整结果；这些合并集合结果只留在文件里，报告页面上不显示。它把一个集合的全部文档合成一个验证集，所以一个集合只有一个 loss，没有 split 明细。打分代码和 3.1 是同一份，文档数和 token 数也和我们的同名集合相同，所以同一集合的数值是同一个量。</p>
+<p>文件在 ladder repo 下：<code>results_xx/prod_isodoc/&lt;RUN&gt;[_W32K]_iter&lt;7 位步数&gt;.json</code>：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run</code>、<code>iteration</code>、<code>window</code></td>
+<td>run 名、步数、评测窗口（8192 或 32768）</td>
+</tr>
+<tr>
+<td><code>pooled_sets</code></td>
+<td>固定为 true</td>
+</tr>
+<tr>
+<td><code>checkpoint</code>、<code>train</code></td>
+<td>checkpoint 路径；训练配置（总步数、训练长度、层数、KD teacher 等）</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td>只有测过的集合，key 和 3.1 相同（目前是 <code>01_val_v2_overall_tw</code>、<code>04_v3small_tw</code>），另带 <code>tokens</code>、<code>docs</code>、<code>set</code></td>
+</tr>
+<tr>
+<td><code>not_scored</code></td>
+<td>没测的集合的 key</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td>评测目录、作业号、时间、谁跑的、用的 Megatron 和 ladder 代码</td>
+</tr>
+<tr>
+<td><code>other_evals</code></td>
+<td>同一 checkpoint、同一窗口的其它评测（只用最新的一次）</td>
+</tr>
+</tbody>
+</table>
+<h3>3.3 新文件夹里每个模型的文件</h3>
+<p><code>~/runs/cosmos_eval_doc_isolate/&lt;分类&gt;/&lt;模型&gt;/</code>：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>summary.md</code></td>
+<td>给人看：所有指标一张表，每个窗口一组 loss / bpb 列</td>
+</tr>
+<tr>
+<td><code>summary.json</code></td>
+<td>同样的数字：<code>windows.&lt;窗口&gt;.metrics.&lt;指标 key&gt;.{loss, ppl, bpb}</code>，以及每个窗口的 <code>eval_job</code>、<code>evaluated_at</code>、<code>what</code>（完整结果还是合并集合）</td>
+</tr>
+<tr>
+<td><code>identity.json</code></td>
+<td>测的是什么：<code>checkpoint</code>、<code>iteration</code>、<code>train</code>、<code>protocol</code>；<code>evals.&lt;窗口&gt;</code> 记着结果文件名、作业号、原始评测目录、结果文件从哪里复制来</td>
+</tr>
+<tr>
+<td><code>breakdowns/&lt;窗口&gt;.json</code></td>
+<td>该窗口的完整结果文件，即 3.1 或 3.2 的 JSON 原样复制。窗口名是 <code>8k</code>、<code>16k</code>、<code>32k</code></td>
+</tr>
+<tr>
+<td><code>runs/&lt;目录名&gt;</code></td>
+<td>指向原始评测目录的链接</td>
+</tr>
+</tbody>
+</table>
+<p>窗口名取自结果文件的 <code>train.seq_length</code>，所以按 16K 评测的模型显示为 <code>16k</code>。</p>
+<h3>3.4 原始评测目录里的文件</h3>
+<p>2026-11-13 起在 <code>~/runs/cosmos_eval_doc_isolate/_runs/</code>，之前的在 <code>~/runs/ladder_doc_eval/</code>。目录名：</p>
+<ul>
+<li>新方法：一个作业三个目录，<code>&lt;ID&gt;__PKS-&lt;rung&gt;-&lt;作业号&gt;</code>、<code>&lt;ID&gt;__PKL32-…</code>、<code>&lt;ID&gt;__PKL8-…</code>（按短于 32K 训练的没有 <code>__PKL32</code>）。</li>
+<li>老方法：<code>&lt;ID&gt;[_W32K][__P&lt;i&gt;of3]-&lt;rung&gt;-&lt;作业号&gt;</code>。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>argv_doc.txt</code></td>
+<td>这次评测传给 Megatron 的全部参数，每行一个</td>
+</tr>
+<tr>
+<td><code>logs/doc.log</code></td>
+<td>评测日志</td>
+</tr>
+<tr>
+<td><code>doc_eval_stats.json</code></td>
+<td>每个 split 的文档数、被切段的文档数、样本数、被预测 token 数、填充率</td>
+</tr>
+<tr>
+<td><code>eval/val_splits_iter&lt;N&gt;_doc_isolated.json</code></td>
+<td>原始结果：<code>iteration</code>、<code>time</code>、<code>protocol</code>、<code>suites.&lt;suite&gt;.{labels, loss, tokens}</code>（三个等长的列表，一项对应一个 split）</td>
+</tr>
+<tr>
+<td><code>RESULTS.md</code></td>
+<td>评测结束时生成的汇总表</td>
+</tr>
+<tr>
+<td><code>data_cache/</code>、<code>tensorboard/</code></td>
+<td>这次评测用的 per-split JSON 和索引缓存；tensorboard 输出</td>
+</tr>
+<tr>
+<td><code>PACKED.json</code></td>
+<td>新方法的每个目录都有：这是哪一遍（S / L32 / L8）、段长、这个作业跑了哪几遍。日志和 <code>RESULTS.md</code> 只在 <code>__PKS</code> 目录里</td>
+</tr>
+<tr>
+<td><code>DUALWIN.md</code></td>
+<td>老方法：只在第二个窗口（8K）的目录里，说明它和哪个 32K 目录出自同一次加载。日志和 <code>RESULTS.md</code> 只在 32K 的目录里</td>
+</tr>
+</tbody>
+</table>
+<h2 id="s4">4. 存储位置</h2>
+<h3>4.1 结果的家</h3>
+<p><code>~/runs/cosmos_eval_doc_isolate/</code>（<code>~/runs/cosmos_eval_doc_isolated</code> 是指向它的链接）。旁边是 downstream 测评的 <code>~/runs/cosmos_eval_downstream/</code>。</p>
+<pre><code>baseline/&lt;模型&gt;/                   外部参考模型，21 个
+ours_ladder/&lt;Change ID&gt;_&lt;rung&gt;/    ladder 的 checkpoint，599 个
+ours_prod/&lt;run&gt;_iter&lt;步数&gt;/        生产 run 的 checkpoint
+    summary.md  summary.json  identity.json  breakdowns/  runs/
+&lt;分类&gt;/index.md                    每个模型一行：overall_tsqw 和 val_v2
+_runs/                             2026-11-13 起所有评测作业的原始目录
+_slurm/                            这些作业的 Slurm 日志
+README.md
+</code></pre>
+<ul>
+<li>模型目录名和 downstream 那边一致，例如 <code>QWEN3_30B_A3B_BASE</code>、<code>PROD1_DPSK_LATENT2_E2X_QBK3_q3</code>、<code>ULTRA59B_MUONH_KD_QBK3_iter0024000</code>。</li>
+<li>模型目录是从结果文件重建出来的，删掉不丢东西。</li>
+<li><code>ours_ladder/</code> 里是全部已有结果，包括老实验。</li>
+</ul>
+<h3>4.2 其它位置</h3>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>老的原始评测目录和辅助文件</td>
+<td><code>~/runs/ladder_doc_eval/</code></td>
+<td>2026-11-13 之前的约 1,170 个原始目录，暂不搬动。还有 <code>stage/</code>（摆放的生产 run checkpoint）、<code>code_snapshots/</code>（每批作业运行时用的代码拷贝）、<code>packed_trees/</code> 和 <code>dualwin_trees/</code>（代码链接树）、<code>data_cache/corpus_v2/</code>（共享的数据索引缓存）、<code>sbatch/</code>（老作业日志、<code>finish_*.log</code>）、<code>lustre_stuck_nodes.txt</code>（提交时自动避开的节点）</td>
+</tr>
+<tr>
+<td>测试输出</td>
+<td><code>~/runs/ladder_doc_eval_speedtest/</code></td>
+<td>验证和测速的作业写这里。收集脚本不读，不会进结果的家</td>
+</tr>
+<tr>
+<td>结果 JSON，原件</td>
+<td><code>~/Project/trichord/dense_pretrain_result/</code></td>
+<td>收集脚本先写这里。它在 trichord 的 git 里，不要移动、删除或换成链接</td>
+</tr>
+<tr>
+<td>结果 JSON，组内可读的拷贝</td>
+<td><code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/dense_pretrain_result/</code></td>
+<td>给别人读</td>
+</tr>
+<tr>
+<td>结果 JSON，报告用的拷贝</td>
+<td><code>~/Project/cosmos_llm_scaling_ladder/results_xx/</code></td>
+<td>报告生成器读这里；<code>results_xx/prod_isodoc/</code> 是生产 run 的合并集合结果</td>
+</tr>
+<tr>
+<td>生产 run 合并集合评测的原始目录</td>
+<td><code>~/runs/cosmos_eval_downstream/_doc_eval59/</code> 和 <code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmos_ultra_pre/runs/eval59/doc_eval/</code></td>
+<td>前者是从我们账号提交的，后者是 Boxiang 的</td>
+</tr>
+<tr>
+<td>报告</td>
+<td><code>~/Project/cosmos_llm_scaling_ladder/reports_xx/qwen3_scaling_ladder_eval.html</code>、<code>_en.html</code>、<code>.md</code></td>
+<td>页签依次是 doc-isolated、prod iso-doc、prod downstream、外部参考、老实验、LR 拟合实验、packed（2026-11-14 起的名字和顺序）。地址 <code>http://oci-jhb-slurm-2-vscode-02:8765/qwen3_scaling_ladder_eval.html</code></td>
+</tr>
+</tbody>
+</table>
+<p>权限：<code>~/Project/</code> 和 trichord 只有本人可读，不要放开；要给别人看的东西复制到别处。</p>
+<h3>4.3 代码</h3>
+<p>代码的家是 lm-evaluation-harness repo 的 <code>scripts/doc_isolated/</code>（<code>~/Project/lm-evaluation-harness</code>）。2026-11-13 从 ladder repo 复制过来，原处的文件保留不动、不再使用。已提交到 <code>xingqianx/eval</code> 分支（2026-11-14，提交 9edbbea7，尚未推送）。下表路径相对于这个目录：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core/doc_eval.py</code></td>
+<td>打分核心：怎么切文档、哪些 token 计分（老方法的数据集也在这里）</td>
+</tr>
+<tr>
+<td><code>core/packed/</code></td>
+<td><strong>新方法</strong>：<code>doc_eval_packed.py</code>（装箱、行的格式）、<code>pretrain_doceval.py</code>（一次加载跑 S、L32、L8 三遍）、<code>test_doc_eval_packed_cpu.py</code>（和老方法逐段比对的 CPU 测试）</td>
+</tr>
+<tr>
+<td><code>core/pretrain_doceval.py</code></td>
+<td>评测入口，套在 Megatron 的 <code>pretrain_gpt.py</code> 外面</td>
+</tr>
+<tr>
+<td><code>core/val_metrics.py</code></td>
+<td>per-split 验证和指标定义</td>
+</tr>
+<tr>
+<td><code>core/sh/eval_ckpt.sh</code>、<code>core/tools/eval_argv.py</code></td>
+<td>评测作业的主体；把训练参数改成评测参数</td>
+</tr>
+<tr>
+<td><code>core/dualwin/</code></td>
+<td>老方法：一次加载跑两个窗口</td>
+</tr>
+<tr>
+<td><code>run_doc_eval.sh</code></td>
+<td><strong>提交评测</strong></td>
+</tr>
+<tr>
+<td><code>stage_prod_ckpt.py</code></td>
+<td>把生产 run 的某一步 checkpoint 摆成 ladder 的目录格式</td>
+</tr>
+<tr>
+<td><code>mimo_doc_eval.py</code>、<code>mimo_doc_eval.sbatch</code></td>
+<td>外部模型的评测（vLLM）</td>
+</tr>
+<tr>
+<td><code>collect_doc_eval.py</code></td>
+<td><strong>收集</strong>成结果 JSON</td>
+</tr>
+<tr>
+<td><code>collect_prod_isodoc.py</code></td>
+<td>收集生产 run 的合并集合结果</td>
+</tr>
+<tr>
+<td><code>organize_doc_isolated.py</code></td>
+<td><strong>整理</strong>成 <code>~/runs/cosmos_eval_doc_isolate/</code></td>
+</tr>
+<tr>
+<td><code>compare_packed_padded.py</code></td>
+<td>同一个 checkpoint 的新老方法逐 split 对比（只读）</td>
+</tr>
+<tr>
+<td><code>finish_when_done.sh</code></td>
+<td>等作业结束，自动收集、整理、发布 prod iso-doc 页签（在 tmux 里跑）</td>
+</tr>
+<tr>
+<td><code>README.md</code></td>
+<td>英文说明</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>报告代码仍在 ladder repo 的 <code>reports_xx/</code>：<code>gen_eval_html.py</code>、<code>prod_isodoc_section.py</code>（prod iso-doc 页签）、<code>render_doc.py</code>（本手册的 HTML）。<code>reports_xx/</code> 里同名的评测脚本是旧拷贝，不要再用。</li>
+<li><code>core/doc_eval.py</code> 和 <code>core/val_metrics.py</code> 与 ladder repo 的 <code>code/scaling_ladder/</code>、Boxiang 给 59B 用的快照 <code>cosmos_ultra_pre/ladder-prod-a38190d8</code> 逐字节相同。</li>
+</ul>
+<h2 id="s5">5. 怎么跑</h2>
+<h3>5.0 通用</h3>
+<ul>
+<li>集群 oci-jhb-slurm-2，账号 <code>cosmos_base_training</code>。每个评测作业 1 个节点、4 张 GPU。</li>
+<li><strong>从冻结的代码拷贝提交</strong>，作业运行期间改 repo 里的代码不会影响它：</li>
+</ul>
+<pre><code class="language-bash">S=~/runs/ladder_doc_eval/code_snapshots/doc_isolated_$(date +%Y%m%d_%H%M)
+rsync -a --exclude __pycache__ ~/Project/lm-evaluation-harness/scripts/doc_isolated/ $S/ &amp;&amp; cd $S
+</code></pre>
+<ul>
+<li><strong>先加 <code>--dry</code> 看一遍要提交什么</strong>，再去掉它正式提交。</li>
+<li>默认就是新方法：一个 checkpoint 一个作业，一次出该出的窗口。</li>
+<li><code>EVAL_QOS=normal</code>：在 slurm-2 上会被改写成 <code>normal_quota</code>。脚本默认 wckey p0（用户 2026-11-13 的要求），会抢占同一 QOS 里的 p1 作业，例如 tc_full 教师缓存任务（它们会自动重新排队）。这些是 2026-11-13 的情况，集群规则经常变，提交前先核对。</li>
+</ul>
+<h3>5.1 ladder 的 checkpoint</h3>
+<pre><code class="language-bash">EVAL_QOS=normal EVAL_EXTRA_ARGS= bash run_doc_eval.sh --dry &lt;ID&gt;/q3=run:&lt;run 目录的绝对路径&gt;
+</code></pre>
+<ul>
+<li>Change ID 不带 <code>_W32K</code>。按 32K（或更长）训练的出 8K 和 32K 两个结果，32K 的写到 <code>&lt;ID&gt;_W32K</code>；按更短长度训练的只出 8K。</li>
+<li>checkpoint 的写法：<code>=run:&lt;run 目录&gt;</code>（取该 run 最后一个 checkpoint）；<code>=p:&lt;ID&gt;</code>（已 promote 的 Change ID）；不写等号则取同名的 promote 目录。</li>
+<li>作业名 <code>xxdoc-&lt;ID&gt;__PK-&lt;rung&gt;</code>。</li>
+<li>滑动窗口注意力的 checkpoint（<code>SWA_FIT_SINK_*</code>）还没用新方法验证过，测之前先拿一个和老方法对比（<code>compare_packed_padded.py</code>）。</li>
+</ul>
+<p>可用的环境变量：</p>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EVAL_QOS=normal</code></td>
+<td>用哪个 QOS。不设则是 hero-res，slurm-2 上不可用</td>
+</tr>
+<tr>
+<td><code>SBATCH_WCKEY</code></td>
+<td>优先级，默认 p0</td>
+</tr>
+<tr>
+<td><code>EVAL_LADDER_CODE=&lt;目录&gt;</code></td>
+<td>用哪棵 ladder 代码树，要和训练时一致（PROD1 的 overlay 树）</td>
+</tr>
+<tr>
+<td><code>EVAL_EXTRA_ARGS=&quot;--flag 值&quot;</code></td>
+<td>改写评测参数，例如 <code>--distributed-timeout-minutes 240</code></td>
+</tr>
+<tr>
+<td><code>EVAL_TIME=HH:MM:SS</code></td>
+<td>直接指定时限。不设则按 rung 取下表；生产 run 的 <code>it&lt;N&gt;</code> 默认 3 小时</td>
+</tr>
+<tr>
+<td><code>EVAL_CACHE_PER_JOB=1</code></td>
+<td>每个作业用自己的数据索引缓存，不用共享缓存</td>
+</tr>
+<tr>
+<td><code>EVAL_RUN_ROOT=&lt;目录&gt;</code></td>
+<td>把评测目录写到别处（测试用，写到 <code>~/runs/ladder_doc_eval_speedtest/</code> 下；收集脚本不会读）</td>
+</tr>
+<tr>
+<td><code>EVAL_PACKED=0</code></td>
+<td>改用老方法。老方法的 <code>EVAL_DUALWIN_SEQ=8192</code>（同一次加载再跑 8K，Change ID 要带 <code>_W32K</code>）、<code>EVAL_SPLIT3=1</code>（拆成 3 个并行作业）、<code>EVAL_ONLY_PARTS=2</code> 设了任何一个就自动用老方法</td>
+</tr>
+</tbody>
+</table>
+<p>不设 <code>EVAL_TIME</code> 时的时限（按老方法定的，新方法远用不完）：q0 2:30；q1、q2 3:30；q3 4:30；q4 5:30；q5 8:00；q6 12:00。新方法实测：ladder q1 13–17 分钟，59B 1:01。</p>
+<h3>5.2 生产 run 的 checkpoint</h3>
+<p>生产 run 没有 ladder 那样的 checkpoint 目录，先摆一个，再用同一个提交脚本：</p>
+<pre><code class="language-bash">BX=/scratch/fsw/portfolios/cosmos/projects/cosmos_base_data/users/boxiangw/cosmos_ultra_pre   # Boxiang 的生产目录，只读
+
+# 1. 摆放：在我们自己的目录下生成 argv.txt、run.json、指向 checkpoint 的链接，打印目录名
+python3 stage_prod_ckpt.py --view $BX/runs/eval59/view/ultra59b_muonh_kd_qbk3 --iter 30000 --change ULTRA59B_MUONH_KD_QBK3
+
+# 2. 提交：rung 写成 it&lt;步数&gt;
+EVAL_QOS=normal EVAL_EXTRA_ARGS= EVAL_CACHE_PER_JOB=1 \
+bash run_doc_eval.sh --dry ULTRA59B_MUONH_KD_QBK3/it30000=ckpt:$HOME/runs/ladder_doc_eval/stage/ULTRA59B_MUONH_KD_QBK3/ckpts/it30000
+</code></pre>
+<ul>
+<li>一个 checkpoint 调用一次脚本。一次传多个 checkpoint 时，它们会排成一串，后一个等前一个结束。</li>
+<li>摆放脚本去掉了训练专用的参数（pack plan、wandb 等），并且<strong>不带训练数据集</strong>，评测不会去建训练集的索引。</li>
+<li>评测参数和 Boxiang 那套 59B 评测相比，模型部分完全一致（2026-11-13 逐项比对过）。</li>
+<li>实测：step 10,000 / 20,000 / 24,000 每个 1 个节点、1:00–1:01，8K 和 32K 两个结果都和老方法逐 split 一致。</li>
+</ul>
+<h3>5.3 外部模型</h3>
+<p>用 vLLM 离线打分，一篇文档一个序列，规则和上面相同，每个 split 的 token 数会和 ladder 的记录核对。新方法只用于 Megatron 的 checkpoint。</p>
+<pre><code class="language-bash">sbatch -N 1 -t 08:00:00 --export=ALL,NAME=&lt;名字&gt;,MODEL=&lt;HF 模型目录&gt;,PP=1 mimo_doc_eval.sbatch
+</code></pre>
+<ul>
+<li>32K 窗口：加 <code>SEQ=32760</code>，名字写成 <code>&lt;名字&gt;_W32K</code>。</li>
+<li>自带 tokenizer 的模型：加 <code>HFO='{}' EXTRA=&quot;--text-dir ~/data/eval_ppl_decon&quot;</code>，需要 BOS 的再加 <code>--bos</code>。这类模型的 loss 是按它自己的 token 算的，只能比 bpb。</li>
+<li>大模型用 2 个节点（<code>-N 2</code>，<code>PP=2</code>）。各模型用过的具体参数写在 <code>mimo_doc_eval.sbatch</code> 开头的注释里。</li>
+<li>输出目录 <code>~/runs/cosmos_eval_doc_isolate/_runs/&lt;名字&gt;-ref-&lt;作业号&gt;/</code>。</li>
+</ul>
+<h3>5.4 Boxiang 的合并集合评测（不属于这条流水线）</h3>
+<p>Boxiang 的 <code>cosmos_ultra_pre/launch/eval59/doc_eval_59b.sbatch</code>：一个 checkpoint、1 个节点、约 1 小时，只测他配置的合并集合（目前 val_v2 和 v3small），窗口默认 8K。它是 downstream 评测启动前做 loss 对齐检查的参照，由 downstream 那边的会话在用。它的结果由 <code>collect_prod_isodoc.py</code> 收进来，报告页面不显示。</p>
+<h3>5.5 收集、整理、发布</h3>
+<p>最省事的是提交后在 tmux 里挂一个等待脚本，作业结束或出现新结果就自动收集、整理、发布 prod iso-doc 页签：</p>
+<pre><code class="language-bash">tmux new -d -s iso_finish &quot;bash finish_when_done.sh &lt;作业号&gt; [&lt;作业号&gt; ...]&quot;   # 日志 ~/runs/ladder_doc_eval/sbatch/finish_&lt;第一个作业号&gt;.log
+</code></pre>
+<p>手动执行（在 <code>scripts/doc_isolated/</code> 或它的冻结拷贝下）：</p>
+<pre><code class="language-bash">python3 collect_doc_eval.py        # 原始目录 -&gt; 结果 JSON（先写 trichord，再拷到另外两处）
+python3 collect_prod_isodoc.py     # 生产 run 的合并集合结果 -&gt; results_xx/prod_isodoc/
+python3 organize_doc_isolated.py   # 结果 JSON -&gt; ~/runs/cosmos_eval_doc_isolate/
+cd ~/Project/cosmos_llm_scaling_ladder/reports_xx
+python3 gen_eval_html.py --only prod                                       # 只重新发布报告的 prod iso-doc 页签
+rsync -a --exclude __pycache__ ./ ../../trichord/reports/dense_pretrain/   # 报告镜像
+</code></pre>
+<ul>
+<li><code>collect_doc_eval.py</code> 对每个（Change ID，rung，窗口）取作业号最新的那次评测：新方法在 S 和该窗口那一遍（L32 或 L8）都有结果时就收集这个窗口，所以 32K 比 8K 早约 17 分钟出现在报告里；老方法要 3 个部分都完成、步数一致。每个 split 的计分 token 数会和 suite 的 yaml 核对。</li>
+<li>新老方法对比：<code>python3 compare_packed_padded.py &lt;ID&gt; &lt;rung&gt; [&lt;rung&gt; ...]</code>，退出码 0 表示全部一致。</li>
+<li>报告由几个会话共同生成，<strong>只用 <code>--only &lt;页签&gt;</code> 发布自己的页签</strong>，不要整份重建。</li>
+</ul>
+<h3>5.6 出问题时先查什么</h3>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>先查</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>作业一开始就退出，日志里有 <code>LUSTRE CHECK FAILED</code></td>
+<td>节点的 Lustre 卡住了。把节点名加进 <code>~/runs/ladder_doc_eval/lustre_stuck_nodes.txt</code> 再重新提交，提交时会自动避开</td>
+</tr>
+<tr>
+<td>作业在第一次读文件时卡住不动</td>
+<td>同上（2026-11-13 的 nvl72d007-t01，OST0157/0158）</td>
+</tr>
+<tr>
+<td>作业长时间没有输出，最后 NCCL 超时</td>
+<td>数据索引缓存里有没有 0 字节文件：<code>find ~/runs/ladder_doc_eval/data_cache/corpus_v2 -name '*.npy' -size -128c</code></td>
+</tr>
+<tr>
+<td>作业一直 PENDING，原因是 requeued held</td>
+<td><code>scontrol release &lt;作业号&gt;</code></td>
+</tr>
+<tr>
+<td>同一批里有的作业被抢占重排</td>
+<td>这批作业的 wckey 不一致，p0 会抢占同一 QOS 里的非 p0 作业</td>
+</tr>
+<tr>
+<td><code>sacct</code> 的状态看不出是不是取消</td>
+<td>用 <code>sacct -o State%30</code>，默认宽度会把 <code>CANCELLED by &lt;uid&gt;</code> 截断</td>
+</tr>
+<tr>
+<td>作业显示 PREEMPTED</td>
+<td>slurm-2 会把它重新排队，之后还会跑完，不算结束</td>
+</tr>
+<tr>
+<td>评测一上来就建几千个索引文件</td>
+<td>这个 run 带着训练数据集。用预装箱数据训练的 run 会这样；生产 run 用 5.2 的摆放方式可以避开</td>
+</tr>
+<tr>
+<td>某个 checkpoint 没有结果 JSON</td>
+<td>新方法：<code>__PKS</code>、<code>__PKL8</code>（和 <code>__PKL32</code>）是否都有 <code>eval/val_splits_*.json</code>；老方法：3 个部分是否都有、步数是否一致</td>
+</tr>
+<tr>
+<td>新方法作业报 <code>--dataloader-inter-document-masking</code> 缺失</td>
+<td>没有用 <code>run_doc_eval.sh</code> 提交；它会给每个 checkpoint 加上这个开关</td>
+</tr>
+</tbody>
+</table>
+<h2 id="s6">6. 当前状态（2026-11-13 23:30）</h2>
+<ul>
+<li><strong>新方法是默认</strong>（23:26 起）：所有新的 iso-doc 评测都用新方法，结果文件的结构和内容与老结果相同。已有的老结果不需要重测。</li>
+<li><strong>59B</strong>（<code>ULTRA59B_MUONH_KD_QBK3</code>）：step 10,000 / 20,000 / 24,000 的 8K 和 32K 都有完整结果（新老方法各测了一次，逐 split 一致，结果文件取新方法那次）；step 30,000 也已测完（新方法）。step 4,000 / 18,000 只有 Boxiang 的合并集合结果，报告页面不显示。</li>
+<li><strong>step 30,000</strong> 已测完（作业 65045，2026-11-14 00:07 上报告页面）。</li>
+<li><strong>还没定</strong>：<code>~/runs/ladder_doc_eval/</code> 里 2026-11-13 之前的原始目录要不要搬进 <code>_runs/</code>。</li>
+</ul>
+</main></body></html>

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>REPA：原论文 vs meshy-research 里的实现</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; --warn:#9a6700; --note:#ddf4ff; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; --warn:#d29922; --note:#0c2d4a; }
+  body { background:#0d1117; }
+}
+body { color:var(--fg); background:#fff; font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+@media (prefers-color-scheme: dark) { body { background:#0d1117; } }
+main { max-width:1200px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+a { color:var(--accent); }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:40px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+h3 { font-size:16px; margin-top:28px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; white-space:nowrap; vertical-align:top; }
+th { background:var(--head); font-weight:600; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+table.wrap th, table.wrap td { white-space:normal; }
+td.w { white-space:normal; min-width:240px; max-width:460px; }
+td.r { text-align:right; }
+.box { border:1px solid var(--border); border-left:4px solid var(--accent); background:var(--note); padding:8px 16px; border-radius:6px; margin:12px 0; }
+.box ul { margin:6px 0; padding-left:20px; }
+.hl { border-left-color:#d4a72c; background:color-mix(in srgb, #f2cc0c 30%, transparent); font-size:15px; }
+.hl p { margin:6px 0; }
+.st { display:inline-block; padding:0 7px; border-radius:10px; font-size:12px; font-weight:600; white-space:nowrap; border:1px solid currentColor; }
+.st.bad { color:var(--bad); } .st.warn { color:var(--warn); } .st.ok { color:var(--good); } .st.na { color:var(--muted); }
+.lbl { font-weight:600; margin:14px 0 4px; }
+em { color:var(--muted); }
+@media (max-width:700px) { main { padding:16px 16px 48px; } nav { padding:8px 16px; } }
+pre { background:var(--head); border:1px solid var(--border); border-radius:6px; padding:12px 14px; overflow-x:auto; font-size:12.5px; line-height:1.4; }
+pre code { background:none; padding:0; }
+</style></head>
+<body><main>
+<h1>REPA：原论文 vs meshy-research 里的实现</h1>
+<p>2026-11-07</p>
+<p>本文说明 REPA（Representation Alignment）的做法，并把原论文（Yu et al., ICLR 2025，SiT-XL/2）和 meshy-research repo 里的实现逐项对比。</p>
+<ul>
+<li>代码位置：meshy-research 的 <code>origin/latv54-dino</code> 分支（<code>origin/latv54</code> 上也有）</li>
+<li>相关 commit：<code>61dd69b add REPA</code>、<code>e63d412 fix local attn and repa</code></li>
+<li>不包含：DINO 体素特征的离线生成过程（多视角 DINO 特征如何反投到体素）</li>
+</ul>
+<h2>1. REPA 是什么</h2>
+<p>REPA 只做一件事：在扩散 loss 之外再加一个辅助 loss，让 denoiser 某几层的 hidden state 去对齐一个冻结的预训练 encoder（DINO）的特征。推理时投影头直接丢掉，没有额外开销。</p>
+<pre><code>  干净数据 x0 ─────────┬──────────────────────────────────────────┐
+  (latent tokens)     │                                          │
+                      │ 加噪 (t ~ U[0,1])                         │ 冻结的 DINO（离线算好也行）
+                      ▼                                          ▼
+                 x_t = (1-t)·x0 + t·ε                      y = DINO(x0)   [L, 1024]
+                      │                                    (和 token 一一对应)
+                      ▼                                          │
+        ┌───────────────────────────┐                            │
+        │   Denoiser (DiT)          │                            │
+        │   block 0                 │                            │
+        │   ...                     │                            │
+        │   block 3 ──────── h3 ────┼──► MLP_3 ──► ĥ3 ──┐        │
+        │   ...                     │                   │        │
+        │   block 7 ──────── h7 ────┼──► MLP_7 ──► ĥ7 ──┤        │
+        │   ...                     │   (投影头，         │        │
+        │   block 11 ─────── h11 ───┼──► 训练完就丢掉)──┤        │
+        │   ...                     │                   ▼        ▼
+        │   block N                 │          ┌──────────────────────────┐
+        │      │                    │          │ 逐 token 算 cosine 相似度  │
+        └──────┼────────────────────┘          │ L_align = Σ_k λ_k ·       │
+               ▼                               │   mean(1 - cos(ĥk, y))    │
+          v_pred                               └────────────┬─────────────┘
+               │                                            │
+     L_diff = ‖v_pred - (ε - x0)‖²                          │
+               │                                            │
+               └──────────────► L = L_diff + L_align ◄──────┘
+                                       │
+                                    backward
+                         (梯度流过 MLP_k 和 denoiser 的前 k 层；DINO 不更新)
+</code></pre>
+<h3>逐 token 对齐</h3>
+<pre><code>  denoiser 中间层 (只取 latent token，丢掉 text/image 条件 token)
+  h_k:   | tok0 | tok1 | tok2 | tok3 | ... | tokL | pad | pad |
+            │      │      │      │            │
+          MLP    MLP    MLP    MLP          MLP        ← 同一个 MLP_k，逐 token 作用
+           L2     L2     L2     L2           L2        ← 归一化
+           cos    cos    cos    cos          cos       ← 和下面对应位置算点积
+           L2     L2     L2     L2           L2
+  y:     | dino0| dino1|  0   | dino3| ... | dinoL|  0  |  0  |
+                         ↑                           ↑
+                     mask=False                  mask=False
+                   (这个位置没有 DINO 特征)        (padding)
+</code></pre>
+<h3>实现只需要 4 步</h3>
+<table class="wrap">
+<thead>
+<tr>
+<th>步骤</th>
+<th>做什么</th>
+<th>repo 里对应的代码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 准备目标</td>
+<td>每个 token 一个 DINO 特征 y_i，加一个有效 mask</td>
+<td><code>get_sparse_feats()</code> 按体素坐标 gather；<code>align_mask = abs().sum() &gt; 1e-3</code></td>
+</tr>
+<tr>
+<td>② 取中间层</td>
+<td>denoiser.forward 多返回几层的 hidden state，只取要对齐的 token</td>
+<td><code>par_diffusion.py</code> 的 <code>intermediate_feat_names</code></td>
+</tr>
+<tr>
+<td>③ 投影 + loss</td>
+<td>每层一个小 MLP 投到目标维度，loss = λ·mean(1 − cos)</td>
+<td><code>AlignmentHead</code> / <code>AlignmentMLP</code></td>
+</tr>
+<tr>
+<td>④ 加到总 loss</td>
+<td><code>L = L_diff + L_align</code>，一起 backward；推理时删掉 MLP</td>
+<td><code>train_dm_repa.py</code>：<code>loss = diff_loss.mean() + align_loss</code></td>
+</tr>
+</tbody>
+</table>
+<h2>2. 对齐哪一层：靠近输入还是靠近输出</h2>
+<p><strong>应该对齐靠近输入的前中段层，不要对齐靠近输出的层。</strong></p>
+<ul>
+<li>原论文在 SiT-XL/2（28 层）上做过消融：对齐第 8 层左右（前 1/3 内）效果最好，对齐的层越深 FID 越差。</li>
+<li>原因：前中段负责从带噪输入里认出语义和结构，这正是 DINO 擅长的；后段要把语义转成具体的 velocity 预测，需要高频、跟 t 相关的细节，DINO 特征里没有这些。在后段强行对齐会和扩散 loss 抢容量。</li>
+</ul>
+<pre><code>  x_t ──► [ 前中段：理解&quot;这是什么&quot; ] ──► [ 后段：生成&quot;该怎么去噪&quot; ] ──► v_pred
+              ↑                              ↑
+         语义表征，适合和 DINO 对齐        高频细节和速度场，跟 DINO 无关
+         (REPA 加在这里)                  (要留给它自由学)
+</code></pre>
+<p>repo 的 denoiser 是 <code>multi_stream_layers: 4</code> + <code>fused_layers: 26</code>，一共 30 层，对齐的层换算成全局层号是：</p>
+<pre><code> 层号:   1  2  3  [4] 5  6  7  [8] 9 10 11 [12] 13 14 15 [16] 17 18 19 [20] 21 ... 30
+         └─ msblock ─┘└──────────────────── fusedblock ─────────────────────────────┘
+ 对齐:            ✓              ✓              ✓              ✓              ✓     (后 10 层不对齐)
+</code></pre>
+<h2>3. 原论文 vs repo 逐项对比</h2>
+<table class="wrap">
+<thead>
+<tr>
+<th>项目</th>
+<th>原论文</th>
+<th>repo（<code>origin/latv54-dino</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>任务</td>
+<td>2D 图像，ImageNet 256</td>
+<td>3D 稀疏体素 latent（SDF）</td>
+</tr>
+<tr>
+<td>denoiser</td>
+<td>SiT-XL/2，28 层</td>
+<td>30 层：4 层 multi-stream + 26 层 fused，带 local/global window attention</td>
+</tr>
+<tr>
+<td>对齐目标</td>
+<td>训练时在线跑冻结的 DINOv2，得到 patch 特征</td>
+<td>离线预存的 3D 体素 DINO 特征，按体素坐标对应到 latent token</td>
+</tr>
+<tr>
+<td>目标维度</td>
+<td>768（DINOv2-B）</td>
+<td>1024</td>
+</tr>
+<tr>
+<td>token 对应</td>
+<td>patch ↔ patch，天然对齐</td>
+<td>先 scatter 到稠密网格，再按 latent 坐标 gather</td>
+</tr>
+<tr>
+<td>无效 token</td>
+<td>没有这个问题</td>
+<td>用 mask 去掉：没有 DINO 特征的体素和 padding</td>
+</tr>
+<tr>
+<td>对齐层数</td>
+<td>1 层</td>
+<td>5 层</td>
+</tr>
+<tr>
+<td>对齐位置</td>
+<td>第 8 层，约 28%</td>
+<td>第 4/8/12/16/20 层，覆盖 13%~67%</td>
+</tr>
+<tr>
+<td>只取哪些 token</td>
+<td>所有 image token</td>
+<td>只取 LATENTS token，丢掉 text/image 条件 token</td>
+</tr>
+<tr>
+<td>投影头</td>
+<td>3 层 MLP + SiLU，最后一层是线性的</td>
+<td>每层一个独立 MLP，<code>n_layers=2</code>，最后一层后面也有 SiLU</td>
+</tr>
+<tr>
+<td>loss</td>
+<td>负 cosine 相似度，逐 patch 取平均</td>
+<td><code>1 - cos</code>（用 <code>rms_norm·D^-0.5</code> 做 L2 归一化），逐 token 取平均</td>
+</tr>
+<tr>
+<td>权重 λ</td>
+<td>0.5</td>
+<td>每层 0.1，5 层加起来 0.5</td>
+</tr>
+<tr>
+<td>样本权重</td>
+<td>没有</td>
+<td>和扩散 loss 共用每个样本的 <code>loss_weight</code></td>
+</tr>
+<tr>
+<td>时间步</td>
+<td>所有 t 都加，不做 t 加权</td>
+<td>一样，所有 t 都加</td>
+</tr>
+<tr>
+<td>并行</td>
+<td>普通 DDP</td>
+<td>denoiser 用 FSDP2 + SP/HP；中间特征先 <code>all_gather</code> 拼成全长；投影头单独走 DDP</td>
+</tr>
+<tr>
+<td>推理</td>
+<td>丢掉投影头</td>
+<td>丢掉投影头</td>
+</tr>
+</tbody>
+</table>
+<p>一致的部分：loss 形式、总权重 0.5、所有时间步都加、推理时丢掉投影头。</p>
+<h2>4. 主要差异和风险点</h2>
+<ol>
+<li><strong>对齐层数多、位置偏深。</strong> 最深的对齐层是第 20 层（67%），而原论文的消融显示对齐越深越差。建议做对照实验：只对齐 <code>fusedblock_03</code>（第 8 层），和 5 层全对齐比较。</li>
+<li><strong>投影头最后一层带 SiLU。</strong> 输出被限制在 ≥ −0.28 的范围，而 DINO 特征有正有负，cosine 可能对不满。改成最后一层是线性的，和原论文一致，更稳妥。</li>
+<li><strong>离线目标。</strong> 省掉了训练时跑 DINO 的计算，但目标特征的质量完全取决于离线生成那一步。这是 3D 场景下合理的改动。</li>
+</ol>
+<h2>5. 并行实现细节</h2>
+<p><strong><code>get_full_seq</code>：把 SP 切开的序列拼回来。</strong> denoiser 开了 sequence parallel，中间层每张卡只有 1/sp_size 段 token。但 <code>token_types</code> mask 和 DINO 目标都是全长的，所以取中间特征时先用可反传的 <code>torch.distributed.nn.all_gather</code> 拼回全长，再挑出 latent token。代价是 SP group 内每张卡都冗余地算一遍对齐 loss，并且多存 5 份全长中间特征。模型最终输出前也是同样 gather 的，所以两个 loss 的梯度路径一致。</p>
+<p><strong>投影头单独用 DDP（<code>force_ddp=True</code>）。</strong> 投影头很小，用 FSDP2 分片省不了显存，反而多了通信，所以每张卡存一份完整参数，梯度用 all-reduce。SP group 内各卡算的 loss 相同，取平均后梯度不变。另外，<code>force_ddp</code> 的模型会跳过 EMA；投影头推理时不用，所以没有影响。</p>
+<h2>6. 配置（<code>configs/super_dm/training/repa.yaml</code>）</h2>
+<pre><code class="language-yaml">training:
+  alignment:
+    n_layers: 2
+    feat_names: [&quot;msblock_03&quot;, &quot;fusedblock_03&quot;, &quot;fusedblock_07&quot;, &quot;fusedblock_11&quot;, &quot;fusedblock_15&quot;]
+    loss_weights: [0.1, 0.1, 0.1, 0.1, 0.1]
+    target_dim: 1024
+datasets:
+  train:
+    params:
+      load_dino_voxels: true
+</code></pre>
+<h2>7. 新接 REPA 的建议起点</h2>
+<ol>
+<li>先只对齐一层，放在总深度的 1/4 到 1/3 处，λ = 0.5。</li>
+<li>想对齐多层的话，也都放在前半段，后 1/3 不要碰。</li>
+<li>多层时权重分摊，总和保持在 0.5 左右。</li>
+<li>投影头用原论文的结构：3 层 MLP + SiLU，最后一层线性。</li>
+</ol>
+</main></body></html>

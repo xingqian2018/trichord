@@ -22,6 +22,14 @@ Usage:
 --input is a directory (scanned recursively for images), a .txt with one image path/url per line,
 or a .jsonl whose rows carry "image" (path/url) and optionally "id". Rows already present in
 --output with a caption are skipped, so re-running resumes.
+
+--input can also be a Lance table (path ending in .lance, local / s3:// / gs://); --id_column,
+--image_column and --html_column pick its columns and --sample draws a random subset.
+
+Prompts whose name contains "html_poster" (e.g. caption_sp_for_html_poster_v0) need "caption_html"
+per row (the HTML the poster was rendered from); it is attached to the user message and all quoted
+text is taken from it. The output field "column" records the prompt name, which is also the target
+Lance column name.
 """
 
 import argparse
@@ -35,13 +43,12 @@ from typing import Any, Optional
 from loguru import logger
 from PIL import Image, ImageOps
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from prompts import PROMPTS  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from utils.gateway import GATEWAY_CONFIG, UnifiedGatewayVLM, resolve_model_string  # noqa: E402
 from utils.image_io import read_url_bytes  # noqa: E402
 
+PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
+PROMPTS = {p.stem: p for p in sorted(PROMPT_DIR.glob("*.md"))}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 USER_TEXT = "Caption this image."
 
@@ -51,6 +58,47 @@ TAGGED_RESPONSE = re.compile(
 )
 THINK_BLOCK = re.compile(r"<think>.*?</think>", flags=re.IGNORECASE | re.DOTALL)
 XML_TAG = re.compile(r"</?[a-zA-Z][^>]*>")
+CAPTION_BLOCK = re.compile(r"<caption>(.*?)</caption>", flags=re.IGNORECASE | re.DOTALL)
+HTML_USER_TEXT = "Caption this image.\n\nattached original HTML:\n```HTML\n{html}\n```"
+
+
+def is_html_prompt(prompt_name: str) -> bool:
+    return "html_poster" in prompt_name
+
+
+def load_lance_items(args: argparse.Namespace, wanted_ids: Optional[set[str]] = None) -> list[dict[str, str]]:
+    import random
+
+    import lance
+
+    storage_options = None
+    if args.input.startswith(("s3://", "gs://")):
+        cred = json.loads((Path(__file__).resolve().parents[2] / "credentials" / "gcs.secret").read_text())
+        storage_options = {
+            "aws_access_key_id": cred["aws_access_key_id"],
+            "aws_secret_access_key": cred["aws_secret_access_key"],
+            "aws_endpoint": cred["endpoint_url"],
+            "aws_region": cred["region_name"],
+        }
+    uri = "s3://" + args.input[len("gs://"):] if args.input.startswith("gs://") else args.input
+    dataset = lance.dataset(uri, storage_options=storage_options)
+    columns = [args.id_column, args.image_column] + ([args.html_column] if args.html_column else [])
+    if wanted_ids is not None:
+        quoted = ", ".join("'" + i.replace("'", "''") + "'" for i in sorted(wanted_ids))
+        rows = dataset.to_table(columns=columns, filter=f"{args.id_column} IN ({quoted})").to_pylist()
+    else:
+        num_rows = dataset.count_rows()
+        indices = list(range(num_rows))
+        if 0 < args.sample < num_rows:
+            indices = sorted(random.Random(args.seed).sample(indices, args.sample))
+        rows = dataset.take(indices, columns=columns).to_pylist()
+    items = []
+    for row in rows:
+        item = {"id": str(row[args.id_column]), "image": row[args.image_column]}
+        if args.html_column and row.get(args.html_column):
+            item["caption_html"] = row[args.html_column]
+        items.append(item)
+    return items
 
 
 def load_items(input_path: str) -> list[dict[str, str]]:
@@ -66,7 +114,10 @@ def load_items(input_path: str) -> list[dict[str, str]]:
                 continue
             if path.suffix == ".jsonl":
                 row = json.loads(line)
-                items.append({"id": str(row.get("id", row["image"])), "image": row["image"]})
+                item = {"id": str(row.get("id", row["image"])), "image": row["image"]}
+                if row.get("caption_html"):
+                    item["caption_html"] = row["caption_html"]
+                items.append(item)
             else:
                 items.append({"id": line, "image": line})
     ids = [item["id"] for item in items]
@@ -114,6 +165,9 @@ def parse_response(content: Optional[str], prompt_name: str) -> tuple[Optional[s
         if match is None:
             return None, None
         breakdown, caption = match.group("breakdown").strip(), match.group("caption").strip()
+    elif prompt_name.startswith("k19") or is_html_prompt(prompt_name):
+        matches = CAPTION_BLOCK.findall(text)
+        breakdown, caption = None, matches[-1].strip() if matches else text
     else:
         breakdown, caption = None, text
     caption = " ".join(caption.split())
@@ -127,6 +181,9 @@ def build_requests(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     requests, kept, failed = [], [], []
     for item in items:
+        if is_html_prompt(args.prompt) and not item.get("caption_html"):
+            failed.append({**item, "error": "missing caption_html"})
+            continue
         try:
             image_bytes = prepare_image(read_url_bytes(item["image"]), args.max_long_side)
         except Exception as exc:
@@ -135,7 +192,7 @@ def build_requests(
         request = gateway.build_request(
             model_name=args.model,
             system_prompt=system_prompt,
-            content_prompt=USER_TEXT,
+            content_prompt=HTML_USER_TEXT.format(html=item["caption_html"]) if is_html_prompt(args.prompt) else USER_TEXT,
             image_bytes=image_bytes,
             temperature=args.temperature,
             max_tokens=args.max_tokens,
@@ -171,7 +228,9 @@ def run_chunk(
             break
         pending = retry
     model_string = resolve_model_string(args.model)
-    return [{**records[item["id"]], "model": model_string, "prompt": args.prompt} for item in items]
+    model_name = model_string.split("@", 1)[0]
+    rows = [{**records[item["id"]], f"{args.prompt}_model": model_name, "column": args.prompt} for item in items]
+    return [{k: v for k, v in row.items() if k != "caption_html"} for row in rows]
 
 
 def main() -> None:
@@ -190,9 +249,14 @@ def main() -> None:
     parser.add_argument("--parse_attempts", type=int, default=2)
     parser.add_argument("--chunk_size", type=int, default=512)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--sample", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--id_column", default="uuid")
+    parser.add_argument("--image_column", default="image_s3_range")
+    parser.add_argument("--html_column", default="caption_original_html")
     args = parser.parse_args()
 
-    items = load_items(args.input)
+    items = load_lance_items(args) if args.input.rstrip("/").endswith(".lance") else load_items(args.input)
     if args.limit > 0:
         items = items[: args.limit]
     output_path = Path(args.output)
@@ -203,7 +267,7 @@ def main() -> None:
     if not todo:
         return
 
-    system_prompt = PROMPTS[args.prompt]()
+    system_prompt = PROMPTS[args.prompt].read_text(encoding="utf-8").strip()
     gateway = UnifiedGatewayVLM(GATEWAY_CONFIG, num_concurrency=args.num_concurrency, num_max_retry=args.num_max_retry, timeout=args.timeout)
     num_ok = 0
     try:

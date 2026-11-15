@@ -96,8 +96,52 @@ def sniff_image_fmt(data: bytes) -> str:
     return "png"
 
 
+PBSS_TO_GCS = {
+    "logged_images": ("nv-00-10206-images", "logged_images"),
+    "annotated_data": ("nv-00-10206-images", "annotated_data"),
+    "webdataset": ("nv-00-10206-webdataset-images", ""),
+    "debug": ("nv-00-10206-images", "debug"),
+}
+GCS_NATIVE_BUCKETS = {"nv-00-10206-images", "nv-00-10206-webdataset-images"}
+S3R_CLIENT = None
+
+
+def parse_s3r(uri: str) -> tuple[str, str, int, int]:
+    rest = uri[len("s3r:"):].split("//", 1)[1].rsplit("@", 1)[0]
+    bucket_and_path, range_part = rest.rsplit(":", 1)
+    bucket, object_path = bucket_and_path.split("/", 1)
+    start, length = map(int, range_part.split("-"))
+    if bucket in PBSS_TO_GCS:
+        bucket, prefix = PBSS_TO_GCS[bucket]
+        object_path = f"{prefix}/{object_path}" if prefix else object_path
+    elif bucket not in GCS_NATIVE_BUCKETS:
+        raise ValueError(f"unknown s3r bucket {bucket!r} in {uri}")
+    return bucket, object_path, start, length
+
+
+def read_s3r_bytes(uri: str) -> bytes:
+    global S3R_CLIENT
+    if S3R_CLIENT is None:
+        import boto3
+        from botocore.config import Config
+
+        cred = json.loads(S3_CREDENTIAL_FILE.read_text())
+        S3R_CLIENT = boto3.client(
+            "s3",
+            endpoint_url=cred["endpoint_url"],
+            region_name=cred["region_name"],
+            aws_access_key_id=cred["aws_access_key_id"],
+            aws_secret_access_key=cred["aws_secret_access_key"],
+            config=Config(s3={"addressing_style": "path"}),
+        )
+    bucket, key, start, length = parse_s3r(uri)
+    return S3R_CLIENT.get_object(Bucket=bucket, Key=key, Range=f"bytes={start}-{start + length - 1}")["Body"].read()
+
+
 def read_url_bytes(url: str) -> bytes:
     scheme = urlparse(url).scheme
+    if scheme == "s3r":
+        return read_s3r_bytes(url)
     if scheme == "data":
         return base64.b64decode(url.split(",", 1)[1])
     if scheme in ("", "file", "http", "https", "s3", "gs"):

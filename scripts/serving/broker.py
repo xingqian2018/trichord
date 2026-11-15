@@ -12,6 +12,10 @@ come and go (Slurm requeue) without any endpoint list:
     POST /worker/release    {worker_id, id}               puts a job back (worker cannot reach its backend)
     GET  /stats                                           queue depth, in-flight and live workers per model
 A job whose lease expires (worker died) is requeued at the front, up to MAX_ATTEMPTS times.
+Session affinity: chat requests are keyed by their messages up to the first user message (one key per conversation),
+and a key sticks to the worker that served it last, so every turn of a conversation lands on the replica that already
+holds its history in the prefix cache. Another worker takes the job only when the owner is not alive or the job has
+waited STICKY_WAIT_SECONDS.
 Auth: every request carries the bearer key of its model (the SLURM_*_API_KEY entries of credentials/gateway.json),
 for clients and workers alike.
 """
@@ -19,6 +23,7 @@ for clients and workers alike.
 import argparse
 import base64
 import collections
+import hashlib
 import json
 import threading
 import time
@@ -40,6 +45,20 @@ LEASE_SECONDS = 60
 WORKER_ALIVE_SECONDS = 60
 PULL_WAIT_SECONDS = 20
 MAX_ATTEMPTS = 3
+STICKY_WAIT_SECONDS = 10
+AFFINITY_TTL_SECONDS = 7200
+
+
+def session_key(body: dict) -> str | None:
+    messages = body.get("messages")
+    if not isinstance(messages, list):
+        return None
+    head = []
+    for m in messages:
+        head.append(m)
+        if isinstance(m, dict) and m.get("role") == "user":
+            return hashlib.sha1(json.dumps(head, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    return None
 
 
 class Job:
@@ -47,6 +66,7 @@ class Job:
         self.id = uuid.uuid4().hex
         self.model, self.path, self.body = model, path, body
         self.created = time.time()
+        self.session = session_key(body)
         self.attempts = 0
         self.worker = None
         self.lease_until = 0.0
@@ -71,6 +91,8 @@ class Broker:
         self.workers: dict[str, dict] = {}
         self.served = collections.Counter()
         self.failed = collections.Counter()
+        self.affinity: dict[str, tuple[str, float]] = {}
+        self.affinity_counts: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
         threading.Thread(target=self.reap, daemon=True).start()
 
     def allowed(self, key: str, model: str) -> bool:
@@ -87,21 +109,48 @@ class Broker:
                 self.queues[job.model].remove(job)
             self.inflight.pop(job.id, None)
 
+    def alive(self, worker_id: str, now: float) -> bool:
+        info = self.workers.get(worker_id)
+        return info is not None and now - info["seen"] <= WORKER_ALIVE_SECONDS
+
+    def eligible(self, job: Job, worker_id: str, now: float) -> bool:
+        if job.session is None or job.session not in self.affinity:
+            return True
+        owner = self.affinity[job.session][0]
+        return owner == worker_id or not self.alive(owner, now) or now - job.created >= STICKY_WAIT_SECONDS
+
+    def take(self, worker_id: str, model: str, limit: int) -> list[Job]:
+        now = time.time()
+        queue = self.queues[model]
+        jobs = []
+        for job in list(queue):
+            if len(jobs) >= limit:
+                break
+            if job.done.is_set():
+                queue.remove(job)
+                continue
+            if not self.eligible(job, worker_id, now):
+                continue
+            queue.remove(job)
+            if job.session is not None:
+                owner = self.affinity.get(job.session, (None, 0.0))[0]
+                self.affinity_counts[model]["new" if owner is None else "hit" if owner == worker_id else "moved"] += 1
+                self.affinity[job.session] = (worker_id, now)
+            job.worker, job.lease_until = worker_id, now + LEASE_SECONDS
+            job.attempts += 1
+            self.inflight[job.id] = job
+            jobs.append(job)
+        return jobs
+
     def pull(self, worker_id: str, model: str, limit: int) -> list[Job]:
         deadline = time.time() + PULL_WAIT_SECONDS
         with self.cond:
             self.touch(worker_id, model)
-            while not self.queues[model] and time.time() < deadline:
-                self.cond.wait(timeout=max(0.0, deadline - time.time()))
-            jobs = []
-            while self.queues[model] and len(jobs) < limit:
-                job = self.queues[model].popleft()
-                if job.done.is_set():
-                    continue
-                job.worker, job.lease_until = worker_id, time.time() + LEASE_SECONDS
-                job.attempts += 1
-                self.inflight[job.id] = job
-                jobs.append(job)
+            jobs = self.take(worker_id, model, limit)
+            while not jobs and time.time() < deadline:
+                left = max(0.0, deadline - time.time())
+                self.cond.wait(timeout=min(1.0, left) if self.queues[model] else left)
+                jobs = self.take(worker_id, model, limit)
             self.touch(worker_id, model)
             return jobs
 
@@ -146,6 +195,9 @@ class Broker:
                     else:
                         self.queues[job.model].appendleft(job)
                         self.cond.notify_all()
+                for key, (_, seen) in list(self.affinity.items()):
+                    if now - seen > AFFINITY_TTL_SECONDS:
+                        del self.affinity[key]
                 for worker_id, info in list(self.workers.items()):
                     if now - info["seen"] > 10 * WORKER_ALIVE_SECONDS:
                         del self.workers[worker_id]
@@ -160,7 +212,8 @@ class Broker:
         with self.cond:
             models = set(MODEL_KEYS) | set(self.queues)
             return {m: {"queued": len(self.queues[m]), "in_flight": sum(j.model == m for j in self.inflight.values()),
-                        "live_workers": live.get(m, 0), "served": self.served[m], "failed": self.failed[m]} for m in sorted(models)}
+                        "live_workers": live.get(m, 0), "served": self.served[m], "failed": self.failed[m],
+                        "affinity": dict(self.affinity_counts[m])} for m in sorted(models)}
 
 
 class Server(ThreadingHTTPServer):

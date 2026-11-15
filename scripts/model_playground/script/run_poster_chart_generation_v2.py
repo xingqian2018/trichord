@@ -5,7 +5,7 @@ upsampler, and images from the original Cosmos3-Super-Text2Image (c3_serve, serv
 (tool/poster_chart_generation_v2.py). Same system prompt, critic and Kimi-K3 service as v1; launch with
 C3_ENDPOINTS=$(cat $RUN/c3_serve/broker_url)/v1 and no C3_SERVED_NAME, then
     python3 script/run_poster_chart_generation_v2.py --model kimi-k3@k3slurm --prompt_preset poster_chart_generation_v1 \
-        --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_chart_generation_v2_kimik3_cosmos3x9cupsampled_kimik3 \
+        --output s3://nv-00-10206-vfm/debug/xingqianx/agentic_data/poster_chart_generation_v2_kimik3_cosmos3upsampled_kimik3 \
         --aspect_ratio random --reasoning_effort random --max_samples_per_process 625
 """
 

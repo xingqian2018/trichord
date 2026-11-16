@@ -44,20 +44,21 @@ from loguru import logger
 from PIL import Image, ImageOps
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from utils.gateway import GATEWAY_CONFIG, UnifiedGatewayVLM, resolve_model_string  # noqa: E402
+from utils.gateway import GATEWAY_CONFIG, UnifiedGatewayVLM  # noqa: E402
 from utils.image_io import read_url_bytes  # noqa: E402
 
 PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
 PROMPTS = {p.stem: p for p in sorted(PROMPT_DIR.glob("*.md"))}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 USER_TEXT = "Caption this image."
+MAX_IMAGE_BYTES = 3_500_000
 
 TAGGED_RESPONSE = re.compile(
     r"\A\s*<image_breakdown>(?P<breakdown>.*?)</image_breakdown>\s*<caption>(?P<caption>.*?)</caption>\s*\Z",
     flags=re.IGNORECASE | re.DOTALL,
 )
 THINK_BLOCK = re.compile(r"<think>.*?</think>", flags=re.IGNORECASE | re.DOTALL)
-XML_TAG = re.compile(r"</?[a-zA-Z][^>]*>")
+XML_TAG = re.compile(r"</?(?:caption|image_breakdown|think)\b[^>]*>", flags=re.IGNORECASE)
 CAPTION_BLOCK = re.compile(r"<caption>(.*?)</caption>", flags=re.IGNORECASE | re.DOTALL)
 HTML_USER_TEXT = "Caption this image.\n\nattached original HTML:\n```HTML\n{html}\n```"
 
@@ -143,10 +144,11 @@ def load_done_ids(output_path: Path) -> set[str]:
 def prepare_image(image_bytes: bytes, max_long_side: int) -> bytes:
     image = Image.open(io.BytesIO(image_bytes))
     image.load()
-    if max_long_side <= 0 or max(image.size) <= max_long_side:
+    fits = max_long_side <= 0 or max(image.size) <= max_long_side
+    if fits and len(image_bytes) <= MAX_IMAGE_BYTES:
         return image_bytes
     image = ImageOps.exif_transpose(image)
-    scale = max_long_side / max(image.size)
+    scale = 1.0 if fits else max_long_side / max(image.size)
     resized = image.convert("RGB").resize(
         (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
         Image.Resampling.LANCZOS,
@@ -179,15 +181,22 @@ def parse_response(content: Optional[str], prompt_name: str) -> tuple[Optional[s
 def build_requests(
     gateway: UnifiedGatewayVLM, items: list[dict[str, str]], args: argparse.Namespace, system_prompt: str
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-    requests, kept, failed = [], [], []
-    for item in items:
+    from concurrent.futures import ThreadPoolExecutor
+
+    def load(item: dict[str, str]) -> tuple[Optional[bytes], Optional[str]]:
         if is_html_prompt(args.prompt) and not item.get("caption_html"):
-            failed.append({**item, "error": "missing caption_html"})
-            continue
+            return None, "missing caption_html"
         try:
-            image_bytes = prepare_image(read_url_bytes(item["image"]), args.max_long_side)
+            return prepare_image(read_url_bytes(item["image"]), args.max_long_side), None
         except Exception as exc:
-            failed.append({**item, "error": f"image load failed: {type(exc).__name__}: {exc}"})
+            return None, f"image load failed: {type(exc).__name__}: {exc}"
+
+    with ThreadPoolExecutor(max_workers=args.num_io_workers) as pool:
+        loaded = list(pool.map(load, items))
+    requests, kept, failed = [], [], []
+    for item, (image_bytes, load_error) in zip(items, loaded):
+        if load_error:
+            failed.append({**item, "error": load_error})
             continue
         request = gateway.build_request(
             model_name=args.model,
@@ -227,9 +236,7 @@ def run_chunk(
         if not retry:
             break
         pending = retry
-    model_string = resolve_model_string(args.model)
-    model_name = model_string.split("@", 1)[0]
-    rows = [{**records[item["id"]], f"{args.prompt}_model": model_name, "column": args.prompt} for item in items]
+    rows = [{**records[item["id"]], "column": args.prompt} for item in items]
     return [{k: v for k, v in row.items() if k != "caption_html"} for row in rows]
 
 
@@ -248,6 +255,7 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=600)
     parser.add_argument("--parse_attempts", type=int, default=2)
     parser.add_argument("--chunk_size", type=int, default=512)
+    parser.add_argument("--num_io_workers", type=int, default=32)
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--sample", type=int, default=0)
     parser.add_argument("--seed", type=int, default=0)

@@ -24,7 +24,7 @@
 set -euo pipefail
 umask 022
 source "$HOME/Project/trichord/scripts/serving/pool_lib.sh"
-pool_init k3_serve 2
+pool_init "${K3_STATE:-k3_serve}" 2
 
 IMAGE=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/containers/kimi-k3-serving-v0.30.0-20260928.sqsh
 MODEL=/lustre/fsw/portfolios/cosmos/projects/cosmos_base_training/users/sdharur/models/moonshotai/Kimi-K3-f831ab66

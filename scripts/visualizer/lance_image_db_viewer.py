@@ -51,7 +51,8 @@ GRID_COLUMNS = 4
 GRID_MAX_SIDE = 512
 
 Image.MAX_IMAGE_PIXELS = None
-CAPTION_PREVIEW_CHARS = 160
+PREFERRED_CAPTION_PREFIX = "caption_sp_"
+LAST_CAPTIONS = {"caption_original_html"}
 
 st.set_page_config(page_title="Midtrain Image Viewer", page_icon="🖼️", layout="wide")
 
@@ -172,7 +173,7 @@ def load_rows(table_uri: str, fragment_id: int, source_dataset: str, row_limit: 
 
 def caption_items(row: dict) -> list[tuple[str, str]]:
     items = [(k, v) for k, v in row.items() if "caption" in k and isinstance(v, str) and v.strip() and not k.endswith(("_model", "_error", "_modified_by", "_category"))]
-    return sorted(items, key=lambda item: not item[0].startswith("captioning"))
+    return sorted(items, key=lambda item: (item[0] in LAST_CAPTIONS, not item[0].startswith(PREFERRED_CAPTION_PREFIX), not item[0].startswith("captioning")))
 
 
 def status_line(row: dict) -> str:
@@ -213,7 +214,9 @@ def render_grid(rows: list[dict]) -> None:
                 st.caption(f"{row.get('width')}×{row.get('height')} · {status_line(row)}")
                 captions = caption_items(row)
                 if captions:
-                    st.caption(captions[0][1][:CAPTION_PREVIEW_CHARS] + ("…" if len(captions[0][1]) > CAPTION_PREVIEW_CHARS else ""))
+                    name, text = captions[0]
+                    with st.expander(f"{name} · {len(text):,} chars"):
+                        st.caption(text)
 
 
 def render_detail(rows: list[dict], key: str) -> None:
@@ -237,9 +240,12 @@ def render_detail(rows: list[dict], key: str) -> None:
             show_original_image(row, "qwen_image_s3_range")
     caption_col, meta_col = st.columns([3, 2])
     with caption_col:
-        for name, text in caption_items(row):
-            st.markdown(f"**{name}**")
-            st.write(text)
+        for i, (name, text) in enumerate(caption_items(row)):
+            with st.expander(f"{name} · {len(text):,} chars", expanded=i == 0):
+                if name in LAST_CAPTIONS:
+                    st.code(text, language="html", wrap_lines=True)
+                else:
+                    st.write(text)
     with meta_col:
         st.markdown("**Metadata (non-null columns)**")
         caption_names = {name for name, _ in caption_items(row)}

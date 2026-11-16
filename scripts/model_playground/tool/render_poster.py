@@ -116,7 +116,7 @@ def target_size(width: int, height: int, size_table: dict[str, str] = RENDER_ASP
     return int(target_width), int(target_height)
 
 
-def render_html_to_png(html_code: str, png_path: Path, size_table: dict[str, str] = RENDER_ASPECT_RATIO_TO_SIZE) -> Path:
+def render_html_to_png(html_code: str, png_path: Path, size_table: dict[str, str] = RENDER_ASPECT_RATIO_TO_SIZE, chrome_args: Iterable[str] = ()) -> Path:
     chrome_bin = find_chrome_binary()
     if chrome_bin is None:
         raise RuntimeError(f"No headless Chrome/Chromium binary found (tried {CHROME_CANDIDATES}).")
@@ -139,6 +139,7 @@ def render_html_to_png(html_code: str, png_path: Path, size_table: dict[str, str
             f"--user-data-dir={Path(tmpdir) / 'profile'}",
             f"--window-size={width},{height}",
             f"--force-device-scale-factor={scale}",
+            *chrome_args,
             f"--screenshot={png_path}",
             f"file://{html_path}",
         ]
@@ -179,6 +180,7 @@ class render_poster(Tool):
     }
 
     aspect_ratio_to_size = RENDER_ASPECT_RATIO_TO_SIZE
+    chrome_args: tuple[str, ...] = ()
 
     def __init__(self, scratch_root: Optional[str] = None):
         super().__init__()
@@ -201,7 +203,7 @@ class render_poster(Tool):
         width, height = infer_canvas_size(html)
         if aspect_ratio_bucket(width, height, ratios=self.aspect_ratio_to_size) != aspect_ratio:
             raise ToolCallError(f"the HTML canvas is {width}x{height}, which is not approximately {aspect_ratio}; set the root element width and height so it can render a {aspect_ratio} canvas with minor resize.")
-        path = str(render_html_to_png(html, out, self.aspect_ratio_to_size))
+        path = str(render_html_to_png(html, out, self.aspect_ratio_to_size, self.chrome_args))
         self.add_file(path)
         return f"render_poster saved PNG to {path}"
 
@@ -211,4 +213,5 @@ class render_poster(Tool):
             "scratch_root": str(self.scratch_root) if self.scratch_root else None,
             "aspect_ratio_to_size": self.aspect_ratio_to_size,
             "chrome_binary": find_chrome_binary(),
+            "chrome_args": list(self.chrome_args),
         }

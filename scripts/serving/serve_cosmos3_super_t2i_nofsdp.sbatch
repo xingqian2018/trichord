@@ -27,7 +27,7 @@
 set -euo pipefail
 umask 022
 source "$HOME/Project/trichord/scripts/serving/pool_lib.sh"
-pool_init c3_serve 1
+pool_init "${C3_STATE:-c3_serve}" 1
 
 IMAGE=$U/containers/vllm-omni+cosmos3-arm64.sqsh
 export C3_REPO=nvidia/Cosmos3-Super-Text2Image C3_REVISION=daf3d374804be4c512c2135568a7cb95d4341d79

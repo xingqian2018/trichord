@@ -41,8 +41,11 @@ BLUE = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987
 
 T = {
  "zh": {
-  "lang": "zh", "title": "Qwen3-MoE scaling ladder",
-  "sub": "doc-isolated 评测（9 个 decon suite，含 private_internal），dpl 指标定义；数据生成于 {ts}",
+  "lang": "zh", "title": "59B 生产 run 跟踪 · Qwen3-MoE scaling ladder",
+  "sub": "前两个页签 = 59B 生产 run（ULTRA59B_MUONH_KD_QBK3）的 val loss 和下游测评（下游每 2k 步一测；val loss 全量约每 4–6k 步，其间补测 val_v2 / v3small）；后面是外部模型和 ladder 研究的存档（doc-isolated 评测：9 个 decon suite，含 private_internal，dpl 指标定义）。数据生成于 {ts}",
+  "nav_arch": "早期研究（另一个文件）：", "nav_arch_here": "早期研究：",
+  "title_arch": "Qwen3-MoE scaling ladder · 早期研究存档",
+  "sub_arch": "ladder 研究的存档：doc-isolated 评测（9 个 decon suite，含 private_internal，dpl 指标定义）、老实验、LR 拟合、packed。59B 生产 run 的 val loss 和下游测评在主页面 qwen3_scaling_ladder_eval.html。数据生成于 {ts}",
   "nav": ["结论", "优化器（CE）", "KD（MuonH）", "热力图", "数据表", "说明"],
   "muon_fit": "Muon（新拟合 LR）", "ce_fit": "MuonH（新拟合 LR，MUONH_FIT）", "opt_h": "优化器对比", "opt_note": "虚线 = Boxiang 按新拟合的 LR 公式跑的同一优化器（MuonH：fit v2 η = 0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259，目前有 q2 / q3；Muon 没有按新公式跑）。同一数据、同一 token 数，只换优化器（及其 LR 规则 / schedule）。横轴：激活参数（不含 embedding，对数坐标）。",
   "o2_h": "相对 AdamW 的 Δloss（优化器 − AdamW，越负越好）",
@@ -97,7 +100,7 @@ T = {
   "lf_cells": "每个格子：实测 vs 拟合", "lf_meas": "实测", "lf_fitted": "拟合", "lf_res": "残差", "lf_ext": "外推（只作参考）", "lf_ratio": "拟合 / ArchScale",
   "lf_pred": ["q2 主线（TPP 200）", "q3 主线（TPP 200）", "q6（30B-A3B）", "235B 目标"],
   "lf_warn": "q2 / q3 主线是对格子已覆盖范围附近的预测；q6 和 235B 远超拟合范围（最深 30 层、最多 86B token），只说明方向，不能直接拿来用。另外目前单 seed，深度指数在 9.6B 和 30.8B 两列上不完全一致（约 −0.15 和 −0.06），可分离性还要更多格子确认。",
-  "tab_doc": "doc-isolated", "tab_docold": "老实验", "tab_ref": "外部参考", "tab_down": "prod downstream",
+  "tab_doc": "doc-isolated", "tab_docold": "老实验", "tab_ref": "外部参考", "tab_down": "59B downstream",
   "ce_lack": "还没有按这份清单测的外部模型（只有旧协议 nemo6 的分数，不在下面的表里）：{names}。",
   "ce_ours": "我们自己的 checkpoint 用同一份清单测，分数在“prod downstream”页。",
   "down_old": "只有旧协议（nemo6）分数的 {n} 个 checkpoint：按这份清单测过之后会自动出现在上面的列表里 — 点击展开",
@@ -132,8 +135,11 @@ T = {
   "tok_h": "各验证集的 token 数", "tok_note": "overall_tw 由这六类按 token 加权，所以 token 多的集合（uncheatable、pile_test）权重大；overall_macro 则六类等权。pile_10k（{p10k} token）不进 overall，不画在图里。每个模型评测的 token 完全相同。",
   "tok_cols": ["验证集", "split 数", "token", "占比"], "tok_total": "合计"},
  "en": {
-  "lang": "en", "title": "Qwen3-MoE scaling ladder",
-  "sub": "Document-isolated eval (9 decon suites incl. private_internal), dpl metric definitions; generated {ts}",
+  "lang": "en", "title": "59B production run · Qwen3-MoE scaling ladder",
+  "sub": "The first two tabs = val loss and downstream evals of the 59B production run (ULTRA59B_MUONH_KD_QBK3) (downstream every 2k steps; the full val-loss suite about every 4–6k steps, val_v2 / v3small in between); the others are the archive of external models and the ladder research (document-isolated eval: 9 decon suites incl. private_internal, dpl metric definitions). Generated {ts}",
+  "nav_arch": "Earlier research (separate file):", "nav_arch_here": "Earlier research:",
+  "title_arch": "Qwen3-MoE scaling ladder · research archive",
+  "sub_arch": "Archive of the ladder research: document-isolated eval (9 decon suites incl. private_internal, dpl metric definitions), older experiments, LR fits, packed validation. The 59B production run's val loss and downstream evals are on the main page qwen3_scaling_ladder_eval_en.html. Generated {ts}",
   "nav": ["Findings", "Optimizers (CE)", "KD (MuonH)", "Heatmap", "Tables", "Notes"],
   "muon_fit": "Muon (new fitted LR)", "ce_fit": "MuonH (new fitted LR, MUONH_FIT)", "opt_h": "Optimizer comparison", "opt_note": "Dashed = the same optimizer at the new fitted LR law of Boxiang (MuonH: fit v2 η = 0.01725 · (L/8)^−0.176 · (T/10.4B)^−0.259, q2 / q3 so far; no Muon run at a fitted law). Same data and token count; only the optimizer (with its LR rule / schedule) changes. x: active non-embedding parameters (log scale).",
   "o2_h": "Δloss vs AdamW (optimizer − AdamW, more negative is better)",
@@ -188,7 +194,7 @@ T = {
   "lf_cells": "Per cell: measured vs fitted", "lf_meas": "measured", "lf_fitted": "fitted", "lf_res": "residual", "lf_ext": "Extrapolation (indicative only)", "lf_ratio": "fitted / ArchScale",
   "lf_pred": ["q2 main (TPP 200)", "q3 main (TPP 200)", "q6 (30B-A3B)", "235B target"],
   "lf_warn": "q2 / q3 main are predictions near the covered range; q6 and 235B are far outside it (at most 30 layers and 86B tokens fitted) - direction only, not for use as is. One seed; the depth exponent differs between the 9.6B and 30.8B columns (about −0.15 vs −0.06), so separability needs more cells.",
-  "tab_doc": "doc-isolated", "tab_docold": "Older experiments", "tab_ref": "External references", "tab_down": "prod downstream",
+  "tab_doc": "doc-isolated", "tab_docold": "Older experiments", "tab_ref": "External references", "tab_down": "59B downstream",
   "ce_lack": "External models not evaluated with this list yet (they only have scores of the earlier nemo6 protocol and are not in the tables below): {names}.",
   "ce_ours": "Our own checkpoints are evaluated with the same list; their scores are in the \"prod downstream\" tab.",
   "down_old": "{n} checkpoints that only have scores of the earlier protocol (nemo6): they appear in the list above once evaluated with this task list - click to expand",
@@ -455,7 +461,11 @@ CSS = """
 .card.vn{max-width:720px;padding:8px 12px;margin-left:auto;margin-right:auto}.vn table{margin:0 auto;width:fit-content}.vn .ct{text-align:center}.vn .ct{font-size:12px;font-weight:500;color:var(--text-secondary)}.vn table{font-size:11.5px}.vn td,.vn th{padding:2px 8px}
 body{margin:0;background:var(--page)}
 .viz-root{font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text-primary);background:var(--page)}
-nav{position:sticky;top:0;z-index:2;background:var(--page);border-bottom:1px solid var(--border);padding:8px 28px;font-size:13px}
+nav{position:sticky;top:0;z-index:2;background:var(--page);border-bottom:1px solid var(--border);padding:8px 28px;font-size:13px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}nav::-webkit-scrollbar{display:none}
+nav .tab.arch{font-size:12px;padding:3px 10px;color:var(--muted)}nav .tab.arch.on{color:var(--surface-1)}
+nav a.tabl{display:inline-block;font-size:13px;padding:5px 14px;margin-right:6px;border-radius:999px;border:1px dashed var(--border);background:transparent;color:var(--text-secondary);text-decoration:none}
+nav a.tabl.arch{font-size:12px;padding:3px 10px;color:var(--muted)}nav a.tabl:hover{color:var(--text-primary)}nav .nav-sep{color:var(--muted);font-size:12px;margin:0 6px 0 12px}
+@media (max-width:700px){main{padding:14px 16px 48px}nav{padding:8px 16px}#tip{white-space:normal;max-width:90vw}.tiles{grid-template-columns:1fr 1fr}.tile .v{font-size:24px}}
 nav a{color:var(--text-secondary);text-decoration:none;margin-right:16px}nav a:hover{color:var(--text-primary)}
 main{max-width:1440px;margin:0 auto;padding:20px 28px 64px}
 h1{font-size:24px;margin:8px 0 2px}.sub{color:var(--text-secondary);margin:0 0 20px}
@@ -548,29 +558,57 @@ document.querySelectorAll('.plane3d').forEach(el=>{
  ['pointerup','pointercancel','pointerleave','lostpointercapture'].forEach(ev=>svg.addEventListener(ev,()=>{drag=null}));
  draw();
 });
-document.querySelectorAll('.wtoggle button').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('.card');
+document.querySelectorAll('.wtoggle button').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('[data-sync]')||b.closest('.card');   // data-sync: one control bar for a whole tab (prod val loss)
  card.querySelectorAll('.wtoggle button').forEach(x=>x.classList.toggle('on',x===b));
  card.querySelectorAll('[data-win]').forEach(d=>d.hidden=d.dataset.win!==b.dataset.w);
  card.querySelectorAll('.stog').forEach(d=>d.style.display=b.dataset.w==='wd'?'none':'');
  card.querySelectorAll('.stog1').forEach(d=>d.style.display=b.dataset.w==='wd'?'':'none');}));
-document.querySelectorAll('.rtoggle:not(.wtoggle):not(.stog1) button').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('.card');
+document.querySelectorAll('.rtoggle:not(.wtoggle):not(.stog1) button').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('[data-sync]')||b.closest('.card');
  card.querySelectorAll('.rtoggle:not(.wtoggle):not(.stog1) button').forEach(x=>x.classList.toggle('on',x===b));
  card.querySelectorAll('[data-ref]').forEach(d=>d.hidden=d.dataset.ref!==b.dataset.r);}));
 document.querySelectorAll('.toggle button').forEach(b=>b.addEventListener('click',()=>{const m=b.dataset.m,pane=b.closest('.msec')||b.closest('.pane');
  pane.querySelectorAll('.toggle button').forEach(x=>x.classList.toggle('on',x===b));
  pane.querySelectorAll('[data-metric]').forEach(d=>d.hidden=d.dataset.metric!==m);}));
-document.querySelectorAll('nav .tab').forEach(b=>b.addEventListener('click',()=>{
+// tabs; the URL hash names the open tab (#prod, #down, ...: links to a tab, and a reload keeps it)
+function showTab(k){const b=document.querySelector('nav .tab[data-tab="'+k+'"]');if(!b)return;
  document.querySelectorAll('nav .tab').forEach(x=>x.classList.toggle('on',x===b));
- document.querySelectorAll('.pane').forEach(p=>p.hidden=p.dataset.pane!==b.dataset.tab);window.scrollTo(0,0);}));
+ document.querySelectorAll('.pane').forEach(p=>p.hidden=p.dataset.pane!==k);}
+document.querySelectorAll('nav .tab').forEach(b=>b.addEventListener('click',()=>{showTab(b.dataset.tab);try{history.replaceState(null,'','#'+b.dataset.tab)}catch(_){};window.scrollTo(0,0);}));
+function openHash(){const k=location.hash.slice(1);if(!k)return;const a=document.querySelector('nav a.tabl[data-tabl="'+k+'"]');if(a){location.replace(a.href);return;}showTab(k);}
+openHash();window.addEventListener('hashchange',openHash);
+// y-range drawings (11-16 review): .rk-wrap data-rv = a chart's reference values in tick-box order; the drawing whose data-rk holds the key
+// of the ticked set is shown ("lo,hi" = indices of its lowest / highest value, first on ties; "e" = nothing ticked)
+function rkPick(kind,boxes){document.querySelectorAll('.rk-wrap[data-rkc="'+kind+'"]').forEach(w=>{let rv;try{rv=JSON.parse(w.dataset.rv)}catch(_){return;}let lo=-1,hi=-1;
+ rv.forEach((v,i)=>{if(v===null||!boxes[i]||!boxes[i].checked)return;if(lo<0||v<rv[lo])lo=i;if(hi<0||v>rv[hi])hi=i;});
+ const k=lo<0?'e':lo+','+hi;w.querySelectorAll(':scope>.rk-v').forEach(d=>{d.hidden=!d.dataset.rk.split(' ').includes(k);});});}
 // downstream tab (user 11-09): tick boxes of "实验列表" show / hide each model's lines, points, tooltip rows and table rows
 (function(){const cbs=[...document.querySelectorAll('.dm-cb')];if(!cbs.length)return;const st=document.createElement('style');document.head.appendChild(st);
- const upd=()=>{st.textContent=cbs.filter(c=>!c.checked).map(c=>{const v=CSS.escape(c.value);return 'section[data-pane="down"] [data-dm="'+v+'"],#tip [data-dm="'+v+'"]{display:none}';}).join(' ');};
+ const upd=()=>{st.textContent=cbs.filter(c=>!c.checked).map(c=>{const v=CSS.escape(c.value);return 'section[data-pane="down"] [data-dm="'+v+'"],#tip [data-dm="'+v+'"]{display:none}';}).join(' ');
+  const bb=cbs.filter(c=>c.dataset.b!==undefined).sort((a,b)=>a.dataset.b-b.dataset.b);rkPick('dm',bb);const bm=bb.map(c=>c.checked?'1':'0').join('');document.querySelectorAll('.tk-wrap').forEach(w=>{w.dataset.bm='b'+bm;});};   // step charts: the y range of the ticked baselines (user 11-16)
  cbs.forEach(c=>c.addEventListener('change',upd));
  document.querySelectorAll('.dm-all').forEach(b=>b.addEventListener('click',()=>{cbs.forEach(c=>{c.checked=b.dataset.v==='1';});upd();}));upd();})();
+// prod iso-doc (user 11-16): tick boxes of its "实验列表" show / hide the reference lines; the drawing of the ticked set (its y range) is shown,
+// and the end labels of the ticked lines are spaced at least 13 px apart
+(function(){const cbs=[...document.querySelectorAll('.pi-cb')];if(!cbs.length)return;const st=document.createElement('style');document.head.appendChild(st);
+ const upd=()=>{st.textContent=cbs.filter(c=>!c.checked).map(c=>{const v=CSS.escape(c.value);return 'section[data-pane="prod"] [data-pi="'+v+'"],#tip [data-pi="'+v+'"]{display:none}';}).join(' ');
+  const on=new Set(cbs.filter(c=>c.checked).map(c=>c.value));const bm='b'+cbs.map(c=>c.checked?'1':'0').join('');rkPick('pi',cbs);
+  document.querySelectorAll('.pi-wrap').forEach(w=>{w.dataset.bm=bm;});
+  document.querySelectorAll('.pi-v svg').forEach(s=>{let prev=-1e9;[...s.querySelectorAll('text.pi-lab')].filter(t=>on.has(t.dataset.pi)).sort((x,y)=>x.dataset.y0-y.dataset.y0)
+   .forEach(t=>{const y=Math.max(+t.dataset.y0,prev+13);t.setAttribute('y',(y+4).toFixed(1));prev=y;});});};
+ cbs.forEach(c=>c.addEventListener('change',upd));upd();})();
+// "实验列表": rows of the early checkpoints, folded (user 11-16)
+document.querySelectorAll('.dm-fold-btn').forEach(b=>b.addEventListener('click',()=>{const rs=[...b.closest('table').querySelectorAll('tr.dm-fold')];
+ const open=rs.length>0&&rs[0].hidden;rs.forEach(r=>{r.hidden=!open;});b.textContent=open?b.dataset.close:b.dataset.open;}));
 const tip=document.getElementById('tip');
-document.querySelectorAll('[data-tip]').forEach(e=>{
- e.addEventListener('mousemove',ev=>{tip.innerHTML=e.dataset.tip;tip.style.display='block';tip.style.left=(ev.clientX+12)+'px';tip.style.top=(ev.clientY+12)+'px'});
- e.addEventListener('mouseleave',()=>{tip.style.display='none'});});
+// one delegated handler for every hover target (11-16 review: 10k+ per-element listeners before)
+let tipEl=null;const tipOff=()=>{tip.style.display='none';tipEl=null;};
+document.addEventListener('mousemove',ev=>{const e=ev.target&&ev.target.closest?ev.target.closest('[data-tip]'):null;
+ if(!e){if(tipEl)tipOff();return;}if(e!==tipEl){tip.innerHTML=e.dataset.tip;tipEl=e;}
+ tip.style.display='block';tip.style.left=Math.max(8,Math.min(ev.clientX+12,window.innerWidth-tip.offsetWidth-8))+'px';
+ tip.style.top=Math.max(8,Math.min(ev.clientY+12,window.innerHeight-tip.offsetHeight-8))+'px';});
+document.documentElement.addEventListener('mouseleave',tipOff);window.addEventListener('scroll',tipOff,{passive:true});window.addEventListener('blur',tipOff);
+// sticky bars below the nav: its real height (it can grow on narrow screens)
+(function(){const nv=document.querySelector('nav');if(!nv)return;const f=()=>document.documentElement.style.setProperty('--nav-h',nv.offsetHeight+'px');f();window.addEventListener('resize',f);})();
 """
 
 
@@ -2092,6 +2130,8 @@ def assume_section(R, t, mkey="00_overall_tsqw", mname="overall_tsqw"):
 # MiMo token ids == the ladder's Qwen3 ids, so the per-token losses compare directly)
 REF_MODELS = [("MIMO_V25_PRO_BASE", "MiMo-V2.5-Pro-Base", False), ("MIMO_V26_PRO_RL", "MiMo-V2.6-Pro-RL", False),
               ("QWEN3_30B_A3B_BASE", "Qwen3-30B-A3B-Base", False),
+              ("QWEN3_30B_A3B_INSTRUCT_2507", "Qwen3-30B-A3B-Instruct-2507", False),   # 11-16 (user 11-15 "请补充测试downstream 66个分数", "纯文本的两个"): 66-metric
+              ("QWEN3_30B_A3B_THINKING_2507", "Qwen3-30B-A3B-Thinking-2507", False),   #   scores (jobs 70056 / 70057); doc-isolated rows since 11-16 13:16 (jobs 71090 / 71091)
               ("QWEN3_VL_30B_A3B_INSTRUCT", "Qwen3-VL-30B-A3B-Instruct", False),   # 11-05 (user "追加 qwen3-30B-VL"): no VL Base exists; Qwen3 ids
               ("QWEN3_VL_30B_A3B_THINKING", "Qwen3-VL-30B-A3B-Thinking", False),   #   (tokenizer.json identical to Qwen3's), text-only vLLM
               ("QWEN3_235B_A22B", "Qwen3-235B-A22B (2504)", False),
@@ -2104,6 +2144,11 @@ REF_MODELS = [("MIMO_V25_PRO_BASE", "MiMo-V2.5-Pro-Base", False), ("MIMO_V26_PRO
               ("NEMOTRON3_ULTRA_550B_BASE", "Nemotron-3-Ultra-Base", True),   # 11-05 (user "nemo 最好模型 ... 也请测试"): the largest Nemotron
               ("NEMOTRON35_SUPER_VL_120B_BASE", "Nemotron-3.5-Super-VL-Base", True),   #   + the newest (3.5 Super VL, LM distilled from Ultra Base;
                                                                                       #   text-only NemotronH extract); own tokenizer (131072) -> bpb
+              ("NEMOTRON35_LIGHTNING_30B_BASE", "Mimi 3.5 Small", True),   # name: user 11-17 13:3x to Doc-isolate测试 "麻烦名字改成mimi lighting", then "mimi lighting -> Mimi 3.5 Lighting", then "Mimi 3.5 Lighting -> Mimi 3.5 Small" (as typed; Nemotron-3.5-Lightning-Base before)
+                # 11-17 (user to Doc-isolate测试 "nemo 3.5 nano", then the full name
+                                                                                      #   NVIDIA-Nemotron-3.5-Lightning-30B-A3B-Base-BF16): job 76578, 8K + 32K,
+                                                                                      #   Ultra-Base's tokenizer and recipe; row appears once collected
+              ("QWEN35_397B_A17B", "Qwen3.5-397B-A17B", True),   # 11-16 (user to Doc-isolate测试 "我们有Qwen3.5和3.8的分数吗"): job 71603, 8K + 32K; row appears once collected
               ("QWEN38_FLASH_NEXT", "Qwen3.8-Flash-Next (FP8)", True),
               ("QWEN38_27B", "Qwen3.8-27B", True),
               ("QWEN38_MAX", "Qwen3.8-Max (FP8)", True),          # 11-03 (user), job 35552, 4 nodes
@@ -2118,7 +2163,9 @@ REF_SIZE = {"MIMO_V25_PRO_BASE": "1.02T-A42B", "MIMO_V26_PRO_RL": "1.02T-A42B", 
             "QWEN3_VL_30B_A3B_INSTRUCT": "30B-A3B", "QWEN3_VL_30B_A3B_THINKING": "30B-A3B", "QWEN3_VL_235B_A22B_INSTRUCT": "235B-A22B",
             "QWEN3_VL_235B_A22B_THINKING": "235B-A22B", "NEMOTRON3_ULTRA_550B_BASE": "550B-A55B", "NEMOTRON35_SUPER_VL_120B_BASE": "120B-A12B",
             "DEEPSEEK_V4_FLASH_BASE": "284B-A13B", "KIMI_K3": "2.8T-A104B", "KIMI_K31_PRO": "2.8T-A104B", "QWEN38_FLASH_NEXT": "125B-A6B",
-            "QWEN38_27B": "27B", "QWEN38_MAX": "2.4T-A95B", "MISTRAL_LARGE4": "1T-A52B", "FLINT": "40B-A2.5B", "RIPPLE_65B_BASE": "65B"}
+            "QWEN38_27B": "27B", "QWEN38_MAX": "2.4T-A95B", "MISTRAL_LARGE4": "1T-A52B", "FLINT": "40B-A2.5B", "RIPPLE_65B_BASE": "65B",
+            "QWEN3_30B_A3B_INSTRUCT_2507": "30B-A3B", "QWEN3_30B_A3B_THINKING_2507": "30B-A3B", "QWEN35_397B_A17B": "397B-A17B",
+            "NEMOTRON35_LIGHTNING_30B_BASE": "30B-A3B"}
 
 
 def _size_num(lbl):
@@ -2195,10 +2242,13 @@ def size_td(lbl, tot=None):
 # little lower where the embedding is padded (Qwen3: 151,936 rows / 151,665 tokens).
 REF_VOCAB = {"MIMO_V25_PRO_BASE": 152576, "MIMO_V26_PRO_RL": 152576, "QWEN3_30B_A3B_BASE": 151936, "QWEN3_235B_A22B": 151936,
              "DEEPSEEK_V4_FLASH_BASE": 129280, "KIMI_K3": 163840, "QWEN38_FLASH_NEXT": 248320, "QWEN38_27B": 248320, "QWEN38_MAX": 248320,
+             "QWEN35_397B_A17B": 248320,
              "MISTRAL_LARGE4": 204800, "FLINT": 150144, "RIPPLE_65B_BASE": 100352,
              "QWEN3_VL_30B_A3B_INSTRUCT": 151936, "QWEN3_VL_30B_A3B_THINKING": 151936, "QWEN3_235B_A22B_INSTRUCT_2507": 151936,
              "QWEN3_235B_A22B_THINKING_2507": 151936, "QWEN3_VL_235B_A22B_INSTRUCT": 151936, "QWEN3_VL_235B_A22B_THINKING": 151936,
-             "KIMI_K31_PRO": 163840, "NEMOTRON3_ULTRA_550B_BASE": 131072, "NEMOTRON35_SUPER_VL_120B_BASE": 131072}   # (llm_config for Nemotron VL)
+             "KIMI_K31_PRO": 163840, "NEMOTRON3_ULTRA_550B_BASE": 131072, "NEMOTRON35_SUPER_VL_120B_BASE": 131072,
+             "NEMOTRON35_LIGHTNING_30B_BASE": 131072,
+             "QWEN3_30B_A3B_INSTRUCT_2507": 151936, "QWEN3_30B_A3B_THINKING_2507": 151936}   # (llm_config for Nemotron VL)
 
 
 def vocab_td(v):
@@ -3256,16 +3306,53 @@ DOWN_ONE = {"PROD1_DPSK_CLAMP7": "--c4", "PROD1_DPSK_CLAMP20": "--dd-br", "PROD1
             "PROD1_DPSK_LATENT2_E2X_QBK3": "--s4",                               # violet, next to LATENT2_E2X's orange
             "ULTRA59B_MUONH_KD_QBK3": "--c1"}                                    # a tracked run: this is the two ends' hue (see _track_css)
 DOWN_PAL = ["--c6", "--s4", "--s5", "--v8"]           # fallback for new Change IDs
+# --db2 / --db3: the 30B Instruct / Thinking baselines (user 11-16 "三个baseline（蓝色系）"): steps of Base's blue (--c1) at the same hue, receding
+# toward the surface (light: L 0.575 / 0.66 / 0.745; dark: 0.622 / 0.53 / 0.44), so the default comparison (Base) keeps its colour and stays the
+# strongest. Validated --ordinal in both modes; >= 13 dE from every grey of the checkpoints (the light end is gamut-limited at 0.131 chroma).
+# --dq1..3: the Qwen3.8 baselines (user 11-16 "我们有Qwen3.5和3.8的分数吗，也最好再prod里面变成指标"; "两边都是，可选的，不是default的指标"):
+# orange steps by model size, strongest = largest (violet next to these blues is ~1 dE under protan / deutan). Since 16:5x a 4-step ramp
+# (Qwen3.5-397B between Flash-Next and Max, used by prod iso-doc) defined with the blues in cosmos_eval_section.PROD_FAM_CSS.
+# 16:5x (user "色系要能统一"): the baseline colours (--db2 / --db3 / --dq1..4) moved to cosmos_eval_section.PROD_FAM(_CSS), shared with prod iso-doc
 DOWN_CSS = ('<style>.viz-root{--dd-br:#8c5a2b;--dd-cy:#0093a8}@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) '
             '.viz-root{--dd-br:#c08a55;--dd-cy:#36bfd3}}</style>')
 # baselines in the downstream tab (user 11-09 "把qwen 30b 和 235 B 的实验，当作 baseline 也拉进来"): (code, name, colour); blues, solid (grey until 11-13, when the production run's checkpoints became the grey scale)
 # 11-10 (user "qwen3-235B咱们用thinking去做标杆在 downstream eval"): the 235B baseline = Thinking-2507 (job 57497), not the 2504 (still in the ref tab)
 # 11-13: only the baselines that have a result on the new task list are shown (Thinking-2507 has none yet: it appears once collected)
-DOWN_BASE = [("QWEN3_30B_A3B_BASE", "Qwen3-30B-A3B-Base", "--c1"), ("QWEN3_235B_A22B_THINKING_2507", "Qwen3-235B-A22B-Thinking-2507", "--k08")]
+# 11-16 (user "把qwen3-30b thinking 和 instruct 放在 prod downstream ... 我们可以有三个baseline（蓝色系）"; "可以不用default选base做比，然用户自己选，
+# default可以是base"): + the 30B Instruct-2507 / Thinking-2507; every baseline has a tick box like the checkpoints, ticked by default: DOWN_BASE_ON
+DOWN_BASE = [("QWEN3_30B_A3B_BASE", "Qwen3-30B-A3B-Base", "--c1"), ("QWEN3_30B_A3B_INSTRUCT_2507", "Qwen3-30B-A3B-Instruct-2507", "--db2"),
+             ("QWEN3_30B_A3B_THINKING_2507", "Qwen3-30B-A3B-Thinking-2507", "--db3"), ("QWEN3_235B_A22B_THINKING_2507", "Qwen3-235B-A22B-Thinking-2507", "--k08"),
+             ("QWEN38_27B", "Qwen3.8-27B", "--dq1"), ("QWEN38_FLASH_NEXT", "Qwen3.8-Flash-Next (FP8)", "--dq2"),   # 11-16: optional, unticked
+             ("QWEN38_MAX", "Qwen3.8-Max (FP8)", "--dq4"),                                                          #   (Qwen3.5: no 66-metric score)
+             ("MIMO_V25_PRO_BASE", "MiMo-V2.5-Pro-Base", "--dt")]   # 11-16 review: the KD teacher, optional (unticked); also a scoreboard column
+# colours: cosmos_eval_section.PROD_FAM is the source (one colour per model in both prod tabs); downstream_tab applies it over these
+DOWN_BASE_ON = {"QWEN3_30B_A3B_BASE"}
+DOWN_FOLD = 80000                                        # "实验列表": checkpoints of the tracked run before this step are folded (user 11-16: < 50000; 11-17 "放到 < 70000", then "算了 fold < 80000")
 # size of a checkpoint that is not a ladder run (no submission.json). ULTRA59B: total 58.81B = Megatron's "Total number of parameters in
 # billions" in the run's log; activated = total - the routed experts not selected: 47 MoE layers x 512 experts x 3 x 1024 x 768 params,
 # of which 16 / 512 are active -> 58.81B - 56.77B x 496 / 512 = 3.81B
 DOWN_SIZE = {"ULTRA59B_MUONH_KD_QBK3": "58.8B-A3.8B"}
+
+
+# ladder checkpoints that have scores but are not shown on the page. User 11-14: "PROD1_DPSK_LATENT2_E2X · q3 / PROD1_DPSK_LATENT2_E2X_QBK3 · q3
+# 这个不用放了，不如放KD q3 和 PROD1_DPSK q5" (those two have no score of this protocol yet; they appear by themselves once collected as "ours")
+DOWN_HIDE = {"PROD1_DPSK_LATENT2_E2X_q3", "PROD1_DPSK_LATENT2_E2X_QBK3_q3"}
+# the 59B checkpoint averages (collect_cosmos_eval.py: MERGE59_<wave>_<recipe>_iter<newest step>, "ours"): a chapter of their own under the
+# run's scoreboard, against the same baseline (cosmos_eval_section.ce_avg), and no rows in "实验列表" / the folded tables any more
+# (user 11-17: "能否把 [59B avg ...] 在 prod downstream 里面，但开一个 section，baseline 还是 qwen3-30b-base")
+DOWN_AVG_RE = re.compile(r"MERGE59_(M\d+)_(\w+?)_iter0*(\d+)$")
+
+
+def _down_avg_groups(res, track):
+    """[(wave, newest step, code of the tracked run's own checkpoint of that step or None, [(code, recipe, description)])], by step."""
+    plain = {s: code for code, _, s in track}
+    g = {}
+    for code, d in res.items():
+        m = DOWN_AVG_RE.match(code)
+        if m and d.get("ours") and code not in DOWN_HIDE:
+            desc = re.search(r"\((.*); newest iter", d.get("display_name") or "")
+            g.setdefault((int(m.group(3)), m.group(1)), []).append((code, m.group(2), desc.group(1) if desc else ""))
+    return [(w, s, plain.get(s), ms) for (s, w), ms in sorted(g.items())]
 
 
 def _track_css(steps):
@@ -3296,8 +3383,14 @@ DOWN_DESC = {
            "PROD1_DPSK_LATENT2_E2X_QBX_KD_A0P8_S64Y_MIMO25_PPFULL": "数据 derisk round 2 的 B 臂：LATENT2_E2X（512 选 16）+ QBX router，KD（teacher MiMo-2.5，α 0.8，S64Y），prepack 数据（tc_full）",
            "QWEN3_30B_A3B_BASE": "外部 baseline：Qwen 官方 base 模型",
            "QWEN3_235B_A22B": "外部 baseline：Qwen 官方模型（2504 版，后训练）",
+           "QWEN3_30B_A3B_INSTRUCT_2507": "外部 baseline：Qwen 官方 Instruct-2507（后训练，非思考模式）",
+           "QWEN3_30B_A3B_THINKING_2507": "外部 baseline：Qwen 官方 Thinking-2507（后训练的推理模型）",
            "QWEN3_235B_A22B_THINKING_2507": "外部 baseline：Qwen 官方 Thinking-2507（后训练的推理模型，和其他外部模型一样用 base 式 few-shot 提示测）",
-           "h": "实验列表", "all": "全选", "none": "全不选", "head": ["显示", "颜色", "模型", "说明", "大小", "已出分"], "pend": "还没出分：{tasks}", "track_row": "生产 run 的 checkpoint：iter {step} / {total}（{pct}）。评测：{src}{run}", "track_run": "；评测还在跑", "track_stop": "；评测中途停了（作业被取消或失败）"},
+           "QWEN38_27B": "外部 baseline：Qwen 官方 Qwen3.8-27B（dense，后训练，没有发布 Base）",
+           "QWEN38_FLASH_NEXT": "外部 baseline：Qwen 官方 Qwen3.8-Flash-Next（官方 FP8，后训练；Qwen3.8-Flash 没有开源权重，用它代替）",
+           "QWEN38_MAX": "外部 baseline：Qwen 官方 Qwen3.8-Max（官方 FP8，后训练）",
+           "MIMO_V25_PRO_BASE": "外部参考：59B 的 KD teacher MiMo-V2.5-Pro-Base（Xiaomi 的 base 模型）",
+           "h": "实验列表", "all": "全选", "none": "全不选", "fold_open": "▸ 展开第 {s} 步之前的 {n} 个 checkpoint", "fold_close": "▾ 收起", "head": ["显示", "颜色", "模型", "说明", "大小", "已出分"], "pend": "还没出分：{tasks}", "track_row": "生产 run 的 checkpoint：iter {step} / {total}（{pct}）。评测：{src}{run}", "track_run": "；评测还在跑", "track_stop": "；评测中途停了（作业被取消或失败）"},
     "en": {"PROD1_DPSK": "PROD v1 base: SWA 512 (local:global 5:1) + sinks, DSV3 router (sigmoid + expert bias + seq aux 1e-4), dense layer 0, 128 pick 8 + 1 shared, routed scaling 2.5, 32K training + inter-document mask, MuonH, pure CE, 650B data",
            "PROD1_DPSK_CLAMP7": "SwiGLU clamp in the experts (the gpt-oss form): gate branch capped at 7, linear branch clipped to ±7",
            "PROD1_DPSK_CLAMP20": "SwiGLU clamp in the experts (the gpt-oss form): gate branch capped at 20, linear branch clipped to ±20",
@@ -3313,13 +3406,19 @@ DOWN_DESC = {
            "PROD1_DPSK_LATENT2_E2X_QBX_KD_A0P8_S64Y_MIMO25_PPFULL": "data derisk round 2, arm B: LATENT2_E2X (512 pick 16) + QBX router, KD (teacher MiMo-2.5, α 0.8, S64Y), prepack data (tc_full)",
            "QWEN3_30B_A3B_BASE": "external baseline: the official Qwen base model",
            "QWEN3_235B_A22B": "external baseline: the official Qwen model (2504, post-trained)",
+           "QWEN3_30B_A3B_INSTRUCT_2507": "external baseline: the official Qwen Instruct-2507 (post-trained, non-thinking)",
+           "QWEN3_30B_A3B_THINKING_2507": "external baseline: the official Qwen Thinking-2507 (post-trained reasoning model)",
            "QWEN3_235B_A22B_THINKING_2507": "external baseline: the official Qwen Thinking-2507 (post-trained reasoning model, tested with the same base-style few-shot prompts as the other external models)",
-           "h": "Experiment list", "all": "all", "none": "none", "head": ["show", "colour", "model", "description", "size", "scored"], "pend": "no score yet: {tasks}", "track_row": "checkpoint of the production run: iter {step} of {total} ({pct}). Evaluated by {src}{run}", "track_run": "; the evaluation is still running", "track_stop": "; the evaluation stopped before the end (job cancelled or failed)"}}
+           "QWEN38_27B": "external baseline: the official Qwen3.8-27B (dense, post-trained, no Base release)",
+           "QWEN38_FLASH_NEXT": "external baseline: the official Qwen3.8-Flash-Next (official FP8, post-trained; Qwen3.8-Flash has no open weights, this stands in for it)",
+           "QWEN38_MAX": "external baseline: the official Qwen3.8-Max (official FP8, post-trained)",
+           "MIMO_V25_PRO_BASE": "external reference: the 59B's KD teacher MiMo-V2.5-Pro-Base (Xiaomi's base model)",
+           "h": "Experiment list", "all": "all", "none": "none", "fold_open": "▸ show the {n} checkpoints before step {s}", "fold_close": "▾ hide", "head": ["show", "colour", "model", "description", "size", "scored"], "pend": "no score yet: {tasks}", "track_row": "checkpoint of the production run: iter {step} of {total} ({pct}). Evaluated by {src}{run}", "track_run": "; the evaluation is still running", "track_stop": "; the evaluation stopped before the end (job cancelled or failed)"}}
 
 
 def downstream_tab(R, lang):
     try:
-        from cosmos_eval_section import ce_scores, ce_results, ce_counts, ce_steps
+        from cosmos_eval_section import ce_scores, ce_results, ce_counts, ce_steps, ce_board, ce_avg, PROD_FAM, PROD_FAM_CSS, PROD_TABS, PROD_SECTIONS
         res = ce_results()
         nt, nm, nk = ce_counts()
     except Exception as e:
@@ -3327,7 +3426,7 @@ def downstream_tab(R, lang):
         return ""
     ours = []                                            # (sort key, code, Change ID or run name, rung or None, step or None)
     for code, d in res.items():
-        if not d.get("ours"):
+        if not d.get("ours") or code in DOWN_HIDE or DOWN_AVG_RE.match(code):   # the averages: their own chapter (ce_avg below)
             continue
         m = re.match(r"(.+)_(q\d)$", code)
         if d.get("track"):                               # a checkpoint of the tracked production run
@@ -3357,7 +3456,7 @@ def downstream_tab(R, lang):
             else:
                 colors[code] = DOWN_PAL[k % len(DOWN_PAL)]; k += 1
     sizes = {code: ((ladder_size(chg, q) or ("",))[0] if q else "") or DOWN_SIZE.get(chg, "") for _, code, chg, q, _ in ours}
-    base = [(c, n, col) for c, n, col in DOWN_BASE if c in res]   # baselines first (user 11-09)
+    base = [(c, n, PROD_FAM.get(c, col)) for c, n, col in DOWN_BASE if c in res]   # baselines first (user 11-09)
     colors.update({c: col for c, _, col in base}); sizes.update({c: REF_SIZE.get(c, "") for c, _, _ in base})
     models = [(c, n, False) for c, n, _ in base] + [(code, res[code].get("display_name") or code, False) for _, code, _, _, _ in ours]
     # chapter "实验列表" = the legend as a table (user 11-09): colour, model, what it is, size, metrics scored so far
@@ -3369,7 +3468,7 @@ def downstream_tab(R, lang):
             by.setdefault(lab.split(":")[0] if ":" in lab else "xingqianx", []).append((ident.get("harness_commit") or "")[:8])
         src = "; ".join(f'{o} (harness {" + ".join(dict.fromkeys(h))})' for o, h in by.items())
         tot = d["track"]["total_steps"]
-        return D["track_row"].format(step=f"{step:,}", total=f"{tot:,}", pct=f"{step / tot:.0%}", src=src, run=D["track_run"] if d.get("running") else D["track_stop"] if d.get("stopped") else "")
+        return D["track_row"].format(step=f"{step:,}", total=f"{tot:,}", pct=f"{100 * step / tot:.1f} %", src=src, run=D["track_run"] if d.get("running") else D["track_stop"] if d.get("stopped") else "")
     desc = {**{c: D.get(c, "") for c, _, _ in base},
             **{code: (track_row(code, step) if step is not None else D.get(chg, "")) for _, code, chg, _, step in ours}}
     def scored(code):
@@ -3380,11 +3479,22 @@ def downstream_tab(R, lang):
         return f"<td{tip}>{n} / {d.get('n_metrics') or nm}</td>"
     def sample(code):                                    # colour square (user 11-09)
         return f'<i style="display:inline-block;width:12px;height:12px;border-radius:2px;background:var({colors.get(code, "--text-secondary")})"></i>'
-    bset = {c for c, _, _ in base}                       # the baselines are always shown (user 11-09)
+    bidx = {c: i for i, (c, _, _) in enumerate(base)}     # baselines: own tick boxes since 11-16 (before: always shown, user 11-09); data-b = position
+    opt = {c for c, _, _ in base if c not in DOWN_BASE_ON}  # optional baselines: their box has data-opt; out of the curve's default scale (ce_scores)
     # ticked by default: only the LATEST checkpoint of the tracked run (user 11-13: "这个默认只是放最后的checkpoint成绩"; the chart block above
     # shows every checkpoint); without a tracked run: all
-    tset = {max(track, key=lambda x: x[2])[0]} if track else {code for _, code, _, _, _ in ours}
-    rows = "".join(f'<tr><td style="text-align:center">' + ('<input type="checkbox" checked disabled>' if code in bset else f'<input type="checkbox" class="dm-cb" value="{esc(code)}"{" checked" if code in tset else ""}>') + '</td>'   # show / hide (user 11-09)
+    with_score = [x for x in track if len(res[x[0]].get("missing") or []) < res[x[0]].get("n_metrics", 1)] or track   # a checkpoint whose evaluation has only started has no score yet
+    heads = {f"{a} {m}" for _, _, _, ks in PROD_TABS for a, m in ks}
+    done = [x for x in track if not heads & set(res[x[0]].get("missing") or [])] or with_score   # 11-16 review: the latest COMPLETE checkpoint (no headline metric pending)
+    tset = {max(done, key=lambda x: x[2])[0]} if track else {code for _, code, _, _, _ in ours}   # ticked by default: only that one (user 11-13: the latest)
+    # checkpoints of the tracked run before DOWN_FOLD (user 11-16 "可否folder < 50000的checkpoint"): folded rows under a toggle row
+    fold = {code for code, _, s in track if s < DOWN_FOLD}
+    tot0 = (res[track[0][0]].get("track") or {}).get("total_steps") if track else None
+    fold_s = f"{DOWN_FOLD:,}" + ((f"（{100 * DOWN_FOLD / tot0:.1f} %）" if lang == "zh" else f" ({100 * DOWN_FOLD / tot0:.1f} %)") if tot0 else "")
+    rows = "".join((f'<tr><td colspan="{len(D["head"])}" class="l"><button class="dm-fold-btn" data-open="{esc(D["fold_open"].format(n=len(fold), s=fold_s))}" '
+                    f'data-close="{esc(D["fold_close"])}" style="font:inherit;font-size:12px;cursor:pointer">{esc(D["fold_open"].format(n=len(fold), s=fold_s))}</button></td></tr>'
+                    if fold and code == min(fold, key=lambda c: res[c]["track"]["step"]) else "")
+                   + (f'<tr class="dm-fold" hidden>' if code in fold else '<tr>') + '<td style="text-align:center">' + f'<input type="checkbox" class="dm-cb" value="{esc(code)}"' + (f' data-b="{bidx[code]}"' if code in bidx else "") + (" data-opt" if code in opt else "") + (" checked" if code in tset or code in DOWN_BASE_ON else "") + ">" + '</td>'   # show / hide (user 11-09)
                    f'<td>{sample(code)}</td><td class="l" style="white-space:nowrap">{esc(name)}</td>'
                    f'<td class="l" style="white-space:normal;max-width:620px">{esc(desc.get(code, ""))}</td>'
                    f'<td class="l nt-d" style="white-space:nowrap">{esc(sizes.get(code, ""))}</td>{scored(code)}</tr>' for code, name, _ in models)
@@ -3392,25 +3502,36 @@ def downstream_tab(R, lang):
     sel = (f'<span style="white-space:nowrap"><button class="dm-all" data-v="1" style="font:inherit;font-size:12px;cursor:pointer">{esc(D["all"])}</button> '
            f'<button class="dm-all" data-v="0" style="font:inherit;font-size:12px;cursor:pointer">{esc(D["none"])}</button></span>')
     run = track[0][1] if track else ""
-    out = DOWN_CSS + tcss
-    if track:                                            # above the list: the key tier against the training step, charts only
+    out = DOWN_CSS + PROD_FAM_CSS + tcss + ('<style>.cv-v[data-cv="1"]{display:none}section[data-pane="down"]:has(.dm-cb[data-opt]:checked) .cv-v[data-cv="0"]{display:none}'
+                             'section[data-pane="down"]:has(.dm-cb[data-opt]:checked) .cv-v[data-cv="1"]{display:block}</style>')
+    # order (user 11-16 18:0x "图永远放在最前面", 18:1x "overview 大字总结放在图的前面 表格还是放后面"): the overview tiles (11-16 review),
+    # the step charts (every task against the training step), "实验列表" (drives them), then the scoreboard table (latest score per task vs
+    # Qwen3-30B-A3B-Base, noise call, best so far), then the folded table chapters
+    board = ""
+    if track:
         try:
-            out += ce_steps(lang, esc, run, [(code, s) for code, _, s in track], base, colors)
+            tiles, board = ce_board(lang, esc, [(code, s) for code, _, s in track], "QWEN3_30B_A3B_BASE", "Qwen3-30B-A3B-Base",
+                                    extra=["MIMO_V25_PRO_BASE"], names={c: n for c, n, _ in base}, split=True) or ("", "")
+            out += tiles
+        except Exception as e:
+            print("downstream scoreboard skipped:", type(e).__name__, e)
+        try:
+            out += ce_steps(lang, esc, run, [(code, s) for code, _, s in track], base, colors, on=DOWN_BASE_ON, tabs=PROD_TABS)   # 11-16: all 36 tasks, by category / importance
         except Exception as e:
             print("downstream step charts skipped:", type(e).__name__, e)
     out += (f'<h2>{esc(D["h"])}</h2><div class="card"><p class="note" style="margin:0 0 6px">{sel}</p><div style="overflow-x:auto">'
             f'<table style="display:table;width:100%;font-size:12.5px"><thead><tr>{head}</tr></thead><tbody>{rows}</tbody></table></div>')
-    # checkpoints that only have scores of the earlier protocol (results_xx/nemo6, kept as an archive): names only, folded
-    old = [re.match(r"(.+)_(q\d)$", os.path.basename(f)[:-5]) for f in glob.glob(os.path.join(HERE, "..", "results_xx", "nemo6", "*.json"))]
-    old = sorted((m.group(1) != "PROD1_DPSK", m.group(1), m.group(2)) for m in old if m and m.group(0) not in res)   # PROD1_DPSK first, as the list above
-    old = [f"{c} · {q}" for _, c, q in old]
-    if old:
-        out += (f'<details style="margin-top:10px"><summary class="note" style="cursor:pointer;margin:0">{esc(T[lang]["down_old"].format(n=len(old)))}</summary>'
-                f'<p class="note" style="margin:6px 0 0">{esc("；".join(old) if lang == "zh" else "; ".join(old))}</p></details>')
-    out += "</div>"
-    for focus in (True, False):
-        try:
-            out += ce_scores(lang, esc, models, sizes, focus=focus, colors=colors, legend=False)
+    # (the folded line under the list that named the checkpoints with scores of the earlier protocol only, results_xx/nemo6, was removed
+    # 11-17: user "只有旧协议（nemo6）分数的 24 个 checkpoint ... 这个不要了吧"; text key down_old is unused since)
+    out += "</div>" + board
+    try:                                                 # 11-17: the 59B checkpoint averages, a chapter of their own against the same baseline
+        out += ce_avg(lang, esc, _down_avg_groups(res, track), "QWEN3_30B_A3B_BASE", "Qwen3-30B-A3B-Base")
+    except Exception as e:
+        print("downstream averages chapter skipped:", type(e).__name__, e)
+    for focus in (True, False):                         # 11-16 review: both chapters are tables only and folded (the scoreboard and the step charts
+        try:                                             # above carry the picture; the md mirror still has every table)
+            out += ce_scores(lang, esc, models, sizes, focus=focus, colors=colors, legend=False, opt=opt,
+                             tabs=PROD_TABS, sections=PROD_SECTIONS, curve=False, fold=True)   # Runlong 11-16: "把所有 bench 都放完，分类，按照你觉得的重要性排序"
         except Exception as e:
             print("downstream chapter skipped:", type(e).__name__, e)
     return out
@@ -3513,31 +3634,79 @@ def build(lang, R, RP):
     except Exception as e:
         prod = None
         print("prod iso-doc tab skipped:", type(e).__name__, e)
-    tabs = "".join(f'<button class="tab{" on" if i == 0 else ""}" data-tab="{k}">{esc(n)}</button>'
-                   for i, (k, n) in enumerate([("doc", t["tab_doc"])] + ([("prod", prod[0])] if prod else []) + [("down", t["tab_down"]), ("ref", t["tab_ref"]), ("docold", t["tab_docold"]), ("fit", t["tab_fit"]), ("packed", t["tab_packed"])]))   # order: user 11-14 "prod downstream 挂在 prod iso-doc 后面，然后是外部参考", "老实验，放在外部参考后面"
-    prod_pane = f'\n<section class="pane" data-pane="prod" hidden>{prod[1]}</section>' if prod else ""
-    body = f"""<div id="tip"></div><nav>{tabs}</nav><main>
-<h1>{esc(t['title'])}</h1><p class="sub">{esc(t['sub'].format(ts=ts))}</p>
-<section class="pane" data-pane="doc">{doc}</section>{prod_pane}
-<section class="pane" data-pane="down" hidden>{down}</section>
-<section class="pane" data-pane="ref" hidden>{ref}</section>
-<section class="pane" data-pane="docold" hidden>{docold}</section>
-<section class="pane" data-pane="fit" hidden>{fit}</section>
-<section class="pane" data-pane="packed" hidden>{packed}</section>
+    # tabs (11-16 review of Runlong's "主要两个可视化就是 val loss 和 downstream 放在最前面"): one ordered table drives the nav, the DOM order and
+    # the default tab = the first one with content (59B val loss). Earlier order (user 11-14): doc, prod iso-doc, prod downstream, 外部参考,
+    # 老实验, ...; the ladder tabs now sit behind an "早期研究" separator, each still its own pane (pane ids unchanged: --only and the md
+    # mirror key on them). A pane that failed to build carries EMPTY: keep_other_panes keeps the page's previous content for it.
+    panes = {"prod": prod[1] if prod else EMPTY, "down": down or EMPTY, "ref": ref, "doc": doc, "docold": docold, "fit": fit, "packed": packed}
+    labels = {"prod": prod[0] if prod else "59B val loss", "down": t["tab_down"], "ref": t["tab_ref"], "doc": t["tab_doc"], "docold": t["tab_docold"],
+              "fit": t["tab_fit"], "packed": t["tab_packed"]}
+    # 11-16 18:0x (user "网页太大了 很卡"): the archive tabs (10.5 MB of 14) go to their own file; each page shows its own tabs as buttons and
+    # the other page's tabs as links (file#tab; the page script opens the tab named in the hash)
+    out = {}
+    for part in PARTS:
+        own = [(k, g) for k, g in TAB_ORDER if PART_OF[g] == part]
+        first = next((k for k, _ in own if EMPTY not in panes[k]), own[0][0])
+        nav, prev = "", None
+        for k, g in TAB_ORDER:
+            if g == "arch" and prev != "arch":
+                nav += f'<span class="nav-sep">{esc(t["nav_arch_here" if part == "arch" else "nav_arch"])}</span>'
+            if PART_OF[g] == part:
+                nav += f'<button class="tab{" arch" if g == "arch" else ""}{" on" if k == first else ""}" data-tab="{k}">{esc(labels[k])}</button>'
+            else:
+                nav += f'<a class="tabl{" arch" if g == "arch" else ""}" data-tabl="{k}" href="{FILES[PART_OF[g]][lang]}#{k}">{esc(labels[k])}</a>'
+            prev = g
+        sections = "\n".join(f'<section class="pane" data-pane="{k}"{"" if k == first else " hidden"}>{panes[k]}</section>' for k, _ in own)
+        title = t["title"] if part == "main" else t["title_arch"]
+        sub = t["sub"] if part == "main" else t["sub_arch"]
+        body = f"""<div id="tip"></div><nav>{nav}</nav><main>
+<h1>{esc(title)}</h1><p class="sub">{esc(sub.format(ts=ts))}</p>
+{sections}
 </main><script>{JS}</script>"""
-    return (f'<!doctype html><html lang="{t["lang"]}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-            f'<title>{esc(t["title"])}</title><style>{CSS}</style></head><body class="viz-root">{body}</body></html>\n')
+        out[part] = (f'<!doctype html><html lang="{t["lang"]}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+                     f'<title>{esc(title)}</title><style>{CSS}</style></head><body class="viz-root">{body}</body></html>\n')
+    return out
 
 
 PANE_RE = re.compile(r'(<section class="pane" data-pane="(\w+)"[^>]*>)(.*?)(</section>)', re.S)
+EMPTY = '<!--pane-empty--><p class="note">-</p>'          # the content of a tab whose builder failed (keep_other_panes keeps the old one)
+TAB_ORDER = [("prod", "main"), ("down", "main"), ("ref", "ref"), ("doc", "arch"), ("docold", "arch"), ("fit", "arch"), ("packed", "arch")]
+# two files (11-16 18:0x, user "网页太大了 很卡"): the main page (59B val loss, 59B downstream, 外部参考) and the archive of the ladder research
+PARTS = ["arch", "main"]                                 # write order: the archive first (on its first build it takes its tabs from the one-file page)
+PART_OF = {"main": "main", "ref": "main", "arch": "arch"}
+FILES = {"main": {"zh": "qwen3_scaling_ladder_eval.html", "en": "qwen3_scaling_ladder_eval_en.html"},
+         "arch": {"zh": "qwen3_scaling_ladder_eval_archive.html", "en": "qwen3_scaling_ladder_eval_archive_en.html"}}
+
+
+def set_default_tab(page):
+    """the first pane with content is open and its nav button is on (11-16 verify review: decided after the merge, so a tab whose builder
+    failed but whose old content was kept stays the default)."""
+    ks = [(m.group(2), "<!--pane-empty-->" in m.group(3)) for m in PANE_RE.finditer(page)]
+    first = next((k for k, e in ks if not e), ks[0][0] if ks else None)
+    if first is None:
+        return page
+    page = PANE_RE.sub(lambda m: f'<section class="pane" data-pane="{m.group(2)}"{"" if m.group(2) == first else " hidden"}>' + m.group(3) + m.group(4), page)
+    return re.sub(r'<button class="(tab[^"]*?)( on)?" data-tab="(\w+)">',
+                  lambda m: f'<button class="{m.group(1)}{" on" if m.group(3) == first else ""}" data-tab="{m.group(3)}">', page)
 
 
 def keep_other_panes(new, old, only):
     """the page `new` with every tab that is not in `only` taken from the page `old` (the file on disk), byte for byte. Several sessions
     regenerate this report (11-13): with --only a session publishes its own tabs and nobody else's unfinished work. A tab that the old
-    page does not have stays as built."""
+    page does not have stays as built. A tab in `only` that built empty (EMPTY marker, or no content) keeps the old page's content too
+    (11-16: a failing builder must not blank a tab). The opening <section> tag (its hidden flag = the default tab) always comes from new."""
     kept = {m.group(2): m.group(3) for m in PANE_RE.finditer(old)}
-    return PANE_RE.sub(lambda m: m.group(0) if m.group(2) in only or m.group(2) not in kept else m.group(1) + kept[m.group(2)] + m.group(4), new)
+
+    def sub(m):
+        k, body = m.group(2), m.group(3)
+        if k not in kept:
+            return m.group(0)
+        if k in only and "<!--pane-empty-->" not in body and body.strip():
+            return m.group(0)
+        if k in only:
+            print(f"tab {k} built empty: the page keeps its previous content")
+        return m.group(1) + kept[k] + m.group(4)
+    return PANE_RE.sub(sub, new)
 
 
 def main():
@@ -3546,19 +3715,37 @@ def main():
     if "--only" in sys.argv[1:]:
         only = set(sys.argv[sys.argv.index("--only") + 1].split(","))
     R, RP = load(), load_packed()
-    for lang, name in (("zh", "qwen3_scaling_ladder_eval.html"), ("en", "qwen3_scaling_ladder_eval_en.html")):
-        p = os.path.join(HERE, name)
-        page = build(lang, R, RP)
-        if only is not None:
-            unknown = only - {m.group(2) for m in PANE_RE.finditer(page)}
-            if unknown:
-                sys.exit(f"--only: no such tab {sorted(unknown)}")
-            page = keep_other_panes(page, open(p, encoding="utf-8").read(), only)
-        open(p, "w").write(page)
-        print("wrote", p, f"(doc {len(R)}, packed {len(RP)} checkpoints)" + (f"; only the tabs {sorted(only)} replaced" if only is not None else ""))
+    import fcntl
+    lock = os.path.expanduser("~/tmp") if os.path.isdir(os.path.expanduser("~/tmp")) else HERE
+    if only is not None:
+        unknown = only - {k for k, _ in TAB_ORDER}
+        if unknown:
+            sys.exit(f"--only: no such tab {sorted(unknown)}")
+    for lang in ("zh", "en"):
+        pages = build(lang, R, RP)
+        for part in PARTS:
+            p = os.path.join(HERE, FILES[part][lang])
+            mine = {k for k, g in TAB_ORDER if PART_OF[g] == part}
+            use = mine if only is None else only & mine
+            # a file none of whose tabs is in --only is still rewritten with every tab kept byte for byte: its nav / script / style follow the code
+            # 11-16 review: sessions that run at the same time merge one after the other (lock), and the file is replaced atomically, so no
+            # reader or merge ever sees a half-written page. The archive's first build takes its tabs from the one-file page (main file).
+            with open(os.path.join(lock, ".gen_eval_html.lock"), "w") as lk:
+                fcntl.flock(lk, fcntl.LOCK_EX)
+                src = p if os.path.exists(p) else os.path.join(HERE, FILES["main"][lang])
+                page = pages[part]
+                if os.path.exists(src):
+                    page = keep_other_panes(page, open(src, encoding="utf-8").read(), use)
+                page = set_default_tab(page)
+                tmp = f"{p}.tmp{os.getpid()}"
+                open(tmp, "w").write(page)
+                os.replace(tmp, p)
+            print("wrote", p, f"(doc {len(R)}, packed {len(RP)} checkpoints)" + (f"; only the tabs {sorted(use)} replaced" if only is not None else ""))
     if not os.environ.get("EVAL_MD_SKIP"):   # agent-readable Markdown mirror of the zh HTML (user 11-04); never fails the HTML build
         import subprocess, sys
-        subprocess.run([sys.executable, os.path.join(HERE, "gen_eval_md.py"), "--md-only"], check=False)
+        with open(os.path.join(lock, ".gen_eval_html.lock"), "w") as lk:   # under the lock: two sessions never write the md at once
+            fcntl.flock(lk, fcntl.LOCK_EX)
+            subprocess.run([sys.executable, os.path.join(HERE, "gen_eval_md.py"), "--md-only"], check=False)
 
 
 if __name__ == "__main__":

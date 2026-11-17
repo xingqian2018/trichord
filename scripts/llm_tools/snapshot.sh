@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
-# "snapshot" on oci-jhb-slurm-2 = the two tables the user reads (user 2026-11-08 16:2x: "我们基本上就是看这两个表格"):
-#   1. 节点使用      cluster_usage.sh  (normal / p0 / p0_tc / p0_xingqian / p0_runlong / p0_guard / p1 ... / reserved
+# "snapshot" on oci-jhb-slurm-2. Default = ONE table:
+#   1. 节点使用      cluster_usage.sh  (normal / p0 / p0_xingqian / p0_runlong / p1 ... / reserved / 白名单 / 其他人
 #                    + the tc | xingqian 实验 | Runlong | ... line and the 其他人 ranking)
+# User 2026-11-17: "我们其实不用追踪 tc_full 了" (tc_full is 3600 / 3600 since 11-15) and "改 snapshot.sh", so the tc_full
+# part is opt-in now:
+#   snapshot.sh --tc [--detail]   adds
 #   2. tc_full 分片  tc_shard_report.sh (0-899 / 900-1799 / 1800-2699 / 2700-3599: 完成 / 正在执行 / 执行跳过 / 排队 / 进度)
-# plus ONE line under table 2 from tc_liveness.py (are the RUNNING tc tasks producing; 卡住 split by array).
-# The three run in parallel. Table 2 reuses a cache scan younger than 20 min, else scans on a cpu-interactive node (~4 min).
-# Read-only; writes only to ~/tmp/snapshot (runtime files stay out of this repo). Usage: snapshot.sh [--detail]   (--detail is passed to tc_shard_report)
+#   plus ONE line under table 2 from tc_liveness.py (are the RUNNING tc tasks producing; 卡住 split by array).
+#   The three then run in parallel; table 2 reuses a cache scan younger than 20 min, else scans on a cpu-interactive node
+#   (~4 min); --detail is passed to tc_shard_report.
+# Read-only; writes only to ~/tmp/snapshot (runtime files stay out of this repo).
 set -uo pipefail
-# The three helpers stay in the infra skill (other sessions keep editing cluster_usage.sh there; one copy only).
+TC=0; ARGS=()
+for a in "$@"; do if [ "$a" = --tc ]; then TC=1; else ARGS+=("$a"); fi; done
+# The helpers stay in the infra skill (other sessions keep editing cluster_usage.sh there; one copy only).
 HERE=${SNAPSHOT_TOOLS:-$HOME/.claude/skills/oci-jhb-gb300-infra/scripts}
-for f in cluster_usage.sh tc_shard_report.sh tc_shard_report.py tc_liveness.py; do
+NEED="cluster_usage.sh"; [ $TC -eq 1 ] && NEED="$NEED tc_shard_report.sh tc_shard_report.py tc_liveness.py"
+for f in $NEED; do
   [ -f "$HERE/$f" ] || { echo "snapshot: missing $HERE/$f (oci-jhb-slurm-2 login only)" >&2; exit 1; }
 done
 OUT=$HOME/tmp/snapshot
@@ -17,7 +24,18 @@ mkdir -p "$OUT"
 T=$(date +%m%d_%H%M%S)
 U=$OUT/usage_$T.txt S=$OUT/shard_$T.txt L=$OUT/live_$T.txt
 
-bash "$HERE/tc_shard_report.sh" "$@" > "$S" 2>&1 &   pS=$!
+if [ $TC -eq 0 ]; then
+  bash "$HERE/cluster_usage.sh" > "$U" 2>&1; rU=$?
+  echo "### 节点使用"
+  echo
+  [ $rU -eq 0 ] && cat "$U" || { echo "(cluster_usage.sh failed rc=$rU)"; tail -5 "$U"; }
+  echo
+  echo "（原始输出：$U）"
+  find "$OUT" -name '*_*.txt' -mtime +2 -delete 2>/dev/null || true
+  exit 0
+fi
+
+bash "$HERE/tc_shard_report.sh" ${ARGS[@]+"${ARGS[@]}"} > "$S" 2>&1 &   pS=$!
 bash "$HERE/cluster_usage.sh"         > "$U" 2>&1 &   pU=$!
 (cd /tmp && python3 -I "$HERE/tc_liveness.py" --list) > "$L" 2>&1 &   pL=$!
 wait $pU; rU=$?; wait $pL; rL=$?; wait $pS; rS=$?

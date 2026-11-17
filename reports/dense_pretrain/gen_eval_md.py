@@ -22,6 +22,7 @@ import html_to_md  # noqa: E402
 
 RES = "/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx/Project/trichord/dense_pretrain_result"
 HTML = os.path.join(HERE, "qwen3_scaling_ladder_eval.html")
+HTML_ARCH = os.path.join(HERE, "qwen3_scaling_ladder_eval_archive.html")   # 11-16 18:0x: the ladder research tabs moved to their own page
 OUT = os.path.join(HERE, "qwen3_scaling_ladder_eval.md")
 RUNGS = ["q0", "q1", "q2", "q3", "q4", "q5"]
 IDX_RUNGS = ["q0", "q1", "q2", "q3", "q4", "q5", "q6"]
@@ -37,11 +38,11 @@ SIZES = {"q0": ("12 × 512", "48M", "0.63B", "9.6B"), "q1": ("18 × 768", "154M"
 
 PREFACE = """# Qwen3-MoE scaling ladder 评测报告 —— Markdown 镜像（给 agent 读）
 
-_由 `reports_xx/gen_eval_md.py` 生成于 {ts}：正文 = `qwen3_scaling_ladder_eval.html`（中文版，HTML 生成于 {hts}）经 `reports_xx/html_to_md.py` 逐段转换，
+_由 `reports_xx/gen_eval_md.py` 生成于 {ts}：正文 = `qwen3_scaling_ladder_eval.html`（中文版，HTML 生成于 {hts}）+ 存档页 `qwen3_scaling_ladder_eval_archive.html` 经 `reports_xx/html_to_md.py` 逐段转换，
 附录 = `trichord/dense_pretrain_result/*.json` 的原始数。不要手改：改 `gen_eval_html.py` 后重跑它（它会自动重写本文件）。_
 
 读法：
-- 内容和 HTML 一一对应、顺序相同。HTML 的每个页签 = 下面一个 `## 页签：…` 大节（doc-isolated = 主评测（逐项叠加的架构变化 + 数据 derisk）；prod downstream = 我们自己的 checkpoint 的全量测评（统一 harness 的 cosmos_ultra_ladder：36 个任务、66 个指标，重点 19 个任务；分数 ×100）；外部参考 = 外部模型的 doc-isolated 测试 + 同一套全量测评；老实验 = doc-isolated 的其余单项实验（优化器、KD 对 CE、尾部估算方式、KD teacher、文档 mask、SWA、router、负熵均衡、第 0 层 dense、Latent MoE、位置编码），和主评测同一套评测；LR 拟合实验；packed = Boxiang 训练时自带的验证，绝对值比 doc-isolated 高约 0.013–0.016，两者的绝对值不能互比）。
+- 内容和 HTML 一一对应、顺序相同。HTML 的每个页签 = 下面一个 `## 页签：…` 大节，顺序（11-16 起）：59B val loss = 生产 run ULTRA59B_MUONH_KD_QBK3 各 checkpoint 的 doc-isolated val loss（8K / 32K，和 Qwen3-30B-A3B-Base 等参考比）；59B downstream = 同一 run 的全量测评（统一 harness 的 cosmos_ultra_ladder：36 个任务、66 个指标；分数 ×100；先是最新成绩对 Qwen3-30B-A3B-Base 的总表）；之后是存档：外部参考 = 外部模型的 doc-isolated 测试 + 同一套全量测评；doc-isolated = ladder 主评测（逐项叠加的架构变化 + 数据 derisk）；老实验 = doc-isolated 的其余单项实验（优化器、KD 对 CE、尾部估算方式、KD teacher、文档 mask、SWA、router、负熵均衡、第 0 层 dense、Latent MoE、位置编码），和主评测同一套评测；LR 拟合实验；packed = Boxiang 训练时自带的验证，绝对值比 doc-isolated 高约 0.013–0.016，两者的绝对值不能互比）。
 - 每张图都换成了数据表，数取自图上的悬停提示：表头是 rung（或横轴上的点），每行是图里的一条线；横轴点多时（LR 扫描、训练步数）行列互换，router 健康曲线均匀抽 12 个点（含首尾）。`·` = 该点没有数据。
 - HTML 里靠按钮切换的内容全部展开，每块前面标明是哪个按钮：〔指标：…〕（overall_tsqw / overall_tw / overall_macro / 单个验证集）、〔视图：…〕（窗口、统计量等）、〔窗口：…〕。
 - 单位 nats/token（另注 bpb、ppl 的除外）；图里的数大多是“该线 − 0 线”的 Δloss，负数 = 比 0 线好；各节的 0 线写在该节说明里，不同节的 0 线常常不同。
@@ -92,9 +93,9 @@ def appendix(R):
 def write_md():
     R = load()
     hts = datetime.fromtimestamp(os.path.getmtime(HTML)).strftime("%Y-%m-%d %H:%M")
-    body = html_to_md.convert(HTML)
+    body = html_to_md.convert(HTML) + ("\n\n" + html_to_md.convert(HTML_ARCH) if os.path.exists(HTML_ARCH) else "")
     md = PREFACE.format(ts=f"{datetime.now():%Y-%m-%d %H:%M}", hts=hts) + "\n" + body + "\n" + appendix(R)
-    tmp = OUT + ".tmp"
+    tmp = f"{OUT}.tmp{os.getpid()}"
     open(tmp, "w").write(md)
     os.replace(tmp, OUT)                                     # atomic: readers never see a half-written file
     print(f"wrote {OUT} ({len(md) // 1024} KB, {md.count(chr(10))} lines; html {hts}; {len(R)} checkpoints)")

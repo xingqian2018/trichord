@@ -59,20 +59,43 @@ OUT = os.path.join(HERE, "..", "..", "results_xx", "cosmos_eval")
 MATH = ["math_500_sampled", "hmmt_sampled", "minerva_math_nemo", "aime24", "aime25"]   # the tasks of mathfix.yml
 # name (= the report's reference-model code) -> (display name, post-trained, [result dirs, later overrides earlier])
 MODELS = {
-    "QWEN3_30B_A3B_BASE": ("Qwen3-30B-A3B-Base", False, ["QWEN3_30B_A3B_BASE", "MATHFIX_QWEN3_30B_A3B_BASE"]),
-    "QWEN3_235B_A22B": ("Qwen3-235B-A22B", True, ["QWEN3_235B_A22B", "MATHFIX_QWEN3_235B_A22B"]),
-    "QWEN38_27B": ("Qwen3.8-27B", True, ["QWEN38_27B", "MATHFIX_QWEN38_27B"]),
-    "QWEN38_FLASH_NEXT": ("Qwen3.8-Flash-Next (FP8)", True, ["QWEN38_FLASH_NEXT", "MATHFIX_QWEN38_FLASH_NEXT"]),
-    "QWEN38_MAX": ("Qwen3.8-Max (2.4T-A95B, FP8)", True, ["QWEN38_MAX", "MATHFIX_QWEN38_MAX"]),
-    "MIMO_V25_PRO_BASE": ("MiMo-V2.5-Pro-Base", False, ["EOS_MIMO_V25_PRO_BASE"]),
-    "MIMO_V26_PRO_RL": ("MiMo-V2.6-Pro-RL", True, ["MIMO_V26_PRO_RL", "MATHFIX_MIMO_V26_PRO_RL"]),
+    "QWEN3_30B_A3B_BASE": ("Qwen3-30B-A3B-Base", False, ["R1114_QWEN3_30B_A3B_BASE"]),
+    "QWEN3_30B_A3B_INSTRUCT_2507": ("Qwen3-30B-A3B-Instruct-2507", True, ["QWEN3_30B_A3B_INSTRUCT_2507"]),   # 11-16 (user 11-15 "请补充测试downstream 66个分数",
+    "QWEN3_30B_A3B_THINKING_2507": ("Qwen3-30B-A3B-Thinking-2507", True, ["QWEN3_30B_A3B_THINKING_2507"]),   #   "纯文本的两个"): jobs 70056 / 70057, judge replays 70227 / 70228
+    "QWEN3_235B_A22B": ("Qwen3-235B-A22B", True, ["R1114_QWEN3_235B_A22B"]),
+    "QWEN38_27B": ("Qwen3.8-27B", True, ["R1114_QWEN38_27B"]),
+    "QWEN38_FLASH_NEXT": ("Qwen3.8-Flash-Next (FP8)", True, ["R1114_QWEN38_FLASH_NEXT"]),
+    "QWEN38_MAX": ("Qwen3.8-Max (2.4T-A95B, FP8)", True, ["R1114_QWEN38_MAX"]),
+    "MIMO_V25_PRO_BASE": ("MiMo-V2.5-Pro-Base", False, ["R1114_MIMO_V25_PRO_BASE"]),
+    "MIMO_V26_PRO_RL": ("MiMo-V2.6-Pro-RL", True, ["R1114_MIMO_V26_PRO_RL"]),
 }
+# 2026-11-15 (user: "更新报告", after being told of them): the reference models' source is their full re-run of 11-14 (R1114_<name>, all 36
+# tasks at harness 6bf2cd1a, jobs 67142-67148). Before: ["<name>", "MATHFIX_<name>"] (harness 16f7620f, math tasks re-run at cfcd736a) and
+# ["EOS_MIMO_V25_PRO_BASE"]; those directories stay in baseline/<name>/runs/, so putting the old lists back restores the old scores.
 # our ladder checkpoints: name = <Change ID>_<rung> (the code the report uses everywhere)
 OURS = {
     "PROD1_DPSK_LATENT2_E2X_q3": ("PROD1_DPSK_LATENT2_E2X · q3", False, ["ALIGN_E2X_q3_16f7620f", "MATHFIX_ALIGN_E2X_q3_16f7620f"]),
     "PROD1_DPSK_LATENT2_E2X_QBK3_q3": ("PROD1_DPSK_LATENT2_E2X_QBK3 · q3", False, ["ALIGN_QBK3_q3_bc4d42ba", "MATHFIX_ALIGN_QBK3_q3_bc4d42ba"]),
 }
+# 11-17 (Runlong 00:4x "尝试几个加权平均的版本，都测试下，都发"): the 59B checkpoint averages of tmp/ablate59/merge59.sh are ours too, one row
+# each (MERGE59_<wave>_<recipe>_iter<newest step>; wave M94 = newest checkpoint 94,000, M97 = the final 97,330). Only directories that
+# already hold a results file (an empty one would stop the collection, see _layer).
+MERGE_RECIPE = {"U2": "uniform, last 2", "U3": "uniform, last 3", "U5": "uniform, last 5", "U8": "uniform, last 8",
+                "LIN5": "linear 5:4:3:2:1, last 5", "EXP6": "exp 0.67, last 6", "EXPr05": "exp 0.5, last 4",
+                "POLYH": "Polyak, 2nd half of the decay", "POLY": "Polyak, all of phase 2",
+                # 11-17 (Runlong "新的 ckpt 融合测试也发"): Boxiang's dense end checkpoints (every 250 steps, 95,250-97,250, read only)
+                "DU3": "dense: uniform, last 3 (250-step)", "DU5": "dense: uniform, last 5", "DU10": "dense: uniform, last 10 (~2,080 steps)",
+                "DLIN5": "dense: last 5, 5:4:3:2:1", "DEXPT500": "dense: exp(-d/500 steps)", "DEXPT1000": "dense: exp(-d/1000 steps)"}
+for _d in sorted(glob.glob(os.path.join(SRC, "MERGE59_*_iter*"))):
+    _n = os.path.basename(_d)
+    _m = re.fullmatch(r"MERGE59_(M\d+)_(\w+?)_iter0*(\d+)", _n)
+    if _m and glob.glob(os.path.join(_d, _n, "results_*.json")):
+        OURS[_n] = (f"59B avg {_m.group(1)}_{_m.group(2)} ({MERGE_RECIPE.get(_m.group(2), _m.group(2))}; newest iter {int(_m.group(3)):,})", False, [_n])
 MODELS.update(OURS)
+# 11-17 (Runlong "recursive flint 的分没有测？"): RecursiveSI/flint, served by SGLang (no vLLM support; ~/tmp/flint/ds/
+# launch_cosmos_reference_sglang.sbatch, job 75598); a post-trained coding-agent model. Added once it has results.
+if glob.glob(os.path.join(SRC, "R1117_FLINT", "R1117_FLINT", "results_*.json")):
+    MODELS["FLINT"] = ("Flint (Recursive, 40B-A2.5B)", True, ["R1117_FLINT"])
 PILOT = "QWEN3_30B_A3B_BASE"                               # its sources define the task definitions every score must share
 # the production run we track: training length and the end of its phase 1 as in boxiangw's build_curve.py (TOTAL_STEPS, PHASE1_END)
 TRACK = "ULTRA59B_MUONH_KD_QBK3"

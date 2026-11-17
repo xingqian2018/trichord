@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Pin2Sphere</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; --warn:#9a6700; --note:#ddf4ff; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; --warn:#d29922; --note:#0c2d4a; }
+}
+body { color:var(--fg); background:#fff; font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+@media (prefers-color-scheme: dark) { body { background:#0d1117; } }
+main { max-width:1700px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; overflow-x:auto; white-space:nowrap; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; }
+a { color:var(--accent); }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:40px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+h3 { font-size:16px; margin-top:28px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+pre { background:var(--head); border:1px solid var(--border); border-radius:6px; padding:12px 14px; overflow-x:auto; font-size:12.5px; line-height:1.5; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; vertical-align:top; }
+th { background:var(--head); font-weight:600; white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+td.r { text-align:right; white-space:nowrap; }
+td.n { white-space:nowrap; }
+.box { border:1px solid var(--border); border-left:4px solid var(--accent); background:var(--note); padding:8px 16px; border-radius:6px; margin:12px 0; }
+.box p { margin:6px 0; }
+.hl { border-left-color:#d4a72c; background:color-mix(in srgb, #f2cc0c 30%, transparent); font-size:15px; }
+.ex { border-left-color:var(--muted); background:var(--head); }
+.st { display:inline-block; padding:0 7px; border-radius:10px; font-size:12px; font-weight:600; white-space:nowrap; border:1px solid currentColor; }
+.st.bad { color:var(--bad); } .st.warn { color:var(--warn); } .st.ok { color:var(--good); } .st.na { color:var(--muted); }
+.meta { color:var(--muted); font-size:13px; }
+b.bad { color:var(--bad); }
+@media (max-width:700px) { main { padding:16px 16px 48px; } nav { padding:8px 16px; } }
+.box ul { margin:6px 0; padding-left:22px; }
+.box.ex { font-size:13px; }
+main > table{display:table;width:100%}
+.math{margin:14px 0 14px 18px;font-size:1.15em;overflow:visible;padding:4px 0}.math math{display:block;text-align:left;margin:12px 0;overflow:visible}
+.cols.boxed .col{border:1px solid var(--border);border-radius:8px;padding:4px 18px;background:color-mix(in srgb, var(--head) 45%, transparent)}
+.cols{display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start}.cols .col{flex:1 1 380px;min-width:0}
+.tabbar{display:flex;gap:4px;border-bottom:2px solid var(--border);margin:8px 0 18px;position:sticky;top:0;background:#fff;z-index:5;padding-top:6px}@media (prefers-color-scheme: dark){.tabbar{background:#0d1117}}.tab{border:1px solid var(--border);border-bottom:none;background:transparent;color:inherit;font:inherit;padding:6px 16px;border-radius:6px 6px 0 0;cursor:pointer;opacity:.7}.tab.on{background:color-mix(in srgb, var(--head) 70%, transparent);opacity:1;font-weight:600}
+</style></head>
+<body><main>
+<h1>Pin2Sphere</h1>
+<div class="tabbar"><button class="tab on" data-t="t0">球面约束</button><button class="tab" data-t="t1">Latent MoE 结构</button></div><section class="tabpanel" id="t0">
+
+<h2 id="s0">0. 背景知识</h2>
+<p>后面反复用到四个量。前三个衡量 "一组数有多大"，第四个 fan_in 是一个输出读多少个输入。</p>
+<table>
+<thead>
+<tr>
+<th>量</th>
+<th>算法</th>
+<th>用在哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">L2 范数</td>
+<td>√(平方和)</td>
+<td>一个向量</td>
+</tr>
+<tr>
+<td class="n">Frobenius 范数</td>
+<td>√(所有元素的平方和)</td>
+<td>一个矩阵或一块张量。等于把它拉平成向量后的 L2 范数，不是谱范数</td>
+</tr>
+<tr>
+<td class="n">RMS（均方根）</td>
+<td>√(平方和 / N)，N 是元素个数</td>
+<td>向量、矩阵都可以</td>
+</tr>
+<tr>
+<td class="n">fan_in</td>
+<td>一个输出是多少个输入的加权和，这个个数</td>
+<td>线性层的权重。例如权重是 3 × 4（3 个输出，每个输出读 4 个输入），fan_in = 4</td>
+</tr>
+</tbody>
+</table>
+<p>写成公式（x 有 N 个元素）：</p>
+<div class="math"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mo stretchy="false">&#x02016;</mo><mi>x</mi><mo stretchy="false">&#x02016;</mo><mo>&#x0003D;</mo><msqrt><mrow><msubsup><mo>&#x02211;</mo><mrow><mi>i</mi><mo>&#x0003D;</mo><mn>1</mn></mrow><mrow><mi>N</mi></mrow></msubsup><msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup></mrow></msqrt></mrow></math><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mtext>RMS</mtext><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo><mo>&#x0003D;</mo><msqrt><mrow><mfrac><mrow><mn>1</mn></mrow><mrow><mi>N</mi></mrow></mfrac><msubsup><mo>&#x02211;</mo><mrow><mi>i</mi><mo>&#x0003D;</mo><mn>1</mn></mrow><mrow><mi>N</mi></mrow></msubsup><msubsup><mi>x</mi><mi>i</mi><mn>2</mn></msubsup></mrow></msqrt><mo>&#x0003D;</mo><mfrac><mrow><mo stretchy="false">&#x02016;</mo><mi>x</mi><mo stretchy="false">&#x02016;</mo></mrow><mrow><msqrt><mrow><mi>N</mi></mrow></msqrt></mrow></mfrac></mrow></math></div>
+<p>换算只有一条：<strong>RMS = 范数 / √N</strong>。</p>
+<p>例子：<code>[3, 1, 1, 1]</code> 的平方和是 12，范数是 √12 = 3.464，N = 4，RMS 是 3.464 / 2 = 1.732。</p>
+<p><strong>RMSNorm</strong> 是网络里的一种归一化层，作用在前向的激活值上：</p>
+<div class="math"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>y</mi><mo>&#x0003D;</mo><mfrac><mrow><mi>x</mi></mrow><mrow><mtext>RMS</mtext><mo stretchy="false">&#x00028;</mo><mi>x</mi><mo stretchy="false">&#x00029;</mo></mrow></mfrac><mo>&#x02299;</mo><mi>g</mi></mrow></math></div>
+<ul>
+<li>对一个 token 的向量（长度 = 维度）算 RMS 并除掉。之后 RMS 是 1，范数是 √维度。</li>
+<li><code>g</code> 是可训练的增益：每个维度一个数，所有 token 共用，初始全是 1。</li>
+</ul>
+<h2 id="s1">1. Hyperball 机制</h2>
+<p>受约束的矩阵每一步做两件事：先走一步，再把范数缩回走之前的值。</p>
+<div class="cols boxed"><div class="col">
+
+<p>第 1 步，走一步。η 是学习率，U 是更新方向，W′ 是走完之后的权重：</p>
+<div class="math"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><msup><mi>W</mi><mi>&#x02032;</mi></msup><mo>&#x0003D;</mo><mi>W</mi><mo>&#x02212;</mo><mi>&#x003B7;</mi><mspace width="0.167em" /><mfrac><mrow><mo stretchy="false">&#x02016;</mo><mi>W</mi><msub><mo stretchy="false">&#x02016;</mo><mi>F</mi></msub></mrow><mrow><mo stretchy="false">&#x02016;</mo><mi>U</mi><msub><mo stretchy="false">&#x02016;</mo><mi>F</mi></msub></mrow></mfrac><mspace width="0.167em" /><mi>U</mi></mrow></math></div>
+</div><div class="col">
+
+<p>第 2 步，缩回走之前的范数：</p>
+<div class="math"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>W</mi><mo>&#x02190;</mo><msup><mi>W</mi><mi>&#x02032;</mi></msup><mo>&#x000B7;</mo><mfrac><mrow><mo stretchy="false">&#x02016;</mo><mi>W</mi><msub><mo stretchy="false">&#x02016;</mo><mi>F</mi></msub></mrow><mrow><mo stretchy="false">&#x02016;</mo><msup><mi>W</mi><mi>&#x02032;</mi></msup><msub><mo stretchy="false">&#x02016;</mo><mi>F</mi></msub></mrow></mfrac></mrow></math></div>
+</div></div>
+
+<p>更新方向 U 有两种算法。G 是这一步的梯度。</p>
+<div class="cols boxed"><div class="col">
+
+<p><strong>MuonH</strong>：M 是动量，μ 是动量系数，NS₅ 是 5 次 Newton-Schulz 迭代（把矩阵正交化）。</p>
+<div class="math"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>M</mi><mo>&#x02190;</mo><mi>&#x003BC;</mi><mi>M</mi><mo>&#x0002B;</mo><mi>G</mi></mrow></math><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>U</mi><mo>&#x0003D;</mo><msub><mtext>NS</mtext><mn>5</mn></msub><mo stretchy="false">&#x00028;</mo><mi>&#x003BC;</mi><mi>M</mi><mo>&#x0002B;</mo><mi>G</mi><mo stretchy="false">&#x00029;</mo></mrow></math></div>
+</div><div class="col">
+
+<p><strong>AdamH</strong>：M 是梯度的滑动平均，V 是梯度平方的滑动平均，β₁、β₂ 是滑动平均的系数，t 是步数。带帽子的是除掉起步偏差之后的值。</p>
+<div class="math"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>M</mi><mo>&#x02190;</mo><msub><mi>&#x003B2;</mi><mn>1</mn></msub><mi>M</mi><mo>&#x0002B;</mo><mo stretchy="false">&#x00028;</mo><mn>1</mn><mo>&#x02212;</mo><msub><mi>&#x003B2;</mi><mn>1</mn></msub><mo stretchy="false">&#x00029;</mo><mspace width="0.167em" /><mi>G</mi></mrow></math><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>V</mi><mo>&#x02190;</mo><msub><mi>&#x003B2;</mi><mn>2</mn></msub><mi>V</mi><mo>&#x0002B;</mo><mo stretchy="false">&#x00028;</mo><mn>1</mn><mo>&#x02212;</mo><msub><mi>&#x003B2;</mi><mn>2</mn></msub><mo stretchy="false">&#x00029;</mo><mspace width="0.167em" /><mi>G</mi><mo>&#x02299;</mo><mi>G</mi></mrow></math><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mover accent="true"><mrow><mi>M</mi></mrow><mo>&#x0005E;</mo></mover><mo>&#x0003D;</mo><mfrac><mrow><mi>M</mi></mrow><mrow><mn>1</mn><mo>&#x02212;</mo><msubsup><mi>&#x003B2;</mi><mn>1</mn><mi>t</mi></msubsup></mrow></mfrac></mrow></math><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mover accent="true"><mrow><mi>V</mi></mrow><mo>&#x0005E;</mo></mover><mo>&#x0003D;</mo><mfrac><mrow><mi>V</mi></mrow><mrow><mn>1</mn><mo>&#x02212;</mo><msubsup><mi>&#x003B2;</mi><mn>2</mn><mi>t</mi></msubsup></mrow></mfrac></mrow></math><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>U</mi><mo>&#x0003D;</mo><mfrac><mrow><mover accent="true"><mrow><mi>M</mi></mrow><mo>&#x0005E;</mo></mover></mrow><mrow><msqrt><mrow><mover accent="true"><mrow><mi>V</mi></mrow><mo>&#x0005E;</mo></mover></mrow></msqrt><mo>&#x0002B;</mo><mi>&#x003F5;</mi></mrow></mfrac></mrow></math></div>
+</div></div>
+
+<ul>
+<li><strong>范数是整个矩阵的 Frobenius 范数</strong>。一个矩阵一个球面，不分行，不分列。</li>
+<li><strong>步长是相对的</strong>：第 1 步保证每一步 ‖W′ − W‖ / ‖W‖ = η。</li>
+<li><strong>半径没有规定值</strong>：第 2 步缩回的是这一步之前的范数，一路追溯回去就是初始化时的范数。初始化时乘上去的任何系数都会被永久保留（见 §3）。</li>
+</ul>
+<h2 id="s2">2. Hyperball 约束什么</h2>
+<p>球面怎么分，用哪种优化器：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>球面单位（59B Prod V1）</th>
+<th>球面单位（Prod V2）</th>
+<th>优化器</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">token embedding</td>
+<td>不上球面</td>
+<td>同 V1</td>
+<td>AdamW</td>
+</tr>
+<tr>
+<td class="n">注意力 q、k、v</td>
+<td>各自一个球面，不按 head</td>
+<td>同 V1</td>
+<td>MuonH</td>
+</tr>
+<tr>
+<td class="n">注意力输出投影</td>
+<td>整块一个球面，带 1/√(2L)（见 §3）</td>
+<td>同 V1</td>
+<td>MuonH</td>
+</tr>
+<tr>
+<td class="n">路由 expert 的 fc1</td>
+<td>每个 expert 一个球面，gate 和 up 合在里面</td>
+<td>gate、up 分成两个球面</td>
+<td>MuonH</td>
+</tr>
+<tr>
+<td class="n">路由 expert 的 fc2（down）</td>
+<td>每个 expert 一个球面</td>
+<td>同 V1</td>
+<td>MuonH</td>
+</tr>
+<tr>
+<td class="n">shared expert</td>
+<td>fc1 一个球面，fc2 一个球面</td>
+<td>同 V1</td>
+<td>MuonH</td>
+</tr>
+<tr>
+<td class="n">第 0 层 dense</td>
+<td>fc1 一个球面，fc2 一个球面</td>
+<td>切成 9 块，每块相当于一个 expert，各有自己的球面</td>
+<td>MuonH</td>
+</tr>
+<tr>
+<td class="n">latent 投影</td>
+<td>整块一个球面</td>
+<td>同 V1</td>
+<td>MuonH</td>
+</tr>
+<tr>
+<td class="n">router</td>
+<td>1 个球面：512 × 2,048 个数合起来的范数固定，单个 expert 的 2,048 维向量范数可以变</td>
+<td>同 V1</td>
+<td>AdamH</td>
+</tr>
+<tr>
+<td class="n">输出 head</td>
+<td>整块一个球面，每行自由</td>
+<td>同 V1</td>
+<td>AdamH</td>
+</tr>
+<tr>
+<td class="n">一维参数（归一化增益、注意力 sink）</td>
+<td>不约束</td>
+<td>同 V1</td>
+<td>AdamW</td>
+</tr>
+</tbody>
+</table>
+<p>和 Muse、P2S 文档的区别：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>我们</th>
+<th>Muse</th>
+<th>P2S 文档</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">token embedding</td>
+<td>不上球面</td>
+<td>每行一个球面</td>
+<td>同 Muse</td>
+</tr>
+<tr>
+<td class="n">embedding 之后的归一化</td>
+<td>没有</td>
+<td>普通的 RMSNorm，不带增益（g）</td>
+<td>文档没提</td>
+</tr>
+<tr>
+<td class="n">注意力 q、k、v</td>
+<td>各自整块一个球面</td>
+<td>相同</td>
+<td>相同</td>
+</tr>
+<tr>
+<td class="n">注意力输出投影</td>
+<td>整块一个球面</td>
+<td>相同</td>
+<td>相同</td>
+</tr>
+<tr>
+<td class="n">每个 expert 内部</td>
+<td>V1：fc1（gate + up）一个，fc2 一个。V2：gate、up、fc2 各一个</td>
+<td>同我们的 V2</td>
+<td>up、fc2 各一个，没有 gate 矩阵</td>
+</tr>
+<tr>
+<td class="n">shared expert</td>
+<td>fc1 一个，fc2 一个</td>
+<td>没有 shared expert</td>
+<td>文档没提</td>
+</tr>
+<tr>
+<td class="n">第 0 层 dense</td>
+<td>V1：fc1 一个，fc2 一个。V2：切成 9 块</td>
+<td>没有 dense 层</td>
+<td>文档没提</td>
+</tr>
+<tr>
+<td class="n">latent 投影</td>
+<td>整块一个球面</td>
+<td>相同</td>
+<td>文档没提</td>
+</tr>
+<tr>
+<td>router（形状以我们的 512 × 2,048 为例：512 个 expert，每个一个 2,048 维向量）</td>
+<td>1 个球面：512 × 2,048 个数合起来的范数固定，单个 expert 的 2,048 维向量范数可以变</td>
+<td>512 个球面：每个 expert 的 2,048 维向量范数各自固定</td>
+<td>同 Muse</td>
+</tr>
+<tr>
+<td class="n">输出 head</td>
+<td>整块一个球面</td>
+<td>每行一个球面</td>
+<td>文档没提</td>
+</tr>
+<tr>
+<td class="n">一维参数</td>
+<td>不约束</td>
+<td>相同</td>
+<td>文档没提</td>
+</tr>
+<tr>
+<td class="n">半径</td>
+<td>初始化时的范数</td>
+<td>公式定的固定值</td>
+<td>同 Muse</td>
+</tr>
+<tr>
+<td class="n">坐标裁剪</td>
+<td>没有</td>
+<td>权重里看不出有</td>
+<td>有，用在 feed-forward 权重上</td>
+</tr>
+</tbody>
+</table>
+<p><strong>坐标裁剪</strong>：P2S 文档每步钉完之后，对 feed-forward 权重再按 pin 半径做一次裁剪（<code>param_clip=10</code>），即单个元素的绝对值不超过目标 RMS 的 10 倍。</p>
+<h2 id="s3">3. 半径从哪来：初始化</h2>
+<p>我们的初始化：</p>
+<table>
+<thead>
+<tr>
+<th>所属</th>
+<th>参数</th>
+<th>形状（59B）</th>
+<th>初始化</th>
+<th>初始范数</th>
+<th>范数保持</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">Embedding</td>
+<td>token embedding</td>
+<td>151,936 × 2,048</td>
+<td>正态分布，std 1e-4</td>
+<td>每行 1e-4·√h = 0.0045</td>
+<td>False</td>
+</tr>
+<tr>
+<td class="n">Attention</td>
+<td>注意力 qkv</td>
+<td>5,120 × 2,048（q 4,096 行，k、v 各 512 行）</td>
+<td>Kaiming-uniform：Uniform(±1/√fan_in), fan_in=2048</td>
+<td>q：√(4,096/3) = 36.95；k、v：各 √(512/3) = 13.06</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Attention</td>
+<td>注意力输出投影</td>
+<td>2,048 × 4,096</td>
+<td>Kaiming-uniform，再乘深度系数 1/√(2L) = 0.102, fan_in=4096</td>
+<td>整块 √(2,048/3) / √(2L) = 2.667</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Latent MoE</td>
+<td>router</td>
+<td>512 × 2,048</td>
+<td>正态分布，std 0.02</td>
+<td>整块 0.02·√(E·h) = 20.48</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Latent MoE</td>
+<td>latent 投影（进）</td>
+<td>1,024 × 2,048</td>
+<td>Kaiming-uniform, fan_in=2048</td>
+<td>整块 √(1,024/3) = 18.48</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Latent MoE</td>
+<td>路由 expert 的 gate</td>
+<td>512 Expert: 768 × 1,024（fc1 的一半）</td>
+<td>Kaiming-uniform, fan_in=1024</td>
+<td>每个 expert √(768/3) = 16.00</td>
+<td>V1：gate + up 合计保持；V2：True</td>
+</tr>
+<tr>
+<td class="n">Latent MoE</td>
+<td>路由 expert 的 up</td>
+<td>512 Expert: 768 × 1,024（fc1 的另一半）</td>
+<td>Kaiming-uniform, fan_in=1024</td>
+<td>每个 expert √(768/3) = 16.00</td>
+<td>V1：gate + up 合计保持；V2：True</td>
+</tr>
+<tr>
+<td class="n">Latent MoE</td>
+<td>路由 expert 的 fc2</td>
+<td>512 Expert: 1,024 × 768</td>
+<td>V1：Kaiming-uniform，再乘深度系数 1/√(2L) = 0.102。V2：只用 Kaiming-uniform。fan_in=768</td>
+<td>V1：每个 expert √(1,024/3) / √(2L) = 1.886。V2：每个 expert √(1,024/3) = 18.48</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Latent MoE</td>
+<td>latent 投影（出）</td>
+<td>2,048 × 1,024</td>
+<td>Kaiming-uniform，再乘深度系数 1/√(2L) = 0.102, fan_in=1024</td>
+<td>整块 √(2,048/3) / √(2L) = 2.667</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Latent MoE</td>
+<td>shared expert 的 fc1</td>
+<td>1,536 × 2,048</td>
+<td>Kaiming-uniform, fan_in=2048</td>
+<td>整块 √(1,536/3) = 22.63</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Latent MoE</td>
+<td>shared expert 的 fc2</td>
+<td>2,048 × 768</td>
+<td>Kaiming-uniform，再乘深度系数 1/√(2L) = 0.102, fan_in=768</td>
+<td>整块 √(2,048/3) / √(2L) = 2.667</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Dense MLP（第 0 层）</td>
+<td>第 0 层 dense 的 fc1</td>
+<td>13,824 × 2,048</td>
+<td>Kaiming-uniform, fan_in=2048</td>
+<td>整块 √(13,824/3) = 67.88</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Dense MLP（第 0 层）</td>
+<td>第 0 层 dense 的 fc2</td>
+<td>2,048 × 6,912</td>
+<td>Kaiming-uniform，再乘深度系数 1/√(2L) = 0.102, fan_in=6912</td>
+<td>整块 √(2,048/3) / √(2L) = 2.667</td>
+<td>True</td>
+</tr>
+<tr>
+<td class="n">Head</td>
+<td>输出 head</td>
+<td>151,936 × 2,048</td>
+<td>正态分布，std 0.02</td>
+<td>整块 0.02·√(V·h) = 352.8</td>
+<td>True</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Kaiming-uniform</strong>：在 ±a 之间均匀分布的数，RMS 是 a/√3。a = 1/√fan_in 时，一行 fan_in 个元素的范数是 1/√3；R 行的整块范数是 √(R/3)，和 fan_in 无关。</p>
+<p><strong>深度系数</strong>：1/√(2L)，L 是层数，59B 的 L = 48，系数是 0.102。用意是缩小往残差流里写的矩阵：每层往残差流写两次（注意力一次，MLP 一次），L 层共写 2L 次；每次缩小 √(2L) 倍，叠加后的幅度就不随层数增长。V1 的初始化代码按名字匹配，乘在注意力输出投影、所有 fc2 和 latent 投影（出）上。</p>
+<p><strong>Prod V2</strong>：路由 expert 的 fc2 不再乘深度系数，其余照旧。它不直接写残差流：输出先过 <code>fc2_norm</code>，尺度被归一化抹掉，再由 latent 投影（出）写进残差流。所以乘了深度系数不改变残差流的幅度，只让输出总和接近 <code>fc2_norm</code> 的 eps。</p>
+<p>和 Muse、P2S 文档的区别：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>形状（我们 59B）</th>
+<th>形状（Muse）</th>
+<th>我们</th>
+<th>Muse</th>
+<th>P2S 文档（按我们的形状算）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">token embedding</td>
+<td>151,936 × 2,048</td>
+<td>202,048 × 8,192</td>
+<td>正态分布 std 1e-4。每行 0.0045，每个元素 1e-4。不上球面，训练中会变</td>
+<td>每行 √32 = 5.657，每个元素 0.0625（h = 8,192）。每行一个球面</td>
+<td>每行 1，每个元素 1/√h = 0.0221（相当于正态分布 std 0.0221）。每个 token 的 2,048 维向量单独钉</td>
+</tr>
+<tr>
+<td class="n">router</td>
+<td>512 × 2,048</td>
+<td>256 × 8,192</td>
+<td>正态分布 std 0.02。平均每行 0.905，每个元素 0.02。整块一个球面，半径 0.02·√(512 × 2,048) = 20.48，单个 expert 的向量范数可以变</td>
+<td>每行 5.657，每个元素 0.0625；前向再乘 1/√32，等效每行 1、每个元素 0.0110。每个 expert 的向量单独钉</td>
+<td>每行 1，每个元素 0.0221（相当于正态分布 std 0.0221）。每个 expert 的 2,048 维向量单独钉</td>
+</tr>
+<tr>
+<td class="n">输出 head</td>
+<td>151,936 × 2,048</td>
+<td>202,048 × 8,192</td>
+<td>正态分布 std 0.02。平均每行 0.905，每个元素 0.02。整块一个球面，半径 0.02·√(151,936 × 2,048) = 352.8，单行范数可以变</td>
+<td>同 router</td>
+<td>文档没提</td>
+</tr>
+<tr>
+<td class="n">注意力 q、k、v，latent 投影（进）</td>
+<td>q 4,096 × 2,048；k、v 各 512 × 2,048；latent 投影（进）1,024 × 2,048</td>
+<td>q 8,192 × 8,192；k、v 各 1,024 × 8,192；latent 投影（进）4,096 × 8,192</td>
+<td>Uniform(±1/√fan_in)。每行 0.577，每个元素 1/√(3·fan_in) = 0.0128（fan_in 2,048）。每块一个球面，半径 √(行数 / 3)：q 36.95，k、v 各 13.06，latent 投影（进）18.48</td>
+<td>每行 0.5，每个元素 2^-7.5 = 0.005524（fan_in 8,192）</td>
+<td>每行 1，每个元素 1/√fan_in = 0.0221（相当于 Uniform(±√3/√fan_in)）</td>
+</tr>
+<tr>
+<td class="n">各 fc1（expert 的 gate、up）</td>
+<td>路由 expert 512 Expert: gate、up 各 768 × 1,024；shared expert 1,536 × 2,048；第 0 层 dense 13,824 × 2,048</td>
+<td>256 Expert: gate、up 各 4,096 × 4,096</td>
+<td>Uniform(±1/√fan_in)。每行 0.577；每个元素：路由 expert 0.0180（fan_in 1,024），shared expert、第 0 层 dense 0.0128（fan_in 2,048）。球面：路由 expert V1 gate + up 一个 22.63，V2 gate、up 各一个 16.00；shared expert 22.63；第 0 层 dense 67.88（V2 切成 9 块，每块保持自己的初始范数）</td>
+<td>每行 0.354，每个元素 0.005524（fan_in 4,096）</td>
+<td>每行 1；每个元素 1/√fan_in：路由 expert 0.0313，shared expert、第 0 层 dense 0.0221。没有 gate 矩阵</td>
+</tr>
+<tr>
+<td>注意力输出投影、各 fc2、latent 投影（出）</td>
+<td>注意力输出投影 2,048 × 4,096；路由 expert 的 fc2 512 Expert: 1,024 × 768；shared expert 的 fc2 2,048 × 768；第 0 层 dense 的 fc2 2,048 × 6,912；latent 投影（出）2,048 × 1,024</td>
+<td>注意力输出投影 8,192 × 8,192；fc2 256 Expert: 4,096 × 4,096；latent 投影（出）8,192 × 4,096</td>
+<td>Uniform(±1/√fan_in) 再乘深度系数 1/√(2L) = 0.102。每行 0.059；每个元素：注意力输出投影 0.00092，路由、shared expert 的 fc2 0.0021，第 0 层 dense 的 fc2 0.00071，latent 投影（出）0.0018。整块半径：注意力输出投影、shared expert 的 fc2、第 0 层 dense 的 fc2、latent 投影（出）各 2.667，路由 expert 的 fc2 每个 1.886。V2：路由 expert 的 fc2 不乘 1/√(2L)，每行 0.577，每个元素 0.0208，每个 expert 18.48</td>
+<td>每个元素 0.005524；每行：注意力输出投影 0.5（fan_in 8,192），fc2、latent 投影（出）0.354（fan_in 4,096）。没有深度系数，矩阵不缩小；分支的幅度由可学的残差门控（每层 <code>post_attention_residual_gate</code>、<code>post_feedforward_residual_gate</code>，各 8,192 个数）调</td>
+<td>每行 1；每个元素 1/√fan_in：注意力输出投影 0.0156，路由、shared expert 的 fc2 0.0361，第 0 层 dense 的 fc2 0.0120，latent 投影（出）0.0313。没有深度系数</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>P2S 文档</strong>：用公式定，每个元素 RMS = 1/√fan_in，也就是每行 1、整块 √fan_out。和初始化无关，相当于把我们的初始化换成 Uniform(±√3/√fan_in)。没有深度系数，输出矩阵和其他矩阵一样每行 1。</li>
+<li><strong>Muse</strong>：也是固定值，但不按 √fan_out：所有隐藏层矩阵每个元素都是 2^-7.5 = 0.005524，和 fan_in 无关，所以每行范数随 fan_in 变（fan_in 8,192 时 0.5，4,096 时 0.354）。embedding、router、head 每行 √32。</li>
+</ul>
+<h2 id="s4">4. 深度系数是什么</h2>
+<p>深度系数是 1/√(2L)，L 是层数。整个网络用同一个数：59B（L = 48）是 0.102，461B（L = 94）是 0.073。它乘在往残差流里写的矩阵上：注意力输出投影、shared expert 和第 0 层 dense 的 fc2、latent 投影（出）。V1 还按名字乘在路由 expert 的 fc2 上，这个矩阵不直接写残差流，V2 去掉了。代码只按总层数算一次，不看是第几层（<code>scaling_ladder/hyperp/init.py</code>）：</p>
+<pre><code class="language-python">residual_scale = 1.0 / math.sqrt(2.0 * num_layers)
+scale = residual_scale if is_residual else 1.0
+</code></pre>
+<h3>4.1 原则：残差流的幅度不随层数增长</h3>
+<ol>
+<li>每层往残差流写两次（注意力一次，MLP 一次），L 层共写 2L 次。</li>
+<li>每个分支读的是归一化之后的输入，所以每次写进去的幅度差不多，设 RMS 为 σ。</li>
+<li>2L 次写入大致互不相关，相加时是方差相加：总方差约 2L·σ²，总幅度约 √(2L)·σ。层数越多，残差流越大。</li>
+<li>每次写入乘 1/√(2L)，总方差回到 σ²，和层数无关：</li>
+</ol>
+<div class="math"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mrow><mi mathvariant="normal">V</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">r</mi></mrow><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><msubsup><mo>&#x02211;</mo><mrow><mi>i</mi><mo>&#x0003D;</mo><mn>1</mn></mrow><mrow><mn>2</mn><mi>L</mi></mrow></msubsup><mfrac><mrow><msub><mi>b</mi><mi>i</mi></msub></mrow><mrow><msqrt><mrow><mn>2</mn><mi>L</mi></mrow></msqrt></mrow></mfrac><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mo>&#x0003D;</mo><mn>2</mn><mi>L</mi><mo>&#x000B7;</mo><mfrac><mrow><msup><mi>&#x003C3;</mi><mn>2</mn></msup></mrow><mrow><mn>2</mn><mi>L</mi></mrow></mfrac><mo>&#x0003D;</mo><msup><mi>&#x003C3;</mi><mn>2</mn></msup></mrow></math></div>
+<ul>
+<li><strong>为什么开根号</strong>：不相关的量相加，加的是方差，幅度按 √ 增长。如果每次写入完全同向，就要除以 2L。</li>
+<li><strong>为什么全网络统一</strong>：2L 次写入在统计上是对称的，没有哪一层比别的层更该缩小。系数管的是最后的总和，不是某一层。</li>
+</ul>
+<h3>4.2 各家的做法</h3>
+<table>
+<thead>
+<tr>
+<th>做法</th>
+<th>在哪里缩放</th>
+<th>训练中会不会变</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">Megatron、GPT-2 的初始化</td>
+<td>初始化时乘在输出矩阵上：<code>scaled_init_method_normal</code>，std / √(2·num_layers)</td>
+<td>会，权重可以长回来</td>
+</tr>
+<tr>
+<td class="n">ArchScale</td>
+<td>前向里每个分支除以 √(2L)（开关 <code>depth_mup</code>）</td>
+<td>不会</td>
+</tr>
+<tr>
+<td class="n">我们</td>
+<td>初始化时乘在输出矩阵上</td>
+<td>不会：hyperball 保持范数，效果和 ArchScale 相同</td>
+</tr>
+<tr>
+<td class="n">Muse</td>
+<td>没有深度系数，矩阵不缩小。分支输出先过 post-norm，再经过可学的残差门控</td>
+<td>可学</td>
+</tr>
+<tr>
+<td class="n">P2S 文档</td>
+<td>没提。所有矩阵按 RMS = 1/√fan_in 钉，和层数无关</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>ArchScale 的 depth-μP 除了控制幅度，还让最优学习率可以在不同深度之间迁移：用小模型定的学习率，可以直接用到层数更多的模型上。</p>
+<p>Muse 的残差门控（<code>MuseSparkResidualGate</code>），w 每层每个分支 8,192 个，一个通道一个，可学：</p>
+<div class="math"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>&#x003B2;</mi><mo>&#x0003D;</mo><mi>&#x003C3;</mi><mspace width="negativethinmathspace" /><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mfrac><mrow><mi>w</mi></mrow><mrow><mi>T</mi></mrow></mfrac><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow></mrow></math><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>&#x003B1;</mi><mo>&#x0003D;</mo><msqrt><mrow><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mn>1</mn><mo>&#x02212;</mo><mi>&#x003B2;</mi><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow><mrow><mo stretchy="true" fence="true" form="prefix">&#x00028;</mo><mn>1</mn><mo>&#x0002B;</mo><mi>&#x003B2;</mi><mo stretchy="true" fence="true" form="postfix">&#x00029;</mo></mrow></mrow></msqrt></mrow></math><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mrow><mi>h</mi><mo>&#x02190;</mo><mi>&#x003B1;</mi><mo>&#x000B7;</mo><mi>h</mi><mo>&#x0002B;</mo><mi>&#x003B2;</mi><mo>&#x000B7;</mo><mi>b</mi></mrow></math></div>
+<p>α² + β² = 1，所以残差 h 和分支 b 的 RMS 都是 1、两者不相关时，加完之后残差流的 RMS 还是 1。层数多少都不会让残差流变大，每个通道还能自己决定分支占多少。</p>
+<h2 id="s5">5. 外部：Muse Spark Open（从权重里量出来的）</h2>
+<h3>5.1 结构</h3>
+<ul>
+<li>62 层语言层<strong>全部是 MoE</strong>，第 0 层也是；没有 dense 层，没有 shared expert。</li>
+<li>每层 256 个 expert，每个 token 选 8 个。</li>
+<li>hidden 8,192；expert 工作在 4,096 维的 latent 里（<code>pre_expert_proj</code> / <code>post_expert_proj</code> 进出）。</li>
+<li>expert 是普通 SwiGLU：<code>act_fn(gate_proj(x)) * up_proj(x)</code>，激活是 silu。gate、up、down 都是 4,096 × 4,096 的方阵。</li>
+<li>周边：expert 之前有一个去均值的 RMSNorm；每个 expert 之后有 post-norm；残差分支用学出来的门控缩放。</li>
+</ul>
+<h3>5.2 约束</h3>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>球面单位</th>
+<th>范数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">q、k、v、输出投影</td>
+<td>各自整块矩阵</td>
+<td>元素 RMS = 2^-7.5 = 0.005524</td>
+</tr>
+<tr>
+<td><code>pre_expert_proj</code>、<code>post_expert_proj</code></td>
+<td>整块矩阵</td>
+<td>同上</td>
+</tr>
+<tr>
+<td class="n">expert 的 gate、up、down</td>
+<td>每个 expert 三个球面</td>
+<td>各 22.627 = √512，跨 expert 的偏差 7e-7</td>
+</tr>
+<tr>
+<td class="n">router、输出 head</td>
+<td>每一行</td>
+<td>√32 = 5.657，配 1/√32 的乘子，等效单位行</td>
+</tr>
+<tr>
+<td class="n">token embedding</td>
+<td>每一行</td>
+<td>√32 = 5.657，查表后紧接一个无增益的 RMSNorm，每个 token 以 RMS = 1 进入残差流</td>
+</tr>
+<tr>
+<td class="n">所有一维参数；视觉、音频塔</td>
+<td>不约束</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>总量：623 个张量、99.755 % 的元素，在 472,114 个球面上。</li>
+<li><strong>半径是解析式定的</strong>，不是初始化的范数：公开的初始化（trunc_normal 0.02）比实测大 3.62 倍。</li>
+<li>router 每行的半径是 √(h/E) = √(8192/256)。</li>
+<li>expert 的 22.627 和文档的公式对得上：4096 / 8 = 512，即 fan_in 按 "每个 token 实际激活 8 个 expert" 折算。<span class="st bad">推断</span></li>
+<li><strong>行是自由的</strong>：每个 expert 球面内部，行范数 / 中位数从 0.24–0.50 到 2.1–4.9。例如第 1 层有 2,775 个 down 列低于中位数的一半。</li>
+<li><strong>没有死神经元</strong>：62 层、15,872 个 expert、65,011,712 个神经元，按我们的判据是 0。最小值 / 中位数：gate 0.176，up 0.402，down 0.237。</li>
+<li>Muse 对每个 head 的输出做归一化，所以 v 的范数不影响函数。</li>
+<li>Muse 的 Muon 以什么为单位做正交化，从权重里定不下来。</li>
+</ul>
+<h3>5.3 Muse 也没解决的</h3>
+<ul>
+<li><strong>第一个 MoE 层的饥饿还在</strong>，只是被 "按选中次数均衡" 盖住了：第 0 层 10–13 % 的选中名额权重不到 1 %，第 1 层 2.7–7.2 %；第 0 层 256 个 expert 里有 52–54 个只靠 bias 才被选中。</li>
+<li>它的 router bias 是很慢的、去均值的符号步进，不是每步按分位数算。</li>
+<li>浅层的 latent 投影是秩亏的（第 0–19 层，4,096 个方向里只有 817–3,762 个在用）；每层有一个 "sink" 通道承载约 75 % 的 expert 归一化输出。会话的解读：模型自己绕着归一化重建了一条幅度通路。<span class="st bad">推断</span></li>
+<li>Meta 公开的 TorchTitan 配方里 router 的 LR 是 ×0.125。那是 AdamW 的步长，折成 hyperball 的相对步长约 ×0.011；而且是微调配方。</li>
+</ul>
+<h2 id="s6">6. 外部：其他公开模型的第 0 层</h2>
+<p>配置读自共享 HF cache 里各模型的 <code>config.json</code>；GLM 来自网上搜到的公开配置，本地没有。死神经元用 <code>ref_dense0_scan.py</code> 扫官方权重，判据和我们自己的一样（见 <code>dead_neuron.md</code> §2）。</p>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>第 0 层</th>
+<th>expert 配置</th>
+<th>第 0 层 dense 的死神经元</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">Kimi K3 / K3.1-Pro</td>
+<td>dense，宽 33,792，hidden 7,168</td>
+<td>896 个，选 16 个，+2 个 shared</td>
+<td>5,574 / 5,583，都是 <strong>16.5 %</strong></td>
+</tr>
+<tr>
+<td class="n">Kimi K2</td>
+<td>dense</td>
+<td>没查</td>
+<td>没扫</td>
+</tr>
+<tr>
+<td>MiMo-V2-Flash / V2.5-Pro-Base / V2.6</td>
+<td>dense，宽 16,384，hidden 6,144</td>
+<td>384 个，选 8 个，无 shared</td>
+<td>V2.5-Pro-Base：0</td>
+</tr>
+<tr>
+<td class="n">Flint</td>
+<td>第 0、1 层都是 dense，宽 6,144，hidden 2,048</td>
+<td>没查</td>
+<td>两层都是 0</td>
+</tr>
+<tr>
+<td class="n">GLM-4.5</td>
+<td>前 3 层 dense</td>
+<td>160 个</td>
+<td>没扫</td>
+</tr>
+<tr>
+<td class="n">Qwen3 / Qwen3.8 MoE</td>
+<td>没有 dense 层</td>
+<td>没查</td>
+<td>不适用</td>
+</tr>
+<tr>
+<td class="n">DeepSeek-V4-Flash-Base</td>
+<td>没找到 dense 层</td>
+<td>没查</td>
+<td>不适用</td>
+</tr>
+<tr>
+<td class="n">Muse Spark Open</td>
+<td>没有 dense 层</td>
+<td>256 个，选 8 个，无 shared</td>
+<td>不适用（全模型 0 死）</td>
+</tr>
+<tr>
+<td class="n">（对照）我们 59B</td>
+<td>dense，宽 6,912，hidden 2,048</td>
+<td>路由 + 1 个 shared</td>
+<td>1,597 / 6,912 = <strong>23 %</strong></td>
+</tr>
+</tbody>
+</table>
+<p>补充：</p>
+<ul>
+<li>Kimi K3 的激活是 SiTU-GLU：<code>situ(x) = s·tanh(x/s)·sigmoid(x)</code> 用在 gate 上，up 一半可选 tanh 封顶。Megatron 里已经有。它在零附近和 SiLU 相同，所以塌缩状态同样是不动点，治不了死神经元（<code>dead_neuron.md</code> §8 的实验 B）。</li>
+<li>MiMo 的第 0 层还配了全注意力。</li>
+<li>K3 死掉的范围很宽：21 % 的神经元低于中位数的 10 %，31 % 低于 50 %；最小的是中位数的 0.0015。MiMo 最小的行是中位数的 0.72，Flint 是 0.19。</li>
+</ul>
+<p>两条解读，都没有验证：<span class="st bad">推断</span></p>
+<ol>
+<li><strong>K3 看起来也是范数约束、gate 和 up 分开的</strong>。它的 gate 占 fc 范数平方的 0.5012，gate 和 up 的范数相差不到 0.2 %；MiMo（0.61）和 Flint（0.11 / 0.28）是自由漂移的。K3 的第 0 层 dense 和我们一样死，所以这是这一类优化器在高矩阵 dense 层上的共性，Kimi 带着它发布了。</li>
+<li><strong>形状假说</strong>：Muse 的每一半是方阵，0 死；K3 的第 0 层每一半是 33,792 × 7,168（高宽比 4.7），死 16.5 %；我们是 6,912 × 2,048（3.4），死 23 %。和 "行多于列的矩阵更容易有行落后" 一致。</li>
+</ol>
+<h2 id="s7">7. 对照：我们 vs P2S 文档</h2>
+<h3>7.1 一致的</h3>
+<ul>
+<li>每步之后投影回球面。</li>
+<li>expert 的 fc1、fc2：每个 expert 每个矩阵一个球面，不按行列。</li>
+<li>注意力 q、k、v 各自一个球面，不按 head。实测范数：q 36.95，k 13.065，v 13.066。</li>
+<li>注意力输出投影：整块一个球面。</li>
+</ul>
+<h3>7.2 不一致的</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>文档</th>
+<th>我们（59B）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">半径</td>
+<td>公式定：每行范数为 1</td>
+<td>取初始化时的范数：Kaiming-uniform，每行 1/√3 = 0.577</td>
+</tr>
+<tr>
+<td class="n">输出矩阵的半径</td>
+<td>文档没有另加系数</td>
+<td>残差输出矩阵再乘 1/√(2L)；59B 是 2.667</td>
+</tr>
+<tr>
+<td class="n">Token embedding</td>
+<td>每个 token 向量在单位球面上</td>
+<td>不上球面，用 AdamW（2026-10-04 定的）。行范数 0.004–18.9，中位数 8.99</td>
+</tr>
+<tr>
+<td class="n">Router</td>
+<td>每个 expert 的向量单独约束</td>
+<td>整个 router 矩阵一个球面（20.48，精确不变）；每个 expert 的范数自由，0.49–1.33</td>
+</tr>
+<tr>
+<td class="n">gate / up</td>
+<td>没有 gate 矩阵；up、down 分开</td>
+<td>fc1 和 fc2 分开；fc1 里 gate 和 up 合成一个球面</td>
+</tr>
+<tr>
+<td class="n">坐标裁剪</td>
+<td>feed-forward 权重裁到半径 RMS 的 10 倍</td>
+<td>没有任何裁剪</td>
+</tr>
+<tr>
+<td class="n">输出 head</td>
+<td>照片里被截断</td>
+<td>整块一个球面（352.8）；行自由，0.22–1.37</td>
+</tr>
+</tbody>
+</table>
+<p>补充：</p>
+<ul>
+<li>文档有、我们没有的模块：MuxNet read、MoBE scales、DRAPE embedding、初始 residual write。</li>
+<li>我们有、文档没提的：latent 投影是整块球面（18.47 / 2.668）；所有一维参数（归一化增益、注意力 sink）用 AdamW，不受约束。</li>
+<li>两边每步做的都是整体乘一个数。区别在目标：文档的目标是公式算出来的固定值；我们的目标是上一步的范数。</li>
+</ul>
+<h2 id="s8">8. 对照：我们 vs Muse</h2>
+<h3>8.1 范数</h3>
+<p>形状（每个 expert，行 × 列）：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>gate、up 各自</th>
+<th>down</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">Muse expert</td>
+<td>4,096 × 4,096</td>
+<td>4,096 × 4,096</td>
+</tr>
+<tr>
+<td class="n">59B 路由 expert</td>
+<td>768 × 1,024</td>
+<td>1,024 × 768</td>
+</tr>
+<tr>
+<td class="n">59B shared expert</td>
+<td>768 × 2,048</td>
+<td>2,048 × 768</td>
+</tr>
+<tr>
+<td class="n">59B 第 0 层 dense</td>
+<td>6,912 × 2,048</td>
+<td>2,048 × 6,912</td>
+</tr>
+<tr>
+<td class="n">q2 路由 expert</td>
+<td>384 × 512</td>
+<td>512 × 384</td>
+</tr>
+</tbody>
+</table>
+<p>整块范数（Frobenius，gate / up / down）和每个神经元的范数（gate 行 / up 行 / down 列）：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>整块范数</th>
+<th>每神经元范数</th>
+<th>三者乘积</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">Muse expert</td>
+<td>22.627 / 22.627 / 22.627</td>
+<td>0.354 / 0.354 / 0.354</td>
+<td>0.044</td>
+</tr>
+<tr>
+<td class="n">59B 路由 expert</td>
+<td>16.08 / 15.92 / 1.886</td>
+<td>0.580 / 0.575 / 0.068</td>
+<td>0.023</td>
+</tr>
+<tr>
+<td class="n">59B shared expert</td>
+<td>13.06 / 18.48 / 2.668</td>
+<td>0.471 / 0.667 / 0.096</td>
+<td>0.03</td>
+</tr>
+<tr>
+<td class="n">59B 第 0 层 dense</td>
+<td>49.61 / 46.33 / 2.667</td>
+<td>0.597 / 0.557 / 0.032</td>
+<td>0.011</td>
+</tr>
+<tr>
+<td class="n">q2 路由 expert</td>
+<td>11.39 / 11.24 / 1.886</td>
+<td>0.581 / 0.573 / 0.096</td>
+<td>0.032</td>
+</tr>
+</tbody>
+</table>
+<p>乘积一列里 Muse 和 59B 路由来自 NOTES，其余三行是我把三个数相乘算的。<span class="st warn">推导</span></p>
+<p>读法：我们的 gate、up 行是 Muse 的 1.6 倍；down 列小 5 倍（路由）到 11 倍（第 0 层 dense）；乘积约一半。Muse 三者相等是设计出来的，我们的是初始化留下的。</p>
+<h3>8.2 其他差别</h3>
+<ul>
+<li><strong>激活</strong>：两边的 expert 都是普通 SwiGLU，激活都是 silu。</li>
+<li><strong>down 的大小</strong>：我们的 down 列不乘深度系数是 0.667，比 Muse 的 0.354 大；乘了 1/√(2L) 之后是 0.068，比 Muse 小 5 倍。</li>
+<li><strong>深度系数</strong>：Muse 的 expert 矩阵里没有 1/√(2L)，它用学出来的残差门控来缩放分支。</li>
+<li><strong>router</strong>：Muse 每行半径是 √(h/E)，同一个式子在 59B 是 2.0。我们是整块一个球面，现在每行的范数平均 0.905。</li>
+<li><strong>注意力的 v</strong>：Muse 对每个 head 的输出做归一化，v 的范数不影响函数。在我们这里 v 的范数是真实的增益。</li>
+<li><strong>embedding</strong>：Muse 每行固定在 √32，查表后接一个无增益的 RMSNorm。我们的行是自由的，后面也没有归一化。</li>
+<li><strong>周边的归一化</strong>：Muse 在 expert 之前有去均值的 RMSNorm，每个 expert 之后有 post-norm。我们只在路由 expert 的输出总和上有一个 <code>fc2_norm</code>。</li>
+</ul>
+</section><section class="tabpanel" id="t1">
+
+<h2 id="s9">基本数字（59B）</h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>59B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">hidden h</td>
+<td>2,048</td>
+</tr>
+<tr>
+<td class="n">latent 维度</td>
+<td>1,024</td>
+</tr>
+<tr>
+<td class="n">路由 expert</td>
+<td>512 个，每个 768 个神经元，SwiGLU</td>
+</tr>
+<tr>
+<td class="n">每个 token 选几个</td>
+<td>16 个</td>
+</tr>
+<tr>
+<td class="n">shared expert</td>
+<td>1 个，768 个神经元，读写都是 h</td>
+</tr>
+<tr>
+<td class="n">注意力</td>
+<td>32 个 q head，4 组 k、v，每个 head 128 维</td>
+</tr>
+<tr>
+<td class="n">层数</td>
+<td>48：第 0 层是 dense MLP，第 1–47 层是 latent MoE</td>
+</tr>
+</tbody>
+</table>
+<h2 id="s10">一层里的残差流</h2>
+<p>每层往残差流 h 写两次，都是先归一化、再算分支、再加回去（pre-norm）：</p>
+<pre><code>h ← h + 注意力( RMSNorm(h) )
+h ← h + MoE( RMSNorm(h) )
+</code></pre>
+<p>残差流本身不归一化，只有每个分支的输入归一化。分支的输出原样加回去，所以每个分支最后那个矩阵的大小，就是它往残差流里写的幅度。</p>
+<h2 id="s11">MoE 分支内部</h2>
+<p>一个 token 进来时是过完 RMSNorm 的 2,048 维向量 x：</p>
+<pre><code>                    x (2,048)
+        ┌─────────────┼──────────────────────┐
+        │             │                      │
+     router      latent 投影（进）       shared expert
+   512 × 2,048     1,024 × 2,048       fc1 1,536 × 2,048
+        │             │                 SwiGLU → 768
+   选 16 个 expert   z (1,024)          fc2 2,048 × 768
+   和各自的权重 p     │                      │
+        │        发给选中的 16 个 expert      │
+        │             │                      │
+        │     每个 expert：                  │
+        │       gate、up 各 768 × 1,024      │
+        │       silu(gate) ⊙ up → 768        │
+        │       fc2 1,024 × 768 → 1,024      │
+        │             │                      │
+        └──────► 加权求和 Σ p·y (1,024)       │
+                      │                      │
+                  fc2_norm（RMSNorm，1,024）  │
+                      │                      │
+              latent 投影（出）2,048 × 1,024  │
+                      │                      │
+                      └──────── + ───────────┘
+                                │
+                         MoE 输出 (2,048) → 加进残差流
+</code></pre>
+<p>router 和 shared expert 读的是原始的 2,048 维 x，不走 latent。</p>
+<h2 id="s12">路由</h2>
+<ol>
+<li><strong>打分</strong>：logits = router · x，512 个数，每个过 sigmoid，得到分数 s。</li>
+<li><strong>选 expert</strong>：按 s + <code>expert_bias</code> 取最高的 16 个。<code>expert_bias</code> 只用来选，不进权重；它不靠梯度训练，每步结束时按负载更新。</li>
+<li><strong>权重</strong>：选中的 16 个 s 先归一化成和为 1，再乘 2.5，所以 16 个权重加起来是 2.5。</li>
+</ol>
+<h2 id="s13">哪个矩阵写进残差流</h2>
+<table>
+<thead>
+<tr>
+<th>路径</th>
+<th>最后一个矩阵</th>
+<th>输出去哪</th>
+<th>深度系数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">注意力</td>
+<td>注意力输出投影</td>
+<td>直接加进残差流</td>
+<td>乘</td>
+</tr>
+<tr>
+<td class="n">路由 expert</td>
+<td>路由 expert 的 fc2</td>
+<td>加权求和后进 <code>fc2_norm</code>，尺度被抹掉</td>
+<td>V1 按名字匹配乘了；V2 不乘</td>
+</tr>
+<tr>
+<td class="n">路由 expert</td>
+<td>latent 投影（出）</td>
+<td>直接加进残差流</td>
+<td>乘</td>
+</tr>
+<tr>
+<td class="n">shared expert</td>
+<td>shared expert 的 fc2</td>
+<td>直接加进残差流</td>
+<td>乘</td>
+</tr>
+<tr>
+<td class="n">第 0 层 dense</td>
+<td>dense 的 fc2</td>
+<td>直接加进残差流</td>
+<td>乘</td>
+</tr>
+</tbody>
+</table>
+<p>路由这一支写进残差流的幅度，由 <code>fc2_norm</code> 的增益和 latent 投影（出）决定，和路由 expert 自己 fc2 的大小无关。</p>
+<h2 id="s14">为什么叫 latent</h2>
+<ul>
+<li><strong>expert 在窄空间里算</strong>：token 进 expert 之前先压到 1,024 维，expert 读写的都是 1,024 维。每个 expert 的参数是 1,536 × 1,024 + 1,024 × 768 ≈ 236 万；直接读写 h 的话是 1,536 × 2,048 + 2,048 × 768 ≈ 472 万，正好一半。</li>
+<li><strong>通信减半</strong>：token 经 all-to-all 发到 expert 所在的 GPU，发的是 1,024 维向量。压缩在发送前做一次，回来后还原一次。</li>
+<li><strong>代价</strong>：所有 expert 共用同一对投影，只能看到 x 被压到 1,024 维之后的那部分信息。</li>
+</ul>
+<p>整层路由 expert 的参数：512 × 236 万 ≈ 12.1 亿，47 层约 568 亿；其余来自注意力、embedding、head 等。<span class="st warn">推导</span></p></section><script>(function(){var b=document.querySelectorAll('.tab'),p=document.querySelectorAll('.tabpanel');
+function show(id){p.forEach(function(x){x.style.display=x.id===id?'':'none'});b.forEach(function(x){x.classList.toggle('on',x.dataset.t===id)});}
+b.forEach(function(x){x.addEventListener('click',function(){show(x.dataset.t);history.replaceState(null,'','#'+x.dataset.t);window.scrollTo(0,0);});});
+show(/^#t\d+$/.test(location.hash)&&document.getElementById(location.hash.slice(1))?location.hash.slice(1):'t0');})();</script>
+</main></body></html>

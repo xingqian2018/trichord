@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>死神经元（dead neuron）学习笔记：hyperball 下 SwiGLU 神经元的塌缩</title><style>
+:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --head:#f6f8fa; --good:#1a7f37; --bad:#cf222e; --accent:#0969da; --warn:#9a6700; --note:#ddf4ff; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --head:#151b23; --good:#3fb950; --bad:#f85149; --accent:#4493f8; --warn:#d29922; --note:#0c2d4a; }
+}
+body { color:var(--fg); background:#fff; font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; margin:0; }
+@media (prefers-color-scheme: dark) { body { background:#0d1117; } }
+main { max-width:1100px; margin:0 auto; padding:24px 32px 64px; }
+nav { position:sticky; top:0; background:inherit; border-bottom:1px solid var(--border); padding:8px 32px; font-size:13px;
+      backdrop-filter:blur(6px); z-index:1; overflow-x:auto; white-space:nowrap; }
+nav a { color:var(--accent); text-decoration:none; margin-right:14px; }
+a { color:var(--accent); }
+h1 { font-size:26px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:40px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+h3 { font-size:16px; margin-top:28px; }
+code { background:var(--head); padding:1px 5px; border-radius:4px; font-size:12.5px; }
+pre { background:var(--head); border:1px solid var(--border); border-radius:6px; padding:12px 14px; overflow-x:auto; font-size:12.5px; line-height:1.5; }
+pre code { background:none; padding:0; }
+table { border-collapse:collapse; margin:12px 0; display:block; overflow-x:auto; max-width:100%; }
+th, td { border:1px solid var(--border); padding:5px 10px; vertical-align:top; }
+th { background:var(--head); font-weight:600; white-space:nowrap; }
+tr:nth-child(even) td { background:color-mix(in srgb, var(--head) 50%, transparent); }
+td { font-variant-numeric:tabular-nums; }
+td.r { text-align:right; white-space:nowrap; }
+td.n { white-space:nowrap; }
+.box { border:1px solid var(--border); border-left:4px solid var(--accent); background:var(--note); padding:8px 16px; border-radius:6px; margin:12px 0; }
+.box p { margin:6px 0; }
+.hl { border-left-color:#d4a72c; background:color-mix(in srgb, #f2cc0c 30%, transparent); font-size:15px; }
+.ex { border-left-color:var(--muted); background:var(--head); }
+.st { display:inline-block; padding:0 7px; border-radius:10px; font-size:12px; font-weight:600; white-space:nowrap; border:1px solid currentColor; }
+.st.bad { color:var(--bad); } .st.warn { color:var(--warn); } .st.ok { color:var(--good); } .st.na { color:var(--muted); }
+.meta { color:var(--muted); font-size:13px; }
+b.bad { color:var(--bad); }
+@media (max-width:700px) { main { padding:16px 16px 48px; } nav { padding:8px 16px; } }
+.box ul { margin:6px 0; padding-left:22px; }
+.box.ex { font-size:13px; }
+</style></head>
+<body><nav><a href="#s0">0. 速览</a><a href="#s1">1. &quot;死&quot; 的几种说法</a><a href="#s2">2. 本项目的判据</a><a href="#s3">3. 一个 SwiGLU 神经元在做什么</a><a href="#s4">4. 为什么 &quot;死&quot; 等于被删掉</a><a href="#s5">5. 为什么会死</a><a href="#s6">6. 实测</a><a href="#s7">7. 对 loss 的影响</a><a href="#s8">8. 修法对照</a><a href="#s9">9. 当前结论和还没出的结果</a><a href="#s10">10. 文件和出处</a></nav><main>
+<h1>死神经元（dead neuron）学习笔记：hyperball 下 SwiGLU 神经元的塌缩</h1>
+<div class="box ex">
+<ul>
+<li>最后更新：2026-11-14。数据截至来源会话 2026-11-15 01:25 UTC（本地 11-14 17:25）的消息，之后的结果没有收进来。</li>
+<li>来源：Claude 会话 "Pretrain Derisk Final Check - Runlong"（Dense-Pretraining-LMs 项目，会话 id <code>41e663fa-9cd6-4b56-bd87-09275124fc15</code>）里 11-14 对死神经元的排查；判据来自扫描工具的代码。</li>
+<li>路径约定：相对路径都相对 <code>$WORK</code> = <code>/scratch/fsw/portfolios/cosmos/projects/cosmos_base_training/users/xingqianx</code>。</li>
+<li>模型约定：59B = 正在跑的 de-risk run；461B = 生产目标；q0–q3 = ladder 的小规模档位；"1.4× LR" = 该档位最优 LR 的 1.4 倍。</li>
+<li>可信度标记：<span class="st ok">核对</span> = 我读过代码或文件；<span class="st na">会话</span> = 转述来源会话报告的数字或结论，我没有重新验证；<span class="st warn">推导</span> = 本笔记里的推导或粗算；<span class="st bad">推断</span> = 没有验证的解释。</li>
+<li>相关笔记：同目录的 <code>HyperP.md</code>、<code>Muon.md</code>（hyperball 和 MuonH 的背景）；<code>pin2sphere.md</code>（我们的球面约束和 P2S 文档、Muse、其他公开模型的对照，含各家第 0 层的做法）。</li>
+</ul>
+</div>
+<div class="box hl"><p><strong>一句话</strong>：hyperball 每步把整个矩阵缩回固定范数，落后的 SwiGLU 神经元三个因子一起被缩到接近零，<strong>等于被删掉</strong>；第 0 层 dense 死得最多（59B 23 %），但对 loss 基本没有影响，当前决定是<strong>只监控、不修</strong>。</p></div>
+<h2 id="s0">0. 速览</h2>
+<ol>
+<li><strong>判据</strong>：一个 SwiGLU 神经元的 gate 行、up 行、down 列的范数<strong>同时</strong>低于各自矩阵中位数的 5 %，算死。只看权重，不跑数据。<span class="st ok">核对</span></li>
+<li><strong>直观结果</strong>：死神经元对任何输入的输出都约为 0，等于被删掉。这一层按死亡比例变窄，参数和计算照样占着。<span class="st warn">推导</span></li>
+<li><strong>不是激活饱和</strong>：不是 gate 卡在负半轴，而是权重被优化器一步步缩没了。这批神经元在第 2,000 步时 gate 的 sigmoid 均值是 0.48。<span class="st na">会话</span></li>
+<li><strong>成因是 hyperball 的 "税"</strong>：每步把整个矩阵缩回固定范数时，没在动的行被扣掉 κ × LR² 的范数（κ ≈ 15）。SwiGLU 是三个因子相乘，一个神经元一旦落后，三个因子的更新同时变小，交不起税，一路缩到零。<span class="st na">会话</span></li>
+<li><strong>矩阵形状决定谁会落后</strong>：正交化在 "高" 矩阵（行数多于列数）上不够分，弱的行拿不到足额更新。第 0 层 dense 最高，死得最多；shared expert 是宽矩阵，一个不死。<span class="st na">会话</span></li>
+<li><strong>对 LR 是悬崖</strong>：税按 LR² 涨，信号按 LR 涨。q2 上 0.7× LR 路由层不死，1.4× 路由第 1 层死 36 %。<span class="st na">会话</span></li>
+<li><strong>只出现在 SwiGLU MLP</strong>：第 0 层 dense 和前几层路由 expert。attention、router、latent projection、shared expert 都是 0。<span class="st na">会话</span></li>
+<li><strong>死了不会复活</strong>：59B 第 24,000 步已死的 4,254 个，到第 34,000 步复活 0 个。<span class="st na">会话</span></li>
+<li><strong>对 loss 几乎没有影响</strong>：把死亡完全消掉，loss 相差不到 0.002；59B 第 0 层 23 % 的死亡至多值约 0.001 nats；2× LR 下前三层路由死掉一半以上，loss 曲线仍与零死亡的对照重合（早期读数）。<span class="st na">会话</span></li>
+<li><strong>修法</strong>：按行约束把死亡完全消掉；拆球面（Muse 的做法）消掉约九成的路由死亡；router LR 和 SiTU-GLU 无效。<span class="st na">会话</span></li>
+<li><strong>当前决定（11-14）</strong>：不修，只监控。461B 的结构和优化器不动，靠把 LR 定在悬崖以下。<span class="st na">会话</span></li>
+<li><strong>判据的盲区</strong>：一个 expert 死掉一半以上时，中位数本身是死的，判据会把死亡比例报得偏低。<span class="st na">会话</span></li>
+</ol>
+<h2 id="s1">1. "死" 的几种说法</h2>
+<table>
+<thead>
+<tr>
+<th>说法</th>
+<th>判据</th>
+<th>需要跑数据吗</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">ReLU 死神经元</td>
+<td>激活前值对所有输入都为负，输出和梯度恒为 0</td>
+<td>需要</td>
+</tr>
+<tr>
+<td class="n">休眠神经元（GELU / SiLU）</td>
+<td>激活频率接近 0，或平均绝对激活远低于同层平均</td>
+<td>需要</td>
+</tr>
+<tr>
+<td class="n">权重判据（本笔记用的）</td>
+<td>这个神经元的输入权重和输出权重的范数都接近 0</td>
+<td>不需要</td>
+</tr>
+</tbody>
+</table>
+<p>"死" 也会用在别的单元上：从不被选中的 MoE expert、输出接近 0 的注意力头、从未更新的 embedding 行、从不激活的 SAE 特征。本笔记只讲 SwiGLU MLP 的隐藏神经元。</p>
+<h2 id="s2">2. 本项目的判据<span class="st ok">核对</span></h2>
+<p>代码在 <code>share/cosmos_llm_scaling_ladder_wt_prod/prod_xx/param_health/</code>，三个脚本用同一条规则：<code>ph_scan.py</code>（L235–259）、<code>ph_report.py</code>（L42–45）、<code>muse_dead_scan.py</code>（L31–33）。整理后是：</p>
+<pre><code class="language-python">def dead(ss, axis=-1):                 # ss：每一行（或每一列）的平方和
+    n = np.sqrt(ss)
+    med = np.median(n, axis=axis, keepdims=True)
+    return n &lt; 0.05 * med              # 低于同一矩阵中位数的 5 %
+
+g, u = dead(rss[..., :H]), dead(rss[..., H:])   # fc1 的前 H 行是 gate，后 H 行是 up
+c = dead(css_fc2)                               # fc2 的每一列
+neuron_dead = g &amp; u &amp; c                         # 三者同时低，才算死
+</code></pre>
+<ul>
+<li><strong>比较对象</strong>：同一个矩阵自己的中位数。每个 expert 单独算；gate 半、up 半、fc2 三块分别算。</li>
+<li><strong>为什么要求三者同时低</strong>：见 §4.3。</li>
+<li><strong>盲区</strong><span class="st na">会话</span>：一个 expert 死掉一半以上时，中位数本身就是死的，规则失效。q2 的 2× LR run 因此被低估（§6.2）。会话改用了一条不受此影响的规则重算，具体规则我没有看到。</li>
+<li><strong>成本</strong><span class="st na">会话</span>：一个 59B checkpoint 在 CPU 上约 3 分钟。</li>
+</ul>
+<h2 id="s3">3. 一个 SwiGLU 神经元在做什么<span class="st warn">推导</span></h2>
+<p>设输入是 <code>x</code>（C 维，过了 norm 的残差流），隐藏宽度是 H。第 j 个神经元有三段权重，都是 C 维：</p>
+<ul>
+<li><code>gate 行</code>：fc1 的第 j 行。</li>
+<li><code>up 行</code>：fc1 的第 H + j 行。</li>
+<li><code>down 列</code>：fc2 的第 j 列。</li>
+</ul>
+<pre><code>g_j    = gate行 · x                  # 标量：门的开度
+u_j    = up行 · x                    # 标量：要传的信号
+贡献_j = silu(g_j) × u_j × down列    # C 维向量
+MLP(x) = Σ_j 贡献_j
+</code></pre>
+<p>每个神经元用两行权重从 <code>x</code> 里读出两个标量，相乘得到一个强度，再沿 down 列这个固定方向写回残差流。</p>
+<h2 id="s4">4. 为什么 "死" 等于被删掉<span class="st warn">推导</span></h2>
+<h3>4.1 三个因子各自被范数卡住</h3>
+<ul>
+<li><code>|u_j| ≤ ‖up行‖ × ‖x‖</code>：up 行缩到 5 %，<code>u_j</code> 最多也只有原来的 5 %。</li>
+<li><code>|g_j| ≤ ‖gate行‖ × ‖x‖</code>：gate 行缩小后 <code>g_j</code> 接近 0，而 g 很小时 <code>silu(g) ≈ g / 2</code>，门的输出也跟着缩到接近 0。</li>
+<li><code>‖贡献_j‖</code> 正比于 <code>‖down列‖</code>。</li>
+</ul>
+<p><code>x</code> 过了 norm，范数基本固定，所以这些上限对任何输入都成立：没有哪个输入能把它唤醒。这是权重判据和激活统计判据的区别。</p>
+<h3>4.2 数量级</h3>
+<p>归一化单位下的粗算：</p>
+<table>
+<thead>
+<tr>
+<th>神经元</th>
+<th><code>g</code></th>
+<th><code>silu(g)</code></th>
+<th><code>u</code></th>
+<th><code>‖down列‖</code></th>
+<th>贡献大小</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">正常</td>
+<td>1</td>
+<td>0.73</td>
+<td>1</td>
+<td>1</td>
+<td>0.73</td>
+</tr>
+<tr>
+<td class="n">刚好压线的死神经元（各 5 %）</td>
+<td>0.05</td>
+<td>0.026</td>
+<td>0.05</td>
+<td>0.05</td>
+<td>6.4e-05</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>压线的死神经元的贡献约是正常神经元的万分之一。</li>
+<li>实际死掉的神经元远低于这条线<span class="st na">会话</span>：Kimi K3 里最小的只有中位数的 0.15 %。</li>
+<li>删掉神经元 j（去掉 fc1 的两行和 fc2 的一列），输出的变化正好等于 <code>贡献_j</code>。所以把死神经元全部删掉，模型输出几乎不变。</li>
+</ul>
+<h3>4.3 为什么判据要求三者同时小</h3>
+<ul>
+<li>只看输出：三个因子里任何一个接近 0，贡献就已经接近 0。</li>
+<li>但只有一个小的神经元还能恢复。例如只有 down 列小，它的梯度正比于 <code>silu(g_j) × u_j</code>，这个值不小，down 列能长回来。</li>
+<li>三者都小时，每一段权重的梯度都要乘上另外两个接近 0 的因子，既没有输出也没有梯度。</li>
+<li>实测<span class="st na">会话</span>：三组几乎同时死。59B 第 0 层上 gate 行、up 行、down 列各死 1,600 / 1,597 / 1,600 个，只差 3 个。</li>
+</ul>
+<h3>4.4 "输出不变" 和 "容量价值" 是两回事</h3>
+<ul>
+<li>删掉死神经元，当前模型的函数不变。</li>
+<li>这部分容量如果活着能带来多少收益，是另一个问题，要靠 ablation 来量（§7）。</li>
+</ul>
+<h2 id="s5">5. 为什么会死<span class="st na">会话</span></h2>
+<h3>5.1 "税"：整矩阵缩回扣掉没在动的行</h3>
+<ul>
+<li>hyperball 每步更新后，把整个矩阵乘同一个系数，缩回固定的总范数。</li>
+<li>一个这一步没拿到更新的行，范数会被这个系数直接扣掉一部分。每步扣 κ × LR²。</li>
+<li>κ 实测约 15（59B 上 15.1–15.9，q0–q3 上 13.7–16.8），理论值是 (1 + μ) / (2 (1 − μ)) = 19.5（Muon 动量 μ = 0.95）。</li>
+<li>κ 大于 1/2 的原因是动量：连续多步的更新方向相同，矩阵整体向外长，缩回时再从所有行等比例扣回去。</li>
+<li>它在所有层、所有矩阵类型上都一样。正常在更新的行刚好把扣掉的赚回来。</li>
+<li>CPU 测试：完全没有梯度的神经元在现在的规则下每步缩到 0.9965–0.9979 倍。按这个速度，约 850–1,400 步就缩到 5 % 以下<span class="st warn">推导</span>。</li>
+</ul>
+<h3>5.2 三因子乘积：一旦落后就交不起税</h3>
+<ul>
+<li>一个神经元的三个因子，每一个拿到的更新都正比于另外两个。</li>
+<li>一旦落后，三个因子的更新同时变小，赚回来的少于被扣的，一路缩到零。</li>
+<li>gate 没有饱和关死：这批神经元在第 2,000 步时 gate 的 sigmoid 均值是 0.48。</li>
+<li>玩具实验里让弱行不参与缩放，病态的行自己长了回来。说明梯度一直都在，杀死它们的只是税。</li>
+</ul>
+<h3>5.3 为什么对 LR 是悬崖</h3>
+<ul>
+<li>税按 LR 的平方增长，信号按 LR 线性增长。</li>
+<li>路由 expert 的死亡比例约按 LR 的 9 次方上升（82 个 run、205 个 checkpoint 的扫描）。</li>
+</ul>
+<h3>5.4 矩阵形状：哪些行会落后</h3>
+<ul>
+<li>优化器每步把更新做正交化。高矩阵做正交化时，足额的独立方向只有列数那么多，行数更多就不够分。</li>
+<li>弱的行拿到的更新和它自己的动量成正比，越弱越少，然后被统一的缩回系数压小。</li>
+<li>宽矩阵里每一行都能拿到足额更新，弱的行会被推回来。</li>
+<li>多做几步正交化没用，换成精确正交化也没用，问题在形状。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>矩阵</th>
+<th>形状（行 × 列）</th>
+<th>高 / 宽</th>
+<th>实测</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">路由 expert，合并的 fc1</td>
+<td>768 × 512</td>
+<td>高</td>
+<td>会死</td>
+</tr>
+<tr>
+<td class="n">路由 expert，拆成 gate、up 两半</td>
+<td>384 × 512</td>
+<td>宽</td>
+<td>死亡少九成</td>
+</tr>
+<tr>
+<td class="n">shared expert</td>
+<td>768 × 1,024</td>
+<td>宽</td>
+<td>不死</td>
+</tr>
+<tr>
+<td class="n">第 0 层 dense（q2）</td>
+<td>6,912 × 1,024</td>
+<td>很高</td>
+<td>死得最多</td>
+</tr>
+<tr>
+<td class="n">第 0 层 dense 拆两半（q2）</td>
+<td>3,456 × 1,024</td>
+<td>仍然高</td>
+<td>只略有改善</td>
+</tr>
+<tr>
+<td class="n">第 0 层 dense 切成 9 块（q2）</td>
+<td>每块 768 × 1,024</td>
+<td>宽</td>
+<td>第 9,000 步为 0（§8）</td>
+</tr>
+<tr>
+<td class="n">Muse expert 的每一半</td>
+<td>4,096 × 4,096</td>
+<td>方</td>
+<td>0</td>
+</tr>
+<tr>
+<td class="n">Kimi K3 第 0 层 dense 的每一半</td>
+<td>33,792 × 7,168</td>
+<td>高</td>
+<td>16.5 %</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>谁会死很早就定了：只看前 5 % 的训练，就能以 0.93 的 AUC 预测。</li>
+<li>和初始范数无关：用初始范数预测，AUC 只有 0.51–0.53。不同 run 的死亡名单重合度是随机水平的 2 倍多，所以决定因素是神经元初始的方向。</li>
+</ul>
+<p>税和形状的关系是我的整理<span class="st bad">推断</span>：税解释了落后的行为什么会一路缩到零，形状解释了哪些行会落后。玩具实验里去掉正交化、只用普通动量，仍然有死亡（96 / 88 个），说明税本身不依赖正交化。</p>
+<h3>5.5 玩具复现（256 个神经元，真实优化器代码）</h3>
+<table>
+<thead>
+<tr>
+<th>做法</th>
+<th>4× LR 死亡数</th>
+<th>8× LR 死亡数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">现在的规则</td>
+<td>约 122</td>
+<td>约 145</td>
+</tr>
+<tr>
+<td class="n">每个神经元各自的球面（即按行约束）</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td class="n">行范数设下限</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td class="n">弱行不参与缩放</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td class="n">Muon 动量从 0.95 降到 0.8</td>
+<td>0</td>
+<td>97</td>
+</tr>
+<tr>
+<td class="n">MLP 矩阵 LR 减半</td>
+<td>0</td>
+<td>95</td>
+</tr>
+<tr>
+<td class="n">去掉正交化，只用普通动量</td>
+<td>96</td>
+<td>88</td>
+</tr>
+<tr>
+<td class="n">5 % warm-up</td>
+<td>140</td>
+<td>109</td>
+</tr>
+<tr>
+<td class="n">死掉后重新初始化</td>
+<td>2</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>现在的规则在 1× 和 2× LR 下是 0 死亡，3× 开始出现，和真实 run 的悬崖形状一致。</p>
+<h3>5.6 还没查清的</h3>
+<ul>
+<li>第 0 层那批行最初为什么落后。它发生在第一个 checkpoint（第 2,000 步）之前，当时已有 925 个 gate 行低于中位数的一半。</li>
+<li>路由 expert 为什么越靠前的层死得越多。第 1 层的动量里可用的独立方向只有 321–355 个（满额 512），更深的层有 503–506 个；但这个读数取自已有三分之一神经元死亡之后，有循环论证的成分。</li>
+<li>玩具实验里高矩阵拆两半反而死得更多（17.8 % 对 6.9 %），GPU 上第 0 层是略有改善（29.9 % → 25.1 %），两者不一致。</li>
+</ul>
+<h2 id="s6">6. 实测：哪里死、死多少<span class="st na">会话</span></h2>
+<h3>6.1 59B 随训练的变化</h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>第 4,000 步</th>
+<th>第 8,000 步</th>
+<th>第 12,000 步</th>
+<th>第 24,000 步</th>
+<th>第 36,000 步</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">第 0 层 dense MLP</td>
+<td>0 %</td>
+<td>11.0 %</td>
+<td>19.9 %</td>
+<td>22.1 %</td>
+<td>22.9 %</td>
+</tr>
+<tr>
+<td class="n">路由 expert 第 1 层</td>
+<td>0 %</td>
+<td>0.08 %</td>
+<td>0.53 %</td>
+<td>2.47 %</td>
+<td>3.50 %</td>
+</tr>
+<tr>
+<td class="n">路由 expert 第 2 层</td>
+<td>0 %</td>
+<td>0.02 %</td>
+<td>0.26 %</td>
+<td>2.87 %</td>
+<td>5.40 %</td>
+</tr>
+<tr>
+<td class="n">路由 expert 第 3 层</td>
+<td>0 %</td>
+<td>0 %</td>
+<td>0.09 %</td>
+<td>1.28 %</td>
+<td>2.86 %</td>
+</tr>
+<tr>
+<td class="n">路由 expert 第 4 层</td>
+<td>0 %</td>
+<td>0 %</td>
+<td>0.01 %</td>
+<td>0.26 %</td>
+<td>0.77 %</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>第 0 层集中死在第 4,000 到 12,000 步之间，之后基本不动（第 44,000 步是 23.10 %）。</li>
+<li>全部路由神经元的死亡比例：第 36,000 / 40,000 / 44,000 步是 0.287 % / 0.318 % / 0.342 %，增速随 LR 下降在变慢。</li>
+<li>死亡集中在少数 expert：第 2 层 512 个 expert 里有 95 个死了 10 % 以上，最差的一个死了 376 / 768。</li>
+<li>其余层都在 0.3 % 以下，shared expert 为 0。attention 的 q / k / v / proj、router、latent projection 没有死行或死列。</li>
+</ul>
+<h3>6.2 q2 上按 LR 倍数（训练结束时）</h3>
+<table>
+<thead>
+<tr>
+<th>LR 倍数</th>
+<th>第 0 层 dense</th>
+<th>路由第 1 / 2 / 3 / 4 层</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">0.5×</td>
+<td>0 %</td>
+<td>全 0</td>
+</tr>
+<tr>
+<td class="n">0.7×</td>
+<td>2.1 %</td>
+<td>全 0</td>
+</tr>
+<tr>
+<td class="n">1×</td>
+<td>16.3 %</td>
+<td>0.9 / 0.6 / 0.6 / 0.1 %</td>
+</tr>
+<tr>
+<td class="n">1.4×</td>
+<td>30.0 %</td>
+<td>35.7 / 10.9 / 15.6 / 10.0 %</td>
+</tr>
+<tr>
+<td class="n">2×</td>
+<td>30.2 %</td>
+<td>74.5 / 87.3 / 63.6 / 23.3 %（重算后）</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>2× 这一行用原规则报的是 19.5 / 16.7 / 26.3 / 19.9 %，属于 §2 说的低估。重算后全部路由神经元从 11.0 % 变成 18.4 %，第 1、2 层的 512 个 expert 全部死了一半以上。</li>
+<li>1.4× 只有小幅修正（全部路由 3.86 % → 4.07 %）；1× 和 59B 没有这种 expert，数字不变。</li>
+<li>1× baseline 的第 0 层在会话里先后报过 16.3 % 和 18.1 %，后者出自 §8 的最终表，可能是不同的对照 run，我没有核对。</li>
+</ul>
+<h3>6.3 悬崖离最优 LR 有多远</h3>
+<table>
+<thead>
+<tr>
+<th>规模</th>
+<th>余量（死 1 % 的 LR ÷ loss 最优的 LR）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">q0</td>
+<td>1.45–1.67×</td>
+</tr>
+<tr>
+<td class="n">q1</td>
+<td>1.26–1.58×</td>
+</tr>
+<tr>
+<td class="n">q2</td>
+<td>1.17–1.55×</td>
+</tr>
+<tr>
+<td class="n">59B（按拟合）</td>
+<td>1.31×</td>
+</tr>
+<tr>
+<td class="n">461B（按拟合）</td>
+<td>1.12×</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>余量随规模缩小。</li>
+<li>59B 实际比拟合更差：它的悬崖在约 6.5–6.9e-3，用的是 7.9e-3，已经越过悬崖。</li>
+<li>461B 如果按 59B 的实际情况来锚定，计划的 2.66–2.71e-3 在悬崖之上 1.14–1.25×，预计第 1–4 层死 3–7 %、第 0 层约 20 %。这是外推，不确定性大。</li>
+</ul>
+<h3>6.4 官方 checkpoint（同一判据）</h3>
+<table>
+<thead>
+<tr>
+<th>模型</th>
+<th>扫的范围</th>
+<th>死神经元</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">Muse Spark Open</td>
+<td>全部 62 层的 expert</td>
+<td>0 / 6,501 万</td>
+</tr>
+<tr>
+<td class="n">Kimi K3</td>
+<td>第 0 层 dense</td>
+<td>5,574 / 33,792 = 16.5 %</td>
+</tr>
+<tr>
+<td class="n">Kimi K3.1-Pro</td>
+<td>第 0 层 dense</td>
+<td>5,583 / 33,792 = 16.5 %</td>
+</tr>
+<tr>
+<td class="n">MiMo-V2.5-Pro-Base</td>
+<td>第 0 层 dense</td>
+<td>0 / 16,384</td>
+</tr>
+<tr>
+<td class="n">Flint</td>
+<td>第 0、1 层 dense</td>
+<td>0 / 6,144</td>
+</tr>
+<tr>
+<td class="n">我们的 59B（供对比）</td>
+<td>第 0 层 dense</td>
+<td>1,597 / 6,912 = 23 %</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>K3 的情况和我们几乎一样：gate 行、up 行、fc2 列三者同时归零。</li>
+<li>K3 的 gate 和 up 两个矩阵总范数相等到 0.2 % 以内，会话据此推断 K3 也对范数做了约束<span class="st bad">推断</span>。</li>
+<li>Muse 的 MLP 是每个 expert 三个球面（gate 半、up 半、down 各一个，范数都是 22.6274 = √512），行是自由的，行范数分布在中位数的 0.24–5 倍之间。它没有 dense 层，也没有高矩阵。</li>
+</ul>
+<h2 id="s7">7. 对 loss 的影响<span class="st na">会话</span></h2>
+<table>
+<thead>
+<tr>
+<th>证据</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">59B，关掉整个第 0 层 dense MLP</td>
+<td>loss +0.006</td>
+</tr>
+<tr>
+<td>59B，随机去掉第 0 层 1,590 个活神经元</td>
+<td>loss +0.0005，所以 23 % 的死亡至多值约 0.001</td>
+</tr>
+<tr>
+<td>q2 1.4×，按行约束（0 死亡）对 baseline</td>
+<td>最终 in-loop val 1.3010 对 1.3019</td>
+</tr>
+<tr>
+<td class="n">q0 1×，最终 R1</td>
+<td>对照 1.6887，按行约束 1.6912，拆球面 1.6891</td>
+</tr>
+<tr>
+<td>q2 2×，按行约束对 baseline，到 28.7 % 进度</td>
+<td>四个读数相差不超过 0.003，曲线重合</td>
+</tr>
+<tr>
+<td class="n">各 run 汇总</td>
+<td>死 0.5–3 % 没有可测损失，7 % 时约 +0.003</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>2× 的 baseline 当时前三层路由死了 55–67 %，loss 仍与零死亡的对照重合。这是早期读数，最终要看跑完。</li>
+<li>死亡是症状，不是病因：LR 开高了 loss 会变差，同时神经元会死，但前者不是后者造成的。</li>
+<li>生成时的循环也和死神经元无关：q2 在 0.5× LR、一个不死的情况下，greedy GPQA 循环率仍是 31.1 %，和 1.4× 的 31.1 % 相同。</li>
+<li>路由第 1–3 层那 3–5 % 的死亡在 59B 上值多少，会话当时在测，结果我没有看到。</li>
+</ul>
+<h2 id="s8">8. 修法对照<span class="st na">会话</span></h2>
+<p>q2，训练结束时的死神经元：</p>
+<table>
+<thead>
+<tr>
+<th>实验</th>
+<th>1.4×：第 0 层</th>
+<th>1.4×：全部路由</th>
+<th>1×：第 0 层</th>
+<th>1×：全部路由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">baseline</td>
+<td>30.0 %</td>
+<td>3.86 %</td>
+<td>18.1 %</td>
+<td>0.111 %</td>
+</tr>
+<tr>
+<td class="n">A. router LR ×0.5</td>
+<td>31.1 %</td>
+<td>3.97 %</td>
+<td>17.9 %</td>
+<td>0.080 %</td>
+</tr>
+<tr>
+<td class="n">B. SiTU-GLU</td>
+<td>33.6 %</td>
+<td>3.30 %</td>
+<td>18.8 %</td>
+<td>0.086 %</td>
+</tr>
+<tr>
+<td class="n">C. 路由 expert LR ×0.5</td>
+<td>40.4 %</td>
+<td>0.04 %</td>
+<td>21.7 %</td>
+<td>0 %</td>
+</tr>
+<tr>
+<td class="n">D. MLP 按行约束</td>
+<td>0 %</td>
+<td>0 %</td>
+<td>0 %</td>
+<td>0 %</td>
+</tr>
+<tr>
+<td class="n">E. gate / up 拆球面</td>
+<td>25.4 %</td>
+<td>0.41 %</td>
+<td>13.3 %</td>
+<td>0.006 %</td>
+</tr>
+</tbody>
+</table>
+<p>只改第 0 层的两个实验，第 9,000 步（24.6 %）的读数：</p>
+<table>
+<thead>
+<tr>
+<th>实验</th>
+<th>1×：第 0 层</th>
+<th>1×：全部路由</th>
+<th>1.4×：第 0 层</th>
+<th>1.4×：全部路由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">baseline</td>
+<td>8.6 %</td>
+<td>0.016 %</td>
+<td>28.8 %</td>
+<td>2.15 %</td>
+</tr>
+<tr>
+<td class="n">F. 只第 0 层按行约束</td>
+<td>0 %</td>
+<td>0.012 %</td>
+<td>0 %</td>
+<td>2.36 %</td>
+</tr>
+<tr>
+<td class="n">G. 第 0 层切成 9 块</td>
+<td>0 %</td>
+<td>0.012 %</td>
+<td>0 %</td>
+<td>2.37 %</td>
+</tr>
+</tbody>
+</table>
+<p>各实验改了什么：</p>
+<ul>
+<li><strong>A、B</strong>：对死亡没有影响。SiTU-GLU 在 0 附近和 SwiGLU 相同，改的只是大激活值的上限。</li>
+<li><strong>C</strong>：路由 expert 单独降 LR，路由死亡消失，第 0 层反而更多。q0 上最终 R1 差 0.022。</li>
+<li><strong>D（<code>--hyperp-mlp-rows</code>）</strong>：更新方向和步长不变，只改 "拉回球面" 的方式。fc1 的每一行、fc2 的每一列各自缩回自己上一步的范数，不再被别的行抽税。</li>
+<li>代价：每个神经元的范数被固定在初始值，不能自己变大变小。没有任何参考模型这样做。</li>
+<li>必须从第 0 步开：中途打开救不回已死的神经元。</li>
+<li>实现限制：只支持没有被 TP 切分的参数，遇到切分的会报错。</li>
+<li><strong>E（<code>--hyperp-split-gate-up-spheres</code>）</strong>：gate 半和 up 半在优化器里当成两个独立矩阵，加上 fc2 是每个 expert 三个球面，即 Muse 的做法。每一半内部的行仍共用一个缩回系数。</li>
+<li>起保护作用的是 "正交化对多大的块做"。单独步长、单独缩回、gate 和 up 分开本身都没有作用（玩具实验）。</li>
+<li>第 0 层拆开后仍是高矩阵，所以救不了第 0 层。</li>
+<li><strong>F</strong>：按行约束只作用于第 0 层 dense。</li>
+<li><strong>G</strong>：模型不动，优化器把第 0 层 dense 切成 9 块（每块 384 个神经元），每块单独正交化、单独步长、单独球面。它不固定任何神经元的范数，是 F、G 里更温和的一种，同时验证了 §5.4 的形状解释。</li>
+</ul>
+<h2 id="s9">9. 当前结论和还没出的结果<span class="st na">会话</span></h2>
+<p>决定（11-14，用户提出 "这个 dead 是不是其实不用修"，会话收回了 "461B 从第 0 步打开按行约束" 的建议）：</p>
+<ol>
+<li>461B 不加按行约束，第 0 层保持 dense，结构和优化器都不动。</li>
+<li>防悬崖靠 LR：按 law 把 LR 定在悬崖以下。</li>
+<li>训练中监控：每个 checkpoint 扫一次死亡比例。路由层如果快速上升，就是 LR 偏高的信号。</li>
+<li>如果以后真要修，先考虑更温和的拆球面。</li>
+</ol>
+<p>截至本笔记的数据时间，还没出的结果：</p>
+<ul>
+<li>q2 各 arm（A–E）的最终 R1。</li>
+<li>F、G 在 q2 上跑完后的死亡比例和 R1。</li>
+<li>按行约束在 2× LR 下的对照 run（job 66275）跑完后的 loss。它回答 "大面积死亡时死亡本身伤不伤 loss"。</li>
+<li>Boxiang 那边起了名为 <code>deadunit3b_*</code> 的作业，看名字也在做死神经元的对照，内容未知。</li>
+</ul>
+<h2 id="s10">10. 文件和出处</h2>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>位置</th>
+<th>我是否看过</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">扫描工具</td>
+<td><code>share/cosmos_llm_scaling_ladder_wt_prod/prod_xx/param_health/</code></td>
+<td>看过判据部分</td>
+</tr>
+<tr>
+<td class="n">59B 扫描结果</td>
+<td><code>tmp/param_health/scans/ultra59b/REPORT.txt</code></td>
+<td>没看</td>
+</tr>
+<tr>
+<td class="n">第三轮审查报告（英文）</td>
+<td><code>tmp/pp59_review/REPORT3.md</code></td>
+<td>没看</td>
+</tr>
+<tr>
+<td class="n">来源会话记录</td>
+<td><code>~/.claude/projects/</code> 下 Dense-Pretraining-LMs 项目目录里的 <code>41e663fa-9cd6-4b56-bd87-09275124fc15.jsonl</code></td>
+<td>读了 11-14 的相关消息</td>
+</tr>
+</tbody>
+</table>
+<p><code>param_health/</code> 里的脚本：<code>ph_scan.py</code>（扫一个 checkpoint）、<code>ph_scan_many.sh</code>、<code>ph_report.py</code>（汇总）、<code>ph_lag.py</code>、<code>muse_dead_scan.py</code>（Muse 官方权重）、<code>ref_dense0_scan.py</code>（参考模型的第 0 层 dense）。</p>
+</main></body></html>

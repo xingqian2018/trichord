@@ -381,7 +381,7 @@ def _mshort(metric, lang):
 # the grouped legend, the hover list and the table. Out of range (hollow points in a strip under the plot; not in the min / max, not joined
 # by the line): 0 and significantly low scores (< Q1 - 1.5 IQR AND < half the column median, >= 4 models scored).
 # The line still runs to an out-of-range point (user 11-05); it breaks only where a model has no score yet.
-FAMILIES = [("Qwen3.8", ["QWEN38_27B", "QWEN38_FLASH_NEXT", "QWEN38_MAX"]), ("Qwen3", ["QWEN3_30B_A3B_BASE", "QWEN3_235B_A22B", "QWEN3_235B_A22B_THINKING_2507"]),
+FAMILIES = [("Qwen3.8", ["QWEN38_27B", "QWEN38_FLASH_NEXT", "QWEN38_MAX"]), ("Qwen3", ["QWEN3_30B_A3B_BASE", "QWEN3_30B_A3B_INSTRUCT_2507", "QWEN3_30B_A3B_THINKING_2507", "QWEN3_235B_A22B", "QWEN3_235B_A22B_THINKING_2507"]),
             ("MiMo", ["MIMO_V25_PRO_BASE", "MIMO_V26_PRO_RL"]), ("DeepSeek", ["DEEPSEEK_V4_FLASH_BASE"]),
             ("Kimi", ["KIMI_K3"]), ("Mistral", ["MISTRAL_LARGE4"])]
 # our ladder checkpoints (nemo6_ladder.sbatch; user 11-06 "能把这个也放到外部参考"): first rows of every table, thick lines in a neutral
@@ -403,10 +403,14 @@ FAMILIES = FAMILIES + [("Ours", OURS)]
 COLOR = {**{c: f"--nq{i + 1}" for i, c in enumerate(FAMILIES[0][1])}, **{c: f"--no{i + 1}" for i, c in enumerate(FAMILIES[1][1])},
          **{c: f"--nm{i + 1}" for i, c in enumerate(FAMILIES[2][1])},
          "DEEPSEEK_V4_FLASH_BASE": "--c4", "KIMI_K3": "--c5", "MISTRAL_LARGE4": "--nv", **{c: f"--ng{i + 1}" for i, c in enumerate(OURS[:-1])}, OURS[-1]: "--text-primary"}
-SHADES = (".viz-root{--nq1:#86b6ef;--nq2:#2a78d6;--nq3:#104281;--no1:#eb6834;--no2:#b4471d;--no3:#7c2d0e;--nm1:#1baf7a;--nm2:#0f7a53;--nv:#6250d6;"
-          "--ng1:#a0a0a0;--ng2:#636363}"
+# 11-16 (user 11-15 "请补充测试downstream 66个分数": Qwen3-30B-A3B Instruct-2507 / Thinking-2507 join the Qwen3 family): the orange ramp has 5
+# steps (was 3: #eb6834 #b4471d #7c2d0e / dark #f0a47f #d95926 #a8401a), one hue (OKLCH h 40.5), L 0.68 .. 0.36 light and 0.78 .. 0.44 dark in
+# steps of 0.08 (0.10 at the dark-mode top). Validated --ordinal in both modes; the L values are the ones that keep every step >= 6 CVD dE
+# from the blue and aqua steps (6.4 light, 7.0 dark; an even 0.76 .. 0.40 ramp fell to 2.6 against MiMo's aqua for protan readers).
+SHADES = (".viz-root{--nq1:#86b6ef;--nq2:#2a78d6;--nq3:#104281;--no1:#ee6b38;--no2:#d25118;--no3:#b13d01;--no4:#8d3002;--no5:#6a2201;"
+          "--nm1:#1baf7a;--nm2:#0f7a53;--nv:#6250d6;--ng1:#a0a0a0;--ng2:#636363}"
           '@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .viz-root{--nq1:#9ec5f4;--nq2:#3987e5;--nq3:#184f95;'
-          "--no1:#f0a47f;--no2:#d95926;--no3:#a8401a;--nm1:#7fcfa9;--nm2:#199e70;--nv:#9085e9;--ng1:#6f6f6f;--ng2:#a9a9a9}}")
+          "--no1:#ff9974;--no2:#ee6b38;--no3:#d25118;--no4:#b13d01;--no5:#8d3002;--nm1:#7fcfa9;--nm2:#199e70;--nv:#9085e9;--ng1:#6f6f6f;--ng2:#a9a9a9}}")
 SHORT = {"LiveCodeBench": "LCB", "BigCodeBench": "BCB", "GPQA-Diamond": "GPQA-D", "Natural Questions": "NQ", "SimpleQA-Verified": "SimpleQA-V",
          "FACTS-parametric": "FACTS", "CommonsenseQA": "CSQA", "ARC-Challenge": "ARC-C", "HMMT Feb 2025": "HMMT 25", "AIME 2024": "AIME 24",
          "AIME 2025": "AIME 25", "Minerva MATH": "Minerva", "Global-MMLU": "G-MMLU", "Social IQa": "SIQA", "OpenBookQA": "OBQA",

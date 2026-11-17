@@ -81,6 +81,11 @@ class Tool:
         self.save_history_lock = threading.Lock()
         self.history_saved = False
 
+    def close(self) -> None:
+        gateway = getattr(self, "gateway", None)
+        if hasattr(gateway, "close"):
+            gateway.close()
+
     def append(self, msg: dict[str, Any]) -> None:
         with self.lock:
             self.messages.append(msg)

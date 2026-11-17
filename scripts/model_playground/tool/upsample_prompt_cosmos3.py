@@ -119,6 +119,11 @@ class upsample_prompt_cosmos3(Tool):
         self.upsamplers: list[tuple[str, cosmos3_prompt_upsampler]] = []
         self.output: Optional[dict[str, Any]] = None
 
+    def close(self) -> None:
+        for _, upsampler in self.upsamplers:
+            upsampler.close()
+        super().close()
+
     def upsample(self, request: str, aspect_ratio: Optional[str] = None, key: Optional[str] = None) -> dict[str, Any]:
         upsampler = cosmos3_prompt_upsampler(model_name=self.model_name, reasoning_effort=self.reasoning_effort)
         self.upsamplers.append((key or f"direct_{len(self.upsamplers)}", upsampler))

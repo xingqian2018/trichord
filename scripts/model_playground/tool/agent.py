@@ -65,6 +65,11 @@ class Agent(Tool):
         self.max_worker_thread_for_tool = max_worker_thread_for_tool
         self.gateway = UnifiedGatewayVLM(gateway_configs, num_concurrency=1, num_max_retry=num_max_retry, timeout=timeout)
 
+    def close(self) -> None:
+        for tool in self.tool_instances.values():
+            tool.close()
+        super().close()
+
     def build_request(self) -> dict[str, Any]:
         request = {
             "model": resolve_model_string(self.model_name),

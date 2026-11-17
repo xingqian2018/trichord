@@ -289,8 +289,11 @@ class UnifiedGateway:
         return result
 
     def close(self):
+        if self._loop.is_closed():
+            return
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._t.join()
+        self._loop.close()
 
 
 class UnifiedGatewayLLM(UnifiedGateway):

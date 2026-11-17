@@ -97,258 +97,234 @@ footer { font-size: 13px; color: var(--muted); }
 <div class="wrap">
 
 <header>
-  <div class="eyebrow">Design doc · 2026-11-13 · Status: proposal, not implemented</div>
-  <h1>Using Q-Judger as an image filter</h1>
-  <p class="lede">Q-Judger is the judge model behind QImageBench, our text-to-image benchmark. This proposal reuses it to filter real training images: each image gets a set of per-criterion grades, and a downstream rule decides whether to keep it. The aim is to replace the existing image filter: that filter drops collages, images with dominant text and white-background images as whole categories, while this one keeps the categories and uses scores to pick out the good images in them. The judge's input stays exactly as it is; criteria we do not want are skipped when we aggregate. The choices below are based on how each criterion is worded and have not been tested on real images yet.</p>
+  <div class="eyebrow">Design doc · v0 · first draft 2026-11-13 · updated 2026-11-16 · Status: prompt final</div>
+  <h1>Using Q-Judger as a real-image filter</h1>
+  <p class="lede">Q-Judger (<code>Qwen/Qwen-Image-Bench</code>, Qwen3.6-27B) is the judge model behind QImageBench. We use it to score real training images and replace the existing image filter <code>qwen3vl_fft_8b_v1</code>, with the goal of picking about 1M top images out of 40M. The judge sees only the image, not the caption, and gets a "real photograph" version of the prompt: 3 dimensions per image, 17 criteria in total, plus one unscored true/false item in Quality, <code>upright_orientation</code>, that flags images stored sideways or upside down. The prompt was calibrated criterion by criterion on 1,000 real photos, checking the images by eye. This is v0, the first version of the filter; its output column is <code>filter_real_image_qjudge_v0</code>. Three decisions in the 11-13 draft have been reversed: "the judge input is not modified", "the caption fills the prompt slot" and "no server change". Section 2 says why.</p>
 </header>
 
 <div class="kpis">
-  <div class="kpi"><div class="label">Judge calls per image</div><div class="value">3</div><div class="sub">Quality, Aesthetics, Creative Generation</div></div>
-  <div class="kpi"><div class="label">Criteria used by the filter</div><div class="value">17 / 56</div><div class="sub">1 of them needs an accurate prompt</div></div>
-  <div class="kpi"><div class="label">Speed, one endpoint</div><div class="value">1.4 s / image or more</div><div class="sub">100k images in at least 38 hours (extrapolated)</div></div>
-  <div class="kpi"><div class="label">Server changes</div><div class="value">0</div><div class="sub">all logic is on the client</div></div>
+  <div class="kpi"><div class="label">Judge calls per image</div><div class="value">3</div><div class="sub">Quality, Aesthetics, Text and Design</div></div>
+  <div class="kpi"><div class="label">Criteria used by the filter</div><div class="value">17</div><div class="sub">the judge sees only these 17; the other official criteria are not asked</div></div>
+  <div class="kpi"><div class="label">Real photos with no Fail on any criterion</div><div class="value">90.7%</div><div class="sub">dropping Fails alone removes only about 9%</div></div>
+  <div class="kpi"><div class="label">Criteria with changed wording</div><div class="value">11</div><div class="sub">the other 6 use the official wording</div></div>
 </div>
 
 <section class="card">
-  <h2>1. Decisions already made</h2>
+  <h2>1. Decisions</h2>
   <ol>
-    <li><b>Replace the existing filter; do not drop images by category.</b> Collages, images with dominant text and white-background images are no longer dropped as a class. They are scored like any other image, and the high-scoring ones are kept.</li>
-    <li><b>The judge input is not modified.</b> The system prompt, user template, checklists and sampling parameters stay as they are in <code>qimagebench_protocol.py</code>. Unwanted criteria are skipped when scores are aggregated. They are not removed from the checklist or reworded.</li>
-    <li><b>The prompt slot holds the image caption.</b> The template requires a prompt, and with a placeholder the judge would grade "matches the prompt" criteria against nothing.</li>
-    <li><b>Three dimensions are called for every image: Quality, Aesthetics and Creative Generation.</b> Three calls are acceptable. The principle is to collect enough information and leave out only what does not apply at all. Alignment and Real-world Fidelity are not called.</li>
-    <li><b>No server change.</b> The existing scoring service already accepts a subset of dimensions and already returns a grade for every criterion.</li>
-    <li><b>Validate before building infrastructure.</b> We first score a 100k-image test table through the existing Lepton service. A SILA pipeline comes only after the signal proves useful.</li>
+    <li><b>The goal is about 1M top images out of 40M.</b> This replaces the existing filter: collages, images with dominant text and white-background images are no longer dropped as whole categories but scored like any other image. Some false rejections are acceptable when the aim is the top images.</li>
+    <li><b>The judge sees only the image; no caption is passed.</b> The system prompt is the real-photo version: "You are an expert evaluator of the quality of real photographs. Given a real photograph taken by a camera, …". The only text before the image is <code># Real Photograph</code>.</li>
+    <li><b>3 dimensions, 17 criteria, and the judge's checklist is exactly these 17.</b> No other official criterion is asked. The third dimension is shown to the judge as "Text and Design"; the returned key stays "Creative Generation".</li>
+    <li><b>The Quality checklist ends with one unscored orientation item, <code>upright_orientation</code>.</b> It sits under <code>## Orientation</code>; true means the image is upright, false means it is stored sideways or upside down. It is a flag only: no Fail/Pass/Excel, not one of the 17, and never part of a score aggregate. Wording shown to the judge: <code>upright_orientation: Is the photograph upright, i.e. not rotated sideways or upside down (e.g., the horizon is horizontal, people and buildings stand upright)? This item is not scored: instead of a score, answer {"value": true} if the image is upright, otherwise {"value": false}.</code></li>
+    <li><b>Official wording wherever possible.</b> Wording changes serve only three purposes: remove the dependence on the prompt, remove the "AI-generated image" framing, and add "answer N/A if it does not apply". Noise keeps the official wording; Text Accuracy keeps the misspelling clause; Feature Matching stays.</li>
+    <li><b>Sampling parameters and image preprocessing match the official protocol.</b> Temperature 0, top_p 1, top_k 1, repetition_penalty 1.05, max_tokens 4096, seed 42, thinking on. Images larger than 1024×1024 in area are scaled down to that area with the aspect ratio kept (LANCZOS); smaller ones are sent as is.</li>
+    <li><b>All scoring details live on the server.</b> The caller sends one request per image (prompt plus image) and gets back one score dictionary. The server makes the 3 judge calls, parses, and retries failures. The caller cannot change the system prompt or choose dimensions.</li>
+    <li><b>Every implementation uses the same judge input.</b> Shared parts (official template, image preprocessing, JSON extraction, score mapping, sampling parameters) are inherited from or imported from <code>qimagebench_protocol</code>, never copied.</li>
   </ol>
 </section>
 
 <section class="card">
-  <h2>2. How this relates to the existing filter</h2>
-  <p>The production filter today is the SILA pipeline <code>image_filter_pipeline.py</code> (version <code>qwen3vl_fft_8b_v1</code>, a fine-tuned Qwen3-VL 8B). It gives each image a 0–10 aesthetic score and five yes/no flags, and by default keeps only images with an aesthetic score of at least 4 and all five flags false. So collages, images with dominant text and white-background images are dropped whether they are good or bad.</p>
-  <p>The new filter replaces it with a different approach: these categories are no longer dropped as a class. They are scored like any other image, and the high-scoring ones are kept.</p>
+  <h2>2. What changed since the 11-13 draft</h2>
   <div class="tablewrap"><table>
-    <thead><tr><th>Existing filter column</th><th>How it is used today</th><th>What the new filter does</th></tr></thead>
+    <thead><tr><th>Draft</th><th>Now</th><th>Why</th></tr></thead>
     <tbody>
-      <tr><td><code>aesthetic_score</code></td><td>Keep if ≥ 4</td><td>Replaced by the per-criterion grades of Quality and Aesthetics</td></tr>
-      <tr><td><code>text_banner</code></td><td>Drop if true</td><td>Kept. Text Accuracy, Text Layout and Graphic Design grade how well it is done; all three are in Creative Generation</td></tr>
-      <tr><td><code>white_background</code></td><td>Drop if true</td><td>Kept. Graded by Product Design (in Creative Generation) plus Quality and Aesthetics</td></tr>
-      <tr><td><code>collage</code></td><td>Drop if true</td><td>Kept. Q-Judger has no criterion for collages, so only general ones such as Composition apply. This is a gap</td></tr>
-      <tr><td><code>watermark</code></td><td>Drop if true</td><td>Q-Judger has no matching criterion. Not decided yet</td></tr>
-      <tr><td><code>nsfw</code></td><td>Drop if true</td><td>Q-Judger has Safety &amp; Compliance, but it sits in Real-world Fidelity, which is not called. Not decided yet</td></tr>
+      <tr><td>Judge input not modified</td><td>Real-photo system prompt; checklists hold only the 17 counted criteria, 11 of them reworded</td><td>The official prompt frames the image as generated, and the judge invents AI defects on real photos. Of about 7,000 images already scored on the 100k test table, 46% got Physical Logic Fail. A random 16 of those Fails were all normal photos: grass covering legs, shallow depth of field, fingers resting on a chin, all read as "fusion deformities"</td></tr>
+      <tr><td>Caption fills the prompt slot</td><td>No caption</td><td>On a small sample, dropping the caption removed the false Fails just as well and was more sensitive to real defects. Composition and Lighting &amp; Atmosphere, which referred to the prompt, were reworded without it, so an accurate caption is no longer needed</td></tr>
+      <tr><td>No server change; filter logic on the client</td><td>All scoring details on the server</td><td>The caller only sends prompt and image and collects scores; the system prompt and dimensions are not exposed to it</td></tr>
+      <tr><td>15 discarded criteria still asked, results not stored</td><td>Not asked</td><td>The judge sees only the 17 counted criteria; checklists are shorter</td></tr>
+      <tr><td>No orientation check</td><td>Unscored <code>upright_orientation</code> in the Quality call</td><td>Images stored rotated 90 degrees are a known data error, and the 17 criteria do not catch them reliably (see section 6)</td></tr>
     </tbody>
   </table></div>
-  <p>This is why Creative Generation cannot simply be excluded: the criteria that say whether a poster or a product shot is well made are inside it.</p>
 </section>
 
 <section class="card">
-  <h2>3. Criteria tree</h2>
-  <p>Q-Judger has 56 criteria (L3) grouped under 5 top-level dimensions (L1). Each judge call asks one L1's full checklist, so the choices are which L1s to call and which criteria inside a called L1 to use.</p>
+  <h2>3. Relation to the existing filter</h2>
+  <p>The existing filter is <code>qwen3vl_fft_8b_v1</code>, a fine-tuned Qwen3-VL 8B. It gives each image a 0–10 aesthetic score and five yes/no flags, and by default keeps an image only if the aesthetic score is at least 4 and all five flags are no.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Existing column</th><th>Used today</th><th>New filter</th></tr></thead>
+    <tbody>
+      <tr><td><code>aesthetic_score</code></td><td>keep if ≥ 4</td><td>replaced by the per-criterion Quality and Aesthetics scores</td></tr>
+      <tr><td><code>text_banner</code></td><td>drop if yes</td><td>not dropped; graded by Text Accuracy, Text Layout and Graphic Design</td></tr>
+      <tr><td><code>white_background</code></td><td>drop if yes</td><td>not dropped; graded by Product Design plus Quality and Aesthetics</td></tr>
+      <tr><td><code>collage</code></td><td>drop if yes</td><td>not dropped. No criterion targets collages. The reworded Feature Matching catches cut-out and pasted-in seams, not multi-photo layouts. Gap</td></tr>
+      <tr><td><code>watermark</code></td><td>drop if yes</td><td>Text Accuracy lists watermarks as an example, but it grades whether text is legible, not whether a watermark is present. Gap, undecided</td></tr>
+      <tr><td><code>nsfw</code></td><td>drop if yes</td><td>Safety &amp; Compliance is in Real-world Fidelity, which is not asked. Undecided</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card">
+  <h2>4. Criteria tree</h2>
+  <p>Q-Judger has 56 L3 criteria across 5 L1 dimensions. We ask 17 of them in 3 calls. Each criterion is marked by whether the wording shown to the judge differs from the official one; Fail rates are on 1,000 real photos (official prompt → final).</p>
   <div class="legend">
-    <span><span class="chip count">count</span> used by the filter</span>
-    <span><span class="chip record">computed, discarded</span> computed because its L1 is called; the result is not stored</span>
-    <span><span class="chip skip">not called</span> the whole L1 is never requested</span>
-    <span><span class="chip req">accurate prompt required</span> counted, but the grade depends on a correct caption</span>
+    <span><span class="chip count">official</span> wording unchanged</span>
+    <span><span class="chip pending">reworded</span> wording changed; the change is described</span>
+    <span><span class="chip skip">not asked</span> not in the judge's checklist</span>
   </div>
 
   <div class="tree">
     <div class="l1">
-      <div class="l1-head"><span class="name">Quality</span><span class="meta">called · all 6 count</span></div>
+      <div class="l1-head"><span class="name">Quality</span><span class="meta">call 1 · 6 criteria + 1 orientation flag</span></div>
       <div class="l2"><div class="l2-name">Realism</div><div class="l3s">
-        <div class="l3"><span>Physical Logic</span><span class="chip count">count</span><span class="why">May be mostly Pass on real photos, but catches composites and AI images</span></div>
-        <div class="l3"><span>Material Texture</span><span class="chip count">count</span><span class="why">Whether surface materials look real</span></div>
+        <div class="l3"><span>Physical Logic</span><span class="chip count">official</span><span class="why">Fail 48.1% → 1.4%, from the system prompt change alone. Of the 14 remaining, about 10 really are not photos: 3D renders, composites, digital paintings</span></div>
+        <div class="l3"><span>Material Texture</span><span class="chip count">official</span><span class="why">realistic surface materials</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Detail</div><div class="l3s">
-        <div class="l3"><span>Noise</span><span class="chip count">count</span><span class="why">Noise or unnatural smoothing</span></div>
-        <div class="l3"><span>Edge Clarity</span><span class="chip count">count</span><span class="why">Blurred or aliased edges</span></div>
-        <div class="l3"><span>Naturalness</span><span class="chip count">count</span><span class="why">The plastic AI look, heavy retouching</span></div>
+        <div class="l3"><span>Noise</span><span class="chip count">official</span><span class="why">Fail 0.9% → about 3.5%. With the real-photo framing the judge is stricter about grain, mostly night skies and film-style grain. A rewording ("grain that does not hide detail is not a failure") had no effect; official wording accepted</span></div>
+        <div class="l3"><span>Edge Clarity</span><span class="chip count">official</span><span class="why">blurred or aliased edges</span></div>
+        <div class="l3"><span>Naturalness</span><span class="chip pending">reworded</span><span class="why">"plastic look commonly associated with AI-generated images" became "free from heavy retouching, over-processing, or an over-smoothed look". Fail 14.1% → 3.9%; the rest are mostly renders, heavy grading and composites, a few only slightly oversaturated (strict)</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Resolution</div><div class="l3s">
-        <div class="l3"><span>Resolution</span><span class="chip count">count</span><span class="why">Pixelation, compression artifacts</span></div>
+        <div class="l3"><span>Resolution</span><span class="chip count">official</span><span class="why">pixelation, compression artifacts</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Orientation</div><div class="l3s">
+        <div class="l3"><span>upright_orientation</span><span class="chip pending">new · unscored</span><span class="why">answers true/false only; false when the image is stored sideways or upside down. Not one of the 17. On 50 test images: no false alarm on originals, 32-34 of the 90-degree rotations caught</span></div>
       </div></div>
     </div>
 
     <div class="l1">
-      <div class="l1-head"><span class="name">Aesthetics</span><span class="meta">called · 4 count, 2 computed, discarded</span></div>
+      <div class="l1-head"><span class="name">Aesthetics</span><span class="meta">call 2 · 4 criteria</span></div>
       <div class="l2"><div class="l2-name">Composition</div><div class="l3s">
-        <div class="l3"><span>Composition</span><span class="chip count">count</span><span class="why">Composition</span></div>
+        <div class="l3"><span>Composition</span><span class="chip pending">reworded</span><span class="why">official asks whether the composition follows rules "required by the prompt"; now "balanced, visually guided and aesthetically pleasing"</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Color Harmony</div><div class="l3s">
-        <div class="l3"><span>Color Harmony</span><span class="chip count">count</span><span class="why">Color palette</span></div>
+        <div class="l3"><span>Color Harmony</span><span class="chip count">official</span><span class="why">color palette</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Lighting</div><div class="l3s">
-        <div class="l3 flag"><span>Lighting &amp; Atmosphere</span><span class="chip count">count</span><span class="why"><span class="chip req">accurate prompt required</span> Asks whether the lighting matches the prompt's scene, so the caption we pass in must describe the image accurately. If the caption is wrong, this grade cannot be trusted</span></div>
+        <div class="l3"><span>Lighting &amp; Atmosphere</span><span class="chip pending">reworded</span><span class="why">official asks whether lighting "matches the scene setting of the prompt"; now "well handled and suited to the scene shown". No longer needs an accurate caption</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Anatomical Portraiture</div><div class="l3s">
-        <div class="l3"><span>Anatomical Fidelity</span><span class="chip count">count</span><span class="why">N/A without people. Asks for visible pores and fine lines, which may penalize retouched and studio portraits</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Emotional Expression</div><div class="l3s">
-        <div class="l3"><span>Emotional Expression</span><span class="chip record">computed, discarded</span><span class="why">Asks about the emotion described in the prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Style Control</div><div class="l3s">
-        <div class="l3"><span>Style Control</span><span class="chip record">computed, discarded</span><span class="why">Asks about the style requested in the prompt</span></div>
+        <div class="l3"><span>Anatomical Fidelity</span><span class="chip pending">reworded</span><span class="why">graded only when people are visible, otherwise N/A. Fail 12.8% → 0.3%; the old Fails were mostly animal photos judged by human anatomy. Still asks for pores and fine lines</span></div>
       </div></div>
     </div>
 
-    <div class="l1 off">
-      <div class="l1-head"><span class="name">Alignment</span><span class="chip skip">not called</span><span class="meta">16 criteria</span></div>
-      <div class="l1-body">13 of the 16 criteria ask whether the image matches the prompt. A caption is written from the image, so this is circular: it measures caption accuracy, not image quality. The other 3 (Composition Relationship, Containment, Virtual Scene) are worded without the prompt but do not justify asking all 16.</div>
-      <div class="l2"><div class="l2-name">Attributes</div><div class="l3s">
-        <div class="l3"><span>Quantity</span><span class="chip skip">not called</span><span class="why">Whether the count matches the prompt</span></div>
-        <div class="l3"><span>Facial Expression</span><span class="chip skip">not called</span><span class="why">Whether the expression matches the prompt</span></div>
-        <div class="l3"><span>Material Properties</span><span class="chip skip">not called</span><span class="why">Whether materials match the prompt</span></div>
-        <div class="l3"><span>Color</span><span class="chip skip">not called</span><span class="why">Whether colors match the prompt</span></div>
-        <div class="l3"><span>Shape</span><span class="chip skip">not called</span><span class="why">Whether shapes match the prompt</span></div>
-        <div class="l3"><span>Size</span><span class="chip skip">not called</span><span class="why">Whether sizes match the prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Actions</div><div class="l3s">
-        <div class="l3"><span>Contact Interaction</span><span class="chip skip">not called</span><span class="why">Whether contact described in the prompt looks natural</span></div>
-        <div class="l3"><span>Non-contact Interaction</span><span class="chip skip">not called</span><span class="why">Whether non-contact relations in the prompt look logical</span></div>
-        <div class="l3"><span>Full-body Action</span><span class="chip skip">not called</span><span class="why">Whether the action matches the prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Layout</div><div class="l3s">
-        <div class="l3"><span>2D Space</span><span class="chip skip">not called</span><span class="why">Whether 2D positions match the prompt</span></div>
-        <div class="l3"><span>3D Space</span><span class="chip skip">not called</span><span class="why">Whether the 3D layout matches the prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Relations</div><div class="l3s">
-        <div class="l3"><span>Composition Relationship</span><span class="chip skip">not called</span><span class="why">Whether multiple elements form a coherent whole. Worded without the prompt</span></div>
-        <div class="l3"><span>Difference/Similarity</span><span class="chip skip">not called</span><span class="why">Whether specified differences or similarities are shown</span></div>
-        <div class="l3"><span>Containment</span><span class="chip skip">not called</span><span class="why">Whether containment is depicted correctly. Worded without the prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Scene</div><div class="l3s">
-        <div class="l3"><span>Real-world Scene</span><span class="chip skip">not called</span><span class="why">Whether the scene matches the prompt</span></div>
-        <div class="l3"><span>Virtual Scene</span><span class="chip skip">not called</span><span class="why">Whether a fictional scene is internally consistent. Worded without the prompt</span></div>
-      </div></div>
-    </div>
-    <div class="l1 off">
-      <div class="l1-head"><span class="name">Real-world Fidelity</span><span class="chip skip">not called</span><span class="meta">8 criteria</span></div>
-      <div class="l1-body">Social Bias and Cultural Fairness judge a generator's bias; as a filter they would remove ordinary real photos. The World Knowledge criteria are expected to be constant on real photos or to test the caption. Safety &amp; Compliance is valid but not worth a separate call.</div>
-      <div class="l2"><div class="l2-name">Fairness</div><div class="l3s">
-        <div class="l3"><span>Social Bias</span><span class="chip skip">not called</span><span class="why">Judges a generator's bias; harmful as a filter</span></div>
-        <div class="l3"><span>Cultural Fairness</span><span class="chip skip">not called</span><span class="why">Judges a generator's bias; harmful as a filter</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Safety &amp; Compliance</div><div class="l3s">
-        <div class="l3"><span>Safety &amp; Compliance</span><span class="chip skip">not called</span><span class="why">Valid, but not worth a separate call</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">World Knowledge</div><div class="l3s">
-        <div class="l3"><span>Animals</span><span class="chip skip">not called</span><span class="why">Expected to be constant on real photos</span></div>
-        <div class="l3"><span>Objects</span><span class="chip skip">not called</span><span class="why">Expected to be constant on real photos</span></div>
-        <div class="l3"><span>Information Visualization</span><span class="chip skip">not called</span><span class="why">Whether concepts from the prompt are shown clearly</span></div>
-        <div class="l3"><span>Temporal Characteristics</span><span class="chip skip">not called</span><span class="why">Expected to test the caption in practice</span></div>
-        <div class="l3"><span>Cultural Elements</span><span class="chip skip">not called</span><span class="why">Expected to test the caption in practice</span></div>
-      </div></div>
-    </div>
     <div class="l1">
-      <div class="l1-head"><span class="name">Creative Generation</span><span class="meta">called · 7 count, 13 computed, discarded</span></div>
-      <div class="l1-body">Called for every image. The seven counted criteria are all worded without the prompt, so none of them needs the "accurate prompt required" tag. Several of them match the images the existing filter drops as a class: posters and ads with dominant text (Text Accuracy, Text Layout, Graphic Design) and white-background product shots (Product Design). Using scores to pick the good images out of those categories needs this call. The cost is that all 20 criteria are asked, which makes it the longest and slowest call. The other 13 are computed in the same call and their results are discarded.</div>
-      <div class="l2"><div class="l2-name">Imagination</div><div class="l3s">
-        <div class="l3"><span>Imagination</span><span class="chip record">computed, discarded</span><span class="why">A content type, not a quality</span></div>
-      </div></div>
+      <div class="l1-head"><span class="name">Creative Generation</span><span class="meta">call 3 · 7 criteria · the judge sees the name "Text and Design"</span></div>
+      <div class="l1-body">The judge sees "Text and Design" because, apart from Feature Matching, the 7 criteria are all about text and design. Calibration always used this name; with "Creative Generation" more answers were truncated (4.8% vs 1.8%). The returned key stays "Creative Generation", so callers are unaffected. The four Design criteria were almost always N/A on the 1,000 real photos, with a single Fail.</div>
       <div class="l2"><div class="l2-name">Feature Matching</div><div class="l3s">
-        <div class="l3"><span>Feature Matching</span><span class="chip count">count</span><span class="why">Seams where elements are fused. Worded without the prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Logical Resolution</div><div class="l3s">
-        <div class="l3"><span>Logical Resolution</span><span class="chip record">computed, discarded</span><span class="why">Expected to be constant on real photos</span></div>
+        <div class="l3"><span>Feature Matching</span><span class="chip pending">reworded</span><span class="why">official asks whether "multi-element fusion regions" are seamless; now whether subjects and regions "join naturally where they meet", without cut-out edges, halos or pasted-in elements. Fail 1.8%, including composites and digital paintings confirmed by eye. Unstable: changing only the dimension name changed most of the Fails</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Text Rendering</div><div class="l3s">
-        <div class="l3"><span>Text Accuracy</span><span class="chip count">count</span><span class="why">Whether text in the image is legible and not garbled. Grades images with dominant text</span></div>
-        <div class="l3"><span>Text Layout</span><span class="chip count">count</span><span class="why">Text layout. Grades images with dominant text</span></div>
-        <div class="l3"><span>Font</span><span class="chip record">computed, discarded</span><span class="why">Whether the font matches the prompt</span></div>
-        <div class="l3"><span>Cross-lingual Generation</span><span class="chip record">computed, discarded</span><span class="why">Whether text follows the prompt's translation instruction</span></div>
+        <div class="l3"><span>Text Accuracy</span><span class="chip pending">reworded</span><span class="why">examples are real-world text (signs, labels, packaging, captions, watermarks); N/A without text; the misspelling clause is kept. Fail on real photos 4.5% → 0.4%. Garbled-text control on generated images: catches 61% of the official Fails</span></div>
+        <div class="l3"><span>Text Layout</span><span class="chip pending">reworded</span><span class="why">added "graded only if there is text, otherwise N/A"</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Design Applications</div><div class="l3s">
-        <div class="l3"><span>Graphic Design</span><span class="chip count">count</span><span class="why">Layout of posters and ads. Grades images with dominant text</span></div>
-        <div class="l3"><span>Product Design</span><span class="chip count">count</span><span class="why">Whether a product design is sensible. Grades white-background product shots</span></div>
-        <div class="l3"><span>Spatial Design</span><span class="chip count">count</span><span class="why">Perspective and proportion of interiors and buildings. Worded without the prompt</span></div>
-        <div class="l3"><span>Fashion Styling</span><span class="chip record">computed, discarded</span><span class="why">Whether clothing matches the style in the prompt</span></div>
-        <div class="l3"><span>Game Design</span><span class="chip count">count</span><span class="why">Whether game props and UI are usable. Worded without the prompt</span></div>
-        <div class="l3"><span>Art Design</span><span class="chip record">computed, discarded</span><span class="why">Whether the art style required by the prompt is shown</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Visual Storytelling</div><div class="l3s">
-        <div class="l3"><span>Cinematic Style</span><span class="chip record">computed, discarded</span><span class="why">The director's style named in the prompt</span></div>
-        <div class="l3"><span>Camera / Lens Style</span><span class="chip record">computed, discarded</span><span class="why">The camera or lens look named in the prompt</span></div>
-        <div class="l3"><span>Storyboard Creation</span><span class="chip record">computed, discarded</span><span class="why">The panel layout named in the prompt</span></div>
-        <div class="l3"><span>Shot Sizes</span><span class="chip record">computed, discarded</span><span class="why">The shot size named in the prompt</span></div>
-        <div class="l3"><span>Composition</span><span class="chip record">computed, discarded</span><span class="why">The composition rule named in the prompt</span></div>
-        <div class="l3"><span>Angles</span><span class="chip record">computed, discarded</span><span class="why">The camera angle named in the prompt</span></div>
-        <div class="l3"><span>Comic Creation</span><span class="chip record">computed, discarded</span><span class="why">The comic style named in the prompt</span></div>
+        <div class="l3"><span>Graphic Design</span><span class="chip pending">reworded</span><span class="why">graded only if the image is or prominently shows a poster, ad or cover; otherwise N/A</span></div>
+        <div class="l3"><span>Product Design</span><span class="chip pending">reworded</span><span class="why">graded only if a manufactured product is the main subject; otherwise N/A. Grades white-background product shots</span></div>
+        <div class="l3"><span>Spatial Design</span><span class="chip pending">reworded</span><span class="why">graded only if an interior or building is the main subject; otherwise N/A</span></div>
+        <div class="l3"><span>Game Design</span><span class="chip pending">reworded</span><span class="why">graded only if game props or game UI are shown; otherwise N/A</span></div>
       </div></div>
     </div>
+
+    <div class="l1 off">
+      <div class="l1-head"><span class="name">39 criteria not asked</span><span class="chip skip">not asked</span></div>
+      <div class="l1-body">
+        <ul>
+          <li><b>Alignment (16)</b>: 13 ask whether the image matches the prompt, which cannot be judged without a caption; the other 3 do not justify an extra call.</li>
+          <li><b>Real-world Fidelity (8)</b>: Social Bias and Cultural Fairness judge a generator's bias and would remove legitimate photos; World Knowledge criteria are expected to be constant on real photos or depend on the prompt; Safety &amp; Compliance is valid but not worth a separate call.</li>
+          <li><b>2 in Aesthetics</b>: Emotional Expression and Style Control ask about the emotion and style described in the prompt.</li>
+          <li><b>13 in Creative Generation</b>: Imagination and Logical Resolution (creative combination and causality, not applicable to real photos); Font, Cross-lingual Generation, Fashion Styling, Art Design and the 7 Visual Storytelling criteria (all judged against the prompt).</li>
+        </ul>
+      </div>
+    </div>
   </div>
-  <p>Totals: 17 count, 15 computed and discarded, 24 not called. Of the 17 counted criteria, only Lighting &amp; Atmosphere requires an accurate prompt.</p>
+  <p>Also, the N/A line of the scoring rules changed from "does not apply to this image/prompt" to "does not apply to this image".</p>
 </section>
 
 <section class="card">
-  <h2>4. How scores are aggregated</h2>
-  <p>We do not reuse the official L3 → L2 → L1 mean, because dropping some criteria makes the L2 weights uneven.</p>
+  <h2>5. Output and parsing</h2>
   <ul>
-    <li><b>Store each grade.</b> Every counted criterion gets its own column: Fail, Pass, Excel or N/A, plus the parse status. Criteria marked "computed, discarded" are not stored.</li>
-    <li><b>Write rules on criteria.</b> For example, "drop if Noise, Edge Clarity or Resolution is Fail". The exact rule is set after the 100k run.</li>
-    <li><b>Keep one reference score.</b> The plain mean of the counted criteria that are not N/A, on the same 0 / 60 / 100 scale.</li>
-    <li><b>No thresholds in the scoring step.</b> Changing a rule later must not require rescoring.</li>
-    <li><b>A parse failure is unknown.</b> Store an empty value; never treat it as pass or fail.</li>
+    <li><b>Return structure.</b> One <code>{L1: {L2: {L3: score}}}</code> dictionary per image, with L1 keys Quality, Aesthetics and Creative Generation and 17 L3 entries. Scores 0 / 60 / 100 mean Fail / Pass / Excel; N/A is null.</li>
+    <li><b>Orientation flag.</b> <code>Quality.Orientation.upright_orientation</code> is true, false or null. It is null when the judge answers anything but true/false (2 of 150 test calls answered "N/A") or when the Quality call does not parse. The parser reads <code>{"value": …}</code> and also accepts <code>{"score": …}</code>, the strings "true"/"false", and the flag written directly under <code>Orientation</code>. A missing flag never discards the other Quality scores.</li>
+    <li><b>Parsing does not depend on the output layout.</b> The judge's JSON is not always properly nested: flat L3, flat L2, an extra L1 wrapper, or a mix all occur. The server collects every object that has a <code>score</code>, at any depth, and places it by name. An L2 name with a single L3 (for example <code>Lighting</code>) maps to that L3, and <code>Feature Mapping</code> is renamed to <code>Feature Matching</code>. On 11,406 past outputs from the official prompt, the result is identical to the old parser.</li>
+    <li><b>Retries.</b> If a dimension cannot be parsed, only that call is rerun, up to 2 attempts in total. If it still fails, all criteria of that dimension are null: unknown, never treated as pass or fail.</li>
+    <li><b>No threshold in the scoring step.</b> Changing a rule never requires rescoring.</li>
   </ul>
 </section>
 
 <section class="card">
-  <h2>5. What we already know</h2>
-  <p>All of these come from QImageBench scoring of generated images, not from real images.</p>
+  <h2>6. Calibration results</h2>
+  <p>The 1,000 real photos were drawn at random from the roughly 7,000 already scored with the official prompt on the 100k test table (<code>Aesthetic-Train-V2_slice_from_maintable_20261009.lance</code>). The table compares Fail rates on the same images under the official prompt and the final one; conclusions come from looking at the images and the judge's reasoning.</p>
   <div class="tablewrap"><table>
-    <thead><tr><th>Item</th><th>Value</th></tr></thead>
+    <thead><tr><th>Criterion</th><th>Official prompt</th><th>Final</th><th>After checking by eye</th></tr></thead>
     <tbody>
-      <tr><td>Speed of one endpoint at client concurrency 16</td><td class="num">about 0.45 s per call</td></tr>
-      <tr><td>Cost per image with three dimensions (extrapolated)</td><td class="num">3 calls, at least 1.4 s</td></tr>
-      <tr><td>100k images on one endpoint (extrapolated)</td><td class="num">at least 38 hours</td></tr>
-      <tr><td>Criteria that get a different grade when the same image is rescored</td><td class="num">4.4%</td></tr>
-      <tr><td>Of those, flips between Fail and Excel, or between N/A and a grade</td><td class="num">1.5%</td></tr>
-      <tr><td>Std of the per-image total on rescoring (all five L1s)</td><td class="num">3.6</td></tr>
-      <tr><td>Parse failures</td><td class="num">2 of 1500 images</td></tr>
+      <tr><td>Physical Logic</td><td class="num">48.1%</td><td class="num">1.4%</td><td>mostly normal photos misjudged before; what remains is mostly renders, composites, digital paintings</td></tr>
+      <tr><td>Naturalness</td><td class="num">14.1%</td><td class="num">3.9%</td><td>matches the definition, slightly strict</td></tr>
+      <tr><td>Anatomical Fidelity</td><td class="num">12.8%</td><td class="num">0.3%</td><td>mostly animal photos judged by human anatomy before</td></tr>
+      <tr><td>Text Accuracy</td><td class="num">4.5%</td><td class="num">0.4%</td><td>mostly normal small text on signs, ear tags, logos before</td></tr>
+      <tr><td>Noise</td><td class="num">0.9%</td><td class="num">~3.5%</td><td>mostly night scenes and film grain; rewording had no effect, accepted</td></tr>
+      <tr><td>Feature Matching</td><td class="num">—</td><td class="num">1.8%</td><td>includes confirmed composites; unstable</td></tr>
+      <tr><td>Four Design criteria</td><td class="num">—</td><td class="num">1 image</td><td>almost always N/A</td></tr>
+      <tr><td>Truncation (reasoning filled 4,096 tokens before the JSON)</td><td class="num">—</td><td class="num">1.3%</td><td>14% on text-heavy generated images</td></tr>
     </tbody>
   </table></div>
-  <p>Both parse failures were in Quality, on images with garbled text: the judge's reasoning ran past its output limit before it wrote the JSON. Decoding is deterministic, so retrying the same image gives the same truncation.</p>
-</section>
-
-<section class="card">
-  <h2>6. Risks</h2>
+  <p><b>Controls:</b></p>
   <ul>
-    <li><b>Not verified on real images.</b> Q-Judger was trained on AI-generated images. Whether the counted criteria separate good real photos from bad ones is an assumption based on their wording.</li>
-    <li><b>Single-image noise.</b> A filter decides image by image, so the rescoring noise above applies directly. Rules should key on a clear Fail, not on a score threshold.</li>
-    <li><b>Anatomical Fidelity bias.</b> The criterion favors skin with visible pores and fine lines and may wrongly penalize retouched and studio portraits.</li>
-    <li><b>Speed.</b> The judge is a 27B model with thinking on. The only way to go faster is more replicas.</li>
-    <li><b>Lighting &amp; Atmosphere depends on caption accuracy.</b> It is the only counted criterion whose wording refers to the prompt. It cannot be used when the caption is missing, too short or wrong.</li>
-    <li><b>No criterion for collages.</b> Q-Judger was trained on single generated images. Collages can only be graded by the general criteria, and whether those grades can be trusted depends on the validation.</li>
-    <li><b>No criterion for watermarks.</b> Once the existing filter is replaced, no Q-Judger criterion stops a watermarked image.</li>
-    <li><b>The endpoint is shared.</b> <code>scorer-qimagebench</code> also serves benchmark scoring and RL reward, so scoring jobs run one at a time, never concurrently.</li>
+    <li><b>Degraded images.</b> 10 each of blur, JPEG compression and pixelation: Material Texture, Edge Clarity and Resolution are almost always Fail. With Gaussian noise σ=40, Noise is Fail on 19/20; at σ=20, on 14/20.</li>
+    <li><b>Garbled text on generated images.</b> QImageBench outputs of fibo2, flux3_klein and ideogram4. Of the images the official protocol grades Text Accuracy=0, the final prompt catches 61%. Of about 43 official 100s, 5 get Fail, about 3 of them with genuinely garbled background text. The official protocol checks only the text the prompt asked for; ours checks all text in the image, which is what a filter wants.</li>
+    <li><b>Cost of the misspelling clause.</b> About 0.3% of real photos get Fail for text that is misspelled in reality (for example a hand-written market sign).</li>
+  </ul>
+  <p><b>Orientation:</b> 50 random calibration photos, each judged as the original, rotated 90 degrees left and rotated 90 degrees right.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th>Original</th><th>Rotated left</th><th>Rotated right</th></tr></thead>
+    <tbody>
+      <tr><td><code>upright_orientation</code> = false</td><td class="num">0 / 50</td><td class="num">34 / 50</td><td class="num">32 / 50</td></tr>
+      <tr><td>At least one Fail, without the flag</td><td class="num">6 / 50</td><td class="num">32 / 50</td><td class="num">25 / 50</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li>No original photo is flagged.</li>
+    <li>Without the flag, rotation shows up mainly as Composition Fail (2 to 23 of 50), and every image caught that way is also caught by the flag.</li>
+    <li>Misses fall in two groups. About half have no clear up direction (aerial views, top-down food, textures), which is acceptable. The rest are clearly rotated, but the judge either answered true with almost no reasoning or explained the view away (a sideways face read as a person lying down, a bird on a "diagonal branch").</li>
+    <li>An earlier, inverted wording, <code>Rotation Failure</code> (true = rotated), caught 29 and 28; the positive <code>upright_orientation</code> was kept.</li>
+    <li>Adding the item moved the other Quality scores no more than a rerun does: 84% identical on originals and 91% on rotated images, against 83-94% for an unchanged rerun.</li>
+  </ul>
+  <p><b>Stability:</b></p>
+  <ul>
+    <li>For criteria with identical wording, two runs on the same images give identical scores only 83–94% of the time, mostly 60 and 100 swapping.</li>
+    <li>Images graded 100 (Excel) overlap only 40–65% between two runs. Physical Logic, for example: 21 and 14 images, 9 in common.</li>
+    <li>"Is it a Fail" is more stable than the exact score, but borderline Fails still flip.</li>
   </ul>
 </section>
 
 <section class="card">
-  <h2>7. Validation steps</h2>
-  <p>Test table: <code>s3://nv-00-10206-vfm/lancedb/image/regular/Aesthetic-Train-V2_slice_from_maintable_20261009.lance</code> (100k rows).</p>
-  <ol class="steps">
-    <li><span><b>Inspect the table.</b> Which columns exist, which one holds the caption, how images are fetched. Not done yet.</span></li>
-    <li><span><b>Score a small sample.</b> Take 500 to 2000 rows and score all three dimensions: Quality, Aesthetics and Creative Generation. Look at the Fail / Pass / Excel / N/A rate of each criterion and the parse-failure rate.</span></li>
-    <li><span><b>Review the counted criteria.</b> Decide whether Physical Logic and Anatomical Fidelity stay. Spot-check caption accuracy, because Lighting &amp; Atmosphere depends on it.</span></li>
-    <li><span><b>Compare with the existing filter.</b> Check whether the table has the existing filter's six columns. If it does, focus on the three categories it drops (collage, dominant text, white background): can Q-Judger's scores separate the good images from the bad ones in each? Look at a batch of each by eye.</span></li>
-    <li><span><b>Check the seven Creative Generation criteria.</b> See whether they separate posters and product shots, and whether they are mostly N/A on ordinary photos. Also measure how much time this call actually adds.</span></li>
-    <li><span><b>Run the full table.</b> If the signal is useful, score all 100k images, then write the filter rule.</span></li>
-    <li><span><b>Build SILA last.</b> Model it on <code>image_filter_pipeline.py</code> and <code>hpsv3_pipeline.py</code>, with its own vLLM endpoint and its own copy of the protocol.</span></li>
-  </ol>
+  <h2>7. Using it to pick 1M images</h2>
+  <ul>
+    <li>Of 975 real photos, 90.7% have no Fail on any criterion. Dropping Fails alone removes only about 9%. (Computed before Feature Matching was restored, on 16 criteria.)</li>
+    <li>Keeping the top 2.5% (40M to 1M) needs a ranking of the rest by number of 100s: the cut is roughly at least 7 of 16 criteria at 100, with ties at the cut.</li>
+    <li>Excel is unstable, with 40–65% overlap between runs, so picking the top 2.5% by Excel count from a single run is quite random.</li>
+    <li>Conclusion: Q-Judger works best as a gate that removes Fails. Ranking within the top 2.5% needs a finer signal. One option is to read the judge's probability for each grade and compute an expected score, giving a continuous value. Not done yet.</li>
+  </ul>
 </section>
 
 <section class="card">
-  <h2>8. Open questions</h2>
+  <h2>8. Risks</h2>
   <ul>
-    <li>Which column holds the caption, and how many rows have one.</li>
-    <li>Whether the captions in the table are accurate enough. Lighting &amp; Atmosphere is counted on the condition that the prompt is accurate.</li>
-    <li>Whether any of the 15 discarded criteria (2 in Aesthetics, 13 in Creative Generation) should instead be counted with the "accurate prompt required" tag.</li>
-    <li>What to do about watermarks: keep using the existing filter's <code>watermark</code> column, or ignore them.</li>
-    <li>What to do about NSFW: keep using the existing filter's <code>nsfw</code> column, or add a Real-world Fidelity call to get Safety &amp; Compliance.</li>
-    <li>Whether the grades that general criteria give to collages are usable.</li>
-    <li>Which production table will be filtered and how many rows it has. This sets the number of SILA replicas.</li>
+    <li><b>Single-image noise.</b> Excel overlaps only 40–65% between runs, so ranking by Excel count is very noisy.</li>
+    <li><b>Noise is strict on real grain.</b> About 3.5% of real photos get Fail for night scenes or film grain. Accepted.</li>
+    <li><b>The misspelling clause costs some photos.</b> About 0.3%, signs misspelled in reality. Accepted.</li>
+    <li><b>Feature Matching is unstable.</b> Its Fails overlap little between prompt versions; not suitable as a hard filter on its own.</li>
+    <li><b>Truncation.</b> 1.3% on real photos, 14% on text-heavy images. The truncated dimension is null.</li>
+    <li><b>Anatomical Fidelity bias.</b> It rewards visible pores and fine lines, which may penalize retouched or studio portraits.</li>
+    <li><b>No criterion for collages or watermarks.</b> Once the existing filter is replaced, nothing in Q-Judger stops these two.</li>
+    <li><b>Calibrated on one table only.</b> All 1,000 images come from the Aesthetic-Train-V2 slice; images from other sources are unverified.</li>
+    <li><b>The orientation flag misses some.</b> It catches about two thirds of images rotated 90 degrees and misses some clearly rotated ones; it raised no false alarm on upright photos in the test. Only 50 images were tested.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>9. Open questions</h2>
+  <ul>
+    <li>The filter rule: where to put the gate, and how to rank the top 2.5%.</li>
+    <li>Whether to build a probability-based expected score for ranking.</li>
+    <li>Watermarks: keep using the existing filter's <code>watermark</code> column, or ignore them.</li>
+    <li>NSFW: keep using the existing filter's <code>nsfw</code> column, or add a call for Safety &amp; Compliance.</li>
+    <li>What to do about collages.</li>
   </ul>
 </section>
 
 <footer>
-  The same folder holds <code>qjudge_image_filter_design.md</code> (for agents) and <code>qjudge_image_filter_design.html</code> (Chinese). The three files are kept in sync.
+  This folder also holds <code>qjudge_image_filter_design.md</code> (for agents) and <code>qjudge_image_filter_design.html</code> (Chinese). Keep all three in sync.
 </footer>
 
 </div>

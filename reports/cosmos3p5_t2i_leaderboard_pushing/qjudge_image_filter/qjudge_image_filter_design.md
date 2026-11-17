@@ -1,224 +1,211 @@
-# Q-Judger image filter: design
+# Q-Judger real-image filter: design
 
-Status: proposal, 2026-11-13. Nothing in this document is implemented or measured on real images yet.
-Human-readable twins: `qjudge_image_filter_design.html` (zh), `qjudge_image_filter_design_en.html` (en). Keep all three in sync when editing.
+Status (2026-11-16): this is v0, the first version of the filter (output column `filter_real_image_qjudge_v0`). Prompt final, calibrated on 1,000 real photos; the unscored `upright_orientation` item was added to the Quality call on 2026-11-16. The first draft (2026-11-13) was a proposal; its decisions "judge input unchanged", "caption fills the prompt slot" and "no server change" are reversed (see "Changes since the 11-13 draft").
+
+Human-readable twins: `qjudge_image_filter_design.html` (zh) and `qjudge_image_filter_design_en.html` (en). Keep all three in sync when editing.
 
 ## Goal
 
-Reuse the Q-Judger reward model (the QImageBench judge) as a quality filter for real training images. Each image gets per-criterion grades; a downstream rule decides keep or drop.
-
-The new filter is meant to replace the existing production image filter (`qwen3vl_fft_8b_v1`). That filter drops collages, images with dominant text and white-background images as whole categories. The new one keeps those categories and uses scores to pick out the good images in them.
+Use Q-Judger (`Qwen/Qwen-Image-Bench`, Qwen3.6-27B, the QImageBench judge) to score real training images. The filter replaces the existing one (`qwen3vl_fft_8b_v1`).
+- Target: pick about 1M top images out of 40M. Some false rejections are acceptable.
+- Collages, images with dominant text and white-background images are scored like any other image, not dropped as categories.
 
 ## Fixed decisions
 
 These were decided by the user. Do not revisit them without asking.
 
-1. **The judge input is not modified.** System prompt, user template, checklists and sampling parameters stay exactly as in `qimagebench_protocol.py`. Criteria we do not want are skipped when aggregating, never removed from the checklist or reworded.
-2. **The prompt slot is filled with the image caption.** The template requires a prompt, and a placeholder would make the judge grade "matches the prompt" criteria against nothing.
-3. **Three L1 dimensions are called for every image: `Quality`, `Aesthetics` and `Creative Generation`.** Three calls are acceptable. The principle is to collect enough information and leave out only what does not apply at all. `Alignment` and `Real-world Fidelity` are not called.
-4. **No server change.** The existing scorer already accepts a subset of dimensions and already returns L3 grades. All filter logic lives on the client.
-5. **Validate before building infrastructure.** First score the 100k test table through the existing Lepton service. A SILA pipeline comes only after the signal is shown to be useful.
+1. **The judge sees only the image.** No caption is passed, even though the caller's request carries a prompt.
+   - System prompt: `You are an expert evaluator of the quality of real photographs. Given a real photograph taken by a camera, you evaluate the image on specific quality criteria using a structured checklist.`
+   - The user message has three parts, in order:
+     - `# Real Photograph\n`;
+     - the image;
+     - the official `USER_PROMPT_TEMPLATE` text after the image placeholder, formatted with `prompt=""` and the displayed dimension name, with `this image/prompt` replaced by `this image`.
+2. **3 judge calls per image, 17 criteria.** Each checklist contains exactly the counted criteria; no other official criterion is asked.
+   - One extra, unscored item is asked at the end of the Quality checklist: `upright_orientation` (true = the image is upright, false = stored rotated sideways or upside down). It is a flag, not a criterion: it has no grade and is not part of the 17.
+   - Wording, appended under `## Orientation`: `upright_orientation: Is the photograph upright, i.e. not rotated sideways or upside down (e.g., the horizon is horizontal, people and buildings stand upright)? This item is not scored: instead of a score, answer {"value": true} if the image is upright, otherwise {"value": false}.`
+3. **The judge and the caller see different names for the third dimension.** The judge sees `Text and Design`; the returned key is `Creative Generation`.
+4. **Wording rules.**
+   - Use the official wording wherever possible.
+   - Changes only remove prompt dependence, remove the "AI-generated" framing, or add "Answer N/A if/otherwise".
+   - Noise keeps the official wording.
+   - Text Accuracy keeps "misspellings, or typographical errors".
+   - Feature Matching stays counted.
+   - Never drop a counted criterion without asking the user.
+5. **Sampling and preprocessing match the official protocol.**
+   - Sampling: temperature 0, top_p 1, top_k 1, repetition_penalty 1.05, max_tokens 4096, seed 42, `enable_thinking=True`.
+   - Preprocessing: iso-area resize to at most 1024x1024 with LANCZOS.
+6. **The server does everything.** The caller sends one request per image (prompt text plus image) and gets one `{L1: {L2: {L3: score}}}` dict back.
+   - The server makes the 3 judge calls, parses, and retries.
+   - The caller cannot set the system prompt or choose dimensions; the request's system content is ignored. Do not add caller-side knobs.
+7. **Every implementation uses the same judge input.** The reference is `/home/xingqianx/tmp/qjudge_final_prompts.json`; generated messages must match it word for word. Shared pieces are inherited from or imported from `qimagebench_protocol`, never copied.
 
-6. **Replace the existing filter; do not drop images by category.** Collages, images with dominant text and white-background images are scored like any other image, and the high-scoring ones are kept.
+## Changes since the 11-13 draft
+
+| Draft | Now | Why |
+|---|---|---|
+| Judge input unchanged | Real-photo system prompt; checklists hold only the 17 counted criteria, 11 reworded | The official prompt frames images as generated, and the judge invents AI defects on real photos. On about 7,000 images of the 100k test table, Physical Logic was Fail on 46%. A random 16 of those were all normal photos: occlusion and shallow depth of field were read as "fusion deformities". |
+| Caption fills the prompt slot | No caption | On 60 images, dropping the caption removed the false Fails as well and was more sensitive to real defects. Composition and Lighting & Atmosphere were reworded without the prompt, so no accurate caption is needed. |
+| No server change, filter logic on client | All scoring on server | User decision on the caller contract |
+| 15 `discard` criteria still asked | Not asked | Shorter checklists |
+| No orientation check | Unscored `upright_orientation` flag in the Quality call | Images stored rotated 90 degrees are a known data error; no counted criterion catches them reliably (see Calibration) |
 
 ## Relation to the existing filter
 
-Existing filter: `imaginaire4_alt/pipelines/sila/image/filtering/image_filter_pipeline.py`, version `qwen3vl_fft_8b_v1` (fine-tuned Qwen3-VL 8B), constants in `filtering/constant.py`. Its default rule (`DEFAULT_QUALITY_FILTER`) keeps a row only if `aesthetic_score >= 4` and all five flags are false. Columns are prefixed `filtering_qwen3vl_fft_8b_v1_`.
+The existing filter is `qwen3vl_fft_8b_v1`, a fine-tuned Qwen3-VL 8B. Its default rule keeps a row only if `aesthetic_score >= 4` and all five flags are false.
 
 | Existing column | Used today | New filter |
 |---|---|---|
-| `aesthetic_score` (0-10) | keep if >= 4 | replaced by Quality and Aesthetics L3 grades |
-| `text_banner` | drop if true | kept; graded by Text Accuracy, Text Layout, Graphic Design (Creative Generation) |
-| `white_background` | drop if true | kept; graded by Product Design (Creative Generation) plus Quality and Aesthetics |
-| `collage` | drop if true | kept; no collage criterion in Q-Judger, only general ones such as Composition. Gap |
-| `watermark` | drop if true | no matching criterion in Q-Judger. Undecided |
-| `nsfw` | drop if true | Safety & Compliance exists but is in Real-world Fidelity (not called). Undecided |
-
-Consequence: Creative Generation cannot simply be excluded. The criteria that say whether a poster or product shot is well made are inside it.
-
-Whether the 100k test table carries these six columns has not been checked.
-
-## Existing pieces to reuse
-
-| Piece | Location |
-|---|---|
-| Judge protocol (checklists, template, parsing) | `imaginaire4_alt/projects/cosmos3/cosmos3/reward_service/image/qimagebench_protocol.py` |
-| Scorer (vLLM, batch) | `imaginaire4_alt/projects/cosmos3/cosmos3/reward_service/image/qimagebench.py` |
-| Benchmark scoring client (retry, timeout, concurrency) | `imaginaire4_alt/projects/cosmos3/cosmos3/evaluation/text_to_image/compute_qimagebench_metric.py` |
-| Lepton endpoint | `scorer-qimagebench` (model `Qwen/Qwen-Image-Bench`, Qwen3.6-27B, vLLM) |
-| Test table (100k rows) | `s3://nv-00-10206-vfm/lancedb/image/regular/Aesthetic-Train-V2_slice_from_maintable_20261009.lance` |
-
-Request shape: system content = comma-separated L1 names, user content = prompt text + one image.
-Response content is JSON with `status`, `score`, `level1`, `level2`, `level3`, `parse_failures`, `judge_outputs`.
-`level3` is `{L1: {L2: {L3: grade}}}` with grade in `{0.0, 60.0, 100.0, null}` (Fail, Pass, Excel, N/A).
-
-Judge settings (unchanged): thinking on, temperature 0, top_k 1, seed 42, repetition_penalty 1.05, max_tokens 4096.
-Image preprocessing (unchanged): images with area at most 1024x1024 are sent as is; larger ones are scaled down to that area, keeping the aspect ratio.
+| `aesthetic_score` (0-10) | keep if >= 4 | replaced by Quality and Aesthetics L3 scores |
+| `text_banner` | drop if true | kept; graded by Text Accuracy, Text Layout, Graphic Design |
+| `white_background` | drop if true | kept; graded by Product Design plus Quality and Aesthetics |
+| `collage` | drop if true | kept; no collage criterion. Reworded Feature Matching targets cut-out/pasted seams, not multi-photo layouts. Gap |
+| `watermark` | drop if true | Text Accuracy lists watermarks as an example but grades legibility, not presence. Gap, undecided |
+| `nsfw` | drop if true | Safety & Compliance is in Real-world Fidelity, not asked. Undecided |
 
 ## Criteria tree
 
-56 L3 criteria in total. `count` = used by the filter. `discard` = computed by the judge because its L1 is called; the result is thrown away, not stored. `not called` = its L1 is never requested.
+56 official L3 criteria; 17 are asked. `official` = wording unchanged; `reworded` = wording changed. Fail rates are on 1,000 real photos, official prompt -> final.
 
 ```
-Quality                       called, 6 criteria
+Quality                      call 1 (judge sees "Quality")
   Realism
-    Physical Logic            count
-    Material Texture          count
+    Physical Logic           official   Fail 48.1% -> 1.4%; remaining ~10/14 are renders, composites, digital paintings
+    Material Texture         official
   Detail
-    Noise                     count
-    Edge Clarity              count
-    Naturalness               count
+    Noise                    official   Fail 0.9% -> ~3.5% (night/film grain); rewording tried, no effect; accepted
+    Edge Clarity             official
+    Naturalness              reworded   "AI-generated plastic look" -> "heavy retouching, over-processing, over-smoothed"; Fail 14.1% -> 3.9%
   Resolution
-    Resolution                count
+    Resolution               official
+  Orientation
+    upright_orientation      new, unscored true/false flag; not one of the 17
 
-Aesthetics                    called, 6 criteria
+Aesthetics                   call 2 (judge sees "Aesthetics")
   Composition
-    Composition               count
+    Composition              reworded   was "composition rules required by the prompt"; now "balanced, visually guided, aesthetically pleasing"
   Color Harmony
-    Color Harmony             count
+    Color Harmony            official
   Lighting
-    Lighting & Atmosphere     count    (ACCURATE PROMPT REQUIRED: asks whether lighting matches the prompt's scene)
+    Lighting & Atmosphere    reworded   was "matches the scene setting of the prompt"; now "well handled and suited to the scene shown"
   Anatomical Portraiture
-    Anatomical Fidelity       count    (N/A without people; asks for pores and fine lines)
-  Emotional Expression
-    Emotional Expression      discard  (prompt-dependent)
-  Style Control
-    Style Control             discard  (prompt-dependent)
+    Anatomical Fidelity      reworded   only if people are visible, else N/A; Fail 12.8% -> 0.3% (animals were judged by human anatomy)
 
-Alignment                     not called, 16 criteria
-  Attributes
-    Quantity                  prompt-dependent
-    Facial Expression         prompt-dependent
-    Material Properties       prompt-dependent
-    Color                     prompt-dependent
-    Shape                     prompt-dependent
-    Size                      prompt-dependent
-  Actions
-    Contact Interaction       prompt-dependent
-    Non-contact Interaction   prompt-dependent
-    Full-body Action          prompt-dependent
-  Layout
-    2D Space                  prompt-dependent
-    3D Space                  prompt-dependent
-  Relations
-    Composition Relationship  prompt-independent wording
-    Difference/Similarity     prompt-dependent
-    Containment               prompt-independent wording
-  Scene
-    Real-world Scene          prompt-dependent
-    Virtual Scene             prompt-independent wording
-
-Real-world Fidelity           not called, 8 criteria
-  Fairness
-    Social Bias               judges generator bias; harmful as a filter
-    Cultural Fairness         judges generator bias; harmful as a filter
-  Safety & Compliance
-    Safety & Compliance       valid, not worth a separate call
-  World Knowledge
-    Animals                   expected constant on real photos
-    Objects                   expected constant on real photos
-    Information Visualization prompt-dependent
-    Temporal Characteristics  expected to test the caption
-    Cultural Elements         expected to test the caption
-
-Creative Generation           called, 20 criteria
-  Imagination
-    Imagination               discard  (content type, not quality)
+Creative Generation          call 3 (judge sees "Text and Design")
   Feature Matching
-    Feature Matching          count    (prompt-independent wording)
-  Logical Resolution
-    Logical Resolution        discard  (expected constant on real photos)
+    Feature Matching         reworded   seams where subjects/regions meet, cut-out edges, halos, pasted-in elements; Fail 1.8%; unstable
   Text Rendering
-    Text Accuracy             count    (grades images with dominant text)
-    Text Layout               count    (grades images with dominant text)
-    Font                      discard  (prompt-dependent)
-    Cross-lingual Generation  discard  (prompt-dependent)
+    Text Accuracy            reworded   real-world text examples incl. watermarks; N/A without text; misspelling clause kept; Fail 4.5% -> 0.4%
+    Text Layout              reworded   N/A without text
   Design Applications
-    Graphic Design            count    (grades images with dominant text)
-    Product Design            count    (grades white-background product shots)
-    Spatial Design            count    (prompt-independent wording)
-    Fashion Styling           discard  (prompt-dependent)
-    Game Design               count    (prompt-independent wording)
-    Art Design                discard  (prompt-dependent)
-  Visual Storytelling
-    Cinematic Style           discard  (prompt-dependent)
-    Camera / Lens Style       discard  (prompt-dependent)
-    Storyboard Creation       discard  (prompt-dependent)
-    Shot Sizes                discard  (prompt-dependent)
-    Composition               discard  (prompt-dependent)
-    Angles                    discard  (prompt-dependent)
-    Comic Creation            discard  (prompt-dependent)
+    Graphic Design           reworded   only if the image is/prominently shows a poster, ad, cover; else N/A
+    Product Design           reworded   only if a manufactured product is the main subject; else N/A
+    Spatial Design           reworded   only if an interior/architectural space is the main subject; else N/A
+    Game Design              reworded   only if game props or game UI are shown; else N/A
 ```
 
-Totals: 17 count, 15 discard, 24 not called. The 7 counted Creative Generation criteria are all worded without the prompt, so none of them carries the accurate-prompt requirement.
+The scoring rules' N/A line changed from "does not apply to this image/prompt" to "does not apply to this image".
 
-**Accurate prompt required.** Lighting & Atmosphere is counted, by user decision. It is the only counted criterion whose wording refers to the prompt, so its grade is valid only when the caption passed as the prompt describes the image accurately. Do not use this grade for rows with a missing, very short or unreliable caption.
+Not asked (39):
+- Alignment (16): 13 compare against the prompt; the other 3 are not worth an extra call.
+- Real-world Fidelity (8):
+  - Social Bias and Cultural Fairness judge a generator's bias and would remove legitimate photos.
+  - World Knowledge criteria are constant on real photos or prompt-dependent.
+  - Safety & Compliance is valid but not worth a separate call.
+- Aesthetics: Emotional Expression and Style Control (prompt-dependent).
+- Creative Generation (13):
+  - Imagination and Logical Resolution: not applicable to real photos.
+  - Font, Cross-lingual Generation, Fashion Styling, Art Design: prompt-dependent.
+  - The 7 Visual Storytelling criteria: prompt-dependent.
 
-Note: `Composition` appears twice as an L3 name, under Aesthetics > Composition and under Creative Generation > Visual Storytelling. Always key L3 grades by (L1, L2, L3).
+Why `Text and Design`: calibration always used it, and showing `Creative Generation` truncated more answers (4.8% vs 1.8%).
 
-Why each dimension outside Quality and Aesthetics has its status:
-- **Alignment**: 13 of 16 criteria ask whether the image matches the prompt. With a caption written from the image this is circular; it measures caption accuracy, not image quality. The other 3 (Composition Relationship, Containment, Virtual Scene) are worded without the prompt but do not justify asking all 16.
-- **Real-world Fidelity**: Social Bias and Cultural Fairness judge a generator's bias and would remove legitimate real photos. World Knowledge criteria are expected to be constant on real photos or to test the caption. Safety & Compliance is valid but not worth a full extra call.
-- **Creative Generation**: 7 of 20 criteria are prompt-independent (Feature Matching, Text Accuracy, Text Layout, Graphic/Product/Spatial/Game Design). Several of them grade exactly the images the existing filter drops as a class: Text Accuracy, Text Layout and Graphic Design for images with dominant text, Product Design for white-background product shots. Getting them requires asking all 20, the longest and slowest call. Decided by the user: call it for every image and count these 7; the other 13 are computed and discarded.
+`Composition` exists twice as an L3 name in the official tree. Only the Aesthetics one is asked, but always key L3 scores by (L1, L2, L3).
 
-## Aggregation
+## Output and parsing
 
-Do not reuse the official L3 -> L2 -> L1 mean. Dropping criteria makes L2 weights uneven.
+- **Return value.** `{L1: {L2: {L3: score}}}` with L1 keys `Quality`, `Aesthetics`, `Creative Generation`, 17 L3 entries in total. Each score is in `{0.0, 60.0, 100.0, None}`, meaning Fail, Pass, Excel, N/A.
+- **Orientation flag.** `Quality.Orientation.upright_orientation` is `true`, `false` or `None`. `None` when the judge answers anything other than true/false (it answered `"N/A"` on 2 of 150 test calls) or the Quality call does not parse. The parser reads `{"value": ...}` (also `{"score": ...}`, strings "true"/"false", and the flag placed directly under `Orientation`); a missing flag never discards the Quality scores.
+- **Parsing.**
+  - First `extract_json_from_response`, then a recursive walk that collects every object with a `score` key, at any depth, and places it by name.
+  - An L2 name with a single L3 maps to that L3 (e.g. `Lighting`).
+  - `Feature Mapping` is renamed to `Feature Matching`.
+  - This covers flat L3, flat L2, L1-wrapped and mixed layouts.
+  - Regression: on 11,406 past official-prompt outputs, the result is identical to the old parser.
+- **Retries.** Up to 2 attempts per dimension; only the failed call is rerun. A dimension still unparsed has all its criteria `None`: unknown, never pass or fail.
+- **No thresholds in the scoring step.** Changing a rule must not require rescoring.
 
-- Store every `count` L3 grade as its own field (0, 1, 2 or null), plus `status` and `parse_failures`. Do not store `discard` criteria.
-- Filter rules are written on L3 grades, for example "drop if Noise, Edge Clarity or Resolution is Fail". The exact rule is decided after the 100k run.
-- Also store one reference number: the plain mean of the `count` criteria that are not N/A, on the 0/60/100 scale.
-- Thresholds are never baked into the scoring step. Changing a rule must not require rescoring.
-- A dimension that failed to parse is unknown: store null, never treat it as pass or fail.
+## Calibration (1,000 real photos)
 
-## Known measurements (from QImageBench runs on generated images)
+The sample is a random 1,000 of the ~7,000 images already scored with the official prompt on `s3://nv-00-10206-vfm/lancedb/image/regular/Aesthetic-Train-V2_slice_from_maintable_20261009.lance`. Conclusions were checked by looking at images and judge reasoning.
 
-| Fact | Value |
-|---|---|
-| Throughput of one endpoint, client concurrency 16 | about 0.45 s per judge call |
-| Cost per image with three dimensions (extrapolated; the Creative Generation call is the longest, so this is a lower bound) | 3 calls, at least 1.4 s |
-| 100k images on one endpoint (extrapolated) | at least 38 hours |
-| L3 grades that differ when the same image is rescored | 4.4% |
-| L3 grades that flip between Fail and Excel, or between N/A and a grade | 1.5% |
-| Per-image total score std on rescoring (all five L1) | 3.6 |
-| Parse failures | 2 of 1500 images, both in Quality, both images with garbled text |
+| Criterion | Official prompt Fail | Final Fail | Notes |
+|---|---|---|---|
+| Physical Logic | 48.1% | 1.4% | remaining are mostly renders/composites |
+| Naturalness | 14.1% | 3.9% | slightly strict |
+| Anatomical Fidelity | 12.8% | 0.3% | animals no longer judged by human anatomy |
+| Text Accuracy | 4.5% | 0.4% | real signage no longer flagged |
+| Noise | 0.9% | ~3.5% | night/film grain; accepted |
+| Feature Matching | - | 1.8% | includes confirmed composites; unstable |
+| Four Design criteria | - | 1 image | almost always N/A |
+| Truncation (no JSON within 4096 tokens) | - | 1.3% | 14% on text-heavy generated images |
 
-Parse failures come from the judge reasoning past max_tokens before writing its JSON. Decoding is deterministic, so retrying the same image returns the same truncation.
+Controls:
+- **Degraded images.** Blur, JPEG and pixelation (10 each) are almost always Fail on Material Texture, Edge Clarity and Resolution.
+- **Added Gaussian noise.** Noise is Fail on 19/20 at sigma 40 and 14/20 at sigma 20.
+- **Garbled text on generated images** (QImageBench outputs of fibo2, flux3_klein, ideogram4).
+  - The final prompt catches 61% of the official Text Accuracy = 0 images.
+  - 5 of about 43 official 100s get Fail; about 3 of those have genuinely garbled background text.
+- **Misspelling clause cost.** About 0.3% of real photos get Fail for text that is misspelled in reality.
+
+Orientation (50 random calibration photos, each judged as original, rotated 90 degrees left and 90 degrees right):
+
+| | Original | Rotated left | Rotated right |
+|---|---|---|---|
+| `upright_orientation` = false | 0 / 50 | 34 / 50 | 32 / 50 |
+| At least one counted Fail, without the flag | 6 / 50 | 32 / 50 | 25 / 50 |
+
+- No original photo is flagged.
+- Without the flag, rotation shows up mainly as Composition Fail (2 -> 23 of 50); every image caught that way is also caught by the flag.
+- Misses fall in two groups. About half have no clear up direction (aerial, top-down food, textures), which is acceptable. The rest are clearly rotated but the judge either skipped reasoning and answered true, or explained the view away (a sideways face read as a person lying down, a bird on a "diagonal branch").
+- An earlier wording, `Rotation Failure` (true = rotated), caught 29 and 28; the positive `upright_orientation` wording was kept.
+- Adding the item did not move the other Quality scores beyond rerun noise: 84% identical on originals and 91% on rotated images, against 83-94% for an unchanged rerun.
+
+Stability:
+- Criteria with identical wording give identical scores on a rerun only 83-94% of the time, mostly 60 and 100 swapping.
+- The sets of images graded Excel (100) overlap only 40-65% between runs.
+- Feature Matching Fails changed mostly when only the dimension name changed.
+
+## Using it for 40M -> 1M
+
+- Gating on Fails alone removes about 9%: 90.7% of 975 real photos have no Fail on any criterion. This was computed on 16 criteria, before Feature Matching was restored.
+- Keeping the top 2.5% needs ranking by number of Excel grades. The cut is about 7 of 16 at Excel, with ties.
+- Excel instability makes that ranking noisy.
+- Recommended role: a gate that removes Fails.
+- Ranking needs a finer signal, e.g. an expected score from the judge's per-grade probabilities. Not built.
 
 ## Risks
 
-1. **Unverified on real images.** The judge was trained on AI-generated images. Whether the `count` criteria separate good from bad real photos is an assumption from their wording.
-2. **Single-image noise.** A filter decides per image, so the rescoring noise above applies directly. Rules should key on clear Fail grades, not on a score threshold.
-3. **Anatomical Fidelity bias.** Its wording rewards visible pores and fine lines, which may penalize retouched or studio portraits.
-4. **Throughput.** The judge is a 27B thinking model. Scaling comes only from more replicas.
-5. **Shared endpoint.** `scorer-qimagebench` also serves benchmark scoring and RL reward. Scoring jobs run one at a time, never concurrently.
-6. **No criterion for collages.** The judge was trained on single generated images. Collages can only be graded by general criteria; whether those grades are trustworthy is unknown.
-7. **No criterion for watermarks.** Once the existing filter is replaced, no Q-Judger criterion stops a watermarked image.
-8. **Lighting & Atmosphere depends on caption accuracy.** See "Accurate prompt required" above.
-
-## Validation plan
-
-1. Inspect the test table: columns, caption column, how image bytes are fetched. Not done yet.
-2. Score a small sample (about 500 to 2000 rows) with `Quality,Aesthetics,Creative Generation`. Check per-L3 Fail / Pass / Excel / N/A rates and the parse-failure rate.
-3. Review the counted criteria: decide whether Physical Logic and Anatomical Fidelity stay. Spot-check caption accuracy, because Lighting & Atmosphere depends on it.
-4. Compare with the existing filter. Check whether the table has its six columns. If it does, focus on the three categories it drops (`collage`, `text_banner`, `white_background`): can Q-Judger grades separate good images from bad ones inside each? Eyeball a batch of each.
-5. Check the seven counted Creative Generation criteria: do they separate posters and product shots, and are they mostly N/A on ordinary photos? Measure how much time this call actually adds.
-6. If the signal is useful, score the full 100k, then write the filter rule.
-7. Only then build the SILA pipeline, modeled on `pipelines/sila/image/filtering/image_filter_pipeline.py` and `pipelines/sila/image/evaluation/hpsv3_pipeline.py`, with its own vLLM endpoint and its own copy of the protocol.
+1. Single-image noise; Excel overlaps 40-65% between runs.
+2. Noise fails about 3.5% of real photos for visible grain (accepted).
+3. The misspelling clause fails about 0.3% of real photos with real-world misspellings (accepted).
+4. Feature Matching is unstable; do not use it alone as a hard rule.
+5. Truncation: 1.3% on real photos, 14% on text-heavy images; that dimension becomes null.
+6. Anatomical Fidelity rewards visible pores and fine lines; it may penalize retouched or studio portraits.
+7. There is no criterion for collages or watermarks.
+8. Calibrated only on the Aesthetic-Train-V2 slice.
+9. `upright_orientation` catches about two thirds of images rotated 90 degrees and misses some clearly rotated ones; it has no false alarms on upright photos in the test. It was tested on 50 images only.
 
 ## Rules for agents working on this
 
 - Do not edit `qimagebench_protocol.py` or `qimagebench.py`; benchmark scoring and RL reward depend on them.
-- Do not launch Slurm, Lepton or SILA jobs. Hand the command to the user.
-- Experimental code goes in `imaginaire4_alt`; code meant for main goes in `imaginaire4_next`.
-- State the prompt-set or table size from the manifest; report scoring failures separately.
+- Keep the judge messages identical to `/home/xingqianx/tmp/qjudge_final_prompts.json`. Any prompt change needs user approval and recalibration.
+- Do not drop or add counted criteria without asking. `upright_orientation` is a flag, not a counted criterion; keep it out of any score aggregate.
+- Keep this document to design only: no run logs, job ids, throughput or deployment details.
 
 ## Open questions
 
-- Which column holds the caption, and what share of rows have one.
-- Whether the captions in the table are accurate enough for Lighting & Atmosphere.
-- Whether any of the 15 `discard` criteria (2 in Aesthetics, 13 in Creative Generation) should instead be `count` with the accurate-prompt requirement.
-- Watermarks: keep using the existing filter's `watermark` column, or ignore them.
-- NSFW: keep using the existing filter's `nsfw` column, or add a Real-world Fidelity call to get Safety & Compliance.
-- Whether the grades general criteria give to collages are usable.
-- Target production table and its row count, which decides the number of replicas for SILA.
+- The filter rule: how to define the gate, and how to rank the top 2.5%.
+- Whether to build a probability-based expected score.
+- Watermarks: keep the existing filter's `watermark` column, or ignore them.
+- NSFW: keep the existing filter's `nsfw` column, or add a call for Safety & Compliance.
+- Collages.

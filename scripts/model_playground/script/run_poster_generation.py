@@ -102,6 +102,7 @@ def main(agent_cls: type[poster_generation] = poster_generation) -> None:
         except Exception as e:
             logger.warning(f"rank {RANK}/{WORLD_SIZE} sample {sample} run {run_id} failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
             time.sleep(1)
+        agent.close()
         del agent
         sample += 1
         if sample % PROGRESS_EVERY == 0:

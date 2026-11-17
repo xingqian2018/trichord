@@ -97,253 +97,229 @@ footer { font-size: 13px; color: var(--muted); }
 <div class="wrap">
 
 <header>
-  <div class="eyebrow">设计文档 · 2026-11-13 · 状态：方案，尚未实现</div>
-  <h1>把 Q-Judger 用作图片过滤器</h1>
-  <p class="lede">把 QImageBench 的打分模型 Q-Judger 用来过滤真实训练图片：每张图拿到一组逐项档位，下游按规则决定留或丢。目标是代替现有的图片 filter：现有 filter 把拼接图、带大字的图、白底图整类丢掉；新方案不按类别丢，用分数把其中好的挑出来。judge 的输入一个字不改，不想要的题目只在统计时跳过。本文里的取舍都是按题目措辞推出来的，还没有在真实图片上实测。</p>
+  <div class="eyebrow">设计文档 · v0 · 初稿 2026-11-13 · 更新 2026-11-16 · 状态：prompt 已定稿</div>
+  <h1>把 Q-Judger 用作真实图片过滤器</h1>
+  <p class="lede">用 QImageBench 的打分模型 Q-Judger（<code>Qwen/Qwen-Image-Bench</code>，Qwen3.6-27B）给真实训练图片打分，代替现有的图片 filter <code>qwen3vl_fft_8b_v1</code>，目标是从 4000 万张里挑出约 100 万张顶级图。judge 只看图片，不看 caption，用的是"真实照片"版 prompt：每张图问 3 个维度，一共 17 项，Quality 里另外问一个不打分的是/否项 <code>upright_orientation</code>，标出存成横着或倒着的图。这套 prompt 是在 1000 张真实照片上逐项看图校准出来的。这是过滤器的 v0，也就是第一个版本，输出列是 <code>filter_real_image_qjudge_v0</code>。11-13 初稿里"judge 输入一字不改""用 caption 填 prompt""服务端不改"这三条都已推翻，原因见第 2 节。</p>
 </header>
 
 <div class="kpis">
-  <div class="kpi"><div class="label">每张图调用 judge</div><div class="value">3 次</div><div class="sub">Quality、Aesthetics、Creative Generation</div></div>
-  <div class="kpi"><div class="label">计入过滤的题目</div><div class="value">17 / 56</div><div class="sub">其中 1 项需要准确的 prompt</div></div>
-  <div class="kpi"><div class="label">单端点速度</div><div class="value">至少 1.4 秒/张</div><div class="sub">10 万张至少 38 小时（外推）</div></div>
-  <div class="kpi"><div class="label">服务端改动</div><div class="value">0</div><div class="sub">全部逻辑在客户端</div></div>
+  <div class="kpi"><div class="label">每张图调用 judge</div><div class="value">3 次</div><div class="sub">Quality、Aesthetics、Text and Design</div></div>
+  <div class="kpi"><div class="label">计入过滤的题目</div><div class="value">17 项</div><div class="sub">judge 只看到这 17 项，其余官方题目不问</div></div>
+  <div class="kpi"><div class="label">真实照片上没有任何一项判 0</div><div class="value">90.7%</div><div class="sub">只靠"去掉判 0"，只能筛掉约 9%</div></div>
+  <div class="kpi"><div class="label">改了措辞的题目</div><div class="value">11 项</div><div class="sub">其余 6 项用官方原文</div></div>
 </div>
 
 <section class="card">
   <h2>1. 已经定下来的事</h2>
   <ol>
-    <li><b>代替现有 filter，不按类别丢图。</b>拼接图、带大字的图、白底图不再整类丢弃，和其他图一样打分，分数高的留下。</li>
-    <li><b>不改 judge 的输入。</b>系统提示、用户模板、checklist 和采样参数都和 <code>qimagebench_protocol.py</code> 里的一样。不想要的题目在统计分数时跳过，不从 checklist 里删，也不改措辞。</li>
-    <li><b>prompt 位置填图片的 caption。</b>模板必须有 prompt；填占位符的话，judge 会拿空内容去判断"是否符合 prompt"。</li>
-    <li><b>每张图调用三个 L1：Quality、Aesthetics、Creative Generation。</b>3 次调用可以接受，原则是拿到足够的信息，只有完全不适用的才不要。Alignment 和 Real-world Fidelity 不调用。</li>
-    <li><b>服务端不改。</b>现有打分服务已经支持只请求部分维度，返回里也已经带每个 L3 的分数。</li>
-    <li><b>先验证，再建基础设施。</b>先用现有的 Lepton 服务在 10 万张的测试表上打分，确认信号有用之后才写 SILA pipeline。</li>
+    <li><b>目标是从 4000 万张里挑出约 100 万张顶级图。</b>代替现有 filter，拼接图、带大字的图、白底图不再整类丢弃，和其他图一样打分。为了挑顶级图，可以接受一定的误伤。</li>
+    <li><b>judge 只看图片，不传 caption。</b>system prompt 是真实照片版："You are an expert evaluator of the quality of real photographs. Given a real photograph taken by a camera, …"。图片前只有一行 <code># Real Photograph</code>。</li>
+    <li><b>3 个维度，一共 17 项，judge 看到的清单就是这 17 项。</b>官方其余题目都不问。第三个维度给 judge 看的名字是 "Text and Design"，返回字段里仍叫 "Creative Generation"。</li>
+    <li><b>Quality 清单最后加一个不打分的方向项 <code>upright_orientation</code>。</b>放在 <code>## Orientation</code> 下，true 表示图是正的，false 表示存成了横着或倒着。它只是一个标记，没有 Fail/Pass/Excel，不算在 17 项里，也不参与任何打分汇总。给 judge 看的原文：<code>upright_orientation: Is the photograph upright, i.e. not rotated sideways or upside down (e.g., the horizon is horizontal, people and buildings stand upright)? This item is not scored: instead of a score, answer {"value": true} if the image is upright, otherwise {"value": false}.</code></li>
+    <li><b>能用官方原文就用原文。</b>改措辞只为三件事：去掉对 prompt 的依赖、去掉"AI 生成图"的定性、加上"不适用就 N/A"。Noise 保持官方原文；Text Accuracy 保留"拼写错误"条款；Feature Matching 保留。</li>
+    <li><b>采样参数和图片预处理和官方一致。</b>temperature 0、top_p 1、top_k 1、repetition_penalty 1.05、max_tokens 4096、seed 42，开启 thinking。图片面积超过 1024×1024 时按原比例缩到这个面积（LANCZOS），否则原样送入。</li>
+    <li><b>打分的所有细节都在服务端。</b>调用方每张图只发一个请求（prompt 加图片），拿回一个分数字典。服务端负责调 3 次 judge、解析、失败重试。调用方不能改 system prompt，也不能选维度。</li>
+    <li><b>所有实现共用一套 judge 输入。</b>通用部分（官方模板、图片预处理、JSON 提取、分数映射、采样参数）继承或引用 <code>qimagebench_protocol</code>，不拷贝代码。</li>
   </ol>
 </section>
 
 <section class="card">
-  <h2>2. 和现有 filter 的关系</h2>
-  <p>现有的生产 filter 是 SILA 里的 <code>image_filter_pipeline.py</code>（版本 <code>qwen3vl_fft_8b_v1</code>，微调过的 Qwen3-VL 8B）。它给每张图打一个 0–10 的美学分和五个是/否标记，默认只留"美学分 ≥ 4 且五个标记都为否"的图。也就是说，拼接图、带大字的图、白底图不管好坏都被丢掉。</p>
-  <p>新方案要代替它，思路不同：这几类图不再整类丢弃，而是和其他图一样打分，分数高的留下。</p>
+  <h2>2. 和 11-13 初稿相比改了什么</h2>
   <div class="tablewrap"><table>
-    <thead><tr><th>现有 filter 的列</th><th>现在怎么用</th><th>新方案怎么处理</th></tr></thead>
+    <thead><tr><th>初稿</th><th>现在</th><th>原因</th></tr></thead>
     <tbody>
-      <tr><td><code>aesthetic_score</code></td><td>≥ 4 才留</td><td>由 Quality 和 Aesthetics 的逐项档位代替</td></tr>
-      <tr><td><code>text_banner</code></td><td>为是就丢</td><td>不丢。用 Text Accuracy、Text Layout、Graphic Design 评它做得好不好，这三项在 Creative Generation 里</td></tr>
-      <tr><td><code>white_background</code></td><td>为是就丢</td><td>不丢。用 Product Design（在 Creative Generation 里）加 Quality、Aesthetics 来评</td></tr>
-      <tr><td><code>collage</code></td><td>为是就丢</td><td>不丢。Q-Judger 没有专门评拼接图的题，只能靠 Composition 这类通用题。这是缺口</td></tr>
-      <tr><td><code>watermark</code></td><td>为是就丢</td><td>Q-Judger 没有对应的题。怎么办还没定</td></tr>
-      <tr><td><code>nsfw</code></td><td>为是就丢</td><td>Q-Judger 有 Safety &amp; Compliance，但在不调用的 Real-world Fidelity 里。怎么办还没定</td></tr>
+      <tr><td>judge 输入一字不改</td><td>真实照片版 system prompt；清单只留计入的 17 项，其中 11 项改了措辞</td><td>官方 prompt 把图定性为"生成图"，judge 会在真实照片上编造 AI 缺陷。在 10 万张测试表上已打完的约 7000 张里，Physical Logic 有 46% 判 0。随机抽 16 张判 0 的图看，都是正常照片：草挡住腿、浅景深虚化、手指贴着下巴，被读成了"融合畸形"</td></tr>
+      <tr><td>用图片的 caption 填 prompt</td><td>不传 caption</td><td>小样本上，去掉 caption 后误判同样消掉，而且对真缺陷更敏感。原来依赖 prompt 的 Composition 和 Lighting &amp; Atmosphere 改成了不依赖 prompt 的措辞，所以不再需要准确的 caption</td></tr>
+      <tr><td>服务端不改，过滤逻辑放在客户端</td><td>打分细节全在服务端</td><td>调用方只发 prompt 和图片、收分数；不把 system prompt 和维度暴露给调用方</td></tr>
+      <tr><td>扔掉的 15 项照样会被问，结果不存</td><td>不再问</td><td>judge 只看到计入的 17 项，清单更短</td></tr>
+      <tr><td>不检查图片方向</td><td>Quality 调用里加不打分的 <code>upright_orientation</code></td><td>存成转了 90° 的图是已知的数据错误，现有的 17 项抓不稳（见第 6 节）</td></tr>
     </tbody>
   </table></div>
-  <p>所以 Creative Generation 不能直接排除：海报和商品图做得好不好，正是靠它里面那几项来评。</p>
 </section>
 
 <section class="card">
-  <h2>3. 题目树</h2>
-  <p>Q-Judger 一共 56 个 L3 题目，分属 5 个 L1。每次调用 judge 问的是一个 L1 的整份 checklist，所以能选的是"调用哪几个 L1"，以及"被调用的 L1 里哪些 L3 计入"。</p>
+  <h2>3. 和现有 filter 的关系</h2>
+  <p>现有的 filter 是 <code>qwen3vl_fft_8b_v1</code>（微调过的 Qwen3-VL 8B）。它给每张图打一个 0–10 的美学分和五个是/否标记，默认只留"美学分 ≥ 4 且五个标记都为否"的图。</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>现有 filter 的列</th><th>现在怎么用</th><th>新方案怎么处理</th></tr></thead>
+    <tbody>
+      <tr><td><code>aesthetic_score</code></td><td>≥ 4 才留</td><td>由 Quality 和 Aesthetics 的逐项分数代替</td></tr>
+      <tr><td><code>text_banner</code></td><td>为是就丢</td><td>不丢。用 Text Accuracy、Text Layout、Graphic Design 评它做得好不好</td></tr>
+      <tr><td><code>white_background</code></td><td>为是就丢</td><td>不丢。用 Product Design 加 Quality、Aesthetics 来评</td></tr>
+      <tr><td><code>collage</code></td><td>为是就丢</td><td>不丢。没有专门评拼接图的题。改写后的 Feature Matching 抓的是抠图和贴图的接缝，不是多图拼版。这是缺口</td></tr>
+      <tr><td><code>watermark</code></td><td>为是就丢</td><td>Text Accuracy 的例子里写了水印，但它评的是字清不清楚，不是有没有水印。这是缺口，怎么办还没定</td></tr>
+      <tr><td><code>nsfw</code></td><td>为是就丢</td><td>Safety &amp; Compliance 在不问的 Real-world Fidelity 里。怎么办还没定</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card">
+  <h2>4. 题目树</h2>
+  <p>Q-Judger 一共 56 个 L3 题目，分属 5 个 L1。这里只问其中 17 项，分在 3 次调用里。每项标的是给 judge 看的措辞和官方相比有没有改；判 0 比例来自 1000 张真实照片（官方 prompt → 定稿）。</p>
   <div class="legend">
-    <span><span class="chip count">计入</span> 用于过滤</span>
-    <span><span class="chip record">计算后扔掉</span> 所在的 L1 被调用，所以会一起算出来，结果不保存</span>
-    <span><span class="chip skip">不调用</span> 整个 L1 不请求</span>
-    <span><span class="chip req">需要准确的 prompt</span> 计入，但分数依赖 caption 写得对</span>
+    <span><span class="chip count">官方原文</span> 措辞没改</span>
+    <span><span class="chip pending">改写</span> 措辞改过，后面写了改了什么</span>
+    <span><span class="chip skip">不问</span> 不在 judge 的清单里</span>
   </div>
 
   <div class="tree">
     <div class="l1">
-      <div class="l1-head"><span class="name">Quality</span><span class="meta">调用 · 6 项全部计入</span></div>
+      <div class="l1-head"><span class="name">Quality</span><span class="meta">第 1 次调用 · 6 项 + 1 个方向标记</span></div>
       <div class="l2"><div class="l2-name">Realism</div><div class="l3s">
-        <div class="l3"><span>Physical Logic</span><span class="chip count">计入</span><span class="why">真实照片上可能大多是 Pass，但能抓合成图和 AI 图</span></div>
-        <div class="l3"><span>Material Texture</span><span class="chip count">计入</span><span class="why">材质质感是否真实</span></div>
+        <div class="l3"><span>Physical Logic</span><span class="chip count">官方原文</span><span class="why">判 0：48.1% → 1.4%。靠换 system prompt 降下来的，措辞没动。剩下 14 张里约 10 张确实不是真实照片：3D 渲染、合成、数字绘画</span></div>
+        <div class="l3"><span>Material Texture</span><span class="chip count">官方原文</span><span class="why">材质质感是否真实</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Detail</div><div class="l3s">
-        <div class="l3"><span>Noise</span><span class="chip count">计入</span><span class="why">噪点、过度平滑</span></div>
-        <div class="l3"><span>Edge Clarity</span><span class="chip count">计入</span><span class="why">边缘模糊、锯齿</span></div>
-        <div class="l3"><span>Naturalness</span><span class="chip count">计入</span><span class="why">AI 塑料感、过度磨皮</span></div>
+        <div class="l3"><span>Noise</span><span class="chip count">官方原文</span><span class="why">判 0：0.9% → 约 3.5%。真实照片设定下 judge 对颗粒更严，多是夜景、星空、胶片风格。试过"颗粒不遮细节就不算失败"的改写，没有效果，按原文接受</span></div>
+        <div class="l3"><span>Edge Clarity</span><span class="chip count">官方原文</span><span class="why">边缘模糊、锯齿</span></div>
+        <div class="l3"><span>Naturalness</span><span class="chip pending">改写</span><span class="why">去掉"AI 生成图常见的塑料感"，改成"没有重度修图、过度处理、过度磨皮"。判 0：14.1% → 3.9%，剩下的多是渲染、重度调色、合成图，少数只是略过饱和，偏严</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Resolution</div><div class="l3s">
-        <div class="l3"><span>Resolution</span><span class="chip count">计入</span><span class="why">像素化、压缩痕迹</span></div>
+        <div class="l3"><span>Resolution</span><span class="chip count">官方原文</span><span class="why">像素化、压缩痕迹</span></div>
+      </div></div>
+      <div class="l2"><div class="l2-name">Orientation</div><div class="l3s">
+        <div class="l3"><span>upright_orientation</span><span class="chip pending">新增 · 不打分</span><span class="why">只回答 true/false，图存成横着或倒着时为 false。不算在 17 项里。50 张图测试：原图 0 误判，转 90° 的抓到 32–34 张</span></div>
       </div></div>
     </div>
 
     <div class="l1">
-      <div class="l1-head"><span class="name">Aesthetics</span><span class="meta">调用 · 4 项计入，2 项计算后扔掉</span></div>
+      <div class="l1-head"><span class="name">Aesthetics</span><span class="meta">第 2 次调用 · 4 项</span></div>
       <div class="l2"><div class="l2-name">Composition</div><div class="l3s">
-        <div class="l3"><span>Composition</span><span class="chip count">计入</span><span class="why">构图</span></div>
+        <div class="l3"><span>Composition</span><span class="chip pending">改写</span><span class="why">官方问的是"是否符合 prompt 要求的构图法则"，改成"构图是否平衡、有视觉引导、好看"</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Color Harmony</div><div class="l3s">
-        <div class="l3"><span>Color Harmony</span><span class="chip count">计入</span><span class="why">配色</span></div>
+        <div class="l3"><span>Color Harmony</span><span class="chip count">官方原文</span><span class="why">配色</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Lighting</div><div class="l3s">
-        <div class="l3 flag"><span>Lighting &amp; Atmosphere</span><span class="chip count">计入</span><span class="why"><span class="chip req">需要准确的 prompt</span> 题目问的是光影是否符合 prompt 的场景，所以填进去的 caption 必须准确描述这张图。caption 写错，这一项的分数就不可信</span></div>
+        <div class="l3"><span>Lighting &amp; Atmosphere</span><span class="chip pending">改写</span><span class="why">官方问的是"是否符合 prompt 的场景"，改成"光影是否处理得好、适合画面里的场景"。不再需要准确的 caption</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Anatomical Portraiture</div><div class="l3s">
-        <div class="l3"><span>Anatomical Fidelity</span><span class="chip count">计入</span><span class="why">没有人像时是 N/A。题目要求有毛孔和细纹，可能压低美颜和棚拍人像</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Emotional Expression</div><div class="l3s">
-        <div class="l3"><span>Emotional Expression</span><span class="chip record">计算后扔掉</span><span class="why">问的是 prompt 描述的情绪</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Style Control</div><div class="l3s">
-        <div class="l3"><span>Style Control</span><span class="chip record">计算后扔掉</span><span class="why">问的是 prompt 要求的风格</span></div>
+        <div class="l3"><span>Anatomical Fidelity</span><span class="chip pending">改写</span><span class="why">只在画面里有人时评，否则 N/A。判 0：12.8% → 0.3%，原来的 0 分大多是动物照片被按人体解剖判错。题目仍要求有毛孔和细纹</span></div>
       </div></div>
     </div>
 
-    <div class="l1 off">
-      <div class="l1-head"><span class="name">Alignment</span><span class="chip skip">不调用</span><span class="meta">16 项</span></div>
-      <div class="l1-body">16 项里有 13 项在问图是否符合 prompt。caption 是照着图写的，所以这是循环论证，测的是 caption 写得对不对，不是图片质量。另外 3 项（Composition Relationship、Containment、Virtual Scene）措辞里没有 prompt，但不值得为它们把 16 项全问一遍。</div>
-      <div class="l2"><div class="l2-name">Attributes</div><div class="l3s">
-        <div class="l3"><span>Quantity</span><span class="chip skip">不调用</span><span class="why">数量是否符合 prompt</span></div>
-        <div class="l3"><span>Facial Expression</span><span class="chip skip">不调用</span><span class="why">表情是否符合 prompt</span></div>
-        <div class="l3"><span>Material Properties</span><span class="chip skip">不调用</span><span class="why">材质是否符合 prompt</span></div>
-        <div class="l3"><span>Color</span><span class="chip skip">不调用</span><span class="why">颜色是否符合 prompt</span></div>
-        <div class="l3"><span>Shape</span><span class="chip skip">不调用</span><span class="why">形状是否符合 prompt</span></div>
-        <div class="l3"><span>Size</span><span class="chip skip">不调用</span><span class="why">大小是否符合 prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Actions</div><div class="l3s">
-        <div class="l3"><span>Contact Interaction</span><span class="chip skip">不调用</span><span class="why">prompt 里的接触互动画得是否自然</span></div>
-        <div class="l3"><span>Non-contact Interaction</span><span class="chip skip">不调用</span><span class="why">prompt 里的非接触关系画得是否合理</span></div>
-        <div class="l3"><span>Full-body Action</span><span class="chip skip">不调用</span><span class="why">动作是否符合 prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Layout</div><div class="l3s">
-        <div class="l3"><span>2D Space</span><span class="chip skip">不调用</span><span class="why">平面位置是否符合 prompt</span></div>
-        <div class="l3"><span>3D Space</span><span class="chip skip">不调用</span><span class="why">空间布局是否符合 prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Relations</div><div class="l3s">
-        <div class="l3"><span>Composition Relationship</span><span class="chip skip">不调用</span><span class="why">多个元素是否融成一个整体。措辞不依赖 prompt</span></div>
-        <div class="l3"><span>Difference/Similarity</span><span class="chip skip">不调用</span><span class="why">指定的异同是否画对</span></div>
-        <div class="l3"><span>Containment</span><span class="chip skip">不调用</span><span class="why">包含关系是否画对。措辞不依赖 prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Scene</div><div class="l3s">
-        <div class="l3"><span>Real-world Scene</span><span class="chip skip">不调用</span><span class="why">场景是否符合 prompt</span></div>
-        <div class="l3"><span>Virtual Scene</span><span class="chip skip">不调用</span><span class="why">虚构场景内部是否自洽。措辞不依赖 prompt</span></div>
-      </div></div>
-    </div>
-    <div class="l1 off">
-      <div class="l1-head"><span class="name">Real-world Fidelity</span><span class="chip skip">不调用</span><span class="meta">8 项</span></div>
-      <div class="l1-body">Social Bias 和 Cultural Fairness 评的是生成模型的偏见，用来过滤会删掉正常的真实照片。World Knowledge 几项在真实照片上预计恒定，或者实际是在查 caption。Safety &amp; Compliance 有效，但不值得为它单独多调用一次。</div>
-      <div class="l2"><div class="l2-name">Fairness</div><div class="l3s">
-        <div class="l3"><span>Social Bias</span><span class="chip skip">不调用</span><span class="why">评的是生成模型的偏见，用来过滤有害</span></div>
-        <div class="l3"><span>Cultural Fairness</span><span class="chip skip">不调用</span><span class="why">评的是生成模型的偏见，用来过滤有害</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Safety &amp; Compliance</div><div class="l3s">
-        <div class="l3"><span>Safety &amp; Compliance</span><span class="chip skip">不调用</span><span class="why">有效，但不值得单独多调用一次</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">World Knowledge</div><div class="l3s">
-        <div class="l3"><span>Animals</span><span class="chip skip">不调用</span><span class="why">真实照片上预计恒定</span></div>
-        <div class="l3"><span>Objects</span><span class="chip skip">不调用</span><span class="why">真实照片上预计恒定</span></div>
-        <div class="l3"><span>Information Visualization</span><span class="chip skip">不调用</span><span class="why">prompt 里的概念是否画清楚</span></div>
-        <div class="l3"><span>Temporal Characteristics</span><span class="chip skip">不调用</span><span class="why">预计实际是在查 caption</span></div>
-        <div class="l3"><span>Cultural Elements</span><span class="chip skip">不调用</span><span class="why">预计实际是在查 caption</span></div>
-      </div></div>
-    </div>
     <div class="l1">
-      <div class="l1-head"><span class="name">Creative Generation</span><span class="meta">调用 · 7 项计入，13 项计算后扔掉</span></div>
-      <div class="l1-body">每张图都调用。计入的 7 项措辞都不依赖 prompt，所以没有一项需要标"需要准确的 prompt"。其中几项正好对应现有 filter 整类丢掉的图：带大字的海报和广告（Text Accuracy、Text Layout、Graphic Design）、白底商品图（Product Design）。要用分数从这些图里挑出好的，就需要这次调用。代价是 20 项要全问一遍，是最长、最慢的一次调用。其余 13 项调用后也会一起算出来，结果直接扔掉。</div>
-      <div class="l2"><div class="l2-name">Imagination</div><div class="l3s">
-        <div class="l3"><span>Imagination</span><span class="chip record">计算后扔掉</span><span class="why">是内容类型，不是质量</span></div>
-      </div></div>
+      <div class="l1-head"><span class="name">Creative Generation</span><span class="meta">第 3 次调用 · 7 项 · judge 看到的维度名是 "Text and Design"</span></div>
+      <div class="l1-body">给 judge 看的名字改成 "Text and Design"，是因为留下的 7 项除了 Feature Matching 都是文字和设计。校准时一直用这个名字；用 "Creative Generation" 时截断更多（4.8% 对 1.8%）。返回字段仍叫 "Creative Generation"，调用方不受影响。Design 四项在 1000 张真实照片上几乎全是 N/A，只有 1 张判 0。</div>
       <div class="l2"><div class="l2-name">Feature Matching</div><div class="l3s">
-        <div class="l3"><span>Feature Matching</span><span class="chip count">计入</span><span class="why">多元素融合处有没有接缝。措辞不依赖 prompt</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Logical Resolution</div><div class="l3s">
-        <div class="l3"><span>Logical Resolution</span><span class="chip record">计算后扔掉</span><span class="why">真实照片上预计恒定</span></div>
+        <div class="l3"><span>Feature Matching</span><span class="chip pending">改写</span><span class="why">官方问"多元素融合处是否无缝"，改成"主体和背景、相互接触的物体交界处是否自然，有没有抠图边、光晕、贴上去的元素"。判 0 为 1.8%，包括看图确认过的合成图和数字绘画。不太稳定：只改维度名，判 0 的图就大半对不上</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Text Rendering</div><div class="l3s">
-        <div class="l3"><span>Text Accuracy</span><span class="chip count">计入</span><span class="why">图里的字是否清楚、有无乱码。用来评带大字的图</span></div>
-        <div class="l3"><span>Text Layout</span><span class="chip count">计入</span><span class="why">文字排版。用来评带大字的图</span></div>
-        <div class="l3"><span>Font</span><span class="chip record">计算后扔掉</span><span class="why">字体是否符合 prompt</span></div>
-        <div class="l3"><span>Cross-lingual Generation</span><span class="chip record">计算后扔掉</span><span class="why">是否按 prompt 的翻译要求出字</span></div>
+        <div class="l3"><span>Text Accuracy</span><span class="chip pending">改写</span><span class="why">举的例子换成真实场景里的字（招牌、标签、包装、说明文字、水印），没字就 N/A，保留"拼写错误"条款。真实照片判 0：4.5% → 0.4%。生成图乱码对照：官方判 0 的图里抓到 61%</span></div>
+        <div class="l3"><span>Text Layout</span><span class="chip pending">改写</span><span class="why">加了"有字才评，没字就 N/A"</span></div>
       </div></div>
       <div class="l2"><div class="l2-name">Design Applications</div><div class="l3s">
-        <div class="l3"><span>Graphic Design</span><span class="chip count">计入</span><span class="why">海报、广告的版式。用来评带大字的图</span></div>
-        <div class="l3"><span>Product Design</span><span class="chip count">计入</span><span class="why">产品设计是否合理。用来评白底商品图</span></div>
-        <div class="l3"><span>Spatial Design</span><span class="chip count">计入</span><span class="why">室内、建筑的透视和比例。措辞不依赖 prompt</span></div>
-        <div class="l3"><span>Fashion Styling</span><span class="chip record">计算后扔掉</span><span class="why">服装是否符合 prompt 的风格</span></div>
-        <div class="l3"><span>Game Design</span><span class="chip count">计入</span><span class="why">游戏道具和 UI 是否可用。措辞不依赖 prompt</span></div>
-        <div class="l3"><span>Art Design</span><span class="chip record">计算后扔掉</span><span class="why">是否符合 prompt 要求的艺术风格</span></div>
-      </div></div>
-      <div class="l2"><div class="l2-name">Visual Storytelling</div><div class="l3s">
-        <div class="l3"><span>Cinematic Style</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的导演风格</span></div>
-        <div class="l3"><span>Camera / Lens Style</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的器材或镜头效果</span></div>
-        <div class="l3"><span>Storyboard Creation</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的分镜布局</span></div>
-        <div class="l3"><span>Shot Sizes</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的景别</span></div>
-        <div class="l3"><span>Composition</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的构图法则</span></div>
-        <div class="l3"><span>Angles</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的机位角度</span></div>
-        <div class="l3"><span>Comic Creation</span><span class="chip record">计算后扔掉</span><span class="why">prompt 指定的漫画风格</span></div>
+        <div class="l3"><span>Graphic Design</span><span class="chip pending">改写</span><span class="why">图本身是或明显包含海报、广告、封面才评，否则 N/A</span></div>
+        <div class="l3"><span>Product Design</span><span class="chip pending">改写</span><span class="why">工业产品是主体才评，否则 N/A。用来评白底商品图</span></div>
+        <div class="l3"><span>Spatial Design</span><span class="chip pending">改写</span><span class="why">室内或建筑是主体才评，否则 N/A</span></div>
+        <div class="l3"><span>Game Design</span><span class="chip pending">改写</span><span class="why">有游戏道具或游戏 UI 才评，否则 N/A</span></div>
       </div></div>
     </div>
+
+    <div class="l1 off">
+      <div class="l1-head"><span class="name">不问的 39 项</span><span class="chip skip">不问</span></div>
+      <div class="l1-body">
+        <ul>
+          <li><b>Alignment（16 项）</b>：13 项问图是否符合 prompt，没有 caption 就没法判；剩下 3 项不值得为它们多调用一次。</li>
+          <li><b>Real-world Fidelity（8 项）</b>：Social Bias 和 Cultural Fairness 评的是生成模型的偏见，用来过滤会删掉正常照片；World Knowledge 几项在真实照片上预计恒定，或者依赖 prompt；Safety &amp; Compliance 有效，但不值得单独多调用一次。</li>
+          <li><b>Aesthetics 里的 2 项</b>：Emotional Expression、Style Control，问的是 prompt 描述的情绪和风格。</li>
+          <li><b>Creative Generation 里的 13 项</b>：Imagination、Logical Resolution（评创意组合和因果关系，对真实照片不适用）；Font、Cross-lingual Generation、Fashion Styling、Art Design 和 Visual Storytelling 的 7 项（都要对照 prompt 才能判）。</li>
+        </ul>
+      </div>
+    </div>
   </div>
-  <p>合计：计入 17 项，计算后扔掉 15 项，不调用 24 项。计入的 17 项里，只有 Lighting &amp; Atmosphere 需要准确的 prompt。</p>
+  <p>另外，评分规则里 N/A 的说明从"不适用于这张图或 prompt"改成了"不适用于这张图"。</p>
 </section>
 
 <section class="card">
-  <h2>4. 分数怎么统计</h2>
-  <p>不沿用官方的"L3 → L2 → L1 逐层平均"，因为跳过一部分 L3 之后，各 L2 的权重会变得不均匀。</p>
+  <h2>5. 输出和解析</h2>
   <ul>
-    <li><b>逐项存档位。</b>计入的每个 L3 单独存一列：Fail、Pass、Excel 或 N/A，另外存解析状态。标为"计算后扔掉"的项不存。</li>
-    <li><b>规则写在 L3 上。</b>比如"Noise、Edge Clarity、Resolution 任一项是 Fail 就丢"。具体规则等 10 万张跑完再定。</li>
-    <li><b>附一个参考分。</b>计入项里非 N/A 的简单平均，沿用 0 / 60 / 100 的刻度。</li>
-    <li><b>阈值不写进打分步骤。</b>以后改规则不需要重新打分。</li>
-    <li><b>解析失败算未知。</b>存空值，不当成通过，也不当成不通过。</li>
+    <li><b>返回结构。</b>每张图一个 <code>{L1: {L2: {L3: 分数}}}</code> 字典，三个 L1 键是 Quality、Aesthetics、Creative Generation，一共 17 个 L3。分数 0 / 60 / 100 对应 Fail / Pass / Excel，N/A 记为空值。</li>
+    <li><b>方向标记。</b><code>Quality.Orientation.upright_orientation</code> 取值 true、false 或空值。judge 没回答 true/false（测试里 150 次有 2 次答了 "N/A"），或者 Quality 整个没解析出来，就记为空值。解析时读 <code>{"value": …}</code>，也接受 <code>{"score": …}</code>、字符串 "true"/"false"，以及直接写在 <code>Orientation</code> 下面的写法。缺了这一项不影响 Quality 其他分数。</li>
+    <li><b>解析不依赖输出格式。</b>judge 的 JSON 不总是标准嵌套，也会出现平铺的 L3、平铺的 L2、外面多包一层 L1，或者混着用。服务端递归找出所有带 <code>score</code> 的对象，按名字归位：只含一个 L3 的 L2 名（比如 <code>Lighting</code>）映射到那个 L3，<code>Feature Mapping</code> 改名为 <code>Feature Matching</code>。用官方 prompt 的 11,406 份历史输出做回归，结果和原来的解析完全一致。</li>
+    <li><b>失败重试。</b>某个维度解析不出来，只把那一次调用重跑，最多 2 次。还不行，这个维度的所有项记为空值，表示未知，不当通过也不当失败。</li>
+    <li><b>不在打分步骤里设阈值。</b>以后改规则不需要重新打分。</li>
   </ul>
 </section>
 
 <section class="card">
-  <h2>5. 已知的数字</h2>
-  <p>下面都来自 QImageBench 在生成图上的打分，不是真实图片上的结果。</p>
+  <h2>6. 校准结果</h2>
+  <p>校准用的 1000 张真实照片，是从 10 万张测试表（<code>Aesthetic-Train-V2_slice_from_maintable_20261009.lance</code>）里已用官方 prompt 打过分的约 7000 张中随机抽的。下表是同一批图在官方 prompt 和定稿下的判 0 比例；结论是看图和 judge 的思考过程后得出的。</p>
   <div class="tablewrap"><table>
-    <thead><tr><th>项目</th><th>数值</th></tr></thead>
+    <thead><tr><th>项目</th><th>官方 prompt</th><th>定稿</th><th>看图后的结论</th></tr></thead>
     <tbody>
-      <tr><td>单个端点、客户端并发 16 时的速度</td><td class="num">约 0.45 秒/次调用</td></tr>
-      <tr><td>每张图的开销（三个维度，外推）</td><td class="num">3 次调用，至少 1.4 秒</td></tr>
-      <tr><td>单端点跑 10 万张（外推）</td><td class="num">至少 38 小时</td></tr>
-      <tr><td>同一张图重打，结果不同的 L3 比例</td><td class="num">4.4%</td></tr>
-      <tr><td>其中在 Fail 和 Excel 之间翻转，或在 N/A 和有分之间变化的</td><td class="num">1.5%</td></tr>
-      <tr><td>同一张图重打，单图总分的标准差（5 个 L1 全打）</td><td class="num">3.6</td></tr>
-      <tr><td>解析失败</td><td class="num">1500 张里 2 张</td></tr>
+      <tr><td>Physical Logic</td><td class="num">48.1%</td><td class="num">1.4%</td><td>原来多是正常照片被误判；现在剩下的多是渲染、合成、数字绘画</td></tr>
+      <tr><td>Naturalness</td><td class="num">14.1%</td><td class="num">3.9%</td><td>符合定义，略偏严</td></tr>
+      <tr><td>Anatomical Fidelity</td><td class="num">12.8%</td><td class="num">0.3%</td><td>原来多是动物照片被按人体解剖判错</td></tr>
+      <tr><td>Text Accuracy</td><td class="num">4.5%</td><td class="num">0.4%</td><td>原来多是招牌、耳标、logo 上的正常小字</td></tr>
+      <tr><td>Noise</td><td class="num">0.9%</td><td class="num">约 3.5%</td><td>多是夜景、胶片颗粒。改写措辞无效，接受</td></tr>
+      <tr><td>Feature Matching</td><td class="num">—</td><td class="num">1.8%</td><td>包括确认过的合成图；稳定性差</td></tr>
+      <tr><td>Design 四项</td><td class="num">—</td><td class="num">1 张</td><td>几乎全是 N/A</td></tr>
+      <tr><td>截断（推理写满 4096 token，没写出 JSON）</td><td class="num">—</td><td class="num">1.3%</td><td>字多的生成图上是 14%</td></tr>
     </tbody>
   </table></div>
-  <p>两张解析失败的图都出在 Quality，都是带乱码文字的图：judge 的推理超过了最大输出长度，没来得及写出 JSON。judge 是确定性解码，同一张图重试会得到同样的截断。</p>
-</section>
-
-<section class="card">
-  <h2>6. 风险</h2>
+  <p><b>对照组：</b></p>
   <ul>
-    <li><b>真实图片上没验证过。</b>Q-Judger 是在 AI 生成图上训练的。计入的那几项能不能把真实照片的好坏分开，目前只是按题目措辞做的假设。</li>
-    <li><b>单图噪声。</b>过滤是逐张做决定，上面的重打噪声会直接起作用。规则应该卡在明确的 Fail 上，不要卡一个分数阈值。</li>
-    <li><b>Anatomical Fidelity 的偏向。</b>题目偏好看得见毛孔和细纹的皮肤，可能误伤修过的人像和棚拍。</li>
-    <li><b>速度。</b>judge 是 27B 的模型，开着思考。要更快只能加副本。</li>
-    <li><b>Lighting &amp; Atmosphere 依赖 caption 的准确度。</b>它是计入项里唯一一项措辞里带 prompt 的。caption 缺失、太短或写错时，这一项不能用。</li>
-    <li><b>拼接图没有对应的题。</b>Q-Judger 是在单张生成图上训练的，拼接图只能靠通用题来评，分数可不可信要看验证。</li>
-    <li><b>水印没有对应的题。</b>代替现有 filter 之后，带水印的图不会被 Q-Judger 的任何一项拦下。</li>
-    <li><b>端点是共用的。</b><code>scorer-qimagebench</code> 同时给 benchmark 打分和 RL reward 用，打分任务要一个一个排，不能同时跑。</li>
+    <li><b>退化图。</b>模糊、jpeg 压缩、像素化各 10 张，Material Texture、Edge Clarity、Resolution 基本都判 0。加高斯噪声 σ=40，Noise 判 0 的有 19/20；σ=20 时有 14/20。</li>
+    <li><b>生成图乱码。</b>用 fibo2、flux3_klein、ideogram4 的 QImageBench 出图。官方协议判 Text Accuracy=0 的图里，定稿抓到 61%；官方判 100 的约 43 张里有 5 张判 0，其中约 3 张是背景小字确实乱码。官方协议只看 prompt 要求的那行字，这里看画面上所有的字，用来过滤正好合适。</li>
+    <li><b>拼写条款的代价。</b>真实照片上约 0.3% 因为现实里本来就写错的字（比如手写招牌）被判 0。</li>
+  </ul>
+  <p><b>图片方向：</b>从校准集里随机抽 50 张真实照片，每张做原图、逆时针转 90°、顺时针转 90° 三个版本。</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th></th><th>原图</th><th>逆时针 90°</th><th>顺时针 90°</th></tr></thead>
+    <tbody>
+      <tr><td><code>upright_orientation</code> = false</td><td class="num">0 / 50</td><td class="num">34 / 50</td><td class="num">32 / 50</td></tr>
+      <tr><td>不加这一项时，至少一项判 0</td><td class="num">6 / 50</td><td class="num">32 / 50</td><td class="num">25 / 50</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li>原图没有一张被误判。</li>
+    <li>不加这一项时，转过的图主要靠 Composition 判 0（50 张里从 2 张升到 23 张），而这些图方向项全都抓到了。</li>
+    <li>漏掉的分两类。约一半本来就没有明确的上下方向（航拍、俯拍食物、纹理），可以接受。其余是明显转了的：judge 要么没怎么推理就答了 true，要么给画面找了合理解释（侧过来的人脸被当成人躺着，鸟被当成站在"斜的树枝"上）。</li>
+    <li>之前试过反过来的写法 <code>Rotation Failure</code>（true 表示转了），抓到 29 和 28 张；最后用正向的 <code>upright_orientation</code>。</li>
+    <li>加了这一项，Quality 其他题的分数变化在重跑噪声以内：原图上 84% 完全一致，转过的图上 91%；不改措辞直接重跑是 83–94%。</li>
+  </ul>
+  <p><b>稳定性：</b></p>
+  <ul>
+    <li>措辞相同的项，同一批图跑两次，分数完全一致的比例只有 83–94%，差异主要是 60 和 100 互换。</li>
+    <li>拿 100（Excel）的图，两次之间只重合 40–65%。例如 Physical Logic 两次分别是 21 张和 14 张，重合 9 张。</li>
+    <li>"是否判 0"比具体分数稳，但处在边缘的 0 仍然会翻。</li>
   </ul>
 </section>
 
 <section class="card">
-  <h2>7. 验证步骤</h2>
-  <p>测试表：<code>s3://nv-00-10206-vfm/lancedb/image/regular/Aesthetic-Train-V2_slice_from_maintable_20261009.lance</code>（10 万行）。</p>
-  <ol class="steps">
-    <li><span><b>看表结构。</b>有哪些列，caption 是哪一列，图片怎么取。还没做。</span></li>
-    <li><span><b>小样本打分。</b>抽 500 到 2000 行，打 Quality、Aesthetics、Creative Generation 三个维度。看每个 L3 的 Fail / Pass / Excel / N/A 比例，以及解析失败率。</span></li>
-    <li><span><b>复查计入项。</b>看 Physical Logic 和 Anatomical Fidelity 留不留。抽查 caption 准不准，因为 Lighting &amp; Atmosphere 依赖它。</span></li>
-    <li><span><b>和现有 filter 对比。</b>看表里有没有现有 filter 的六列。有的话，重点看被它丢掉的三类图（拼接、带大字、白底）：Q-Judger 的分数能不能把其中好的和差的分开，每类人工看一批。</span></li>
-    <li><span><b>看 Creative Generation 的 7 项。</b>在海报、商品图上有没有区分度，在普通照片上是不是基本都是 N/A。同时量一下这次调用实际多花多少时间。</span></li>
-    <li><span><b>跑全量。</b>信号有用的话，打完 10 万张，再写过滤规则。</span></li>
-    <li><span><b>最后才写 SILA。</b>参照 <code>image_filter_pipeline.py</code> 和 <code>hpsv3_pipeline.py</code>，pipeline 自己起 vLLM 端点，协议代码自带一份。</span></li>
-  </ol>
+  <h2>7. 怎么用来挑 100 万张</h2>
+  <ul>
+    <li>975 张真实照片里，90.7% 没有任何一项判 0。只靠"去掉判 0"，只能筛掉约 9%。（这项统计做于恢复 Feature Matching 之前，当时是 16 项。）</li>
+    <li>要留前 2.5%（4000 万到 100 万），还得在剩下的图里按拿 100 的项数排序：门槛大约是 16 项里至少 7 项拿 100，切线上有并列。</li>
+    <li>但 Excel 不稳定，跑两次只重合 40–65%，所以单跑一次、按 Excel 项数挑前 2.5%，结果有不小的随机性。</li>
+    <li>结论：Q-Judger 更适合当门槛，用来去掉判 0 的图。要在前 2.5% 里精排，需要更细的分数。一个办法是读出 judge 每一项打分的概率，算出期望分，得到连续值。还没做。</li>
+  </ul>
 </section>
 
 <section class="card">
-  <h2>8. 还没定的问题</h2>
+  <h2>8. 风险</h2>
   <ul>
-    <li>caption 在哪一列，多少行有 caption。</li>
-    <li>表里的 caption 够不够准。Lighting &amp; Atmosphere 计入的前提是 prompt 准确。</li>
-    <li>扔掉的 15 项里（Aesthetics 2 项、Creative Generation 13 项），有没有该改成"计入并标需要准确的 prompt"的。</li>
+    <li><b>单图噪声。</b>Excel 跑两次只重合 40–65%，按 Excel 项数精排的随机性很大。</li>
+    <li><b>Noise 对真实颗粒偏严。</b>约 3.5% 的真实照片因为夜景、胶片颗粒被判 0。已接受。</li>
+    <li><b>拼写条款会误伤。</b>现实里本来就写错的招牌约 0.3%。已接受。</li>
+    <li><b>Feature Matching 不稳定。</b>判 0 的图在不同 prompt 版本之间重合度低，不适合单独当硬过滤条件。</li>
+    <li><b>截断。</b>真实照片 1.3%，字多的图 14%。截断的那个维度记为空值。</li>
+    <li><b>Anatomical Fidelity 的偏向。</b>题目偏好看得见毛孔和细纹，可能压低修过的人像和棚拍。</li>
+    <li><b>拼接图和水印没有对应的题。</b>代替现有 filter 之后，这两类不会被 Q-Judger 的任何一项拦下。</li>
+    <li><b>只在一张表上校准过。</b>1000 张都来自 Aesthetic-Train-V2 切片表，其他来源的图没有验证过。</li>
+    <li><b>方向项会漏判。</b>转了 90° 的图大约抓到三分之二，有些明显转了的也会漏；测试里没有误判正常的图。只测了 50 张。</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>9. 还没定的问题</h2>
+  <ul>
+    <li>过滤规则：门槛怎么卡，前 2.5% 怎么排。</li>
+    <li>要不要做按概率算的期望分，用于精排。</li>
     <li>水印怎么办：继续用现有 filter 的 <code>watermark</code> 列，还是不管。</li>
-    <li>NSFW 怎么办：继续用现有 filter 的 <code>nsfw</code> 列，还是多调用一次 Real-world Fidelity 拿 Safety &amp; Compliance。</li>
-    <li>拼接图靠通用题打出来的分数能不能用。</li>
-    <li>最终要过滤的生产表是哪张、多少行。这决定 SILA 要开多少副本。</li>
+    <li>NSFW 怎么办：继续用现有 filter 的 <code>nsfw</code> 列，还是多调用一次拿 Safety &amp; Compliance。</li>
+    <li>拼接图怎么办。</li>
   </ul>
 </section>
 

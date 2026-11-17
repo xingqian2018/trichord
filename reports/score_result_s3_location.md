@@ -82,6 +82,8 @@ Path: `gcs:nv-00-10206-vfm/debug/xingqianx/evaluation_results/` (public-model ba
 |-----------------------------------------------------------------|----------|-------------------------|
 | qimagebench/c3p5dense_k19_sq/c3p5_ultra_v3p5pre_iter384000      | 1500     | qimagebench_result.json |
 | qimagebench/c3p5dense_k19_sq/c3p5_ultra_v1p6mid_iter343040      | 1500     | qimagebench_result.json |
+| qimagebench/c3p5dense_k19_sq/c3p5_ultra_v1p7mid_iter348032      | 1500     | qimagebench_result.json |
+| qimagebench/c3p5dense_k19_sq/c3p5_ultra_v1p7mid_iter352000      | 1500     | qimagebench_result.json |
 | qimagebench_baseline/default/gpt_image_2p5_sunburst_quality_low | 1500     | qimagebench_result.json |
 | qimagebench_baseline/default/nano_banana_2p1                    | 1500     | qimagebench_result.json |
 | qimagebench_baseline/default/qwen_image_2p1_pe                  | 1500     | qimagebench_result.json |
